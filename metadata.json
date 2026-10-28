@@ -1,0 +1,6 @@
+{
+  "name": "Lottery Alert Dashboard & Control Center",
+  "description": "ระบบแจ้งเตือนผลสลากกินแบ่งและหวย พร้อมหน้าควบคุม Dashboard, ตัวจัดการ Settings, ตัวตรวจสอบผลอัตโนมัติ และสคริปต์ Python / Cloudflare Worker",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

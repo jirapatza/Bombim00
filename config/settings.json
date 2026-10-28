@@ -1,0 +1,102 @@
+{
+  "version": "1.2.0",
+  "app_name": "Lottery Alert System Pro",
+  "sources": {
+    "pholhuay": {
+      "enabled": true,
+      "name": "ผลหวย (Pholhuay)",
+      "url": "https://api.pholhuay.com/v1/lottery/latest",
+      "timeout_sec": 10,
+      "priority": 1
+    },
+    "glo": {
+      "enabled": true,
+      "name": "สำนักงานสลากกินแบ่งรัฐบาล (GLO Official)",
+      "url": "https://www.glo.or.th/api/lottery/getLatestLottery",
+      "timeout_sec": 12,
+      "priority": 2
+    },
+    "sanook": {
+      "enabled": false,
+      "name": "Sanook Lottery",
+      "url": "https://news.sanook.com/lotto/api/latest",
+      "timeout_sec": 10,
+      "priority": 3
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "notify_on_new_draw": true,
+    "notify_on_prize_match": true,
+    "notify_prizes": {
+      "first_prize": true,
+      "last_2": true,
+      "front_3": true,
+      "last_3": true,
+      "nearby_first": false,
+      "second_prize": false,
+      "third_prize": false
+    },
+    "custom_watched_numbers": ["95", "42", "84", "19", "56", "289594"],
+    "cooldown_minutes": 15,
+    "max_retries": 3
+  },
+  "channels": {
+    "ntfy": {
+      "enabled": true,
+      "server": "https://ntfy.sh",
+      "topic": "lottery-alert-thai-2026",
+      "priority": "high",
+      "tags": ["moneybag", "dart", "loudspeaker"],
+      "click_url": "https://news.sanook.com/lotto/"
+    },
+    "telegram": {
+      "enabled": false,
+      "bot_token": "",
+      "chat_id": "",
+      "parse_mode": "HTML",
+      "silent": false
+    },
+    "discord": {
+      "enabled": false,
+      "webhook_url": "",
+      "username": "Lottery Alert Bot",
+      "avatar_url": "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=128&auto=format&fit=crop&q=80"
+    },
+    "line": {
+      "enabled": false,
+      "channel_access_token": "",
+      "target_id": ""
+    },
+    "webhook": {
+      "enabled": false,
+      "url": "",
+      "secret_token": ""
+    }
+  },
+  "ntfy": {
+    "server": "https://ntfy.sh",
+    "default_priority": "high",
+    "tags": ["moneybag", "dart", "loudspeaker"],
+    "click_url": "https://news.sanook.com/lotto/",
+    "attach_results": true
+  },
+  "schedule": {
+    "cron": "*/15 14-17 1,16 * *",
+    "timezone": "Asia/Bangkok",
+    "description": "ตรวจทุก 15 นาที ระหว่างเวลา 14:00 - 17:00 น. ในวันที่ 1 และ 16 ของทุกเดือน"
+  },
+  "message_template": {
+    "preset": "standard",
+    "title": "📢 ผล{lottery_name} งวด {draw_date}",
+    "body": "🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n⏰ ปิดรอบถัดไป: {next_closing}\n📡 แหล่งข้อมูล: {source}",
+    "speech_script": "ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. รางวัลที่หนึ่ง ออกเลข {first_prize_spelled}. เลขท้ายสองตัว ออกเลข {last_2_spelled}. และหวยรอบถัดไปที่จะปิดรับคือ {next_closing_name} ปิดรับเวลา {next_closing_time} {polite_ending}.",
+    "polite_particle": "ค่ะ",
+    "font_family": "sans",
+    "font_size": "large",
+    "modal_theme": "gold",
+    "number_display_style": "spacious",
+    "include_emojis": true,
+    "include_next_closing": true
+  }
+}

@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  lottery-alert:
+    build: .
+    container_name: lottery-alert-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - NTFY_TOPIC=lottery-alert-thai-2026
+    volumes:
+      - ./config:/app/config
+      - ./status:/app/status
+      - ./lottery_previous_results.json:/app/lottery_previous_results.json

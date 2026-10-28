@@ -1,0 +1,220 @@
+/**
+ * api/worker.js - Cloudflare Worker Proxy for Lottery Alert Dashboard
+ * 
+ * Manages GitHub API interactions securely without exposing GITHUB_TOKEN to the client browser.
+ * 
+ * Required Secrets (wrangler secret put <NAME>):
+ *   - GITHUB_TOKEN: Fine-grained Personal Access Token (Permissions: Contents: Read/Write, Actions: Read/Write)
+ *   - DASH_PASSWORD: Secret password for dashboard authorization
+ * 
+ * Required Vars (wrangler.toml [vars]):
+ *   - REPO: "username/lottery-alert" (e.g., owner/repo)
+ *   - BRANCH: "main"
+ *   - WORKFLOW: "lottery.yml"
+ *   - ALLOW_ORIGIN: "*" (or your GitHub Pages / frontend domain)
+ */
+
+export default {
+  async fetch(request, env) {
+    const origin = request.headers.get("Origin") || "*";
+    const allowOrigin = env.ALLOW_ORIGIN || "*";
+
+    // Handle CORS preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": allowOrigin === "*" ? origin : allowOrigin,
+          "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Dashboard-Password",
+          "Access-Control-Max-Age": "86400",
+        },
+      });
+    }
+
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": allowOrigin === "*" ? origin : allowOrigin,
+      "Access-Control-Allow-Credentials": "true",
+      "Content-Type": "application/json; charset=utf-8",
+    };
+
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    // Helper: Verify Dashboard Password
+    const authHeader = request.headers.get("Authorization") || "";
+    const customHeader = request.headers.get("X-Dashboard-Password") || "";
+    const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const clientPassword = bearer || customHeader;
+
+    const isAuthed = env.DASH_PASSWORD ? clientPassword === env.DASH_PASSWORD : true;
+
+    // Read routes can be public or authed based on config
+    const isWriteMethod = ["POST", "PUT", "DELETE"].includes(request.method);
+    if (isWriteMethod && !isAuthed) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized. Invalid or missing DASH_PASSWORD." }),
+        { status: 401, headers: corsHeaders }
+      );
+    }
+
+    const repo = env.REPO || "user/lottery-alert";
+    const branch = env.BRANCH || "main";
+    const workflow = env.WORKFLOW || "lottery.yml";
+    const ghToken = env.GITHUB_TOKEN;
+
+    const ghHeaders = {
+      "User-Agent": "LotteryAlert-Worker/1.0",
+      "Accept": "application/vnd.github.v3+json",
+      ...(ghToken ? { "Authorization": `Bearer ${ghToken}` } : {}),
+    };
+
+    try {
+      // 1. GET /api/status - Read status/status.json
+      if (path === "/api/status" && request.method === "GET") {
+        const ghUrl = `https://raw.githubusercontent.com/${repo}/${branch}/status/status.json?cache_bust=${Date.now()}`;
+        const res = await fetch(ghUrl);
+        if (!res.ok) {
+          return new Response(JSON.stringify({ error: "Failed to fetch status from repository" }), { status: res.status, headers: corsHeaders });
+        }
+        const data = await res.json();
+        return new Response(JSON.stringify(data), { status: 200, headers: corsHeaders });
+      }
+
+      // 2. GET /api/settings - Read config/settings.json
+      if (path === "/api/settings" && request.method === "GET") {
+        const ghUrl = `https://raw.githubusercontent.com/${repo}/${branch}/config/settings.json?cache_bust=${Date.now()}`;
+        const res = await fetch(ghUrl);
+        if (!res.ok) {
+          return new Response(JSON.stringify({ error: "Failed to fetch settings from repository" }), { status: res.status, headers: corsHeaders });
+        }
+        const data = await res.json();
+        return new Response(JSON.stringify(data), { status: 200, headers: corsHeaders });
+      }
+
+      // 3. POST /api/settings - Write and commit config/settings.json to GitHub
+      if (path === "/api/settings" && request.method === "POST") {
+        if (!ghToken) {
+          return new Response(JSON.stringify({ error: "GITHUB_TOKEN not configured on Worker" }), { status: 500, headers: corsHeaders });
+        }
+
+        const newSettings = await request.json();
+        const contentStr = JSON.stringify(newSettings, null, 2);
+        const contentBase64 = btoa(unescape(encodeURIComponent(contentStr)));
+
+        // Get current file sha first
+        const getFileUrl = `https://api.github.com/repos/${repo}/contents/config/settings.json?ref=${branch}`;
+        const currentFileRes = await fetch(getFileUrl, { headers: ghHeaders });
+        let sha = null;
+        if (currentFileRes.ok) {
+          const currentFileData = await currentFileRes.json();
+          sha = currentFileData.sha;
+        }
+
+        // Commit update via GitHub Contents API
+        const putFileUrl = `https://api.github.com/repos/${repo}/contents/config/settings.json`;
+        const commitRes = await fetch(putFileUrl, {
+          method: "PUT",
+          headers: ghHeaders,
+          body: JSON.stringify({
+            message: "chore: update config/settings.json via Lottery Dashboard",
+            content: contentBase64,
+            branch: branch,
+            ...(sha ? { sha } : {}),
+          }),
+        });
+
+        if (!commitRes.ok) {
+          const errData = await commitRes.json();
+          return new Response(JSON.stringify({ error: "GitHub commit error", details: errData }), { status: commitRes.status, headers: corsHeaders });
+        }
+
+        const result = await commitRes.json();
+        return new Response(JSON.stringify({ success: true, message: "Settings updated on GitHub successfully", commit: result.commit?.sha }), { status: 200, headers: corsHeaders });
+      }
+
+      // 4. GET /api/results - Read lottery_previous_results.json
+      if (path === "/api/results" && request.method === "GET") {
+        const ghUrl = `https://raw.githubusercontent.com/${repo}/${branch}/lottery_previous_results.json?cache_bust=${Date.now()}`;
+        const res = await fetch(ghUrl);
+        if (!res.ok) {
+          return new Response(JSON.stringify({ error: "Failed to fetch previous results" }), { status: res.status, headers: corsHeaders });
+        }
+        const data = await res.json();
+        return new Response(JSON.stringify(data), { status: 200, headers: corsHeaders });
+      }
+
+      // 5. POST /api/trigger - Trigger GitHub Action workflow manually
+      if (path === "/api/trigger" && request.method === "POST") {
+        if (!ghToken) {
+          return new Response(JSON.stringify({ error: "GITHUB_TOKEN not configured on Worker" }), { status: 500, headers: corsHeaders });
+        }
+
+        const dispatchUrl = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/dispatches`;
+        const dispatchRes = await fetch(dispatchUrl, {
+          method: "POST",
+          headers: ghHeaders,
+          body: JSON.stringify({ ref: branch }),
+        });
+
+        if (!dispatchRes.ok) {
+          const err = await dispatchRes.text();
+          return new Response(JSON.stringify({ error: "Failed to trigger workflow dispatch", details: err }), { status: dispatchRes.status, headers: corsHeaders });
+        }
+
+        return new Response(JSON.stringify({ success: true, message: `Workflow '${workflow}' dispatched successfully on branch '${branch}'.` }), { status: 200, headers: corsHeaders });
+      }
+
+      // 6. GET /api/runs - Get workflow execution runs
+      if (path === "/api/runs" && request.method === "GET") {
+        const runsUrl = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?per_page=5`;
+        const runsRes = await fetch(runsUrl, { headers: ghHeaders });
+        if (!runsRes.ok) {
+          return new Response(JSON.stringify({ runs: [] }), { status: 200, headers: corsHeaders });
+        }
+        const runsData = await runsRes.json();
+        return new Response(JSON.stringify(runsData), { status: 200, headers: corsHeaders });
+      }
+
+      // 7. POST /api/test-ntfy - Send test notification to ntfy
+      if (path === "/api/test-ntfy" && request.method === "POST") {
+        const body = await request.json();
+        const server = (body.server || "https://ntfy.sh").replace(/\/$/, "");
+        const topic = body.topic;
+        if (!topic) {
+          return new Response(JSON.stringify({ error: "Missing topic parameter" }), { status: 400, headers: corsHeaders });
+        }
+
+        const ntfyRes = await fetch(`${server}/${topic}`, {
+          method: "POST",
+          headers: {
+            "Title": "🔔 ทดสอบระบบแจ้งเตือน Lottery Alert",
+            "Priority": body.priority || "high",
+            "Tags": "tada,sparkles,dart",
+          },
+          body: body.message || "การทดสอบเชื่อมต่อจาก Lottery Alert Dashboard สำเร็จเรียบร้อย!",
+        });
+
+        if (!ntfyRes.ok) {
+          return new Response(JSON.stringify({ error: "Failed to send ntfy alert" }), { status: ntfyRes.status, headers: corsHeaders });
+        }
+
+        return new Response(JSON.stringify({ success: true, message: `Test alert sent to ${server}/${topic}` }), { status: 200, headers: corsHeaders });
+      }
+
+      // Default Health Check
+      return new Response(
+        JSON.stringify({
+          service: "Lottery Alert Cloudflare Worker Proxy",
+          status: "running",
+          repo: repo,
+          branch: branch,
+          authRequired: Boolean(env.DASH_PASSWORD),
+        }),
+        { status: 200, headers: corsHeaders }
+      );
+    } catch (err) {
+      return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+    }
+  },
+};

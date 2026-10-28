@@ -1,0 +1,312 @@
+#!/usr/bin/env python3
+"""
+lottery_checker.py - Main lottery checker and alert dispatch script.
+Lottery Alert System: สคริปต์ตรวจสอบผลสลากกินแบ่งรัฐบาลและส่งแจ้งเตือนผ่าน ntfy
+"""
+
+import os
+import sys
+import json
+import datetime
+
+try:
+    import requests
+except ImportError:
+    requests = None
+    import urllib.request
+    import urllib.error
+
+import settings_loader as sl
+
+# Load configuration at startup
+S = sl.load()
+
+# Read environment variables
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
+
+
+def _http_get_json(url: str, timeout: int = 10, headers: dict = None) -> dict:
+    """Helper to perform HTTP GET returning parsed JSON with fallback."""
+    headers = headers or {"User-Agent": "LotteryAlert/1.0", "Accept": "application/json"}
+    if requests:
+        res = requests.get(url, headers=headers, timeout=timeout)
+        if res.status_code == 200:
+            return res.json()
+        return {}
+    else:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            if response.status == 200:
+                return json.loads(response.read().decode("utf-8"))
+        return {}
+
+
+def _http_post(url: str, data: bytes, headers: dict = None, timeout: int = 10) -> bool:
+    """Helper to perform HTTP POST with fallback."""
+    headers = headers or {}
+    if requests:
+        res = requests.post(url, data=data, headers=headers, timeout=timeout)
+        return res.status_code == 200
+    else:
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            return response.status == 200
+
+
+def fetch_from_glo() -> list:
+    """Fetch latest Thai Government Lottery results from GLO API."""
+    url = S.get("sources", {}).get("glo", {}).get("url", "https://www.glo.or.th/api/lottery/getLatestLottery")
+    timeout = S.get("sources", {}).get("glo", {}).get("timeout_sec", 12)
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json"
+    }
+
+    try:
+        data = _http_get_json(url, timeout=timeout, headers=headers)
+        if data:
+            response_data = data.get("response", {}) or data.get("data", {}) or data
+            date_thai = response_data.get("date") or response_data.get("drawDate")
+            
+            prizes = response_data.get("data", {}) or response_data
+            first = prizes.get("first", {}).get("number", []) if isinstance(prizes.get("first"), dict) else []
+            first_num = first[0] if first else response_data.get("firstPrize")
+            
+            last2 = prizes.get("last2", {}).get("number", []) if isinstance(prizes.get("last2"), dict) else []
+            last2_num = last2[0] if last2 else response_data.get("last2")
+
+            if first_num or last2_num:
+                return [{
+                    "งวดวันที่": date_thai or "งวดปัจจุบัน",
+                    "วันที่จัดรูปแบบ": datetime.date.today().isoformat(),
+                    "รางวัลที่_1": str(first_num or "").zfill(6),
+                    "เลขท้าย_2_ตัว": str(last2_num or "").zfill(2),
+                    "เลขหน้า_3_ตัว": [str(x).zfill(3) for x in prizes.get("first3", {}).get("number", ["000", "000"])],
+                    "เลขท้าย_3_ตัว": [str(x).zfill(3) for x in prizes.get("last3", {}).get("number", ["000", "000"])],
+                    "รางวัลข้างเคียงรางวัลที่_1": [],
+                    "แหล่งข้อมูล": "glo",
+                    "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
+                    "สถานะการแจ้งเตือน": "pending"
+                }]
+    except Exception as e:
+        print(f"[WARN] Failed fetching from GLO: {e}")
+    
+    return []
+
+
+def fetch_from_pholhuay() -> list:
+    """Fetch latest lottery results from Pholhuay source."""
+    url = S.get("sources", {}).get("pholhuay", {}).get("url", "https://api.pholhuay.com/v1/lottery/latest")
+    timeout = S.get("sources", {}).get("pholhuay", {}).get("timeout_sec", 10)
+    
+    headers = {"User-Agent": "LotteryAlert/1.0", "Accept": "application/json"}
+    try:
+        data = _http_get_json(url, timeout=timeout, headers=headers)
+        if isinstance(data, dict) and (data.get("first") or data.get("first_prize")):
+            return [{
+                "งวดวันที่": data.get("date", "งวดล่าสุด"),
+                "วันที่จัดรูปแบบ": datetime.date.today().isoformat(),
+                "รางวัลที่_1": str(data.get("first") or data.get("first_prize", "")).zfill(6),
+                "เลขท้าย_2_ตัว": str(data.get("last2") or data.get("two_digits", "")).zfill(2),
+                "เลขหน้า_3_ตัว": [str(x).zfill(3) for x in data.get("front3", [])],
+                "เลขท้าย_3_ตัว": [str(x).zfill(3) for x in data.get("rear3", [])],
+                "รางวัลข้างเคียงรางวัลที่_1": [],
+                "แหล่งข้อมูล": "pholhuay",
+                "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
+                "สถานะการแจ้งเตือน": "pending"
+            }]
+    except Exception as e:
+        print(f"[WARN] Failed fetching from Pholhuay: {e}")
+    
+    return []
+
+
+def send_ntfy_notification(row: dict) -> bool:
+    """Send lottery results to ntfy server using configuration in settings.json."""
+    ntfy_server = S.get("ntfy", {}).get("server", "https://ntfy.sh").rstrip("/")
+    topic = NTFY_TOPIC or S.get("channels", {}).get("ntfy", {}).get("topic", "")
+    
+    if not topic:
+        print("[INFO] NTFY_TOPIC is not set. Skipping ntfy push.")
+        return False
+
+    url = f"{ntfy_server}/{topic}"
+    
+    draw_date = row.get("งวดวันที่", "สลากกินแบ่งรัฐบาล")
+    first_prize = row.get("รางวัลที่_1", "-")
+    last_2 = row.get("เลขท้าย_2_ตัว", "-")
+    front_3 = ", ".join(row.get("เลขหน้า_3_ตัว", [])) or "-"
+    last_3 = ", ".join(row.get("เลขท้าย_3_ตัว", [])) or "-"
+
+    tmpl = S.get("message_template", {})
+    title_pattern = tmpl.get("title", "📢 ผล{lottery_name} งวด {draw_date}")
+    body_pattern = tmpl.get("body", "🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n📡 แหล่งข้อมูล: {source}")
+
+    template_vars = {
+        "lottery_name": "สลากกินแบ่งรัฐบาล",
+        "draw_date": draw_date,
+        "first_prize": first_prize,
+        "last_2": last_2,
+        "front_3": front_3,
+        "last_3": last_3,
+        "source": row.get('แหล่งข้อมูล', 'official'),
+        "next_closing": "หวยฮานอยพิเศษ (17:00 น.)"
+    }
+
+    try:
+        title = title_pattern.format(**template_vars)
+        body = body_pattern.format(**template_vars)
+    except Exception:
+        title = f"📢 ผลสลากกินแบ่งรัฐบาล งวด {draw_date}"
+        body = f"🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'official')}"
+
+    priority = S.get("ntfy", {}).get("default_priority", "high")
+    tags = ",".join(S.get("ntfy", {}).get("tags", ["moneybag", "dart"]))
+    click_url = S.get("ntfy", {}).get("click_url", "")
+
+    headers = {
+        "Title": title.encode("utf-8").decode("latin-1", "ignore"),
+        "Priority": priority,
+        "Tags": tags,
+    }
+    if click_url:
+        headers["Click"] = click_url
+
+    try:
+        success = _http_post(url, data=body.encode("utf-8"), headers=headers, timeout=10)
+        if success:
+            print(f"[SUCCESS] Sent ntfy notification to topic '{topic}' via {ntfy_server}")
+            return True
+        else:
+            print(f"[ERROR] Failed posting to ntfy.")
+    except Exception as e:
+        print(f"[ERROR] Failed to send ntfy notification: {e}")
+
+    return False
+
+
+def send_discord_notification(row: dict) -> bool:
+    """Send rich embed to Discord webhook if configured."""
+    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL") or S.get("channels", {}).get("discord", {}).get("webhook_url", "")
+    if not webhook_url:
+        return False
+
+    payload = {
+        "username": "Lottery Alert Bot",
+        "embeds": [{
+            "title": f"📢 ผลสลากกินแบ่งรัฐบาล งวดวันที่ {row.get('งวดวันที่', '')}",
+            "description": f"🎯 **รางวัลที่ 1:** `{row.get('รางวัลที่_1', '-')}`\n🔢 **เลขท้าย 2 ตัว:** `{row.get('เลขท้าย_2_ตัว', '-')}`\n✨ **เลขหน้า 3 ตัว:** `{', '.join(row.get('เลขหน้า_3_ตัว', []))}`\n🌟 **เลขท้าย 3 ตัว:** `{', '.join(row.get('เลขท้าย_3_ตัว', []))}`\n⏰ **ปิดรอบถัดไป:** หวยฮานอยพิเศษ (17:00 น.)",
+            "color": 16107019,
+            "footer": {"text": "Lottery Alert System Pro"}
+        }]
+    }
+
+    try:
+        success = _http_post(webhook_url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"})
+        if success:
+            print("[SUCCESS] Sent notification to Discord Webhook.")
+            return True
+    except Exception as e:
+        print(f"[WARN] Failed posting to Discord: {e}")
+    return False
+
+
+def send_telegram_notification(row: dict) -> bool:
+    """Send formatted HTML to Telegram chat if configured."""
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN") or S.get("channels", {}).get("telegram", {}).get("bot_token", "")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID") or S.get("channels", {}).get("telegram", {}).get("chat_id", "")
+    if not bot_token or not chat_id:
+        return False
+
+    text = (
+        f"📢 <b>ผลสลากกินแบ่งรัฐบาล งวดวันที่ {row.get('งวดวันที่', '')}</b>\n\n"
+        f"🎯 <b>รางวัลที่ 1:</b> <code>{row.get('รางวัลที่_1', '-')}</code>\n"
+        f"🔢 <b>เลขท้าย 2 ตัว:</b> <code>{row.get('เลขท้าย_2_ตัว', '-')}</code>\n"
+        f"✨ <b>เลขหน้า 3 ตัว:</b> <code>{', '.join(row.get('เลขหน้า_3_ตัว', []))}</code>\n"
+        f"🌟 <b>เลขท้าย 3 ตัว:</b> <code>{', '.join(row.get('เลขท้าย_3_ตัว', []))}</code>\n"
+        f"⏰ <b>ปิดรอบถัดไป:</b> หวยฮานอยพิเศษ (17:00 น.)"
+    )
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    try:
+        success = _http_post(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"})
+        if success:
+            print("[SUCCESS] Sent notification to Telegram.")
+            return True
+    except Exception as e:
+        print(f"[WARN] Failed posting to Telegram: {e}")
+    return False
+
+
+def send_all_notifications(row: dict) -> bool:
+    """Dispatch alert across all active notification channels."""
+    s1 = send_ntfy_notification(row)
+    s2 = send_discord_notification(row)
+    s3 = send_telegram_notification(row)
+    return s1 or s2 or s3
+
+
+def main():
+    print("=" * 60)
+    print("🎯 Lottery Alert Checker Started")
+    print(f"Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 60)
+
+    rows = []
+    source_used = None
+
+    # Step 1: Check pholhuay if enabled
+    if sl.source_enabled(S, "pholhuay"):
+        print("[CHECK] Querying source: pholhuay...")
+        pholhuay_rows = fetch_from_pholhuay()
+        if pholhuay_rows:
+            rows = pholhuay_rows
+            source_used = "pholhuay"
+    else:
+        print("[SKIP] Source 'pholhuay' is disabled in settings.json.")
+
+    # Step 2: Check glo if still no rows and glo is enabled
+    if not rows and sl.source_enabled(S, "glo"):
+        print("[CHECK] Querying source: glo...")
+        glo_rows = fetch_from_glo()
+        if glo_rows:
+            rows = glo_rows
+            source_used = "glo"
+    elif not rows and not sl.source_enabled(S, "glo"):
+        print("[SKIP] Source 'glo' is disabled in settings.json.")
+
+    # Fallback simulation or previous records if live APIs are offline
+    previous_results = sl.load_previous_results()
+    if not rows:
+        print("[INFO] Live external APIs returned no new draw. Inspecting previous records...")
+        if previous_results:
+            rows = [previous_results[0]]
+            source_used = rows[0].get("แหล่งข้อมูล", "archive")
+
+    # Step 3: Filter rows that need notification
+    notify_candidates = [r for r in rows if sl.should_notify(S, r)]
+    print(f"[FILTER] Rows ready for notification: {len(notify_candidates)} of {len(rows)}")
+
+    # Send notifications across all configured channels
+    for r in notify_candidates:
+        sent = send_all_notifications(r)
+        if sent:
+            r["สถานะการแจ้งเตือน"] = "sent"
+
+    # Save to history if novel
+    if rows and previous_results:
+        existing_dates = {p.get("งวดวันที่") for p in previous_results}
+        if rows[0].get("งวดวันที่") not in existing_dates:
+            previous_results.insert(0, rows[0])
+            sl.save_results(previous_results)
+            print(f"[SAVED] Stored new draw in lottery_previous_results.json: {rows[0].get('งวดวันที่')}")
+
+    # Step 4: Write status
+    sl.write_status(rows, source_used=source_used)
+    print(f"[DONE] Execution finished. Status written via settings_loader.write_status.")
+
+
+if __name__ == "__main__":
+    main()

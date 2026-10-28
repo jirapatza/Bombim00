@@ -1,0 +1,48 @@
+{
+  "system_status": "healthy",
+  "last_run_timestamp": "2026-10-28T15:02:25.739995+07:00",
+  "last_run_date_thai": "28/10/2026 15:02:25 น.",
+  "total_checks": 144,
+  "last_source_used": "glo",
+  "status_message": "ตรวจสอบผลสลากสำเร็จ (งวด 16 ตุลาคม 2569) ผ่านแหล่ง glo",
+  "active_sources_count": 1,
+  "latest_draw_detected": "16 ตุลาคม 2569",
+  "notifications_sent_today": 5,
+  "recent_logs": [
+    {
+      "timestamp": "2026-10-28T15:02:25.739995+07:00",
+      "level": "INFO",
+      "message": "ตรวจสอบผลสลากสำเร็จ (งวด 16 ตุลาคม 2569) ผ่านแหล่ง glo"
+    },
+    {
+      "timestamp": "2026-10-28T14:12:14.649698+07:00",
+      "level": "INFO",
+      "message": "ตรวจสอบผลสลากสำเร็จ (งวด 16 ตุลาคม 2569) ผ่านแหล่ง glo"
+    },
+    {
+      "timestamp": "2026-10-16T16:05:00+07:00",
+      "level": "INFO",
+      "message": "Updated status/status.json and lottery_previous_results.json successfully."
+    },
+    {
+      "timestamp": "2026-10-16T16:04:59+07:00",
+      "level": "INFO",
+      "message": "Dispatched ntfy alert for draw 16 ต.ค. 2569 (Priority: high)"
+    },
+    {
+      "timestamp": "2026-10-16T16:04:58+07:00",
+      "level": "INFO",
+      "message": "Fetched results from source 'glo' successfully. Draw date: 16 ต.ค. 2569"
+    },
+    {
+      "timestamp": "2026-10-16T16:04:50+07:00",
+      "level": "INFO",
+      "message": "Checking source 'pholhuay' - 200 OK"
+    },
+    {
+      "timestamp": "2026-10-16T16:04:48+07:00",
+      "level": "INFO",
+      "message": "Workflow started: lottery_checker.py v1.0.0"
+    }
+  ]
+}
