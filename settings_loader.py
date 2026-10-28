@@ -62,6 +62,24 @@ def source_enabled(S: Dict[str, Any], source_name: str) -> bool:
     return False
 
 
+def result_fingerprint(row: Dict[str, Any]) -> str:
+    """Stable identity for the same lottery draw and its result values."""
+    identity = {
+        "lottery": str(row.get("ชื่อหวย") or row.get("lottery_name") or row.get("หวย") or "สลากกินแบ่งรัฐบาล").strip().casefold(),
+        "draw_date": str(row.get("งวดวันที่") or row.get("วันที่จัดรูปแบบ") or row.get("date") or "").strip(),
+        "first": str(row.get("รางวัลที่_1") or row.get("firstPrize") or row.get("first") or "").strip(),
+        "last2": str(row.get("เลขท้าย_2_ตัว") or row.get("bottom2") or row.get("last2") or "").strip(),
+        "front3": sorted(str(x).strip() for x in (row.get("เลขหน้า_3_ตัว") or row.get("front3") or []) if str(x).strip()),
+        "last3": sorted(str(x).strip() for x in (row.get("เลขท้าย_3_ตัว") or row.get("last3") or []) if str(x).strip()),
+    }
+    return json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def was_already_notified(row: Dict[str, Any], previous: List[Dict[str, Any]]) -> bool:
+    fingerprint = result_fingerprint(row)
+    return any(old.get("สถานะการแจ้งเตือน") == "sent" and result_fingerprint(old) == fingerprint for old in previous)
+
+
 def should_notify(S: Dict[str, Any], row: Dict[str, Any]) -> bool:
     """
     Determine if a lottery draw row should be notified via ntfy.
@@ -75,29 +93,22 @@ def should_notify(S: Dict[str, Any], row: Dict[str, Any]) -> bool:
     if row.get("สถานะการแจ้งเตือน") == "sent":
         return False
 
-    # If configured to notify on any new draw with first prize
+    has_result = any(str(row.get(k, "")).strip() for k in ("รางวัลที่_1", "เลขท้าย_2_ตัว", "top3", "bottom2"))
+    if not has_result:
+        return False
     if notifications.get("notify_on_new_draw", True):
-        if row.get("รางวัลที่_1") or row.get("เลขท้าย_2_ตัว"):
-            return True
-
-    # Check custom watched numbers
+        return True
     watched = [str(w).strip() for w in notifications.get("custom_watched_numbers", []) if str(w).strip()]
-    if watched:
-        all_numbers = []
-        if row.get("รางวัลที่_1"):
-            all_numbers.append(str(row["รางวัลที่_1"]))
-        if row.get("เลขท้าย_2_ตัว"):
-            all_numbers.append(str(row["เลขท้าย_2_ตัว"]))
-        if isinstance(row.get("เลขหน้า_3_ตัว"), list):
-            all_numbers.extend([str(x) for x in row["เลขหน้า_3_ตัว"]])
-        if isinstance(row.get("เลขท้าย_3_ตัว"), list):
-            all_numbers.extend([str(x) for x in row["เลขท้าย_3_ตัว"]])
-        
-        for w in watched:
-            if any(w in num for num in all_numbers):
-                return True
-
-    return True
+    numbers = []
+    for key in ("รางวัลที่_1", "เลขท้าย_2_ตัว", "top3", "bottom2"):
+        value = row.get(key)
+        if value not in (None, ""):
+            numbers.append(str(value).replace(",", "").strip())
+    for key in ("เลขหน้า_3_ตัว", "เลขท้าย_3_ตัว"):
+        value = row.get(key, [])
+        if isinstance(value, list):
+            numbers.extend(str(x).strip() for x in value)
+    return any(w in number for w in watched for number in numbers) if watched else False
 
 
 def write_status(
@@ -149,6 +160,11 @@ def write_status(
     # Keep only 20 latest logs
     recent_logs = recent_logs[:20]
 
+    previous_day = str(existing.get("last_run_date_thai", "")).split(" ")[0]
+    current_day = now.strftime("%d/%m/%Y")
+    previous_sent = existing.get("notifications_sent_today", 0) if previous_day == current_day else 0
+    sent_now = sum(1 for row in rows if row.get("สถานะการแจ้งเตือน") == "sent")
+
     status_data = {
         "system_status": system_status,
         "last_run_timestamp": iso_time,
@@ -158,7 +174,7 @@ def write_status(
         "status_message": status_message,
         "active_sources_count": len([r for r in rows if r]) if rows else existing.get("active_sources_count", 2),
         "latest_draw_detected": rows[0].get("งวดวันที่", "") if rows else existing.get("latest_draw_detected", ""),
-        "notifications_sent_today": existing.get("notifications_sent_today", 0) + (1 if not error and rows else 0),
+        "notifications_sent_today": previous_sent + sent_now,
         "recent_logs": recent_logs
     }
 
