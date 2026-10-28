@@ -115,7 +115,8 @@ def write_status(
     rows: List[Dict[str, Any]], 
     status_path: str = DEFAULT_STATUS_PATH,
     error: Optional[str] = None,
-    source_used: Optional[str] = None
+    source_used: Optional[str] = None,
+    notifications_sent: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     Write status.json after execution.
@@ -163,7 +164,7 @@ def write_status(
     previous_day = str(existing.get("last_run_date_thai", "")).split(" ")[0]
     current_day = now.strftime("%d/%m/%Y")
     previous_sent = existing.get("notifications_sent_today", 0) if previous_day == current_day else 0
-    sent_now = sum(1 for row in rows if row.get("สถานะการแจ้งเตือน") == "sent")
+    sent_now = notifications_sent if notifications_sent is not None else sum(1 for row in rows if row.get("สถานะการแจ้งเตือน") == "sent")
 
     status_data = {
         "system_status": system_status,
