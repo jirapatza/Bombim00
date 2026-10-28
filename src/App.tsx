@@ -334,6 +334,7 @@ export default function App() {
 
   const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const queueTimeoutRef = useRef<any>(null);
+  const announcementQueueRef = useRef<LotteryAnnouncement[]>([]);
 
   const showToast = (msg: string) => {
     setNotificationToast(msg);
@@ -581,35 +582,37 @@ export default function App() {
       utterance.voice = thaiVoice;
     }
 
+    let advanced = false;
+    const advanceQueue = () => {
+      if (advanced) return;
+      advanced = true;
+      setIsSpeaking(false);
+      activeUtteranceRef.current = null;
+      const nextIndex = index + 1;
+      if (nextIndex >= total) return;
+      setIsTransitioningQueue(true);
+      queueTimeoutRef.current = setTimeout(() => {
+        setIsTransitioningQueue(false);
+        const nextItem = announcementQueueRef.current[nextIndex];
+        if (!nextItem) {
+          console.warn('Announcement queue item missing at index', nextIndex);
+          return;
+        }
+        setCurrentQueueIndex(nextIndex);
+        speakCurrentAnnouncement(nextItem, nextIndex, announcementQueueRef.current.length);
+      }, 1200);
+    };
+
     utterance.onstart = () => {
       setIsSpeaking(true);
       setIsTransitioningQueue(false);
     };
 
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      activeUtteranceRef.current = null;
-
-      if (index + 1 < total) {
-        setIsTransitioningQueue(true);
-        queueTimeoutRef.current = setTimeout(() => {
-          setIsTransitioningQueue(false);
-          const nextIndex = index + 1;
-          setCurrentQueueIndex(nextIndex);
-          setAnnouncementQueue((prev) => {
-            const nextItem = prev[nextIndex];
-            if (nextItem) {
-              speakCurrentAnnouncement(nextItem, nextIndex, prev.length);
-            }
-            return prev;
-          });
-        }, 1500);
-      }
-    };
-
+    // Advance outside React state updater callbacks to prevent duplicate speech in Strict Mode.
+    utterance.onend = advanceQueue;
     utterance.onerror = (e) => {
-      console.warn('Speech error:', e);
-      setIsSpeaking(false);
+      console.warn('Speech error; skipping to next queued lottery:', e);
+      advanceQueue();
     };
 
     activeUtteranceRef.current = utterance;
@@ -619,7 +622,9 @@ export default function App() {
   const triggerAnnouncements = (items: LotteryAnnouncement[]) => {
     if (!items || items.length === 0) return;
 
+    stopSpeech();
     playChime();
+    announcementQueueRef.current = [...items];
     setAnnouncementQueue(items);
     setCurrentQueueIndex(0);
     setIsModalOpen(true);
