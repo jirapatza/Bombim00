@@ -127,8 +127,11 @@ def send_ntfy_notification(row: dict) -> bool:
     ntfy_server = S.get("ntfy", {}).get("server", "https://ntfy.sh").rstrip("/")
     topic = NTFY_TOPIC or S.get("channels", {}).get("ntfy", {}).get("topic", "")
     
+    if not S.get("channels", {}).get("ntfy", {}).get("enabled", True):
+        print("[INFO] ntfy channel is disabled in config/settings.json.")
+        return False
     if not topic:
-        print("[INFO] NTFY_TOPIC is not set. Skipping ntfy push.")
+        print("[ERROR] NTFY_TOPIC is empty; cannot deliver push notification.")
         return False
 
     url = f"{ntfy_server}/{topic}"
@@ -156,17 +159,17 @@ def send_ntfy_notification(row: dict) -> bool:
 
     try:
         title = title_pattern.format(**template_vars)
-        body = body_pattern.format(**template_vars)
+        body = f"{title}\n\n" + body_pattern.format(**template_vars)
     except Exception:
         title = f"📢 ผลสลากกินแบ่งรัฐบาล งวด {draw_date}"
-        body = f"🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'official')}"
+        body = f"{title}\n\n🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'official')}"
 
     priority = S.get("ntfy", {}).get("default_priority", "high")
     tags = ",".join(S.get("ntfy", {}).get("tags", ["moneybag", "dart"]))
     click_url = S.get("ntfy", {}).get("click_url", "")
 
     headers = {
-        "Title": title.encode("utf-8").decode("latin-1", "ignore"),
+        "Title": "Lottery result alert",
         "Priority": priority,
         "Tags": tags,
     }
@@ -250,62 +253,57 @@ def send_all_notifications(row: dict) -> bool:
 
 def main():
     print("=" * 60)
-    print("🎯 Lottery Alert Checker Started")
-    print(f"Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("Lottery Alert Checker Started")
+    print(f"Time (UTC): {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
+    previous_results = sl.load_previous_results()
+    rows, source_used = [], None
 
-    rows = []
-    source_used = None
-
-    # Step 1: Check pholhuay if enabled
+    # Never treat cached history as a fresh result.
     if sl.source_enabled(S, "pholhuay"):
         print("[CHECK] Querying source: pholhuay...")
-        pholhuay_rows = fetch_from_pholhuay()
-        if pholhuay_rows:
-            rows = pholhuay_rows
+        rows = fetch_from_pholhuay()
+        if rows:
             source_used = "pholhuay"
-    else:
-        print("[SKIP] Source 'pholhuay' is disabled in settings.json.")
-
-    # Step 2: Check glo if still no rows and glo is enabled
     if not rows and sl.source_enabled(S, "glo"):
         print("[CHECK] Querying source: glo...")
-        glo_rows = fetch_from_glo()
-        if glo_rows:
-            rows = glo_rows
+        rows = fetch_from_glo()
+        if rows:
             source_used = "glo"
-    elif not rows and not sl.source_enabled(S, "glo"):
-        print("[SKIP] Source 'glo' is disabled in settings.json.")
 
-    # Fallback simulation or previous records if live APIs are offline
-    previous_results = sl.load_previous_results()
     if not rows:
-        print("[INFO] Live external APIs returned no new draw. Inspecting previous records...")
-        if previous_results:
-            rows = [previous_results[0]]
-            source_used = rows[0].get("แหล่งข้อมูล", "archive")
+        print("[INFO] No live result available; cached results will not be re-sent.")
+        sl.write_status([], source_used=source_used)
+        return
 
-    # Step 3: Filter rows that need notification
-    notify_candidates = [r for r in rows if sl.should_notify(S, r)]
-    print(f"[FILTER] Rows ready for notification: {len(notify_candidates)} of {len(rows)}")
+    force_notify = os.environ.get("FORCE_NOTIFY", "").strip().lower() == "true"
+    delivered = []
+    for row in rows:
+        row.setdefault("ชื่อหวย", "สลากกินแบ่งรัฐบาล")
+        row.setdefault("แหล่งข้อมูล", source_used or "unknown")
+        if not sl.should_notify(S, row):
+            row["สถานะการแจ้งเตือน"] = "not_eligible"
+            continue
+        if not force_notify and sl.was_already_notified(row, previous_results):
+            row["สถานะการแจ้งเตือน"] = "sent"
+            print(f"[DEDUP] Already delivered; skip {row.get('งวดวันที่', 'unknown draw')}.")
+            continue
+        if send_all_notifications(row):
+            row["สถานะการแจ้งเตือน"] = "sent"
+            delivered.append(row)
+        else:
+            row["สถานะการแจ้งเตือน"] = "failed"
+            print("[ERROR] All configured notification channels failed; result remains retryable.")
 
-    # Send notifications across all configured channels
-    for r in notify_candidates:
-        sent = send_all_notifications(r)
-        if sent:
-            r["สถานะการแจ้งเตือน"] = "sent"
-
-    # Save to history if novel
-    if rows and previous_results:
-        existing_dates = {p.get("งวดวันที่") for p in previous_results}
-        if rows[0].get("งวดวันที่") not in existing_dates:
-            previous_results.insert(0, rows[0])
-            sl.save_results(previous_results)
-            print(f"[SAVED] Stored new draw in lottery_previous_results.json: {rows[0].get('งวดวันที่')}")
-
-    # Step 4: Write status
+    merged, seen = [], set()
+    for row in rows + previous_results:
+        fingerprint = sl.result_fingerprint(row)
+        if fingerprint not in seen:
+            seen.add(fingerprint)
+            merged.append(row)
+    sl.save_results(merged[:200])
     sl.write_status(rows, source_used=source_used)
-    print(f"[DONE] Execution finished. Status written via settings_loader.write_status.")
+    print(f"[DONE] Checked {len(rows)} live result(s); delivered {len(delivered)} notification(s).")
 
 
 if __name__ == "__main__":
