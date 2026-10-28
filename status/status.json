@@ -1,14 +1,19 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-10-29T04:38:35.439506+07:00",
-  "last_run_date_thai": "29/10/2026 04:38:35 น.",
-  "total_checks": 153,
+  "last_run_timestamp": "2026-10-29T05:17:52.024430+07:00",
+  "last_run_date_thai": "29/10/2026 05:17:52 น.",
+  "total_checks": 154,
   "last_source_used": "glo",
   "status_message": "ตรวจสอบผลสลากสำเร็จ (งวด ไม่พบข้อมูล) ผ่านแหล่ง auto",
   "active_sources_count": 1,
   "latest_draw_detected": "16 ตุลาคม 2569",
   "notifications_sent_today": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-10-29T05:17:52.024430+07:00",
+      "level": "INFO",
+      "message": "ตรวจสอบผลสลากสำเร็จ (งวด ไม่พบข้อมูล) ผ่านแหล่ง auto"
+    },
     {
       "timestamp": "2026-10-29T04:38:35.439506+07:00",
       "level": "INFO",
