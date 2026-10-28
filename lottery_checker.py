@@ -302,7 +302,7 @@ def main():
             seen.add(fingerprint)
             merged.append(row)
     sl.save_results(merged[:200])
-    sl.write_status(rows, source_used=source_used)
+    sl.write_status(rows, source_used=source_used, notifications_sent=len(delivered))
     print(f"[DONE] Checked {len(rows)} live result(s); delivered {len(delivered)} notification(s).")
 
 
