@@ -123,12 +123,15 @@ def fetch_from_pholhuay_stock_groups() -> list:
         for heading in headings:
             label = heading.get_text(" ", strip=True)
             if heading.name == "h2":
+                group = ""
                 for key, value in group_map.items():
                     if key in label:
                         group = value
                         break
                 continue
             if heading.name != "h3" or not group:
+                continue
+            if not label.startswith("หวยหุ้น") or any(q in label for q in ("ในหน้านี้", "อัปเดตเมื่อไร", "ออกวันไหน", "ดูย้อนหลัง")):
                 continue
             # Find the smallest nearby card/container that contains both result fields.
             node = heading
@@ -138,7 +141,7 @@ def fetch_from_pholhuay_stock_groups() -> list:
                 if node is None:
                     break
                 candidate = node.get_text(" ", strip=True)
-                if "3 ตัวบน" in candidate and "2 ตัวล่าง" in candidate and "งวด" in candidate:
+                if "3 ตัวบน" in candidate and "2 ตัวล่าง" in candidate and "งวด" in candidate and re.search(r"ออก\\s*\\d{1,2}:\\d{2}\\s*น", candidate):
                     card_text = candidate
                     break
             if not card_text:
