@@ -28,7 +28,15 @@
       "name": "RANLOTTO public API (Thai government results fallback)",
       "url": "https://api.ranlotto.com/api/public/v1/lottery/result/latest",
       "timeout_sec": 10,
-      "priority": 3
+      "priority": 4
+    },
+    "lotterychecks": {
+      "enabled": true,
+      "name": "LotteryChecks public results API (Thai government fallback)",
+      "url": "https://lotterychecks.com/api/public/results?lottery=thai-government&limit=1",
+      "timeout_sec": 10,
+      "priority": 3,
+      "attribution": "https://lotterychecks.com"
     }
   },
   "notifications": {
