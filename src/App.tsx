@@ -71,6 +71,7 @@ import { MobileNotificationHub } from './components/MobileNotificationHub';
 import { LiveUpcomingDraws } from './components/LiveUpcomingDraws';
 import { SettingsCenter } from './components/SettingsCenter';
 import { NotificationPipelineInspector } from './components/NotificationPipelineInspector';
+import { AppDownloadModal } from './components/AppDownloadModal';
 
 interface LotteryResult {
   งวดวันที่: string;
@@ -348,6 +349,7 @@ export default function App() {
   const [isTriggering, setIsTriggering] = useState<boolean>(false);
   const [notificationToast, setNotificationToast] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState<boolean>(false);
 
   // Settings raw editor state
   const [rawSettingsMode, setRawSettingsMode] = useState<boolean>(false);
@@ -913,6 +915,26 @@ export default function App() {
     }
   };
 
+  // Update all lotteries (for schedule and result edits in modal)
+  const handleUpdateAllLotteries = async (updated: LotteryItem[]) => {
+    setAllLotteries(updated);
+    try {
+      const res = await fetch('/api/all-lotteries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('💾 บันทึกและอัปเดตตารางหวยเรียบร้อยแล้ว');
+      } else {
+        showToast('บันทึกลงเซิร์ฟเวอร์ไม่สำเร็จ');
+      }
+    } catch {
+      showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อบันทึกตารางหวยได้');
+    }
+  };
+
   // Fetch initial data
   const fetchData = async () => {
     setIsLoading(true);
@@ -1440,14 +1462,21 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsDownloadModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs flex items-center gap-1.5 transition shadow-md shadow-amber-500/20 cursor-pointer active:scale-95"
+            >
+              <Smartphone className="w-4 h-4" />
+              📲 ติดตั้งแอพลงมือถือทันที
+            </button>
             <a
               href="https://ntfy.sh/lottery-bombimm43"
               target="_blank"
               rel="noreferrer"
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition shadow-md shadow-emerald-500/20"
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-1.5 transition border border-slate-700"
             >
-              <Smartphone className="w-4 h-4" />
-              📲 แตะตรงนี้เพื่อเปิดรับแจ้งเตือนบนมือถือ (เปิด ntfy.sh/lottery-bombimm43)
+              <span>รับแจ้งเตือน ntfy</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -1513,6 +1542,14 @@ export default function App() {
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
             </button>
+
+            <button
+              onClick={() => setIsDownloadModalOpen(true)}
+              className="px-3.5 py-2 text-xs font-bold rounded-lg bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white transition flex items-center gap-1.5 shadow-md shadow-purple-600/25 cursor-pointer active:scale-95"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-amber-300" />
+              <span>📲 โหลดแอป / APK</span>
+            </button>
           </div>
         </div>
 
@@ -1542,7 +1579,7 @@ export default function App() {
               }`}
             >
               <TableProperties className="w-4 h-4 text-indigo-400" />
-              <span>📊 ตารางสรุปผลรายวัน (31 หวย เรียงตามเวลา)</span>
+              <span>📊 ตารางสรุปผลรายวัน ({allLotteries.length || 51} หวย เรียงตามเวลา)</span>
             </button>
 
             {/* Tab 3: Unified Settings Center */}
@@ -1583,7 +1620,7 @@ export default function App() {
           />
         )}
 
-        {/* ==================== TAB 2: DAILY SUMMARY TABLE (FULL 31 LOTTERIES MATRIX) ==================== */}
+        {/* ==================== TAB 2: DAILY SUMMARY TABLE (FULL 51 LOTTERIES MATRIX) ==================== */}
         {activeTab === 'summary' && (
           <DailySummaryTable
             lotteries={allLotteries}
@@ -1591,6 +1628,8 @@ export default function App() {
               setSelectedCatalogLottery(item);
             }}
             onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
+            onUpdateLotteries={handleUpdateAllLotteries}
+            nextClosing={getNextClosingLottery()}
           />
         )}
 
@@ -3009,6 +3048,14 @@ export default function App() {
       <footer className="border-t border-slate-900 bg-slate-950 py-4 text-center text-xs text-slate-500">
         Lottery Alert System • ระบบแจ้งเตือนผลหวยพร้อมเสียงพูดไทย & ตัวปรับแต่งรูปแบบข้อความตัวหนังสือ
       </footer>
+
+      {/* App Download & APK Modal */}
+      <AppDownloadModal
+        isOpen={isDownloadModalOpen}
+        onClose={() => setIsDownloadModalOpen(false)}
+        appUrl={window.location.origin}
+        githubRepo={localStorage.getItem('gh_repo') || 'jirapatza/Bombim00'}
+      />
     </div>
   );
 }

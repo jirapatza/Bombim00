@@ -8,10 +8,22 @@
     <meta property="og:title" content="Lottery Alert Dashboard & Control Center" />
     <meta property="og:description" content="ระบบแจ้งเตือนผลสลากกินแบ่งและหวย พร้อมหน้าควบคุม Dashboard, ตัวจัดการ Settings, ตัวตรวจสอบผลอัตโนมัติ และสคริปต์ Python / Cloudflare Worker" />
     <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#f59e0b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="LotteryAlert" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => console.log('SW registration error:', err));
+        });
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

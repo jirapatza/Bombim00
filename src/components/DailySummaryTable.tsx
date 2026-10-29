@@ -16,9 +16,16 @@ import {
   ChevronRight,
   Eye,
   RefreshCw,
-  TableProperties
+  TableProperties,
+  Edit3,
+  Plus,
+  Trash2,
+  Share2,
+  AlertTriangle
 } from 'lucide-react';
 import { parseLotteryTimelineMinutes } from './LiveUpcomingDraws';
+import { SocialPostModal } from './SocialPostModal';
+import { EditLotteryModal } from './EditLotteryModal';
 
 export interface LotteryItem {
   id: string;
@@ -45,26 +52,88 @@ interface DailySummaryProps {
   lotteries: LotteryItem[];
   onSelectLottery: (lottery: LotteryItem) => void;
   onSpeakLottery: (lottery: LotteryItem) => void;
+  onUpdateLotteries?: (lotteries: LotteryItem[]) => void;
+  nextClosing?: { name: string; closeTimeStr: string; remainingText: string } | null;
 }
 
 export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   lotteries,
   onSelectLottery,
   onSpeakLottery,
+  onUpdateLotteries,
+  nextClosing,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'announced' | 'waiting'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'closing_soon' | 'closed_waiting' | 'announced'>('all');
   const [copiedSummary, setCopiedSummary] = useState(false);
 
-  // Sort ALL 31 lotteries strictly by real timeline order (09:30 morning to 04:00 night)
+  // Modals state
+  const [isSocialModalOpen, setIsSocialModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingLottery, setEditingLottery] = useState<LotteryItem | null>(null);
+
+  // Bangkok time in minutes for 4-stage live calculation
+  const getBangkokMinutes = () => {
+    const now = new Date();
+    const bangkokStr = now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok', hour12: false });
+    const bDate = new Date(bangkokStr);
+    let hours = bDate.getHours();
+    if (hours < 4) hours += 24;
+    return hours * 60 + bDate.getMinutes();
+  };
+  const currentBangkokMinutes = getBangkokMinutes();
+
+  // Helper to get 4-stage live status for any lottery
+  const getItemStage = (item: LotteryItem) => {
+    const closeMin = parseLotteryTimelineMinutes(item.closeTimeStr);
+    const drawMin = parseLotteryTimelineMinutes(item.drawTimeStr);
+
+    if (item.status === 'announced' || currentBangkokMinutes >= drawMin) {
+      return {
+        stage: 'announced' as const,
+        label: 'ออกผลแล้ว',
+        badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+        detail: `ออกผลแล้ว (${item.drawTimeStr})`,
+      };
+    }
+
+    if (currentBangkokMinutes >= closeMin && currentBangkokMinutes < drawMin) {
+      const waitMins = Math.max(1, drawMin - currentBangkokMinutes);
+      return {
+        stage: 'closed_waiting' as const,
+        label: '🔴 ปิดรับแล้ว - รอผล',
+        badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse font-bold',
+        detail: `ปิดรับแล้ว รอผลอีก ${waitMins} นาที`,
+      };
+    }
+
+    const minsUntilClose = closeMin - currentBangkokMinutes;
+    if (minsUntilClose <= 15 && minsUntilClose > 0) {
+      return {
+        stage: 'closing_soon' as const,
+        label: `🟡 ใกล้ปิด! (${minsUntilClose}น.)`,
+        badgeClass: 'bg-amber-500/25 text-amber-300 border-amber-500/50 animate-pulse font-bold',
+        detail: `รีบแทง! เหลือ ${minsUntilClose} นาที`,
+      };
+    }
+
+    return {
+      stage: 'open' as const,
+      label: '🟢 เปิดรับแทง',
+      badgeClass: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+      detail: `ปิดรับ ${item.closeTimeStr}`,
+    };
+  };
+
+  // Sort ALL lotteries strictly by real timeline order
   const chronoSorted = useMemo(() => {
     return [...lotteries].sort((a, b) => {
       return parseLotteryTimelineMinutes(a.drawTimeStr) - parseLotteryTimelineMinutes(b.drawTimeStr);
     });
   }, [lotteries]);
 
-  // Filter items according to search, category, and status
+  // Filter items according to search, category, and 4-stage status
   const filteredLotteries = useMemo(() => {
     return chronoSorted.filter((item) => {
       // Period filter
@@ -82,10 +151,13 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
       } else if (selectedCategory !== 'all' && item.category !== selectedCategory) {
         return false;
       }
-      // Status filter
-      if (statusFilter !== 'all' && item.status !== statusFilter) {
-        return false;
+
+      // 4-Stage Status filter
+      if (statusFilter !== 'all') {
+        const itemStage = getItemStage(item).stage;
+        if (itemStage !== statusFilter) return false;
       }
+
       // Search term
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
@@ -97,12 +169,42 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
       }
       return true;
     });
-  }, [chronoSorted, selectedCategory, statusFilter, searchTerm]);
+  }, [chronoSorted, selectedCategory, statusFilter, searchTerm, currentBangkokMinutes]);
 
-  // Statistics
+  // Statistics for 4 stages
   const totalCount = lotteries.length;
-  const announcedCount = lotteries.filter((l) => l.status === 'announced').length;
-  const waitingCount = totalCount - announcedCount;
+  const stagesCount = useMemo(() => {
+    let open = 0;
+    let closing = 0;
+    let closed = 0;
+    let announced = 0;
+    lotteries.forEach((l) => {
+      const s = getItemStage(l).stage;
+      if (s === 'open') open++;
+      else if (s === 'closing_soon') closing++;
+      else if (s === 'closed_waiting') closed++;
+      else if (s === 'announced') announced++;
+    });
+    return { open, closing, closed, announced };
+  }, [lotteries, currentBangkokMinutes]);
+
+  const handleSaveLottery = (savedItem: LotteryItem) => {
+    if (!onUpdateLotteries) return;
+    const exists = lotteries.some((l) => l.id === savedItem.id);
+    let updated: LotteryItem[];
+    if (exists) {
+      updated = lotteries.map((l) => (l.id === savedItem.id ? savedItem : l));
+    } else {
+      updated = [savedItem, ...lotteries];
+    }
+    onUpdateLotteries(updated);
+  };
+
+  const handleDeleteLottery = (id: string) => {
+    if (!onUpdateLotteries) return;
+    const updated = lotteries.filter((l) => l.id !== id);
+    onUpdateLotteries(updated);
+  };
 
   // Generate plain text summary for copying to LINE / Telegram
   const copyDailySummaryText = () => {
@@ -113,7 +215,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     });
     let text = `📊 ตารางสรุปผลหวยประจำวัน (${todayStr})\n`;
     text += `เรียงตามลำดับเวลาออกจริง ทั้งหมด ${totalCount} หวย\n`;
-    text += `(ออกผลแล้ว ${announcedCount} • รอผล ${waitingCount})\n`;
+    text += `(ออกแล้ว ${stagesCount.announced} • รอผล ${stagesCount.closed} • กำลังเปิดรับ ${stagesCount.open + stagesCount.closing})\n`;
     text += `========================================\n`;
 
     chronoSorted.forEach((l, idx) => {
@@ -158,66 +260,135 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/40">
-              DAILY RESULTS MATRIX
+              DAILY RESULTS & SCHEDULE CONTROL
             </span>
             <span className="text-xs text-slate-400">
-              เรียงตามเวลาหวยออกจริง (09:30 น. เช้า ถึง 04:00 น. ดึก)
+              ตารางเวลา 4 ช่วง (เช้า, บ่าย, เย็น, ดึก) พร้อมสถานะสด 4 ขั้นตอน
             </span>
           </div>
           <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2">
             <Calendar className="w-6 h-6 text-amber-400" />
-            ตารางสรุปผลหวยประจำวัน (ทุกหวย {totalCount} รายการ)
+            ตารางสรุปผลหวยและตัวควบคุมตารางเวลา ({totalCount} รายการ)
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            แสดงสถานะหวยทุกประเภท: หวยที่ออกผลแล้วแสดงตัวเลขชัดเจน ส่วนหวยที่ยังไม่ออกจะแสดงสถานะ &quot;รอผล&quot; พร้อมเวลาปิดรับและเวลาออกรางวัล
+            ติดตามสถานะสด: กำลังเปิดรับ • ใกล้ปิดรับ • ปิดรับแล้วรอลุ้นผล • ออกผลรางวัลแล้ว พร้อมปุ่มสร้างแคปชั่นส่งกลุ่ม และปุ่มแก้ไขเวลา
           </p>
         </div>
 
-        {/* Action Button: Copy Full Summary */}
-        <div className="flex items-center gap-2">
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Social Caption Broadcaster Button */}
+          <button
+            type="button"
+            onClick={() => setIsSocialModalOpen(true)}
+            className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white cursor-pointer shadow-md transition flex items-center gap-1.5"
+          >
+            <Share2 className="w-4 h-4" />
+            สร้างแคปชั่นส่งเข้ากลุ่ม
+          </button>
+
+          {/* Add Lottery Button */}
+          {onUpdateLotteries && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingLottery(null);
+                setIsEditModalOpen(true);
+              }}
+              className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 cursor-pointer shadow-md transition flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4 text-amber-400" />
+              เพิ่มหวยใหม่
+            </button>
+          )}
+
+          {/* Copy Full Summary */}
           <button
             type="button"
             onClick={copyDailySummaryText}
             className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 cursor-pointer shadow-md transition flex items-center gap-1.5"
           >
             <Copy className="w-4 h-4" />
-            {copiedSummary ? 'คัดลอกสรุปแล้ว!' : 'คัดลอกตารางสรุปผลทั้งหมด'}
+            {copiedSummary ? 'คัดลอกแล้ว!' : 'คัดลอกสรุปผลทั้งหมด'}
           </button>
         </div>
       </div>
 
-      {/* Metric Counters Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
+      {/* 4-Stage Live Metric Counters Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        {/* Stage 1: Open */}
+        <div
+          onClick={() => setStatusFilter(statusFilter === 'open' ? 'all' : 'open')}
+          className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between ${
+            statusFilter === 'open'
+              ? 'bg-blue-950/60 border-blue-500 ring-2 ring-blue-500/30'
+              : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+          }`}
+        >
           <div>
-            <span className="text-xs text-slate-400 font-semibold block">หวยทั้งหมดในระบบ</span>
-            <span className="text-3xl font-black text-white font-mono">{totalCount}</span>
-            <span className="text-[11px] text-slate-500 block">เรียงตามเวลาออกจริง</span>
+            <span className="text-xs text-blue-400 font-semibold block">🟢 กำลังเปิดรับแทง</span>
+            <span className="text-2xl sm:text-3xl font-black text-blue-300 font-mono">{stagesCount.open}</span>
+            <span className="text-[11px] text-slate-500 block">เปิดรับตามปกติ</span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-lg">
-            <TableProperties className="w-6 h-6 text-indigo-400" />
+          <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+            <Hourglass className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
+        {/* Stage 2: Closing Soon (< 15 mins) */}
+        <div
+          onClick={() => setStatusFilter(statusFilter === 'closing_soon' ? 'all' : 'closing_soon')}
+          className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between ${
+            statusFilter === 'closing_soon'
+              ? 'bg-amber-950/60 border-amber-500 ring-2 ring-amber-500/30'
+              : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+          }`}
+        >
           <div>
-            <span className="text-xs text-emerald-400 font-semibold block">ออกผลแล้ว</span>
-            <span className="text-3xl font-black text-emerald-300 font-mono">{announcedCount}</span>
-            <span className="text-[11px] text-slate-500 block">แสดงเลข 3 ตัว / 2 ตัว</span>
+            <span className="text-xs text-amber-400 font-semibold block">🟡 ใกล้ปิดรับแทง!</span>
+            <span className="text-2xl sm:text-3xl font-black text-amber-300 font-mono">{stagesCount.closing}</span>
+            <span className="text-[11px] text-slate-500 block">เหลือน้อยกว่า 15 นาที</span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-            <CheckCircle2 className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5 animate-pulse text-amber-400" />
           </div>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
+        {/* Stage 3: Closed & Waiting Draw */}
+        <div
+          onClick={() => setStatusFilter(statusFilter === 'closed_waiting' ? 'all' : 'closed_waiting')}
+          className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between ${
+            statusFilter === 'closed_waiting'
+              ? 'bg-rose-950/60 border-rose-500 ring-2 ring-rose-500/30'
+              : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+          }`}
+        >
           <div>
-            <span className="text-xs text-amber-400 font-semibold block">ยังไม่ออก (รอผล)</span>
-            <span className="text-3xl font-black text-amber-300 font-mono">{waitingCount}</span>
-            <span className="text-[11px] text-slate-500 block">กำลังรอคิวออกตามเวลา</span>
+            <span className="text-xs text-rose-400 font-semibold block">🔴 ปิดรับแล้ว - รอผล</span>
+            <span className="text-2xl sm:text-3xl font-black text-rose-300 font-mono">{stagesCount.closed}</span>
+            <span className="text-[11px] text-slate-500 block">กำลังรอลุ้นรางวัล</span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-            <Hourglass className="w-6 h-6 animate-pulse" />
+          <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
+            <Clock className="w-5 h-5 animate-spin text-rose-400" style={{ animationDuration: '6s' }} />
+          </div>
+        </div>
+
+        {/* Stage 4: Announced */}
+        <div
+          onClick={() => setStatusFilter(statusFilter === 'announced' ? 'all' : 'announced')}
+          className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between ${
+            statusFilter === 'announced'
+              ? 'bg-emerald-950/60 border-emerald-500 ring-2 ring-emerald-500/30'
+              : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+          }`}
+        >
+          <div>
+            <span className="text-xs text-emerald-400 font-semibold block">🔵 ออกผลรางวัลแล้ว</span>
+            <span className="text-2xl sm:text-3xl font-black text-emerald-300 font-mono">{stagesCount.announced}</span>
+            <span className="text-[11px] text-slate-500 block">มีผล 3 ตัว / 2 ตัว</span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <CheckCircle2 className="w-5 h-5" />
           </div>
         </div>
       </div>
@@ -374,12 +545,12 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
             />
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400 font-semibold">สถานะผล:</span>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-slate-400 font-semibold text-[11px] mr-1">สถานะ:</span>
             <button
               type="button"
               onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-[11px] ${
                 statusFilter === 'all' ? 'bg-slate-800 text-white font-bold' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -387,21 +558,39 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter('announced')}
-              className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
-                statusFilter === 'announced' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'text-slate-400 hover:text-white'
+              onClick={() => setStatusFilter('open')}
+              className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-[11px] ${
+                statusFilter === 'open' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-400 hover:text-white'
               }`}
             >
-              ✅ ออกแล้ว ({announcedCount})
+              🟢 เปิดรับ ({stagesCount.open})
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter('waiting')}
-              className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
-                statusFilter === 'waiting' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-slate-400 hover:text-white'
+              onClick={() => setStatusFilter('closing_soon')}
+              className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-[11px] ${
+                statusFilter === 'closing_soon' ? 'bg-amber-500/25 text-amber-300 font-bold border border-amber-500/50' : 'text-slate-400 hover:text-white'
               }`}
             >
-              ⏳ ยังไม่ออก (รอผล) ({waitingCount})
+              🟡 ใกล้ปิด ({stagesCount.closing})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('closed_waiting')}
+              className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-[11px] ${
+                statusFilter === 'closed_waiting' ? 'bg-rose-500/20 text-rose-300 font-bold border border-rose-500/40' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              🔴 ปิดรับแล้ว ({stagesCount.closed})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('announced')}
+              className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-[11px] ${
+                statusFilter === 'announced' ? 'bg-blue-500/20 text-blue-300 font-bold border border-blue-500/40' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              🔵 ออกผลแล้ว ({stagesCount.announced})
             </button>
           </div>
         </div>
@@ -515,24 +704,44 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                         )}
                       </td>
 
-                      {/* Status Badge */}
+                      {/* 4-Stage Live Status Badge */}
                       <td className="py-3.5 px-3 text-center font-sans">
-                        {isAnnounced ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                            ออกแล้ว
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                            <Hourglass className="w-3 h-3 text-amber-400" />
-                            รอผล
-                          </span>
-                        )}
+                        {(() => {
+                          const stageInfo = getItemStage(item);
+                          return (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${stageInfo.badgeClass}`}
+                              title={stageInfo.detail}
+                            >
+                              {stageInfo.stage === 'announced' && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
+                              {stageInfo.stage === 'closed_waiting' && <Clock className="w-3 h-3 text-rose-400 animate-spin" style={{ animationDuration: '6s' }} />}
+                              {stageInfo.stage === 'closing_soon' && <AlertTriangle className="w-3 h-3 text-amber-400" />}
+                              {stageInfo.stage === 'open' && <Hourglass className="w-3 h-3 text-blue-400" />}
+                              {stageInfo.label}
+                            </span>
+                          );
+                        })()}
                       </td>
 
-                      {/* Tools & Listen */}
+                      {/* Tools & Actions */}
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Edit Lottery Button */}
+                          {onUpdateLotteries && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingLottery(item);
+                                setIsEditModalOpen(true);
+                              }}
+                              title="แก้ไขเวลาและข้อมูลหวยนี้"
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-amber-400 transition cursor-pointer"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={(e) => {
@@ -569,6 +778,26 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Social Caption Broadcaster Modal */}
+      <SocialPostModal
+        isOpen={isSocialModalOpen}
+        onClose={() => setIsSocialModalOpen(false)}
+        lotteries={chronoSorted}
+        nextClosing={nextClosing}
+      />
+
+      {/* Schedule & Lottery Editor Modal */}
+      <EditLotteryModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingLottery(null);
+        }}
+        lottery={editingLottery}
+        onSave={handleSaveLottery}
+        onDelete={handleDeleteLottery}
+      />
     </div>
   );
 };

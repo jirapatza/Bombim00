@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Clock,
   Sparkles,
@@ -19,7 +19,10 @@ import {
   ArrowRight,
   RefreshCw,
   SlidersHorizontal,
-  TableProperties
+  TableProperties,
+  AlertTriangle,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import { LotteryItem } from './DailySummaryTable';
 
@@ -104,6 +107,55 @@ export function LiveUpcomingDraws({
     }
     return bangkokTime.timelineMinutes;
   }, [simulatedHour, bangkokTime]);
+
+  // 5-minute closing countdown alarm state
+  const [closingAlarmEnabled, setClosingAlarmEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('lottery_closing_alarm') !== 'false';
+  });
+  const lastAlarmKeyRef = useRef<string>('');
+
+  // Audio chime synthesizer for closing alert
+  const playClosingAlertChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.14);
+      osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.28);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.7);
+    } catch {}
+  };
+
+  // Find urgent lottery closing in <= 5 minutes
+  const urgentClosingLottery = useMemo(() => {
+    for (const item of lotteries) {
+      const closeMin = parseLotteryTimelineMinutes(item.closeTimeStr);
+      const diff = closeMin - currentEffectiveMinutes;
+      if (diff <= 5 && diff > 0) {
+        return { item, minsLeft: diff };
+      }
+    }
+    return null;
+  }, [lotteries, currentEffectiveMinutes]);
+
+  useEffect(() => {
+    if (urgentClosingLottery && closingAlarmEnabled) {
+      const key = `${urgentClosingLottery.item.id}_${urgentClosingLottery.minsLeft}`;
+      if (lastAlarmKeyRef.current !== key) {
+        lastAlarmKeyRef.current = key;
+        playClosingAlertChime();
+      }
+    }
+  }, [urgentClosingLottery, closingAlarmEnabled]);
 
   // Sort ALL lotteries strictly by real timeline (09:30 morning to 04:00 night)
   const chronoSortedAll = useMemo(() => {
@@ -241,6 +293,26 @@ export function LiveUpcomingDraws({
             </select>
           </div>
 
+          {/* Closing Alarm Sound Toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              const next = !closingAlarmEnabled;
+              setClosingAlarmEnabled(next);
+              localStorage.setItem('lottery_closing_alarm', String(next));
+              if (next) playClosingAlertChime();
+            }}
+            className={`px-3 py-2 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 cursor-pointer ${
+              closingAlarmEnabled
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                : 'bg-slate-800 text-slate-400 border-slate-700'
+            }`}
+            title="เตือนด้วยเสียงเมื่อมีหวยเหลือ 5 นาทีก่อนปิดรับ"
+          >
+            {closingAlarmEnabled ? <Bell className="w-3.5 h-3.5 text-amber-400" /> : <BellOff className="w-3.5 h-3.5" />}
+            <span>{closingAlarmEnabled ? 'เตือน 5 นาที: เปิด' : 'เตือน 5 นาที: ปิด'}</span>
+          </button>
+
           <button
             type="button"
             onClick={onToggleVoice}
@@ -255,6 +327,46 @@ export function LiveUpcomingDraws({
           </button>
         </div>
       </div>
+
+      {/* ==================== 5-MINUTE CLOSING COUNTDOWN ALERT BANNER ==================== */}
+      {urgentClosingLottery && (
+        <div className="bg-gradient-to-r from-red-950/90 via-amber-950/80 to-red-950/90 border-2 border-amber-500 rounded-3xl p-5 shadow-2xl flex flex-wrap items-center justify-between gap-4 animate-pulse">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-lg shadow-amber-500/30">
+              <AlertTriangle className="w-6 h-6 animate-bounce" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950">
+                  CLOSING SOON
+                </span>
+                <span className="text-xs text-amber-300 font-bold">
+                  ⚠️ แจ้งเตือนด่วน: เหลือเวลาอีกประมาณ {urgentClosingLottery.minsLeft} นาที!
+                </span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-black text-white mt-0.5 flex items-center gap-2">
+                {urgentClosingLottery.item.flag} {urgentClosingLottery.item.name}
+                <span className="text-xs font-mono font-normal text-amber-200 bg-slate-900/80 px-2 py-0.5 rounded-lg border border-slate-700">
+                  ปิดรับแทง: {urgentClosingLottery.item.closeTimeStr}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-300">
+                ใกล้ถึงเวลาตัดรอบปิดรับแทงแล้ว กรุณาตรวจสอบหรือส่งโพยก่อนหมดเวลา (ออกผลเวลา {urgentClosingLottery.item.drawTimeStr})
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onSelectLottery(urgentClosingLottery.item)}
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-1.5"
+            >
+              ดูรอบนี้ <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ==================== HERO: NEXT UPCOMING LOTTERY IN LINE ==================== */}
       {nextLottery && (
@@ -479,9 +591,38 @@ export function LiveUpcomingDraws({
             {displayUpcomingLotteries.map((item, idx) => {
               const isNext = nextLottery?.id === item.id;
               const itemDrawMin = parseLotteryTimelineMinutes(item.drawTimeStr);
+              const itemCloseMin = parseLotteryTimelineMinutes(item.closeTimeStr);
               const diffMin = Math.max(0, itemDrawMin - currentEffectiveMinutes);
               const hoursWait = Math.floor(diffMin / 60);
               const minsWait = diffMin % 60;
+              const diffToClose = itemCloseMin - currentEffectiveMinutes;
+
+              // 4-stage status calculation
+              let stageBadge = {
+                label: 'กำลังเปิดรับ',
+                className: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+                dotClass: 'bg-emerald-400',
+              };
+
+              if (currentEffectiveMinutes >= itemCloseMin && currentEffectiveMinutes < itemDrawMin) {
+                stageBadge = {
+                  label: 'ปิดรับแล้ว รอผล',
+                  className: 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse',
+                  dotClass: 'bg-rose-400',
+                };
+              } else if (diffToClose <= 15 && diffToClose > 0) {
+                stageBadge = {
+                  label: `ใกล้ปิด (${diffToClose}น.)`,
+                  className: 'bg-amber-500/25 text-amber-300 border-amber-500/50 animate-pulse',
+                  dotClass: 'bg-amber-400',
+                };
+              } else if (currentEffectiveMinutes >= itemDrawMin) {
+                stageBadge = {
+                  label: 'ออกผลแล้ว',
+                  className: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+                  dotClass: 'bg-blue-400',
+                };
+              }
 
               return (
                 <div
@@ -508,15 +649,17 @@ export function LiveUpcomingDraws({
                         </div>
                       </div>
 
-                      {isNext ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
-                          คิวถัดไป
+                      <div className="flex items-center gap-1.5">
+                        {isNext && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500 text-slate-950 shadow-sm animate-pulse">
+                            NEXT
+                          </span>
+                        )}
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${stageBadge.className}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${stageBadge.dotClass}`}></span>
+                          {stageBadge.label}
                         </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
-                          ลำดับที่ {idx + 1}
-                        </span>
-                      )}
+                      </div>
                     </div>
 
                     {/* Time Schedule Row */}
