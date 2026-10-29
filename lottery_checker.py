@@ -141,7 +141,7 @@ def fetch_from_pholhuay_stock_groups() -> list:
                 if node is None:
                     break
                 candidate = node.get_text(" ", strip=True)
-                if "3 ตัวบน" in candidate and "2 ตัวล่าง" in candidate and "งวด" in candidate and re.search(r"ออก\\s*\\d{1,2}:\\d{2}\\s*น", candidate):
+                if "3 ตัวบน" in candidate and "2 ตัวล่าง" in candidate and "งวด" in candidate and re.search(r"ออก\s*\d{1,2}:\d{2}\s*น", candidate):
                     card_text = candidate
                     break
             if not card_text:
