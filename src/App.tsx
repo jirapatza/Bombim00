@@ -53,7 +53,9 @@ import {
   Ticket,
   Rocket,
   ListFilter,
-  Github
+  Github,
+  ListOrdered,
+  TableProperties
 } from 'lucide-react';
 
 import { BroadcastKiosk } from './components/BroadcastKiosk';
@@ -68,6 +70,7 @@ import { ProjectCodeEditor } from './components/ProjectCodeEditor';
 import { MobileNotificationHub } from './components/MobileNotificationHub';
 import { LiveUpcomingDraws } from './components/LiveUpcomingDraws';
 import { SettingsCenter } from './components/SettingsCenter';
+import { NotificationPipelineInspector } from './components/NotificationPipelineInspector';
 
 interface LotteryResult {
   งวดวันที่: string;
@@ -275,6 +278,7 @@ export default function App() {
     | 'worker'
     | 'deployment'
     | 'files'
+    | 'pipeline'
   >('live');
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [settings, setSettings] = useState<any>(null);
@@ -1455,59 +1459,46 @@ export default function App() {
           </div>
         </div>
 
-        {/* Clean 4-Tab Navigation */}
+        {/* Consolidated 3-Tab Navigation */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <nav className="flex space-x-2 sm:space-x-3 border-t border-slate-800/60 overflow-x-auto py-2.5 text-xs font-semibold">
-            {/* Tab 1: Live Draws & Real-time Queue */}
+            {/* Tab 1: Live Upcoming & About-to-draw */}
             <button
               onClick={() => setActiveTab('live')}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'live' || activeTab === 'summary'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-lg shadow-amber-500/25 scale-[1.02]'
+              className={`px-4 py-2.5 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+                activeTab === 'live'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/25 scale-[1.02]'
                   : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
               }`}
             >
               <Radio className={`w-4 h-4 ${activeTab === 'live' ? 'animate-pulse text-slate-950' : 'text-amber-400'}`} />
-              <span>🎯 ผลหวยสด &amp; คิวรอบถัดไป (Live Draws)</span>
+              <span>🕒 หน้าหลัก: หวยที่กำลังจะออกผล</span>
             </button>
 
-            {/* Tab 2: All 55 Lotteries Catalog */}
+            {/* Tab 2: Daily Results Summary Table */}
             <button
-              onClick={() => setActiveTab('catalog')}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'catalog'
-                  ? 'bg-purple-600 text-white font-bold shadow-lg shadow-purple-600/25 scale-[1.02]'
+              onClick={() => setActiveTab('summary')}
+              className={`px-4 py-2.5 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+                activeTab === 'summary'
+                  ? 'bg-indigo-600 text-white font-black shadow-lg shadow-indigo-600/25 scale-[1.02]'
                   : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
               }`}
             >
-              <ListFilter className="w-4 h-4 text-purple-400" />
-              <span>📑 รายการหวยทั้งหมด ({allLotteries.length} หวย)</span>
+              <TableProperties className="w-4 h-4 text-indigo-400" />
+              <span>📊 ตารางสรุปผลรายวัน (31 หวย เรียงตามเวลา)</span>
             </button>
 
-            {/* Tab 3: Analytics & Ticket Checker */}
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'analytics'
-                  ? 'bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/25 scale-[1.02]'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4 text-emerald-400" />
-              <span>📊 สถิติ &amp; ตรวจสลาก (Stats &amp; Checker)</span>
-            </button>
-
-            {/* Tab 4: Unified Settings Center */}
+            {/* Tab 3: Unified Settings Center */}
             <button
               onClick={() => setActiveTab('settings')}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+              className={`px-4 py-2.5 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
                 activeTab === 'settings'
-                  ? 'bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/25 scale-[1.02]'
+                  ? 'bg-slate-800 text-amber-300 font-bold border border-amber-500/50 shadow-lg scale-[1.02]'
                   : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
               }`}
             >
-              <Settings className="w-4 h-4 text-indigo-400" />
-              <span>⚙️ ตั้งค่าระบบ (Settings Center)</span>
+              <Settings className="w-4 h-4 text-amber-400" />
+              <span>⚙️ ศูนย์ตั้งค่า &amp; ระบบแจ้งเตือน</span>
             </button>
           </nav>
         </div>
@@ -1515,13 +1506,13 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-        {/* ==================== TAB 1: LIVE DRAWS & REAL-TIME BANGKOK TIME ==================== */}
-        {(activeTab === 'live' || activeTab === 'summary') && (
+        {/* ==================== TAB 1: LIVE UPCOMING DRAWS (WAITING & ABOUT-TO-DRAW) ==================== */}
+        {activeTab === 'live' && (
           <LiveUpcomingDraws
             lotteries={allLotteries}
             onSelectLottery={(item) => {
               setSelectedCatalogLottery(item);
-              setActiveTab('catalog');
+              setActiveTab('summary');
             }}
             onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
             voiceEnabled={voiceEnabled}
@@ -1531,6 +1522,18 @@ export default function App() {
               if (!nextState) stopSpeech();
               showToast(nextState ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
             }}
+            onNavigateToSummary={() => setActiveTab('summary')}
+          />
+        )}
+
+        {/* ==================== TAB 2: DAILY SUMMARY TABLE (FULL 31 LOTTERIES MATRIX) ==================== */}
+        {activeTab === 'summary' && (
+          <DailySummaryTable
+            lotteries={allLotteries}
+            onSelectLottery={(item) => {
+              setSelectedCatalogLottery(item);
+            }}
+            onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
           />
         )}
 
@@ -1546,6 +1549,17 @@ export default function App() {
               setSelectedCatalogLottery(item);
               setActiveTab('broadcast');
             }}
+          />
+        )}
+
+        {/* ==================== TAB: NOTIFICATION PIPELINE & PRIORITY HIERARCHY ==================== */}
+        {activeTab === 'pipeline' && (
+          <NotificationPipelineInspector
+            settings={settings}
+            latestDraw={latestDraw}
+            allLotteries={allLotteries}
+            onTriggerCheck={handleTriggerCheck}
+            onSpeak={speakCustomText}
           />
         )}
 

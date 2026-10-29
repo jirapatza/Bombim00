@@ -12,7 +12,8 @@ import {
   SlidersHorizontal,
   Layers,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  ListOrdered
 } from 'lucide-react';
 
 import { MobileNotificationHub } from './MobileNotificationHub';
@@ -20,6 +21,7 @@ import { GitHubAppRunner } from './GitHubAppRunner';
 import { ProjectCodeEditor } from './ProjectCodeEditor';
 import { MultiChannelDispatcher } from './MultiChannelDispatcher';
 import { DeploymentPlaybook } from './DeploymentPlaybook';
+import { NotificationPipelineInspector } from './NotificationPipelineInspector';
 
 interface SettingsCenterProps {
   settings: any;
@@ -70,8 +72,8 @@ export function SettingsCenter({
   templateProps,
 }: SettingsCenterProps) {
   const [subTab, setSubTab] = useState<
-    'mobile' | 'template' | 'github' | 'files' | 'channels' | 'playbook' | 'raw'
-  >('mobile');
+    'pipeline' | 'mobile' | 'template' | 'github' | 'files' | 'channels' | 'playbook' | 'raw'
+  >('pipeline');
 
   return (
     <div className="space-y-6">
@@ -99,6 +101,19 @@ export function SettingsCenter({
 
         {/* Sub-tab Navigation Pills */}
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setSubTab('pipeline')}
+            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+              subTab === 'pipeline'
+                ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20'
+                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+            }`}
+          >
+            <ListOrdered className="w-3.5 h-3.5" />
+            ⚡ ขั้นตอนไปป์ไลน์ &amp; ลำดับเวลาหวย (Pipeline &amp; Timetable)
+          </button>
+
           <button
             type="button"
             onClick={() => setSubTab('mobile')}
@@ -191,6 +206,17 @@ export function SettingsCenter({
           </button>
         </div>
       </div>
+
+      {/* SUB-TAB 0: NOTIFICATION PIPELINE & PRIORITY INSPECTOR */}
+      {subTab === 'pipeline' && (
+        <NotificationPipelineInspector
+          settings={settings}
+          latestDraw={latestDraw}
+          allLotteries={allLotteries}
+          onTriggerCheck={() => onRefreshData?.()}
+          onSpeak={(text) => onSpeak?.(text)}
+        />
+      )}
 
       {/* SUB-TAB 1: MOBILE NOTIFICATION HUB */}
       {subTab === 'mobile' && (

@@ -15,8 +15,10 @@ import {
   ExternalLink,
   ChevronRight,
   Eye,
-  RefreshCw
+  RefreshCw,
+  TableProperties
 } from 'lucide-react';
+import { parseLotteryTimelineMinutes } from './LiveUpcomingDraws';
 
 export interface LotteryItem {
   id: string;
@@ -53,11 +55,27 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'announced' | 'waiting'>('all');
   const [copiedSummary, setCopiedSummary] = useState(false);
 
-  // Filter and sort items from morning to night
+  // Sort ALL 31 lotteries strictly by real timeline order (09:30 morning to 04:00 night)
+  const chronoSorted = useMemo(() => {
+    return [...lotteries].sort((a, b) => {
+      return parseLotteryTimelineMinutes(a.drawTimeStr) - parseLotteryTimelineMinutes(b.drawTimeStr);
+    });
+  }, [lotteries]);
+
+  // Filter items according to search, category, and status
   const filteredLotteries = useMemo(() => {
-    return lotteries.filter((item) => {
+    return chronoSorted.filter((item) => {
       // Category filter
-      if (selectedCategory !== 'all' && item.category !== selectedCategory) {
+      if (selectedCategory === 'vip') {
+        const isVip = item.category === 'vip' || item.name.includes('VIP') || item.categoryLabel.includes('VIP');
+        if (!isVip) return false;
+      } else if (selectedCategory === 'hanoi') {
+        const isHanoi = item.category === 'hanoi' || item.name.includes('ฮานอย');
+        if (!isHanoi) return false;
+      } else if (selectedCategory === 'lao') {
+        const isLao = item.category === 'lao' || item.name.includes('ลาว');
+        if (!isLao) return false;
+      } else if (selectedCategory !== 'all' && item.category !== selectedCategory) {
         return false;
       }
       // Status filter
@@ -75,34 +93,35 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
       }
       return true;
     });
-  }, [lotteries, selectedCategory, statusFilter, searchTerm]);
+  }, [chronoSorted, selectedCategory, statusFilter, searchTerm]);
 
   // Statistics
   const totalCount = lotteries.length;
   const announcedCount = lotteries.filter((l) => l.status === 'announced').length;
   const waitingCount = totalCount - announcedCount;
 
-  // Generate plain text summary for copying
+  // Generate plain text summary for copying to LINE / Telegram
   const copyDailySummaryText = () => {
     const todayStr = new Date().toLocaleDateString('th-TH', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     });
-    let text = `📊 ตารางสรุปผลหวยทุกประเภท ประจำวันที่ ${todayStr}\n`;
-    text += `รวมทั้งหมด ${totalCount} รายการ (ออกผลแล้ว ${announcedCount} • รอผล ${waitingCount})\n`;
+    let text = `📊 ตารางสรุปผลหวยประจำวัน (${todayStr})\n`;
+    text += `เรียงตามลำดับเวลาออกจริง ทั้งหมด ${totalCount} หวย\n`;
+    text += `(ออกผลแล้ว ${announcedCount} • รอผล ${waitingCount})\n`;
     text += `========================================\n`;
 
-    filteredLotteries.forEach((l) => {
+    chronoSorted.forEach((l, idx) => {
       if (l.status === 'announced') {
-        text += `${l.flag} ${l.name} (${l.drawTimeStr})\n   👉 3 ตัวบน: ${l.top3} | 2 ตัวล่าง: ${l.bottom2}\n`;
+        text += `${idx + 1}. [${l.drawTimeStr}] ${l.flag} ${l.name}\n   👉 3 ตัวบน: ${l.top3} | 2 ตัวล่าง: ${l.bottom2}\n`;
         if (l.setIndex) text += `   📈 ตลาด: ${l.setIndex}\n`;
       } else {
-        text += `${l.flag} ${l.name} (${l.drawTimeStr}) ⏳ รอออกผล (ปิดรับ ${l.closeTimeStr})\n`;
+        text += `${idx + 1}. [${l.drawTimeStr}] ${l.flag} ${l.name} ⏳ ยังไม่ออก (ปิดรับ ${l.closeTimeStr})\n`;
       }
     });
     text += `========================================\n`;
-    text += `ระบบ Lottery Alert Pro • อัปเดตล่าสุด: ${new Date().toLocaleTimeString('th-TH')} น.\n`;
+    text += `อัปเดตล่าสุด: ${new Date().toLocaleTimeString('th-TH')} น. • Lottery Alert System\n`;
 
     navigator.clipboard.writeText(text);
     setCopiedSummary(true);
@@ -135,18 +154,18 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/40">
-              TIMELINE SUMMARY
+              DAILY RESULTS MATRIX
             </span>
             <span className="text-xs text-slate-400">
-              ตั้งแต่เช้าตรู่จรดค่ำ รวมทุกหวย {totalCount} รายการ
+              เรียงตามเวลาหวยออกจริง (09:30 น. เช้า ถึง 04:00 น. ดึก)
             </span>
           </div>
           <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2">
             <Calendar className="w-6 h-6 text-amber-400" />
-            ตารางสรุปผลหวยทุกประเภท ประจำวัน (Daily Timeline Matrix)
+            ตารางสรุปผลหวยประจำวัน (ทุกหวย {totalCount} รายการ)
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            สรุปผลครบทั้งหวยหุ้นไทย หวยหุ้นต่างประเทศ ตระกูลฮานอย ตระกูลลาว หวย VIP มาเลย์ และหวยรัฐบาล เรียงตามลำดับเวลาตั้งแต่เช้า
+            แสดงสถานะหวยทุกประเภท: หวยที่ออกผลแล้วแสดงตัวเลขชัดเจน ส่วนหวยที่ยังไม่ออกจะแสดงสถานะ &quot;รอผล&quot; พร้อมเวลาปิดรับและเวลาออกรางวัล
           </p>
         </div>
 
@@ -155,66 +174,53 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
           <button
             type="button"
             onClick={copyDailySummaryText}
-            className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 cursor-pointer transition flex items-center gap-1.5"
+            className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 cursor-pointer shadow-md transition flex items-center gap-1.5"
           >
-            <Copy className="w-4 h-4 text-amber-400" />
-            {copiedSummary ? 'คัดลอกสรุปแล้ว!' : 'คัดลอกตารางสรุปทั้งหมด'}
+            <Copy className="w-4 h-4" />
+            {copiedSummary ? 'คัดลอกสรุปแล้ว!' : 'คัดลอกตารางสรุปผลทั้งหมด'}
           </button>
         </div>
       </div>
 
       {/* Metric Counters Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
           <div>
             <span className="text-xs text-slate-400 font-semibold block">หวยทั้งหมดในระบบ</span>
-            <span className="text-2xl font-black text-white font-mono">{totalCount}</span>
-            <span className="text-[11px] text-slate-500 block">รายการ</span>
+            <span className="text-3xl font-black text-white font-mono">{totalCount}</span>
+            <span className="text-[11px] text-slate-500 block">เรียงตามเวลาออกจริง</span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 font-bold">
-            Σ
+          <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-lg">
+            <TableProperties className="w-6 h-6 text-indigo-400" />
           </div>
         </div>
 
         <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
           <div>
             <span className="text-xs text-emerald-400 font-semibold block">ออกผลแล้ว</span>
-            <span className="text-2xl font-black text-emerald-300 font-mono">{announcedCount}</span>
-            <span className="text-[11px] text-slate-500 block">มีผล 3 ตัว/2 ตัว</span>
+            <span className="text-3xl font-black text-emerald-300 font-mono">{announcedCount}</span>
+            <span className="text-[11px] text-slate-500 block">แสดงเลข 3 ตัว / 2 ตัว</span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
-          <div>
-            <span className="text-xs text-amber-400 font-semibold block">กำลังรอผลออก</span>
-            <span className="text-2xl font-black text-amber-300 font-mono">{waitingCount}</span>
-            <span className="text-[11px] text-slate-500 block">รอบค่ำ & ดึก</span>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-            <Hourglass className="w-5 h-5 animate-pulse" />
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <CheckCircle2 className="w-6 h-6" />
           </div>
         </div>
 
         <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
           <div>
-            <span className="text-xs text-purple-400 font-semibold block">หวยหุ้น & VIP</span>
-            <span className="text-2xl font-black text-purple-300 font-mono">
-              {lotteries.filter((l) => l.category === 'foreign_stock' || l.category === 'thai_stock' || l.category === 'vip').length}
-            </span>
-            <span className="text-[11px] text-slate-500 block">รายการครอบคลุม</span>
+            <span className="text-xs text-amber-400 font-semibold block">ยังไม่ออก (รอผล)</span>
+            <span className="text-3xl font-black text-amber-300 font-mono">{waitingCount}</span>
+            <span className="text-[11px] text-slate-500 block">กำลังรอคิวออกตามเวลา</span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
-            <TrendingUp className="w-5 h-5" />
+          <div className="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <Hourglass className="w-6 h-6 animate-pulse" />
           </div>
         </div>
       </div>
 
       {/* Filter & Search Toolbar */}
       <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl space-y-3">
-        {/* Category Pills */}
+        {/* Category Filter Pills */}
         <div className="flex space-x-2 overflow-x-auto pb-1 text-xs">
           <button
             type="button"
@@ -230,6 +236,20 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
 
           <button
             type="button"
+            onClick={() => setSelectedCategory('vip')}
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+              selectedCategory === 'vip'
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+            }`}
+          >
+            👑 หวย VIP &amp; พิเศษ (
+            {lotteries.filter((l) => l.category === 'vip' || l.name.includes('VIP') || l.categoryLabel.includes('VIP')).length}
+            )
+          </button>
+
+          <button
+            type="button"
             onClick={() => setSelectedCategory('foreign_stock')}
             className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
               selectedCategory === 'foreign_stock'
@@ -237,77 +257,65 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
-            🌏 หุ้นต่างประเทศ (นิเคอิ, ฮั่งเส็ง, จีน, ดาวโจนส์)
+            🌏 หุ้นต่างประเทศ
           </button>
 
           <button
             type="button"
             onClick={() => setSelectedCategory('thai_stock')}
-            className={`px-3 py-1.5 rounded-lg font-bold whitespace-nowrap transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
               selectedCategory === 'thai_stock'
                 ? 'bg-amber-600 text-white shadow-md'
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
-            🇹🇭 หุ้นไทย (เช้า, เที่ยง, บ่าย, เย็น)
+            🇹🇭 หุ้นไทย
           </button>
 
           <button
             type="button"
             onClick={() => setSelectedCategory('hanoi')}
-            className={`px-3 py-1.5 rounded-lg font-bold whitespace-nowrap transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
               selectedCategory === 'hanoi'
                 ? 'bg-red-600 text-white shadow-md'
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
-            🇻🇳 ตระกูลฮานอย (เฉพาะกิจ, พิเศษ, ปกติ)
+            🇻🇳 ตระกูลฮานอย
           </button>
 
           <button
             type="button"
             onClick={() => setSelectedCategory('lao')}
-            className={`px-3 py-1.5 rounded-lg font-bold whitespace-nowrap transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
               selectedCategory === 'lao'
                 ? 'bg-indigo-600 text-white shadow-md'
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
-            🇱🇦 ตระกูลหวยลาว (พัฒนา, สตาร์)
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('vip')}
-            className={`px-3 py-1.5 rounded-lg font-bold whitespace-nowrap transition cursor-pointer ${
-              selectedCategory === 'vip'
-                ? 'bg-purple-600 text-white shadow-md'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            💎 หวย VIP (ฮานอย VIP, ลาว VIP, ดาวโจนส์ VIP)
+            🇱🇦 ตระกูลหวยลาว
           </button>
 
           <button
             type="button"
             onClick={() => setSelectedCategory('gov_savings')}
-            className={`px-3 py-1.5 rounded-lg font-bold whitespace-nowrap transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
               selectedCategory === 'gov_savings'
                 ? 'bg-emerald-600 text-white shadow-md'
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
-            🏛️ รัฐบาล & ออมสิน & ธ.ก.ส.
+            🏛️ รัฐบาล &amp; ออมสิน &amp; ธ.ก.ส.
           </button>
         </div>
 
-        {/* Search & Status Controls */}
+        {/* Search & Status Toggle */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
           <div className="relative flex-1 min-w-[200px] max-w-md">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
             <input
               type="text"
-              placeholder="ค้นหาชื่อหวย, เลข 3 ตัว หรือ 2 ตัว..."
+              placeholder="ค้นหาชื่อหวย หรือตัวเลขผลรางวัล..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-amber-400"
@@ -315,33 +323,33 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
           </div>
 
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400 font-semibold">สถานะ:</span>
+            <span className="text-slate-400 font-semibold">สถานะผล:</span>
             <button
               type="button"
               onClick={() => setStatusFilter('all')}
-              className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                statusFilter === 'all' ? 'bg-slate-800 text-white font-bold' : 'text-slate-400'
+              className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
+                statusFilter === 'all' ? 'bg-slate-800 text-white font-bold' : 'text-slate-400 hover:text-white'
               }`}
             >
-              ทั้งหมด
+              ทั้งหมด ({chronoSorted.length})
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('announced')}
-              className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                statusFilter === 'announced' ? 'bg-emerald-500/20 text-emerald-300 font-bold' : 'text-slate-400'
+              className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
+                statusFilter === 'announced' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'text-slate-400 hover:text-white'
               }`}
             >
-              ออกแล้ว
+              ✅ ออกแล้ว ({announcedCount})
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('waiting')}
-              className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                statusFilter === 'waiting' ? 'bg-amber-500/20 text-amber-300 font-bold' : 'text-slate-400'
+              className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
+                statusFilter === 'waiting' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-slate-400 hover:text-white'
               }`}
             >
-              รอผล
+              ⏳ ยังไม่ออก (รอผล) ({waitingCount})
             </button>
           </div>
         </div>
@@ -353,142 +361,154 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider text-[11px] font-bold border-b border-slate-800">
               <tr>
-                <th className="py-3.5 px-4">รายการหวย / รอบ</th>
-                <th className="py-3.5 px-3">หมวดหมู่</th>
+                <th className="py-3.5 px-3 text-center w-12">ลำดับ</th>
                 <th className="py-3.5 px-3">เวลาออกผล</th>
+                <th className="py-3.5 px-4">รายการหวย</th>
+                <th className="py-3.5 px-3">เวลาปิดรับ</th>
+                <th className="py-3.5 px-3">หมวดหมู่</th>
                 <th className="py-3.5 px-3 text-center">3 ตัวบน</th>
                 <th className="py-3.5 px-3 text-center">2 ตัวล่าง</th>
-                <th className="py-3.5 px-3">ผลตลาด / รายละเอียด</th>
+                <th className="py-3.5 px-3">ดัชนี / แหล่งข้อมูล</th>
                 <th className="py-3.5 px-3 text-center">สถานะ</th>
                 <th className="py-3.5 px-4 text-right">เครื่องมือ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80 font-mono">
               {filteredLotteries.length > 0 ? (
-                filteredLotteries.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-slate-800/40 transition group cursor-pointer"
-                    onClick={() => onSelectLottery(item)}
-                  >
-                    {/* Name & Flag */}
-                    <td className="py-3.5 px-4 font-sans">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-xl shrink-0">{item.flag}</span>
-                        <div>
-                          <div className="font-bold text-white text-xs group-hover:text-amber-400 transition flex items-center gap-1.5">
-                            {item.name}
-                          </div>
-                          <span className="text-[10px] text-slate-500 font-mono">
-                            {item.drawDays}
-                          </span>
+                filteredLotteries.map((item, index) => {
+                  const isAnnounced = item.status === 'announced';
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className="hover:bg-slate-800/40 transition group cursor-pointer"
+                      onClick={() => onSelectLottery(item)}
+                    >
+                      {/* Order */}
+                      <td className="py-3.5 px-3 text-center text-slate-500 font-bold">
+                        {index + 1}
+                      </td>
+
+                      {/* Draw Time */}
+                      <td className="py-3.5 px-3 font-semibold text-amber-400">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span className="font-bold">{item.drawTimeStr}</span>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Category Badge */}
-                    <td className="py-3.5 px-3 font-sans">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getCategoryBadgeClass(
-                          item.category
-                        )}`}
-                      >
-                        {item.categoryLabel}
-                      </span>
-                    </td>
+                      {/* Name & Flag */}
+                      <td className="py-3.5 px-4 font-sans">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-xl shrink-0">{item.flag}</span>
+                          <div>
+                            <div className="font-bold text-white text-xs group-hover:text-amber-400 transition flex items-center gap-1.5">
+                              {item.name}
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              {item.drawDays}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
 
-                    {/* Draw Time */}
-                    <td className="py-3.5 px-3 font-semibold text-slate-300">
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                        <span>{item.drawTimeStr}</span>
-                      </div>
-                      <span className="text-[10px] text-slate-500 block font-normal">
-                        ปิด {item.closeTimeStr}
-                      </span>
-                    </td>
+                      {/* Closing Time */}
+                      <td className="py-3.5 px-3 text-slate-400">
+                        <span>{item.closeTimeStr}</span>
+                      </td>
 
-                    {/* Top 3 */}
-                    <td className="py-3.5 px-3 text-center">
-                      {item.status === 'announced' ? (
-                        <span className="px-3 py-1 rounded-xl bg-amber-500/20 text-amber-300 font-black text-sm border border-amber-500/40 shadow-sm inline-block">
-                          {item.top3}
-                        </span>
-                      ) : (
-                        <span className="text-slate-600 font-bold">---</span>
-                      )}
-                    </td>
-
-                    {/* Bottom 2 */}
-                    <td className="py-3.5 px-3 text-center">
-                      {item.status === 'announced' ? (
-                        <span className="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-black text-sm border border-emerald-500/40 shadow-sm inline-block">
-                          {item.bottom2}
-                        </span>
-                      ) : (
-                        <span className="text-slate-600 font-bold">--</span>
-                      )}
-                    </td>
-
-                    {/* Market Details / 1st Prize */}
-                    <td className="py-3.5 px-3 text-[11px] text-slate-400 font-sans">
-                      {item.setIndex ? (
-                        <span className="font-mono text-cyan-300 block">{item.setIndex}</span>
-                      ) : item.firstPrize ? (
-                        <span className="font-mono text-slate-300 block">
-                          เต็ม: <strong className="text-amber-200">{item.firstPrize}</strong>
-                        </span>
-                      ) : (
-                        <span className="text-slate-500">-</span>
-                      )}
-                      <span className="text-[10px] text-slate-500 block truncate max-w-[140px]">
-                        {item.source}
-                      </span>
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-3.5 px-3 text-center font-sans">
-                      {item.status === 'announced' ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                          ออกแล้ว
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 inline-flex items-center gap-1">
-                          <Hourglass className="w-3 h-3 text-amber-400" />
-                          รอผล
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3.5 px-4 text-right font-sans">
-                      <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => onSpeakLottery(item)}
-                          disabled={item.status !== 'announced'}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-amber-300 border border-slate-700 cursor-pointer disabled:opacity-30 transition"
-                          title="ฟังเสียงอ่านผลภาษาไทย"
+                      {/* Category Badge */}
+                      <td className="py-3.5 px-3 font-sans">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getCategoryBadgeClass(
+                            item.category
+                          )}`}
                         >
-                          <Volume2 className="w-3.5 h-3.5" />
-                        </button>
+                          {item.categoryLabel}
+                        </span>
+                      </td>
 
-                        <button
-                          type="button"
-                          onClick={() => onSelectLottery(item)}
-                          className="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold cursor-pointer transition flex items-center gap-1"
-                        >
-                          <Eye className="w-3 h-3" />
-                          ดูสถิติ
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      {/* Top 3 */}
+                      <td className="py-3.5 px-3 text-center">
+                        {isAnnounced && item.top3 ? (
+                          <span className="px-3 py-1 rounded-xl bg-amber-500/20 text-amber-300 font-black text-sm border border-amber-500/40 shadow-sm inline-block">
+                            {item.top3}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-lg bg-slate-950 text-slate-500 font-semibold text-xs border border-slate-800">
+                            ⏳ รอผล
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Bottom 2 */}
+                      <td className="py-3.5 px-3 text-center">
+                        {isAnnounced && item.bottom2 ? (
+                          <span className="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-black text-sm border border-emerald-500/40 shadow-sm inline-block">
+                            {item.bottom2}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-lg bg-slate-950 text-slate-500 font-semibold text-xs border border-slate-800">
+                            ⏳ รอผล
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Index / Source */}
+                      <td className="py-3.5 px-3 text-slate-400 font-sans text-[11px] truncate max-w-[160px]">
+                        {item.setIndex ? (
+                          <span className="text-emerald-400 font-mono">{item.setIndex}</span>
+                        ) : (
+                          <span>{item.source}</span>
+                        )}
+                      </td>
+
+                      {/* Status Badge */}
+                      <td className="py-3.5 px-3 text-center font-sans">
+                        {isAnnounced ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                            ออกแล้ว
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            <Hourglass className="w-3 h-3 text-amber-400" />
+                            รอผล
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Tools & Listen */}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSpeakLottery(item);
+                            }}
+                            title="ฟังเสียงประกาศ"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-amber-300 transition cursor-pointer"
+                          >
+                            <Volume2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onSelectLottery(item)}
+                            title="ดูรายละเอียด"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-500 font-sans">
+                  <td colSpan={10} className="py-10 text-center text-slate-500">
                     ไม่พบรายการหวยที่ตรงกับคำค้นหา
                   </td>
                 </tr>

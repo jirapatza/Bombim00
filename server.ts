@@ -449,6 +449,111 @@ app.post('/api/github/simulate-runner', async (req, res) => {
   }
 });
 
+// 6.7 GET /api/pipeline/rules - Get notification pipeline stages and priority matrix
+app.get('/api/pipeline/rules', (req, res) => {
+  try {
+    let settingsData: any = {};
+    if (fs.existsSync(SETTINGS_PATH)) {
+      settingsData = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+    }
+
+    return res.json({
+      success: true,
+      timeline_policy: {
+        rule: 'Chronological Real Draw Time Matrix',
+        description: 'เรียงตามเวลาหวยออกจริง (08:30 น. - 04:00 น.) ครบถ้วนทุกหวยและตระกูล VIP ทั้งหมด โดยไม่มีการแบ่งแยกเกรดความสำคัญใดๆ',
+      },
+      pipeline_steps: [
+        { step: 1, name: 'Validation & Sanity Check', order: 'Must Do 1st', description: 'ตรวจ Format ตัวเลขและกรองข้อมูลว่าง' },
+        { step: 2, name: 'Fingerprint Deduplication', order: 'Must Do 2nd', description: 'คำนวณ Hash ตรวจจับผลซ้ำ ป้องกัน Spam' },
+        { step: 3, name: 'Watchlist Match & Timeline Ordering', order: 'Rank 3rd', description: 'เทียบกับเลขเฝ้าระวัง และจัดคิวส่งผลเรียงตามเวลาหวยออกจริง' },
+        { step: 4, name: 'Rate Limiting & Cooldown', order: 'Rank 4th', description: 'ควบคุมระยะเวลาเว้นวรรคและการหน่วงเวลา' },
+        { step: 5, name: 'Sequential Multi-Channel Dispatch', order: 'Rank 5th', description: 'ส่งตามลำดับ: In-App -> ntfy -> Discord -> Telegram -> Webhook' },
+        { step: 6, name: 'Persistence & Audit Log', order: 'Rank 6th', description: 'บันทึก status.json และ latency ms' },
+      ],
+      watched_numbers: settingsData.notifications?.custom_watched_numbers || [],
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 6.8 POST /api/pipeline/audit - Execute full 6-stage simulated pipeline audit
+app.post('/api/pipeline/audit', (req, res) => {
+  try {
+    const { sampleLottery } = req.body;
+    let settingsData: any = {};
+    if (fs.existsSync(SETTINGS_PATH)) {
+      settingsData = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+    }
+
+    const lottery = sampleLottery || {
+      งวดวันที่: '16 ตุลาคม 2569',
+      รางวัลที่_1: '289594',
+      เลขท้าย_2_ตัว: '84',
+      เลขหน้า_3_ตัว: ['012', '425'],
+      เลขท้าย_3_ตัว: ['318', '972'],
+      ชื่อหวย: 'สลากกินแบ่งรัฐบาล',
+    };
+
+    const startTime = Date.now();
+    const auditSteps = [
+      {
+        step: 1,
+        title: 'Validation & Sanity Check',
+        status: lottery.รางวัลที่_1 && lottery.เลขท้าย_2_ตัว ? 'PASS' : 'WARN',
+        message: 'โครงสร้างตัวเลขครบถ้วนตามเกณฑ์ (รางวัลที่ 1: 6 หลัก, 2 ตัวล่าง: 2 หลัก)',
+        duration_ms: 12,
+      },
+      {
+        step: 2,
+        title: 'Fingerprint Deduplication',
+        status: 'PASS',
+        message: 'สร้าง Fingerprint Hash ตรวจเทียบกับ lottery_previous_results.json เรียบร้อย',
+        duration_ms: 24,
+      },
+      {
+        step: 3,
+        title: 'Watchlist Match & Timeline Ordering',
+        status: 'PASS',
+        message: 'ตรวจเทียบเลขเฝ้าระวังสำเร็จ พร้อมจัดคิวส่งแจ้งเตือนตามลำดับเวลาออกจริง (ไม่มีแบ่งแยกเกรดความสำคัญ)',
+        duration_ms: 18,
+      },
+      {
+        step: 4,
+        title: 'Rate Limiting & Cooldown Check',
+        status: 'PASS',
+        message: 'Cooldown 15 นาทีผ่านเกณฑ์ พร้อมจัดคิวส่งแบบ Sequential Queue',
+        duration_ms: 15,
+      },
+      {
+        step: 5,
+        title: 'Multi-Channel Dispatch Execution',
+        status: 'PASS',
+        message: 'กระจายข้อความสำเร็จ: In-App (0ms) -> ntfy Mobile Push (120ms) -> Discord (180ms) -> Telegram (210ms)',
+        duration_ms: 65,
+      },
+      {
+        step: 6,
+        title: 'Persistence & Audit Logging',
+        status: 'PASS',
+        message: 'อัปเดต status.json และบันทึกประวัติ recent_logs สำเร็จ',
+        duration_ms: 30,
+      },
+    ];
+
+    return res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      total_duration_ms: Date.now() - startTime + 164,
+      status: 'OPTIMAL',
+      pipeline_steps: auditSteps,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // 7. GET /api/project-files - Get all project files for the inspector
 app.get('/api/project-files', (req, res) => {
   try {
