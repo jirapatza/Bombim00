@@ -100,6 +100,99 @@ def fetch_from_glo() -> list:
     return []
 
 
+def fetch_from_pholhuay_stock_groups() -> list:
+    """Scrape the public results index that explicitly separates regular, VIP, special and VISA stocks."""
+    url = "https://xn--t3cmiit.com/stock-lottery"
+    try:
+        from bs4 import BeautifulSoup
+        html = _http_get_text(url, timeout=15)
+        if not html:
+            print("[WARN] Stock group page returned empty HTML.")
+            return []
+        soup = BeautifulSoup(html, "html.parser")
+        rows = []
+        group = ""
+        group_map = {
+            "หวยหุ้นต่างประเทศ": "stock",
+            "หวยหุ้น VIP": "stock_vip",
+            "หวยหุ้นพิเศษ": "stock_special",
+            "หวยหุ้น VISA": "stock_visa",
+        }
+        headings = soup.find_all(["h2", "h3"])
+        for heading in headings:
+            label = heading.get_text(" ", strip=True)
+            if heading.name == "h2":
+                for key, value in group_map.items():
+                    if key in label:
+                        group = value
+                        break
+                continue
+            if heading.name != "h3" or not group:
+                continue
+            # Find the smallest nearby card/container that contains both result fields.
+            node = heading
+            card_text = ""
+            for _ in range(7):
+                node = getattr(node, "parent", None)
+                if node is None:
+                    break
+                candidate = node.get_text(" ", strip=True)
+                if "3 ตัวบน" in candidate and "2 ตัวล่าง" in candidate and "งวด" in candidate:
+                    card_text = candidate
+                    break
+            if not card_text:
+                continue
+            date_match = re.search(r"งวด\\s*วันที่?\\s*(\\d{1,2}\\s+[^\\s]+\\s+\\d{4})", card_text)
+            top_match = re.search(r"3 ตัวบน\\s*(\\d{3})", card_text)
+            bottom_match = re.search(r"2 ตัวล่าง\\s*(\\d{2})", card_text)
+            if not (date_match and top_match and bottom_match):
+                continue
+            date_display = date_match.group(1)
+            rows.append({
+                "ชื่อหวย": label,
+                "หวย": label,
+                "หมวดหวย": group,
+                "งวดวันที่": date_display,
+                "วันที่จัดรูปแบบ": date_display,
+                "รางวัลที่_1": top_match.group(1),
+                "เลขท้าย_2_ตัว": bottom_match.group(1),
+                "เลขบน_3_ตัว": top_match.group(1),
+                "เลขล่าง_2_ตัว": bottom_match.group(1),
+                "เลขหน้า_3_ตัว": [],
+                "เลขท้าย_3_ตัว": [],
+                "รางวัลข้างเคียงรางวัลที่_1": [],
+                "แหล่งข้อมูล": "ผลหวย.com (หน้าหุ้นแยกหมวด)",
+                "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
+                "สถานะการแจ้งเตือน": "pending"
+            })
+        # Avoid duplicate cards when markup nesting makes a heading repeat.
+        unique, seen = [], set()
+        for row in rows:
+            key = (row["หมวดหวย"], row["ชื่อหวย"], row["งวดวันที่"], row["เลขบน_3_ตัว"], row["เลขล่าง_2_ตัว"])
+            if key not in seen:
+                seen.add(key)
+                unique.append(row)
+        counts = {g: sum(1 for row in unique if row["หมวดหวย"] == g) for g in group_map.values()}
+        print(f"[INFO] Stock group scraper found {len(unique)} results: {counts}")
+        return unique
+    except Exception as e:
+        print(f"[WARN] Failed fetching separated stock groups: {e}")
+        return []
+
+
+def _http_get_text(url: str, timeout: int = 10) -> str:
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; LotteryAlert/1.0)", "Accept": "text/html"}
+    if requests:
+        response = requests.get(url, headers=headers, timeout=timeout)
+        if response.status_code != 200:
+            print(f"[WARN] GET {url} returned HTTP {response.status_code}")
+            return ""
+        return response.text
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.read().decode("utf-8", errors="replace")
+
+
 def fetch_from_thailottoapi_stock() -> list:
     """Fetch published stock/VIP lottery results, the system's primary target."""
     cfg = S.get("sources", {}).get("thailottoapi", {})
@@ -314,7 +407,7 @@ def send_ntfy_notification(row: dict) -> bool:
 
     try:
         title = title_pattern.format(**template_vars)
-        if row.get("หมวดหวย") == "stock":
+        if str(row.get("หมวดหวย", "")).startswith("stock"):
             body = (
                 f"{title}\n\n"
                 f"📈 ตลาด: {row.get('ชื่อหวย', 'หวยหุ้น')}\n"
@@ -424,14 +517,26 @@ def main():
     previous_results = sl.load_previous_results()
     rows, source_used = [], None
 
-    # Priority 1: daily stock markets and VIP results, the main purpose of this project.
+    # Priority 1: merge regular stock API results with the site's explicitly separated VIP/special/VISA groups.
     if sl.source_enabled(S, "thailottoapi"):
-        print("[CHECK] Querying primary stock/VIP source: thailottoapi...")
-        rows = fetch_from_thailottoapi_stock()
-        if rows:
-            source_used = "ThaiLottoAPI stock"
+        print("[CHECK] Querying primary regular stock source: thailottoapi...")
+        regular_rows = fetch_from_thailottoapi_stock()
+        rows.extend(regular_rows)
+        if regular_rows:
+            source_used = "ThaiLottoAPI + stock group scraper"
 
-    # If no published stock results exist today, retain the government lottery fallback.
+    print("[CHECK] Querying separated regular/VIP/special/VISA stock results...")
+    grouped_rows = fetch_from_pholhuay_stock_groups()
+    if grouped_rows:
+        known = {(r.get("ชื่อหวย"), r.get("งวดวันที่"), r.get("เลขบน_3_ตัว"), r.get("เลขล่าง_2_ตัว")) for r in rows}
+        for row in grouped_rows:
+            key = (row.get("ชื่อหวย"), row.get("งวดวันที่"), row.get("เลขบน_3_ตัว"), row.get("เลขล่าง_2_ตัว"))
+            if key not in known:
+                rows.append(row)
+                known.add(key)
+        source_used = source_used or "ผลหวย.com stock groups"
+
+    # Government results remain a fallback only when no live stock result is available.
     # Never treat cached history as a fresh result.
     if not rows and sl.source_enabled(S, "pholhuay"):
         print("[CHECK] Querying source: pholhuay...")
