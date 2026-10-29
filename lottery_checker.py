@@ -100,6 +100,59 @@ def fetch_from_glo() -> list:
     return []
 
 
+def fetch_from_thailottoapi_stock() -> list:
+    """Fetch published stock/VIP lottery results, the system's primary target."""
+    cfg = S.get("sources", {}).get("thailottoapi", {})
+    base = cfg.get("url", "https://thailottoapi.com/api/results")
+    timeout = cfg.get("timeout_sec", 12)
+    # Use Thailand local date; request a fresh sync so the endpoint doesn't stay on yesterday's cache.
+    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date().isoformat()
+    url = f"{base}?date={today}&sync=1"
+    try:
+        data = _http_get_json(url, timeout=timeout, headers={
+            "User-Agent": "LotteryAlert/1.0 (+https://github.com/jirapatza/Bombim00)",
+            "Accept": "application/json"
+        })
+        if not isinstance(data, dict) or data.get("ok") is not True:
+            print("[WARN] ThaiLottoAPI returned no successful response.")
+            return []
+        categories = data.get("categories") or {}
+        stock = categories.get("stock") or {}
+        items = stock.get("items") or []
+        rows = []
+        for item in items:
+            if not isinstance(item, dict) or str(item.get("status", "")).lower() != "success":
+                continue
+            top3 = str(item.get("top3") or "").strip()
+            bottom2 = str(item.get("bottom2") or "").strip()
+            draw_date = str(item.get("drawDateDisplay") or item.get("drawDate") or "").strip()
+            if not top3 or not bottom2 or not draw_date:
+                print(f"[WARN] Skipping incomplete stock result: {item.get('key', 'unknown')}")
+                continue
+            rows.append({
+                "ชื่อหวย": str(item.get("label") or item.get("key") or "หวยหุ้น"),
+                "หวย": str(item.get("key") or ""),
+                "หมวดหวย": "stock",
+                "งวดวันที่": draw_date,
+                "วันที่จัดรูปแบบ": str(item.get("drawDate") or today)[:10],
+                "รางวัลที่_1": top3.zfill(3),
+                "เลขท้าย_2_ตัว": bottom2.zfill(2),
+                "เลขบน_3_ตัว": top3.zfill(3),
+                "เลขล่าง_2_ตัว": bottom2.zfill(2),
+                "เลขหน้า_3_ตัว": [],
+                "เลขท้าย_3_ตัว": [],
+                "รางวัลข้างเคียงรางวัลที่_1": [],
+                "แหล่งข้อมูล": "ThaiLottoAPI",
+                "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
+                "สถานะการแจ้งเตือน": "pending"
+            })
+        print(f"[INFO] ThaiLottoAPI stock category: {len(rows)} published result(s) for {today}.")
+        return rows
+    except Exception as e:
+        print(f"[WARN] Failed fetching stock results from ThaiLottoAPI: {e}")
+        return []
+
+
 def fetch_from_lotterychecks() -> list:
     """Fetch latest Thai government lottery results from LotteryChecks public API."""
     source = S.get("sources", {}).get("lotterychecks", {})
@@ -361,8 +414,16 @@ def main():
     previous_results = sl.load_previous_results()
     rows, source_used = [], None
 
+    # Priority 1: daily stock markets and VIP results, the main purpose of this project.
+    if sl.source_enabled(S, "thailottoapi"):
+        print("[CHECK] Querying primary stock/VIP source: thailottoapi...")
+        rows = fetch_from_thailottoapi_stock()
+        if rows:
+            source_used = "ThaiLottoAPI stock"
+
+    # If no published stock results exist today, retain the government lottery fallback.
     # Never treat cached history as a fresh result.
-    if sl.source_enabled(S, "pholhuay"):
+    if not rows and sl.source_enabled(S, "pholhuay"):
         print("[CHECK] Querying source: pholhuay...")
         rows = fetch_from_pholhuay()
         if rows:
