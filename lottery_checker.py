@@ -324,7 +324,7 @@ def send_ntfy_notification(row: dict) -> bool:
                 f"📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'unknown')}"
             )
         else:
-            body = f"{title}\\n\\n" + body_pattern.format(**template_vars)
+            body = f"{title}\n\n" + body_pattern.format(**template_vars)
     except Exception:
         title = f"📢 ผลสลากกินแบ่งรัฐบาล งวด {draw_date}"
         body = f"{title}\n\n🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'official')}"
