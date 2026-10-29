@@ -316,11 +316,11 @@ def send_ntfy_notification(row: dict) -> bool:
         title = title_pattern.format(**template_vars)
         if row.get("หมวดหวย") == "stock":
             body = (
-                f"{title}\\n\\n"
-                f"📈 ตลาด: {row.get('ชื่อหวย', 'หวยหุ้น')}\\n"
-                f"🔺 3 ตัวบน: {row.get('เลขบน_3_ตัว', row.get('รางวัลที่_1', '-'))}\\n"
-                f"🔻 2 ตัวล่าง: {row.get('เลขล่าง_2_ตัว', row.get('เลขท้าย_2_ตัว', '-'))}\\n"
-                f"📅 งวด: {draw_date}\\n"
+                f"{title}\n\n"
+                f"📈 ตลาด: {row.get('ชื่อหวย', 'หวยหุ้น')}\n"
+                f"🔺 3 ตัวบน: {row.get('เลขบน_3_ตัว', row.get('รางวัลที่_1', '-'))}\n"
+                f"🔻 2 ตัวล่าง: {row.get('เลขล่าง_2_ตัว', row.get('เลขท้าย_2_ตัว', '-'))}\n"
+                f"📅 งวด: {draw_date}\n"
                 f"📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'unknown')}"
             )
         else:
