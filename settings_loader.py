@@ -148,10 +148,19 @@ def write_status(
             "level": "ERROR",
             "message": status_message
         })
+    elif not rows:
+        # No live result is not the same as a healthy result check.
+        system_status = "degraded"
+        status_message = "ไม่พบผลหวยสดจากแหล่งข้อมูลที่เปิดใช้งาน รอบนี้จึงไม่มีการส่งผลหวย"
+        recent_logs.insert(0, {
+            "timestamp": iso_time,
+            "level": "WARNING",
+            "message": status_message
+        })
     else:
         system_status = "healthy"
-        latest_draw = rows[0].get("งวดวันที่", "ไม่ระบุ") if rows else "ไม่พบข้อมูล"
-        status_message = f"ตรวจสอบผลสลากสำเร็จ (งวด {latest_draw}) ผ่านแหล่ง {source_used or 'auto'}"
+        latest_draw = rows[0].get("งวดวันที่", "ไม่ระบุ")
+        status_message = f"ตรวจพบผลสดงวด {latest_draw} ผ่านแหล่ง {source_used or 'auto'}"
         recent_logs.insert(0, {
             "timestamp": iso_time,
             "level": "INFO",
