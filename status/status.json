@@ -1,14 +1,19 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-10-30T02:33:25.672977+07:00",
-  "last_run_date_thai": "30/10/2026 02:33:25 น.",
-  "total_checks": 204,
+  "last_run_timestamp": "2026-10-30T03:19:38.458804+07:00",
+  "last_run_date_thai": "30/10/2026 03:19:38 น.",
+  "total_checks": 205,
   "last_source_used": "ผลหวย.com stock groups",
   "status_message": "ตรวจพบผลสดงวด 28 ตุลาคม 2569 ผ่านแหล่ง ผลหวย.com stock groups",
   "active_sources_count": 45,
   "latest_draw_detected": "28 ตุลาคม 2569",
   "notifications_sent_today": 5,
   "recent_logs": [
+    {
+      "timestamp": "2026-10-30T03:19:38.458804+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 28 ตุลาคม 2569 ผ่านแหล่ง ผลหวย.com stock groups"
+    },
     {
       "timestamp": "2026-10-30T02:33:25.672977+07:00",
       "level": "INFO",
@@ -101,11 +106,6 @@
     },
     {
       "timestamp": "2026-10-29T20:23:51.882979+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 29.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-29T20:23:25.203688+07:00",
       "level": "INFO",
       "message": "ตรวจพบผลสดงวด 29.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
     }
