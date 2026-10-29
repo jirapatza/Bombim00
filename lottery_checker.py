@@ -100,6 +100,55 @@ def fetch_from_glo() -> list:
     return []
 
 
+def fetch_from_ranlotto() -> list:
+    """Fallback for Thai government lottery results via the public RANLOTTO API."""
+    url = S.get("sources", {}).get("ranlotto", {}).get(
+        "url", "https://api.ranlotto.com/api/public/v1/lottery/result/latest"
+    )
+    timeout = S.get("sources", {}).get("ranlotto", {}).get("timeout_sec", 10)
+    try:
+        data = _http_get_json(url, timeout=timeout)
+        if not isinstance(data, dict) or data.get("success") is False:
+            return []
+        payload = data.get("data") or {}
+        result = payload.get("result") or {}
+        state = str(payload.get("state") or "").strip().lower()
+        # Do not notify for drafts, scheduled draws, or incomplete results.
+        if state and state not in {"published", "complete", "completed"}:
+            print(f"[INFO] RANLOTTO result state is '{state}', not published; skipping.")
+            return []
+        first_num = result.get("first_prize") or result.get("firstPrize") or payload.get("first_prize")
+        last2_num = result.get("last_two") or result.get("last2") or result.get("last_two_digits") or payload.get("last_two")
+        if not first_num or not last2_num:
+            print("[WARN] RANLOTTO response did not contain both first prize and last two digits.")
+            return []
+        raw_date = str(payload.get("date") or data.get("facts", {}).get("date") or "").strip()
+        draw_date = raw_date
+        try:
+            parsed = datetime.date.fromisoformat(raw_date[:10])
+            thai_months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+                           "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"]
+            draw_date = f"{parsed.day} {thai_months[parsed.month - 1]} {parsed.year + 543}"
+        except (ValueError, TypeError):
+            pass
+        return [{
+            "ชื่อหวย": "สลากกินแบ่งรัฐบาล",
+            "งวดวันที่": draw_date or "งวดล่าสุด",
+            "วันที่จัดรูปแบบ": raw_date[:10] if len(raw_date) >= 10 else datetime.date.today().isoformat(),
+            "รางวัลที่_1": str(first_num).zfill(6),
+            "เลขท้าย_2_ตัว": str(last2_num).zfill(2),
+            "เลขหน้า_3_ตัว": [str(x).zfill(3) for x in (result.get("front_three") or result.get("front3") or [])],
+            "เลขท้าย_3_ตัว": [str(x).zfill(3) for x in (result.get("last_three") or result.get("last3") or [])],
+            "รางวัลข้างเคียงรางวัลที่_1": [],
+            "แหล่งข้อมูล": "ranlotto",
+            "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
+            "สถานะการแจ้งเตือน": "pending"
+        }]
+    except Exception as e:
+        print(f"[WARN] Failed fetching from RANLOTTO: {e}")
+        return []
+
+
 def fetch_from_pholhuay() -> list:
     """Fetch latest lottery results from Pholhuay source."""
     url = S.get("sources", {}).get("pholhuay", {}).get("url", "https://api.pholhuay.com/v1/lottery/latest")
@@ -275,6 +324,11 @@ def main():
         rows = fetch_from_glo()
         if rows:
             source_used = "glo"
+    if not rows and sl.source_enabled(S, "ranlotto"):
+        print("[CHECK] Querying fallback source: ranlotto...")
+        rows = fetch_from_ranlotto()
+        if rows:
+            source_used = "ranlotto"
 
     if not rows:
         print("[INFO] No live result available; cached results will not be re-sent.")
