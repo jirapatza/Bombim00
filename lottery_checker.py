@@ -100,6 +100,54 @@ def fetch_from_glo() -> list:
     return []
 
 
+def fetch_from_lotterychecks() -> list:
+    """Fetch latest Thai government lottery results from LotteryChecks public API."""
+    source = S.get("sources", {}).get("lotterychecks", {})
+    url = source.get("url", "https://lotterychecks.com/api/public/results?lottery=thai-government&limit=1")
+    timeout = source.get("timeout_sec", 10)
+    try:
+        data = _http_get_json(url, timeout=timeout)
+        if not isinstance(data, dict) or data.get("success") is not True:
+            print("[WARN] LotteryChecks returned no successful result envelope.")
+            return []
+        records = data.get("data") or []
+        if not isinstance(records, list) or not records:
+            print("[WARN] LotteryChecks returned an empty result list.")
+            return []
+        record = records[0]
+        prizes = record.get("prizes") or []
+        by_slug = {str(p.get("slug", "")).lower(): p.get("numbers") or [] for p in prizes if isinstance(p, dict)}
+        first = (by_slug.get("first-prize") or [None])[0]
+        last2 = (by_slug.get("last-two-digit") or [None])[0]
+        # Accept only a record with the two essential prize types; never synthesize missing digits.
+        if first is None or last2 is None:
+            print("[WARN] LotteryChecks result is missing first-prize or last-two-digit fields.")
+            return []
+        draw_date = str(record.get("drawDate") or "").strip()
+        display_date = str(record.get("displayName") or draw_date or "งวดล่าสุด")
+        if not draw_date:
+            print("[WARN] LotteryChecks result has no draw date; skipping to avoid misdated alerts.")
+            return []
+        def numbers(slug):
+            return [str(x).zfill(3) for x in by_slug.get(slug, [])]
+        return [{
+            "ชื่อหวย": record.get("lotteryName") or "สลากกินแบ่งรัฐบาล",
+            "งวดวันที่": display_date,
+            "วันที่จัดรูปแบบ": draw_date[:10],
+            "รางวัลที่_1": str(first).zfill(6),
+            "เลขท้าย_2_ตัว": str(last2).zfill(2),
+            "เลขหน้า_3_ตัว": numbers("first-three-digit"),
+            "เลขท้าย_3_ตัว": numbers("last-three-digit"),
+            "รางวัลข้างเคียงรางวัลที่_1": [],
+            "แหล่งข้อมูล": "LotteryChecks",
+            "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
+            "สถานะการแจ้งเตือน": "pending"
+        }]
+    except Exception as e:
+        print(f"[WARN] Failed fetching from LotteryChecks: {e}")
+        return []
+
+
 def fetch_from_ranlotto() -> list:
     """Fallback for Thai government lottery results via the public RANLOTTO API."""
     url = S.get("sources", {}).get("ranlotto", {}).get(
@@ -324,6 +372,11 @@ def main():
         rows = fetch_from_glo()
         if rows:
             source_used = "glo"
+    if not rows and sl.source_enabled(S, "lotterychecks"):
+        print("[CHECK] Querying fallback source: lotterychecks...")
+        rows = fetch_from_lotterychecks()
+        if rows:
+            source_used = "LotteryChecks"
     if not rows and sl.source_enabled(S, "ranlotto"):
         print("[CHECK] Querying fallback source: ranlotto...")
         rows = fetch_from_ranlotto()
