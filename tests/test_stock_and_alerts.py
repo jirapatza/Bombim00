@@ -46,7 +46,7 @@ def test_non_stock_ntfy_body_uses_real_line_breaks(monkeypatch):
         "channels": {"ntfy": {"enabled": True, "topic": "test-topic"}},
         "message_template": {
             "title": "ผล{lottery_name} งวด {draw_date}",
-            "body": "รางวัลที่ 1: {first_prize}\\nเลขท้าย 2 ตัว: {last_2}"
+            "body": "รางวัลที่ 1: {first_prize}\nเลขท้าย 2 ตัว: {last_2}"
         }
     })
     monkeypatch.setattr(lc, "_http_post", lambda url, data, headers, timeout=10: sent.update(
