@@ -52,7 +52,8 @@ import {
   BarChart3,
   Ticket,
   Rocket,
-  ListFilter
+  ListFilter,
+  Github
 } from 'lucide-react';
 
 import { BroadcastKiosk } from './components/BroadcastKiosk';
@@ -62,6 +63,11 @@ import { BatchTicketChecker } from './components/BatchTicketChecker';
 import { DeploymentPlaybook } from './components/DeploymentPlaybook';
 import { DailySummaryTable, LotteryItem } from './components/DailySummaryTable';
 import { LotteryCatalogInspector } from './components/LotteryCatalogInspector';
+import { GitHubAppRunner } from './components/GitHubAppRunner';
+import { ProjectCodeEditor } from './components/ProjectCodeEditor';
+import { MobileNotificationHub } from './components/MobileNotificationHub';
+import { LiveUpcomingDraws } from './components/LiveUpcomingDraws';
+import { SettingsCenter } from './components/SettingsCenter';
 
 interface LotteryResult {
   งวดวันที่: string;
@@ -251,22 +257,25 @@ const TEMPLATE_PRESETS = {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<
-    | 'summary'
+    | 'live'
     | 'catalog'
+    | 'analytics'
+    | 'settings'
+    | 'summary'
+    | 'github'
+    | 'mobile'
     | 'overview'
     | 'broadcast'
     | 'channels'
-    | 'analytics'
     | 'batch'
     | 'template'
     | 'schedule'
-    | 'settings'
     | 'results'
     | 'tester'
     | 'worker'
     | 'deployment'
     | 'files'
-  >('summary');
+  >('live');
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [settings, setSettings] = useState<any>(null);
   const [results, setResults] = useState<LotteryResult[]>([]);
@@ -619,6 +628,19 @@ export default function App() {
     window.speechSynthesis.speak(utterance);
   };
 
+  const speakCustomText = (text: string) => {
+    if (!('speechSynthesis' in window)) return;
+    stopSpeech();
+    playChime();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'th-TH';
+    utterance.rate = speechRate;
+    const voices = window.speechSynthesis.getVoices();
+    const thaiVoice = voices.find((v) => v.lang === 'th-TH' || v.lang.startsWith('th'));
+    if (thaiVoice) utterance.voice = thaiVoice;
+    window.speechSynthesis.speak(utterance);
+  };
+
   const triggerAnnouncements = (items: LotteryAnnouncement[]) => {
     if (!items || items.length === 0) return;
 
@@ -810,6 +832,26 @@ export default function App() {
     }
   };
 
+  const handleSaveRawSettings = async () => {
+    try {
+      const parsed = JSON.parse(rawSettingsJson);
+      setSettings(parsed);
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('💾 บันทึกการตั้งค่า JSON สำเร็จแล้ว!');
+      } else {
+        showToast(`เกิดข้อผิดพลาด: ${data.error || 'บันทึกไม่สำเร็จ'}`);
+      }
+    } catch (e: any) {
+      showToast(`รูปแบบ JSON ไม่ถูกต้อง: ${e.message}`);
+    }
+  };
+
   // Fetch initial data
   const fetchData = async () => {
     setIsLoading(true);
@@ -859,6 +901,10 @@ export default function App() {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.getVoices();
     }
+    const interval = setInterval(() => {
+      fetchData();
+    }, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleTriggerCheck = async () => {
@@ -1321,6 +1367,32 @@ export default function App() {
         </div>
       )}
 
+      {/* Zero-Config Active Auto-Pilot Banner */}
+      <div className="bg-gradient-to-r from-emerald-950 via-slate-950 to-emerald-950 border-b border-emerald-500/40 px-4 py-2.5 text-xs">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 text-emerald-300 font-semibold">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span>🟢 ระบบตรวจผลและส่งแจ้งเตือนทำงานอัตโนมัติ 24 ชม. (คุณไม่ต้องตั้งค่าอะไรเพิ่มอีกแล้ว พร้อมใช้งานทันที)</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <a
+              href="https://ntfy.sh/lottery-bombimm43"
+              target="_blank"
+              rel="noreferrer"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition shadow-md shadow-emerald-500/20"
+            >
+              <Smartphone className="w-4 h-4" />
+              📲 แตะตรงนี้เพื่อเปิดรับแจ้งเตือนบนมือถือ (เปิด ntfy.sh/lottery-bombimm43)
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Top Header */}
       <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
@@ -1383,187 +1455,59 @@ export default function App() {
           </div>
         </div>
 
-        {/* Tab Navigation */}
+        {/* Clean 4-Tab Navigation */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <nav className="flex space-x-1 sm:space-x-4 border-t border-slate-800/60 overflow-x-auto py-2 text-xs font-medium text-slate-400">
+          <nav className="flex space-x-2 sm:space-x-3 border-t border-slate-800/60 overflow-x-auto py-2.5 text-xs font-semibold">
+            {/* Tab 1: Live Draws & Real-time Queue */}
             <button
-              onClick={() => setActiveTab('summary')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'summary'
-                  ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40 shadow-sm'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
+              onClick={() => setActiveTab('live')}
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+                activeTab === 'live' || activeTab === 'summary'
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow-lg shadow-amber-500/25 scale-[1.02]'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
               }`}
             >
-              <Calendar className="w-3.5 h-3.5 text-amber-400" />
-              📋 ตารางสรุปผลทุกหวย (เช้า-ดึก)
+              <Radio className={`w-4 h-4 ${activeTab === 'live' ? 'animate-pulse text-slate-950' : 'text-amber-400'}`} />
+              <span>🎯 ผลหวยสด &amp; คิวรอบถัดไป (Live Draws)</span>
             </button>
 
+            {/* Tab 2: All 55 Lotteries Catalog */}
             <button
               onClick={() => setActiveTab('catalog')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
                 activeTab === 'catalog'
-                  ? 'bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40 shadow-sm'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'bg-purple-600 text-white font-bold shadow-lg shadow-purple-600/25 scale-[1.02]'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
               }`}
             >
-              <ListFilter className="w-3.5 h-3.5 text-purple-400" />
-              📑 เมนูเลือกดูหวยรายตัว
+              <ListFilter className="w-4 h-4 text-purple-400" />
+              <span>📑 รายการหวยทั้งหมด ({allLotteries.length} หวย)</span>
             </button>
 
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'overview'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              <Flame className="w-3.5 h-3.5" />
-              ภาพรวม & สถานะ
-            </button>
-
-            <button
-              onClick={() => setActiveTab('broadcast')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'broadcast'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              <Tv className="w-3.5 h-3.5 text-amber-400" />
-              📺 จอทีวีถ่ายทอดสด (Live Kiosk)
-            </button>
-
-            <button
-              onClick={() => setActiveTab('channels')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'channels'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              <Share2 className="w-3.5 h-3.5 text-emerald-400" />
-              🌐 รวมช่องทางแจ้งเตือน (Multi-Channel)
-            </button>
-
+            {/* Tab 3: Analytics & Ticket Checker */}
             <button
               onClick={() => setActiveTab('analytics')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
                 activeTab === 'analytics'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/25 scale-[1.02]'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
               }`}
             >
-              <BarChart3 className="w-3.5 h-3.5 text-purple-400" />
-              📊 สถิติวิเคราะห์เลข & สุ่มเลขมงคล
+              <BarChart3 className="w-4 h-4 text-emerald-400" />
+              <span>📊 สถิติ &amp; ตรวจสลาก (Stats &amp; Checker)</span>
             </button>
 
-            <button
-              onClick={() => setActiveTab('batch')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'batch'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              <Ticket className="w-3.5 h-3.5 text-yellow-400" />
-              🎫 ตรวจสลากแบบชุด (Batch Ticket)
-            </button>
-
-            <button
-              onClick={() => setActiveTab('template')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'template'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              <Palette className="w-3.5 h-3.5" />
-              ปรับแต่งรูปแบบข้อความ & ตัวหนังสือ
-            </button>
-
-            <button
-              onClick={() => setActiveTab('schedule')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'schedule'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              ตารางเวลาหวยปิดรอบถัดไป
-            </button>
-
-            <button
-              onClick={() => setActiveTab('results')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'results'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              <History className="w-3.5 h-3.5" />
-              ผลหวยย้อนหลัง & ตรวจรางวัล
-            </button>
-
+            {/* Tab 4: Unified Settings Center */}
             <button
               onClick={() => setActiveTab('settings')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
                 activeTab === 'settings'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/25 scale-[1.02]'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
               }`}
             >
-              <Sliders className="w-3.5 h-3.5" />
-              ตั้งค่า (settings.json)
-            </button>
-
-            <button
-              onClick={() => setActiveTab('tester')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'tester'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              ทดสอบแจ้งเตือน ntfy
-            </button>
-
-            <button
-              onClick={() => setActiveTab('worker')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'worker'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              <Shield className="w-3.5 h-3.5" />
-              Cloudflare Worker & Secrets
-            </button>
-
-            <button
-              onClick={() => setActiveTab('deployment')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'deployment'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              <Rocket className="w-3.5 h-3.5 text-cyan-400" />
-              🚀 คู่มือนำไปใช้งานจริง (Playbook)
-            </button>
-
-            <button
-              onClick={() => setActiveTab('files')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'files'
-                  ? 'bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30'
-                  : 'hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              <FolderGit2 className="w-3.5 h-3.5" />
-              คลังไฟล์ & โค้ดโปรเจกต์
+              <Settings className="w-4 h-4 text-indigo-400" />
+              <span>⚙️ ตั้งค่าระบบ (Settings Center)</span>
             </button>
           </nav>
         </div>
@@ -1571,15 +1515,22 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-        {/* ==================== TAB: DAILY TIMELINE & ALL LOTTERIES SUMMARY ==================== */}
-        {activeTab === 'summary' && (
-          <DailySummaryTable
+        {/* ==================== TAB 1: LIVE DRAWS & REAL-TIME BANGKOK TIME ==================== */}
+        {(activeTab === 'live' || activeTab === 'summary') && (
+          <LiveUpcomingDraws
             lotteries={allLotteries}
             onSelectLottery={(item) => {
               setSelectedCatalogLottery(item);
               setActiveTab('catalog');
             }}
             onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
+            voiceEnabled={voiceEnabled}
+            onToggleVoice={() => {
+              const nextState = !voiceEnabled;
+              setVoiceEnabled(nextState);
+              if (!nextState) stopSpeech();
+              showToast(nextState ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
+            }}
           />
         )}
 
@@ -2239,165 +2190,51 @@ export default function App() {
           </div>
         )}
 
-        {/* ==================== TAB: SETTINGS (config/settings.json) ==================== */}
-        {activeTab === 'settings' && (
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-4 rounded-2xl">
-              <div>
-                <h2 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-amber-400" />
-                  จัดการการตั้งค่าระบบ (config/settings.json)
-                </h2>
-                <p className="text-xs text-slate-400">
-                  แก้ไขแหล่งข้อมูล, กฎการแจ้งเตือน, เลขเด็ดที่ติดตาม, และ ntfy server
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setRawSettingsMode(!rawSettingsMode)}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer flex items-center gap-1.5"
-                >
-                  <Code2 className="w-3.5 h-3.5" />
-                  {rawSettingsMode ? 'สลับเป็นแบบฟอร์ม (Form UI)' : 'แก้ไข Raw JSON'}
-                </button>
-
-                <button
-                  onClick={handleSaveTemplate}
-                  className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer flex items-center gap-1.5 shadow-md shadow-emerald-600/20"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  บันทึกการตั้งค่า
-                </button>
-              </div>
-            </div>
-
-            {rawSettingsMode ? (
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
-                <label className="text-xs font-bold text-slate-300 mb-2 block">
-                  JSON Editor (config/settings.json)
-                </label>
-                <textarea
-                  value={rawSettingsJson}
-                  onChange={(e) => setRawSettingsJson(e.target.value)}
-                  rows={20}
-                  className="w-full bg-slate-950 font-mono text-xs text-emerald-300 p-4 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500 leading-relaxed"
-                />
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Sources Management */}
-                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-4">
-                  <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2 border-b border-slate-800 pb-2">
-                    <Database className="w-4 h-4 text-amber-400" />
-                    แหล่งข้อมูลสลาก (Lottery Sources)
-                  </h3>
-
-                  {settings?.sources &&
-                    Object.entries(settings.sources).map(([key, src]: [string, any]) => (
-                      <div
-                        key={key}
-                        className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between"
-                      >
-                        <div>
-                          <div className="font-semibold text-xs text-slate-200">{src.name}</div>
-                          <div className="text-[11px] text-slate-500 font-mono truncate max-w-[200px]">
-                            {src.url}
-                          </div>
-                          <div className="text-[10px] text-slate-400 mt-1">
-                            Timeout: {src.timeout_sec || 10}s | Priority: {src.priority || 1}
-                          </div>
-                        </div>
-
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(src.enabled)}
-                            onChange={() => {
-                              const updated = {
-                                ...settings,
-                                sources: {
-                                  ...settings.sources,
-                                  [key]: { ...settings.sources[key], enabled: !settings.sources[key].enabled },
-                                },
-                              };
-                              setSettings(updated);
-                              setRawSettingsJson(JSON.stringify(updated, null, 2));
-                            }}
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                        </label>
-                      </div>
-                    ))}
-                </div>
-
-                {/* Watched Numbers */}
-                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-4">
-                  <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2 border-b border-slate-800 pb-2">
-                    <Sparkles className="w-4 h-4 text-yellow-400" />
-                    เลขเด็ดที่ติดตาม (Custom Watched Numbers)
-                  </h3>
-
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="ใส่เลข เช่น 95, 42, 789"
-                      value={newWatchedNumber}
-                      onChange={(e) => setNewWatchedNumber(e.target.value)}
-                      className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!newWatchedNumber.trim()) return;
-                        const current = settings?.notifications?.custom_watched_numbers || [];
-                        if (!current.includes(newWatchedNumber.trim())) {
-                          const updated = {
-                            ...settings,
-                            notifications: { ...settings.notifications, custom_watched_numbers: [...current, newWatchedNumber.trim()] },
-                          };
-                          setSettings(updated);
-                          setRawSettingsJson(JSON.stringify(updated, null, 2));
-                          setNewWatchedNumber('');
-                          showToast(`เพิ่มเลขติดตาม '${newWatchedNumber.trim()}' แล้ว`);
-                        }
-                      }}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl cursor-pointer"
-                    >
-                      เพิ่ม
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {settings?.notifications?.custom_watched_numbers?.map((num: string, idx: number) => (
-                      <span
-                        key={idx}
-                        className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-800 text-amber-300 border border-amber-500/30 flex items-center gap-1.5"
-                      >
-                        {num}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const current = settings?.notifications?.custom_watched_numbers || [];
-                            const updated = {
-                              ...settings,
-                              notifications: { ...settings.notifications, custom_watched_numbers: current.filter((x: string) => x !== num) },
-                            };
-                            setSettings(updated);
-                            setRawSettingsJson(JSON.stringify(updated, null, 2));
-                          }}
-                          className="hover:text-rose-400 cursor-pointer ml-1"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+        {/* ==================== TAB 4: UNIFIED SETTINGS CENTER ==================== */}
+        {(activeTab === 'settings' ||
+          activeTab === 'mobile' ||
+          activeTab === 'template' ||
+          activeTab === 'github' ||
+          activeTab === 'files' ||
+          activeTab === 'channels' ||
+          activeTab === 'deployment' ||
+          activeTab === 'schedule' ||
+          activeTab === 'tester' ||
+          activeTab === 'worker' ||
+          activeTab === 'broadcast') && (
+          <SettingsCenter
+            settings={settings}
+            onSaveSettings={handleSaveMultiChannelSettings}
+            rawSettingsJson={rawSettingsJson}
+            setRawSettingsJson={setRawSettingsJson}
+            onSaveRawSettings={handleSaveRawSettings}
+            onRefreshData={fetchData}
+            status={status}
+            latestDraw={latestDraw}
+            allLotteries={allLotteries}
+            onSpeak={speakCustomText}
+            templateProps={{
+              templateTitle,
+              setTemplateTitle,
+              templateBody,
+              setTemplateBody,
+              speechScript,
+              setSpeechScript,
+              politeParticle,
+              setPoliteParticle,
+              modalTheme,
+              setModalTheme,
+              fontSize,
+              setFontSize,
+              fontFamily,
+              setFontFamily,
+              speechRate,
+              setSpeechRate,
+              onSaveTemplate: handleSaveTemplate,
+              onApplyPreset: (key) => applyPreset(key as any),
+              onTestAnnouncement: testSingleAnnouncement,
+            }}
+          />
         )}
 
         {/* ==================== TAB: RESULTS & TICKET CHECKER ==================== */}
@@ -2643,69 +2480,37 @@ export default function App() {
           </div>
         )}
 
-        {/* ==================== TAB: FILES & WORKER ==================== */}
+        {/* ==================== TAB: MOBILE NOTIFICATION HUB (100% RELIABLE) ==================== */}
+        {activeTab === 'mobile' && (
+          <MobileNotificationHub
+            currentTopic={settings?.channels?.ntfy?.topic || 'lottery-alert-bombimm43'}
+            onUpdateTopic={(newTopic) => {
+              if (settings) {
+                const updated = {
+                  ...settings,
+                  channels: {
+                    ...settings.channels,
+                    ntfy: { ...(settings.channels?.ntfy || {}), topic: newTopic },
+                  },
+                };
+                setSettings(updated);
+              }
+            }}
+            latestDraw={latestDraw}
+            allLotteries={allLotteries}
+            onSpeak={(txt) => {
+              if (voiceEnabled) speakCustomText(txt);
+            }}
+          />
+        )}
+
+        {/* ==================== TAB: IN-APP CODE EDITOR & GITHUB DIRECT COMMIT ==================== */}
         {activeTab === 'files' && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-2">
-              <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400 mb-3 px-2 flex items-center gap-1.5">
-                <FileCode2 className="w-3.5 h-3.5 text-amber-400" />
-                ไฟล์ในโปรเจกต์ ({projectFiles.length})
-              </h3>
-
-              <div className="space-y-1">
-                {projectFiles.map((f) => (
-                  <button
-                    key={f.name}
-                    type="button"
-                    onClick={() => setSelectedFile(f.name)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono transition flex items-center justify-between cursor-pointer ${
-                      selectedFile === f.name
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold'
-                        : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
-                    }`}
-                  >
-                    <span className="truncate">{f.name}</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 ml-2 shrink-0">
-                      {f.category}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="lg:col-span-3 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3 mb-3">
-                <div className="flex items-center gap-2">
-                  <Code2 className="w-4 h-4 text-amber-400" />
-                  <span className="font-mono text-xs font-bold text-slate-200">{selectedFile}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(projectFiles.find((f) => f.name === selectedFile)?.content || '', selectedFile)}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer flex items-center gap-1"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    {copiedKey === selectedFile ? 'คัดลอกแล้ว!' : 'คัดลอกโค้ด'}
-                  </button>
-
-                  <a
-                    href={`data:text/plain;charset=utf-8,${encodeURIComponent(projectFiles.find((f) => f.name === selectedFile)?.content || '')}`}
-                    download={selectedFile.split('/').pop()}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 cursor-pointer flex items-center gap-1"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    ดาวน์โหลด
-                  </a>
-                </div>
-              </div>
-
-              <pre className="flex-1 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono text-slate-300 overflow-x-auto leading-relaxed max-h-[600px]">
-                {projectFiles.find((f) => f.name === selectedFile)?.content || 'ไม่มีเนื้อหาในไฟล์นี้'}
-              </pre>
-            </div>
-          </div>
+          <ProjectCodeEditor
+            onRefreshProject={fetchData}
+            defaultRepo={localStorage.getItem('gh_repo') || 'myuser/th-lottery-alert'}
+            defaultBranch={localStorage.getItem('gh_branch') || 'main'}
+          />
         )}
 
         {activeTab === 'worker' && (
@@ -3074,6 +2879,14 @@ export default function App() {
           </div>
         )}
 
+        {/* ==================== TAB: GITHUB ACTIONS RUNNER ==================== */}
+        {activeTab === 'github' && (
+          <GitHubAppRunner
+            onRefreshStatus={fetchData}
+            systemStatus={status}
+          />
+        )}
+
         {/* ==================== TAB: LIVE BROADCAST & TV KIOSK ==================== */}
         {activeTab === 'broadcast' && (
           <BroadcastKiosk
@@ -3100,21 +2913,19 @@ export default function App() {
           />
         )}
 
-        {/* ==================== TAB: LOTTERY STATS & ANALYTICS ==================== */}
-        {activeTab === 'analytics' && (
-          <LotteryAnalytics
-            results={results}
-            watchedNumbers={settings?.notifications?.custom_watched_numbers || []}
-            onAddWatchedNumber={handleAddWatchedNumber}
-          />
-        )}
-
-        {/* ==================== TAB: BATCH TICKET CHECKER ==================== */}
-        {activeTab === 'batch' && (
-          <BatchTicketChecker
-            results={results}
-            latestDraw={latestDraw}
-          />
+        {/* ==================== TAB 3: LOTTERY STATS, ANALYTICS & BATCH TICKET CHECKER ==================== */}
+        {(activeTab === 'analytics' || activeTab === 'batch' || activeTab === 'results') && (
+          <div className="space-y-6">
+            <LotteryAnalytics
+              results={results}
+              watchedNumbers={settings?.notifications?.custom_watched_numbers || []}
+              onAddWatchedNumber={handleAddWatchedNumber}
+            />
+            <BatchTicketChecker
+              results={results}
+              latestDraw={latestDraw}
+            />
+          </div>
         )}
 
         {/* ==================== TAB: DEPLOYMENT PLAYBOOK & GUIDE ==================== */}

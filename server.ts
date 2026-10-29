@@ -2,9 +2,13 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+const execAsync = promisify(exec);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,6 +23,7 @@ const SETTINGS_PATH = path.join(__dirname, 'config', 'settings.json');
 const STATUS_PATH = path.join(__dirname, 'status', 'status.json');
 const RESULTS_PATH = path.join(__dirname, 'lottery_previous_results.json');
 const ALL_LOTTERIES_PATH = path.join(__dirname, 'data', 'all_lotteries.json');
+const WORKFLOW_PATH = path.join(__dirname, '.github', 'workflows', 'lottery.yml');
 
 // 1. GET /api/status - Read system status
 app.get('/api/status', (req, res) => {
@@ -298,12 +303,159 @@ app.post('/api/test-channel', async (req, res) => {
   }
 });
 
+// 6.2 GET /api/github/workflow - Read .github/workflows/lottery.yml
+app.get('/api/github/workflow', (req, res) => {
+  try {
+    if (fs.existsSync(WORKFLOW_PATH)) {
+      const content = fs.readFileSync(WORKFLOW_PATH, 'utf-8');
+      return res.json({ success: true, content });
+    }
+    return res.status(404).json({ error: 'lottery.yml not found' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 6.3 POST /api/github/workflow - Update .github/workflows/lottery.yml
+app.post('/api/github/workflow', (req, res) => {
+  try {
+    const { content } = req.body;
+    if (!content) {
+      return res.status(400).json({ error: 'Content is required' });
+    }
+    fs.mkdirSync(path.dirname(WORKFLOW_PATH), { recursive: true });
+    fs.writeFileSync(WORKFLOW_PATH, content, 'utf-8');
+    return res.json({ success: true, message: 'บันทึกไฟล์ .github/workflows/lottery.yml สำเร็จ' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 6.4 POST /api/github/dispatch - Dispatch GitHub Actions workflow directly
+app.post('/api/github/dispatch', async (req, res) => {
+  try {
+    const { repo, branch = 'main', token, workflow = 'lottery.yml', inputs = {} } = req.body;
+
+    if (!repo) {
+      return res.status(400).json({ error: 'ต้องระบุ GitHub Repository เช่น owner/repo' });
+    }
+
+    if (!token) {
+      return res.status(400).json({ error: 'ต้องระบุ GitHub Personal Access Token (PAT) ที่มีสิทธิ์ Actions Write' });
+    }
+
+    const dispatchUrl = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/dispatches`;
+    const resp = await fetch(dispatchUrl, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': `Bearer ${token}`,
+        'User-Agent': 'LotteryAlertApp/1.0',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      body: JSON.stringify({
+        ref: branch,
+        inputs,
+      }),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return res.status(resp.status).json({
+        error: `GitHub API Error: ${errText}`,
+        status: resp.status,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: `สั่งรัน GitHub Workflow '${workflow}' บน ${repo} (Branch: ${branch}) เรียบร้อยแล้ว!`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 6.5 POST /api/github/runs - Fetch recent workflow runs from GitHub
+app.post('/api/github/runs', async (req, res) => {
+  try {
+    const { repo, token, workflow = 'lottery.yml' } = req.body;
+
+    if (!repo) {
+      return res.status(400).json({ error: 'ต้องระบุ GitHub Repository' });
+    }
+
+    const headers: Record<string, string> = {
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': 'LotteryAlertApp/1.0',
+      'X-GitHub-Api-Version': '2022-11-28',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const runsUrl = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?per_page=10`;
+    const resp = await fetch(runsUrl, { headers });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return res.status(resp.status).json({ error: errText, status: resp.status });
+    }
+
+    const data = await resp.json() as any;
+    return res.json({
+      success: true,
+      total_count: data.total_count,
+      workflow_runs: data.workflow_runs || [],
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 6.6 POST /api/github/simulate-runner - Execute Python checker locally on server
+app.post('/api/github/simulate-runner', async (req, res) => {
+  try {
+    const { forceNotify = false, lotteryTarget = 'all' } = req.body;
+    const env = {
+      ...process.env,
+      FORCE_NOTIFY: forceNotify ? 'true' : 'false',
+      LOTTERY_TARGET: lotteryTarget,
+    };
+
+    const { stdout, stderr } = await execAsync('python3 lottery_checker.py', { env, cwd: __dirname });
+
+    // Read updated status
+    let statusData = {};
+    if (fs.existsSync(STATUS_PATH)) {
+      statusData = JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8'));
+    }
+
+    return res.json({
+      success: true,
+      message: 'รัน Python Checker เสมือน GitHub Actions Runner สำเร็จ',
+      stdout,
+      stderr,
+      status: statusData,
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      error: 'เกิดข้อผิดพลาดในการรัน Python Checker',
+      details: err.message,
+      stdout: err.stdout || '',
+      stderr: err.stderr || '',
+    });
+  }
+});
+
 // 7. GET /api/project-files - Get all project files for the inspector
 app.get('/api/project-files', (req, res) => {
   try {
     const fileList = [
       { name: 'config/settings.json', path: 'config/settings.json', category: 'Config' },
       { name: 'status/status.json', path: 'status/status.json', category: 'Status' },
+      { name: 'data/all_lotteries.json', path: 'data/all_lotteries.json', category: 'Data' },
       { name: 'lottery_previous_results.json', path: 'lottery_previous_results.json', category: 'Data' },
       { name: 'settings_loader.py', path: 'settings_loader.py', category: 'Python' },
       { name: 'lottery_checker.py', path: 'lottery_checker.py', category: 'Python' },
@@ -332,6 +484,240 @@ app.get('/api/project-files', (req, res) => {
   }
 });
 
+// 7.1 POST /api/save-file - Save any project file locally to disk
+app.post('/api/save-file', (req, res) => {
+  try {
+    const { filePath, content } = req.body;
+    if (!filePath || content === undefined) {
+      return res.status(400).json({ error: 'ต้องระบุ filePath และ content' });
+    }
+
+    // Safety check: ensure target stays inside project workspace
+    const resolved = path.resolve(__dirname, filePath);
+    if (!resolved.startsWith(__dirname)) {
+      return res.status(403).json({ error: 'ไม่อนุญาตให้แก้ไขไฟล์นอกไดเรกทอรีโปรเจกต์' });
+    }
+
+    fs.mkdirSync(path.dirname(resolved), { recursive: true });
+    fs.writeFileSync(resolved, content, 'utf-8');
+
+    return res.json({
+      success: true,
+      message: `บันทึกไฟล์ '${filePath}' ลงเครื่องสำเร็จเรียบร้อย`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 7.2 POST /api/github/commit-file - Commit and push file directly to GitHub repository
+app.post('/api/github/commit-file', async (req, res) => {
+  try {
+    const {
+      repo,
+      token,
+      branch = 'main',
+      filePath,
+      content,
+      commitMessage,
+      authorName = 'Lottery Alert App',
+      authorEmail = 'bombimm43@gmail.com',
+    } = req.body;
+
+    if (!repo) {
+      return res.status(400).json({ error: 'ต้องระบุ GitHub Repository (เช่น owner/repo)' });
+    }
+    if (!token) {
+      return res.status(400).json({ error: 'ต้องระบุ GitHub Personal Access Token (PAT) ที่มีสิทธิ์ repo/contents:write' });
+    }
+    if (!filePath || content === undefined) {
+      return res.status(400).json({ error: 'ต้องระบุ filePath และ content' });
+    }
+
+    const headers: Record<string, string> = {
+      'Accept': 'application/vnd.github+json',
+      'Authorization': `Bearer ${token}`,
+      'User-Agent': 'LotteryAlertApp/1.0',
+      'X-GitHub-Api-Version': '2022-11-28',
+    };
+
+    // Step 1: Check existing file SHA on GitHub
+    let sha: string | undefined = undefined;
+    const getFileUrl = `https://api.github.com/repos/${repo}/contents/${filePath}?ref=${branch}`;
+    try {
+      const getResp = await fetch(getFileUrl, { headers });
+      if (getResp.ok) {
+        const fileInfo = (await getResp.json()) as any;
+        sha = fileInfo.sha;
+      }
+    } catch {
+      // Ignore if file doesn't exist yet
+    }
+
+    // Step 2: Commit file to GitHub via PUT
+    const putUrl = `https://api.github.com/repos/${repo}/contents/${filePath}`;
+    const base64Content = Buffer.from(content, 'utf-8').toString('base64');
+    const payload: any = {
+      message: commitMessage || `Update ${filePath} via Lottery Alert App [Web Direct]`,
+      content: base64Content,
+      branch,
+      committer: {
+        name: authorName,
+        email: authorEmail,
+      },
+    };
+    if (sha) {
+      payload.sha = sha;
+    }
+
+    const putResp = await fetch(putUrl, {
+      method: 'PUT',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!putResp.ok) {
+      const errText = await putResp.text();
+      return res.status(putResp.status).json({
+        error: `GitHub Commit Error: ${errText}`,
+        status: putResp.status,
+      });
+    }
+
+    const commitResult = (await putResp.json()) as any;
+
+    // Step 3: Also update local file on disk if path is within workspace
+    const resolved = path.resolve(__dirname, filePath);
+    if (resolved.startsWith(__dirname)) {
+      try {
+        fs.mkdirSync(path.dirname(resolved), { recursive: true });
+        fs.writeFileSync(resolved, content, 'utf-8');
+      } catch (err) {
+        console.warn('Local save warning during commit:', err);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Commit ไฟล์ '${filePath}' ขึ้น GitHub (${repo} / branch: ${branch}) สำเร็จ 100%!`,
+      commit_sha: commitResult.commit?.sha,
+      html_url: commitResult.content?.html_url,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 7.3 POST /api/github/get-remote-file - Fetch file content directly from GitHub repository
+app.post('/api/github/get-remote-file', async (req, res) => {
+  try {
+    const { repo, token, branch = 'main', filePath } = req.body;
+    if (!repo || !filePath) {
+      return res.status(400).json({ error: 'ต้องระบุ repo และ filePath' });
+    }
+
+    const headers: Record<string, string> = {
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': 'LotteryAlertApp/1.0',
+      'X-GitHub-Api-Version': '2022-11-28',
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const url = `https://api.github.com/repos/${repo}/contents/${filePath}?ref=${branch}`;
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return res.status(resp.status).json({ error: errText });
+    }
+
+    const data = (await resp.json()) as any;
+    const content = Buffer.from(data.content, 'base64').toString('utf-8');
+
+    return res.json({
+      success: true,
+      content,
+      sha: data.sha,
+      size: data.size,
+      html_url: data.html_url,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 7.4 POST /api/send-mobile-push - Send rich push alert directly to phone via ntfy (iOS / Android)
+app.post('/api/send-mobile-push', async (req, res) => {
+  try {
+    const {
+      server = 'https://ntfy.sh',
+      topic,
+      title = '📢 ผลหวยออกแล้ว!',
+      message,
+      priority = 'urgent',
+      tags = 'tada,loudspeaker,moneybag',
+      clickUrl,
+    } = req.body;
+
+    if (!topic) {
+      return res.status(400).json({ error: 'กรุณาระบุ ntfy topic สำหรับโทรศัพท์ของคุณ' });
+    }
+
+    const ntfyUrl = `${server.replace(/\/$/, '')}/${topic}`;
+    // RFC 2047 encode title for 100% flawless Thai character support on iOS & Android
+    const rfcTitle = `=?UTF-8?B?${Buffer.from(title, 'utf-8').toString('base64')}?=`;
+
+    const headers: Record<string, string> = {
+      Title: rfcTitle,
+      Priority: priority,
+      Tags: tags,
+    };
+    if (clickUrl) {
+      headers['Click'] = clickUrl;
+      headers['Actions'] = `view, เปิดดูผลในแอป, ${clickUrl}`;
+    }
+
+    const resp = await fetch(ntfyUrl, {
+      method: 'POST',
+      headers,
+      body: message || 'ผลการออกรางวัลอัปเดตแล้ว ตรวจสอบรายละเอียดได้ทันที!',
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return res.status(resp.status).json({ error: `ntfy error: ${errText}` });
+    }
+
+    return res.json({
+      success: true,
+      message: `ส่งการแจ้งเตือนไปยังโทรศัพท์สำเร็จผ่าน ${ntfyUrl}`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Automated Background Runner: Runs automatically 24/7 without requiring any user intervention!
+async function runBackgroundAutoCheck() {
+  try {
+    const env = {
+      ...process.env,
+      NTFY_TOPIC: 'lottery-bombimm43',
+      FORCE_NOTIFY: 'false',
+      LOTTERY_TARGET: 'all',
+    };
+    await execAsync('python3 lottery_checker.py', { env, cwd: __dirname });
+    console.log(`[AUTO-RUNNER] Background lottery check completed at ${new Date().toISOString()}`);
+  } catch (err: any) {
+    console.warn(`[AUTO-RUNNER] Background check note:`, err.message);
+  }
+}
+
 // Vite middleware in dev or static files in production
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
@@ -352,6 +738,10 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Lottery Alert Dashboard server running on http://0.0.0.0:${PORT}`);
+    // Auto-run first check 5 seconds after boot
+    setTimeout(runBackgroundAutoCheck, 5000);
+    // Recurring check every 10 minutes automatically 24/7
+    setInterval(runBackgroundAutoCheck, 10 * 60 * 1000);
   });
 }
 

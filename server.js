@@ -3,8 +3,11 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { exec } from "child_process";
+import { promisify } from "util";
 import dotenv from "dotenv";
 dotenv.config();
+var execAsync = promisify(exec);
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var app = express();
@@ -14,6 +17,7 @@ var SETTINGS_PATH = path.join(__dirname, "config", "settings.json");
 var STATUS_PATH = path.join(__dirname, "status", "status.json");
 var RESULTS_PATH = path.join(__dirname, "lottery_previous_results.json");
 var ALL_LOTTERIES_PATH = path.join(__dirname, "data", "all_lotteries.json");
+var WORKFLOW_PATH = path.join(__dirname, ".github", "workflows", "lottery.yml");
 app.get("/api/status", (req, res) => {
   try {
     if (fs.existsSync(STATUS_PATH)) {
@@ -256,11 +260,134 @@ app.post("/api/test-channel", async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
+app.get("/api/github/workflow", (req, res) => {
+  try {
+    if (fs.existsSync(WORKFLOW_PATH)) {
+      const content = fs.readFileSync(WORKFLOW_PATH, "utf-8");
+      return res.json({ success: true, content });
+    }
+    return res.status(404).json({ error: "lottery.yml not found" });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/github/workflow", (req, res) => {
+  try {
+    const { content } = req.body;
+    if (!content) {
+      return res.status(400).json({ error: "Content is required" });
+    }
+    fs.mkdirSync(path.dirname(WORKFLOW_PATH), { recursive: true });
+    fs.writeFileSync(WORKFLOW_PATH, content, "utf-8");
+    return res.json({ success: true, message: "\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E44\u0E1F\u0E25\u0E4C .github/workflows/lottery.yml \u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08" });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/github/dispatch", async (req, res) => {
+  try {
+    const { repo, branch = "main", token, workflow = "lottery.yml", inputs = {} } = req.body;
+    if (!repo) {
+      return res.status(400).json({ error: "\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 GitHub Repository \u0E40\u0E0A\u0E48\u0E19 owner/repo" });
+    }
+    if (!token) {
+      return res.status(400).json({ error: "\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 GitHub Personal Access Token (PAT) \u0E17\u0E35\u0E48\u0E21\u0E35\u0E2A\u0E34\u0E17\u0E18\u0E34\u0E4C Actions Write" });
+    }
+    const dispatchUrl = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/dispatches`;
+    const resp = await fetch(dispatchUrl, {
+      method: "POST",
+      headers: {
+        "Accept": "application/vnd.github+json",
+        "Authorization": `Bearer ${token}`,
+        "User-Agent": "LotteryAlertApp/1.0",
+        "X-GitHub-Api-Version": "2022-11-28"
+      },
+      body: JSON.stringify({
+        ref: branch,
+        inputs
+      })
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return res.status(resp.status).json({
+        error: `GitHub API Error: ${errText}`,
+        status: resp.status
+      });
+    }
+    return res.json({
+      success: true,
+      message: `\u0E2A\u0E31\u0E48\u0E07\u0E23\u0E31\u0E19 GitHub Workflow '${workflow}' \u0E1A\u0E19 ${repo} (Branch: ${branch}) \u0E40\u0E23\u0E35\u0E22\u0E1A\u0E23\u0E49\u0E2D\u0E22\u0E41\u0E25\u0E49\u0E27!`,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/github/runs", async (req, res) => {
+  try {
+    const { repo, token, workflow = "lottery.yml" } = req.body;
+    if (!repo) {
+      return res.status(400).json({ error: "\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 GitHub Repository" });
+    }
+    const headers = {
+      "Accept": "application/vnd.github+json",
+      "User-Agent": "LotteryAlertApp/1.0",
+      "X-GitHub-Api-Version": "2022-11-28"
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    const runsUrl = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?per_page=10`;
+    const resp = await fetch(runsUrl, { headers });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return res.status(resp.status).json({ error: errText, status: resp.status });
+    }
+    const data = await resp.json();
+    return res.json({
+      success: true,
+      total_count: data.total_count,
+      workflow_runs: data.workflow_runs || []
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/github/simulate-runner", async (req, res) => {
+  try {
+    const { forceNotify = false, lotteryTarget = "all" } = req.body;
+    const env = {
+      ...process.env,
+      FORCE_NOTIFY: forceNotify ? "true" : "false",
+      LOTTERY_TARGET: lotteryTarget
+    };
+    const { stdout, stderr } = await execAsync("python3 lottery_checker.py", { env, cwd: __dirname });
+    let statusData = {};
+    if (fs.existsSync(STATUS_PATH)) {
+      statusData = JSON.parse(fs.readFileSync(STATUS_PATH, "utf-8"));
+    }
+    return res.json({
+      success: true,
+      message: "\u0E23\u0E31\u0E19 Python Checker \u0E40\u0E2A\u0E21\u0E37\u0E2D\u0E19 GitHub Actions Runner \u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08",
+      stdout,
+      stderr,
+      status: statusData
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: "\u0E40\u0E01\u0E34\u0E14\u0E02\u0E49\u0E2D\u0E1C\u0E34\u0E14\u0E1E\u0E25\u0E32\u0E14\u0E43\u0E19\u0E01\u0E32\u0E23\u0E23\u0E31\u0E19 Python Checker",
+      details: err.message,
+      stdout: err.stdout || "",
+      stderr: err.stderr || ""
+    });
+  }
+});
 app.get("/api/project-files", (req, res) => {
   try {
     const fileList = [
       { name: "config/settings.json", path: "config/settings.json", category: "Config" },
       { name: "status/status.json", path: "status/status.json", category: "Status" },
+      { name: "data/all_lotteries.json", path: "data/all_lotteries.json", category: "Data" },
       { name: "lottery_previous_results.json", path: "lottery_previous_results.json", category: "Data" },
       { name: "settings_loader.py", path: "settings_loader.py", category: "Python" },
       { name: "lottery_checker.py", path: "lottery_checker.py", category: "Python" },
@@ -286,6 +413,202 @@ app.get("/api/project-files", (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
+app.post("/api/save-file", (req, res) => {
+  try {
+    const { filePath, content } = req.body;
+    if (!filePath || content === void 0) {
+      return res.status(400).json({ error: "\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 filePath \u0E41\u0E25\u0E30 content" });
+    }
+    const resolved = path.resolve(__dirname, filePath);
+    if (!resolved.startsWith(__dirname)) {
+      return res.status(403).json({ error: "\u0E44\u0E21\u0E48\u0E2D\u0E19\u0E38\u0E0D\u0E32\u0E15\u0E43\u0E2B\u0E49\u0E41\u0E01\u0E49\u0E44\u0E02\u0E44\u0E1F\u0E25\u0E4C\u0E19\u0E2D\u0E01\u0E44\u0E14\u0E40\u0E23\u0E01\u0E17\u0E2D\u0E23\u0E35\u0E42\u0E1B\u0E23\u0E40\u0E08\u0E01\u0E15\u0E4C" });
+    }
+    fs.mkdirSync(path.dirname(resolved), { recursive: true });
+    fs.writeFileSync(resolved, content, "utf-8");
+    return res.json({
+      success: true,
+      message: `\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E44\u0E1F\u0E25\u0E4C '${filePath}' \u0E25\u0E07\u0E40\u0E04\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08\u0E40\u0E23\u0E35\u0E22\u0E1A\u0E23\u0E49\u0E2D\u0E22`,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/github/commit-file", async (req, res) => {
+  try {
+    const {
+      repo,
+      token,
+      branch = "main",
+      filePath,
+      content,
+      commitMessage,
+      authorName = "Lottery Alert App",
+      authorEmail = "bombimm43@gmail.com"
+    } = req.body;
+    if (!repo) {
+      return res.status(400).json({ error: "\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 GitHub Repository (\u0E40\u0E0A\u0E48\u0E19 owner/repo)" });
+    }
+    if (!token) {
+      return res.status(400).json({ error: "\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 GitHub Personal Access Token (PAT) \u0E17\u0E35\u0E48\u0E21\u0E35\u0E2A\u0E34\u0E17\u0E18\u0E34\u0E4C repo/contents:write" });
+    }
+    if (!filePath || content === void 0) {
+      return res.status(400).json({ error: "\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 filePath \u0E41\u0E25\u0E30 content" });
+    }
+    const headers = {
+      "Accept": "application/vnd.github+json",
+      "Authorization": `Bearer ${token}`,
+      "User-Agent": "LotteryAlertApp/1.0",
+      "X-GitHub-Api-Version": "2022-11-28"
+    };
+    let sha = void 0;
+    const getFileUrl = `https://api.github.com/repos/${repo}/contents/${filePath}?ref=${branch}`;
+    try {
+      const getResp = await fetch(getFileUrl, { headers });
+      if (getResp.ok) {
+        const fileInfo = await getResp.json();
+        sha = fileInfo.sha;
+      }
+    } catch {
+    }
+    const putUrl = `https://api.github.com/repos/${repo}/contents/${filePath}`;
+    const base64Content = Buffer.from(content, "utf-8").toString("base64");
+    const payload = {
+      message: commitMessage || `Update ${filePath} via Lottery Alert App [Web Direct]`,
+      content: base64Content,
+      branch,
+      committer: {
+        name: authorName,
+        email: authorEmail
+      }
+    };
+    if (sha) {
+      payload.sha = sha;
+    }
+    const putResp = await fetch(putUrl, {
+      method: "PUT",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!putResp.ok) {
+      const errText = await putResp.text();
+      return res.status(putResp.status).json({
+        error: `GitHub Commit Error: ${errText}`,
+        status: putResp.status
+      });
+    }
+    const commitResult = await putResp.json();
+    const resolved = path.resolve(__dirname, filePath);
+    if (resolved.startsWith(__dirname)) {
+      try {
+        fs.mkdirSync(path.dirname(resolved), { recursive: true });
+        fs.writeFileSync(resolved, content, "utf-8");
+      } catch (err) {
+        console.warn("Local save warning during commit:", err);
+      }
+    }
+    return res.json({
+      success: true,
+      message: `Commit \u0E44\u0E1F\u0E25\u0E4C '${filePath}' \u0E02\u0E36\u0E49\u0E19 GitHub (${repo} / branch: ${branch}) \u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08 100%!`,
+      commit_sha: commitResult.commit?.sha,
+      html_url: commitResult.content?.html_url,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/github/get-remote-file", async (req, res) => {
+  try {
+    const { repo, token, branch = "main", filePath } = req.body;
+    if (!repo || !filePath) {
+      return res.status(400).json({ error: "\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 repo \u0E41\u0E25\u0E30 filePath" });
+    }
+    const headers = {
+      "Accept": "application/vnd.github+json",
+      "User-Agent": "LotteryAlertApp/1.0",
+      "X-GitHub-Api-Version": "2022-11-28"
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const url = `https://api.github.com/repos/${repo}/contents/${filePath}?ref=${branch}`;
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return res.status(resp.status).json({ error: errText });
+    }
+    const data = await resp.json();
+    const content = Buffer.from(data.content, "base64").toString("utf-8");
+    return res.json({
+      success: true,
+      content,
+      sha: data.sha,
+      size: data.size,
+      html_url: data.html_url
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/send-mobile-push", async (req, res) => {
+  try {
+    const {
+      server = "https://ntfy.sh",
+      topic,
+      title = "\u{1F4E2} \u0E1C\u0E25\u0E2B\u0E27\u0E22\u0E2D\u0E2D\u0E01\u0E41\u0E25\u0E49\u0E27!",
+      message,
+      priority = "urgent",
+      tags = "tada,loudspeaker,moneybag",
+      clickUrl
+    } = req.body;
+    if (!topic) {
+      return res.status(400).json({ error: "\u0E01\u0E23\u0E38\u0E13\u0E32\u0E23\u0E30\u0E1A\u0E38 ntfy topic \u0E2A\u0E33\u0E2B\u0E23\u0E31\u0E1A\u0E42\u0E17\u0E23\u0E28\u0E31\u0E1E\u0E17\u0E4C\u0E02\u0E2D\u0E07\u0E04\u0E38\u0E13" });
+    }
+    const ntfyUrl = `${server.replace(/\/$/, "")}/${topic}`;
+    const rfcTitle = `=?UTF-8?B?${Buffer.from(title, "utf-8").toString("base64")}?=`;
+    const headers = {
+      Title: rfcTitle,
+      Priority: priority,
+      Tags: tags
+    };
+    if (clickUrl) {
+      headers["Click"] = clickUrl;
+      headers["Actions"] = `view, \u0E40\u0E1B\u0E34\u0E14\u0E14\u0E39\u0E1C\u0E25\u0E43\u0E19\u0E41\u0E2D\u0E1B, ${clickUrl}`;
+    }
+    const resp = await fetch(ntfyUrl, {
+      method: "POST",
+      headers,
+      body: message || "\u0E1C\u0E25\u0E01\u0E32\u0E23\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E07\u0E27\u0E31\u0E25\u0E2D\u0E31\u0E1B\u0E40\u0E14\u0E15\u0E41\u0E25\u0E49\u0E27 \u0E15\u0E23\u0E27\u0E08\u0E2A\u0E2D\u0E1A\u0E23\u0E32\u0E22\u0E25\u0E30\u0E40\u0E2D\u0E35\u0E22\u0E14\u0E44\u0E14\u0E49\u0E17\u0E31\u0E19\u0E17\u0E35!"
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return res.status(resp.status).json({ error: `ntfy error: ${errText}` });
+    }
+    return res.json({
+      success: true,
+      message: `\u0E2A\u0E48\u0E07\u0E01\u0E32\u0E23\u0E41\u0E08\u0E49\u0E07\u0E40\u0E15\u0E37\u0E2D\u0E19\u0E44\u0E1B\u0E22\u0E31\u0E07\u0E42\u0E17\u0E23\u0E28\u0E31\u0E1E\u0E17\u0E4C\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08\u0E1C\u0E48\u0E32\u0E19 ${ntfyUrl}`,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+async function runBackgroundAutoCheck() {
+  try {
+    const env = {
+      ...process.env,
+      NTFY_TOPIC: "lottery-bombimm43",
+      FORCE_NOTIFY: "false",
+      LOTTERY_TARGET: "all"
+    };
+    await execAsync("python3 lottery_checker.py", { env, cwd: __dirname });
+    console.log(`[AUTO-RUNNER] Background lottery check completed at ${(/* @__PURE__ */ new Date()).toISOString()}`);
+  } catch (err) {
+    console.warn(`[AUTO-RUNNER] Background check note:`, err.message);
+  }
+}
 async function startServer() {
   const isProd = process.env.NODE_ENV === "production";
   if (!isProd) {
@@ -303,6 +626,8 @@ async function startServer() {
   }
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`\u{1F680} Lottery Alert Dashboard server running on http://0.0.0.0:${PORT}`);
+    setTimeout(runBackgroundAutoCheck, 5e3);
+    setInterval(runBackgroundAutoCheck, 10 * 60 * 1e3);
   });
 }
 startServer();
