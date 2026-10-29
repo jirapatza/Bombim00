@@ -25,6 +25,8 @@ export interface LotteryItem {
   name: string;
   category: 'foreign_stock' | 'thai_stock' | 'hanoi' | 'lao' | 'vip' | 'gov_savings' | 'other_foreign';
   categoryLabel: string;
+  period?: 'morning' | 'afternoon' | 'evening' | 'night';
+  periodLabel?: string;
   flag: string;
   drawTimeStr: string;
   closeTimeStr: string;
@@ -65,8 +67,10 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   // Filter items according to search, category, and status
   const filteredLotteries = useMemo(() => {
     return chronoSorted.filter((item) => {
-      // Category filter
-      if (selectedCategory === 'vip') {
+      // Period filter
+      if (['morning', 'afternoon', 'evening', 'night'].includes(selectedCategory)) {
+        if (item.period !== selectedCategory) return false;
+      } else if (selectedCategory === 'vip') {
         const isVip = item.category === 'vip' || item.name.includes('VIP') || item.categoryLabel.includes('VIP');
         if (!isVip) return false;
       } else if (selectedCategory === 'hanoi') {
@@ -232,6 +236,54 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
             }`}
           >
             🌟 ทุกหวย ({lotteries.length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('morning')}
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+              selectedCategory === 'morning'
+                ? 'bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300'
+                : 'bg-slate-950 text-slate-300 hover:text-white border border-amber-500/30'
+            }`}
+          >
+            ☀️ หวยเช้า ({lotteries.filter((l) => l.period === 'morning').length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('afternoon')}
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+              selectedCategory === 'afternoon'
+                ? 'bg-orange-500 text-white shadow-md ring-2 ring-orange-300'
+                : 'bg-slate-950 text-slate-300 hover:text-white border border-orange-500/30'
+            }`}
+          >
+            🌤️ หวยบ่าย ({lotteries.filter((l) => l.period === 'afternoon').length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('evening')}
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+              selectedCategory === 'evening'
+                ? 'bg-rose-600 text-white shadow-md ring-2 ring-rose-300'
+                : 'bg-slate-950 text-slate-300 hover:text-white border border-rose-500/30'
+            }`}
+          >
+            🌇 หวยเย็น ({lotteries.filter((l) => l.period === 'evening').length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('night')}
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+              selectedCategory === 'night'
+                ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300'
+                : 'bg-slate-950 text-slate-300 hover:text-white border border-indigo-500/30'
+            }`}
+          >
+            🌌 หวยดึก ({lotteries.filter((l) => l.period === 'night').length})
           </button>
 
           <button

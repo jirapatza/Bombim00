@@ -43,6 +43,10 @@ export const LotteryCatalogInspector: React.FC<CatalogProps> = ({
 
   const categories = [
     { id: 'all', label: 'ทุกรายการ', count: lotteries.length },
+    { id: 'morning', label: '☀️ หวยเช้า', count: lotteries.filter((l) => l.period === 'morning').length },
+    { id: 'afternoon', label: '🌤️ หวยบ่าย', count: lotteries.filter((l) => l.period === 'afternoon').length },
+    { id: 'evening', label: '🌇 หวยเย็น', count: lotteries.filter((l) => l.period === 'evening').length },
+    { id: 'night', label: '🌌 หวยดึก', count: lotteries.filter((l) => l.period === 'night').length },
     { id: 'foreign_stock', label: 'หุ้นต่างประเทศ', count: lotteries.filter((l) => l.category === 'foreign_stock').length },
     { id: 'thai_stock', label: 'หุ้นไทย', count: lotteries.filter((l) => l.category === 'thai_stock').length },
     { id: 'hanoi', label: 'ฮานอย', count: lotteries.filter((l) => l.category === 'hanoi').length },
@@ -52,7 +56,11 @@ export const LotteryCatalogInspector: React.FC<CatalogProps> = ({
   ];
 
   const filteredList = lotteries.filter((l) => {
-    if (activeCategory !== 'all' && l.category !== activeCategory) return false;
+    if (['morning', 'afternoon', 'evening', 'night'].includes(activeCategory)) {
+      if (l.period !== activeCategory) return false;
+    } else if (activeCategory !== 'all' && l.category !== activeCategory) {
+      return false;
+    }
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       return (

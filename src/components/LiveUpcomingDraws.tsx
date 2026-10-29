@@ -40,7 +40,7 @@ interface LiveUpcomingDrawsProps {
 export function parseLotteryTimelineMinutes(timeStr: string): number {
   if (!timeStr) return 9999;
   const cleaned = timeStr.replace('น.', '').replace(' ', '').trim();
-  const parts = cleaned.split(':');
+  const parts = cleaned.includes('.') ? cleaned.split('.') : cleaned.split(':');
   if (parts.length >= 2) {
     let h = parseInt(parts[0], 10);
     const m = parseInt(parts[1], 10);
