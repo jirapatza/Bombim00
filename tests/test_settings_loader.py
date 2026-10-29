@@ -96,3 +96,11 @@ def test_was_already_notified_only_for_same_sent_result():
 
 def test_should_notify_rejects_empty_rows():
     assert sl.should_notify({"notifications": {"enabled": True, "notify_on_new_draw": True}}, {}) is False
+
+
+def test_write_status_marks_missing_live_results_as_degraded(tmp_path):
+    status_file = tmp_path / "status.json"
+    status = sl.write_status([], status_path=str(status_file), source_used=None)
+    assert status["system_status"] == "degraded"
+    assert "ไม่พบผลหวยสด" in status["status_message"]
+    assert status["notifications_sent_today"] == 0
