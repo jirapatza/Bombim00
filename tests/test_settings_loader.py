@@ -104,3 +104,33 @@ def test_write_status_marks_missing_live_results_as_degraded(tmp_path):
     assert status["system_status"] == "degraded"
     assert "ไม่พบผลหวยสด" in status["status_message"]
     assert status["notifications_sent_today"] == 0
+
+
+def test_fetch_from_ranlotto_parses_published_result(monkeypatch):
+    import lottery_checker as lc
+    monkeypatch.setattr(lc, "S", {
+        "sources": {"ranlotto": {"enabled": True, "url": "https://example.invalid/latest", "timeout_sec": 1}}
+    })
+    monkeypatch.setattr(lc, "_http_get_json", lambda *args, **kwargs: {
+        "success": True,
+        "data": {
+            "date": "2026-10-16",
+            "state": "published",
+            "result": {"first_prize": "289594", "last_two": "84", "front_three": ["012", "425"], "last_three": ["318", "972"]}
+        }
+    })
+    rows = lc.fetch_from_ranlotto()
+    assert len(rows) == 1
+    assert rows[0]["งวดวันที่"] == "16 ตุลาคม 2569"
+    assert rows[0]["รางวัลที่_1"] == "289594"
+    assert rows[0]["เลขท้าย_2_ตัว"] == "84"
+    assert rows[0]["แหล่งข้อมูล"] == "ranlotto"
+
+
+def test_fetch_from_ranlotto_rejects_unpublished_result(monkeypatch):
+    import lottery_checker as lc
+    monkeypatch.setattr(lc, "S", {"sources": {"ranlotto": {"url": "https://example.invalid/latest"}}})
+    monkeypatch.setattr(lc, "_http_get_json", lambda *args, **kwargs: {
+        "success": True, "data": {"date": "2026-11-01", "state": "scheduled", "result": {"first_prize": "123456", "last_two": "78"}}
+    })
+    assert lc.fetch_from_ranlotto() == []
