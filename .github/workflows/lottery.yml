@@ -78,8 +78,8 @@ jobs:
         run: |
           PYTHONPATH=. pytest tests/
 
-      # One-time server-delivery verification requested; this marker is used for this run only.
-      - name: Send one-time ntfy connectivity test
+      # One-time notification test; this marker is used for this run only.
+      - name: Send one-time VIP alert and sound test
         if: (github.event_name == 'workflow_dispatch' && inputs.test_notification) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[test-notification]'))
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC || 'lottery-auto-alert-bb26-7f4c9d2e-6a1f-4c0b-8d37-91e2a6c5b740' }}
@@ -87,10 +87,11 @@ jobs:
           set -euo pipefail
           test -n "$NTFY_TOPIC"
           curl --fail --show-error --silent --max-time 20 \
-            -H "Title: Lottery Alert connectivity test" \
-            -H "Priority: high" \
-            -H "Tags: bell" \
-            -d "ทดสอบระบบ Bombim00: GitHub Actions ส่งคำขอไปยัง ntfy แล้ว หากไม่เห็นบนมือถือ ให้ตรวจการสมัคร Topic และสิทธิ์แจ้งเตือนใน Android" \
+            -H "Title: ทดสอบเสียงแจ้งเตือนหุ้น VIP" \
+            -H "Priority: urgent" \
+            -H "Tags: loudspeaker,bell" \
+            -H "Click: https://github.com/jirapatza/Bombim00/actions" \
+            -d "นี่คือข้อความทดสอบเท่านั้น ไม่ใช่ผลหวยจริง\nระบบส่งจาก GitHub Actions ไปยัง ntfy แล้ว\nถ้าต้องการให้พูดออกเสียง ให้เปิดเสียงการแจ้งเตือนของ ntfy ใน Android; ntfy ไม่สามารถสั่งเสียงพูดไทยเองจาก GitHub ได้" \
             "https://ntfy.sh/$NTFY_TOPIC"
           echo "NTFY_HTTP_ACCEPTED=1 (server accepted the publish request; Android receipt is not verifiable here)"
 
