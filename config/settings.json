@@ -3,7 +3,7 @@
   "app_name": "Lottery Alert System Pro",
   "sources": {
     "pholhuay": {
-      "enabled": true,
+      "enabled": false,
       "name": "ผลหวย (Pholhuay)",
       "url": "https://api.pholhuay.com/v1/lottery/latest",
       "timeout_sec": 10,
@@ -22,6 +22,13 @@
       "url": "https://news.sanook.com/lotto/api/latest",
       "timeout_sec": 10,
       "priority": 3
+    },
+    "ranlotto": {
+      "enabled": true,
+      "name": "RANLOTTO public API (Thai government results fallback)",
+      "url": "https://api.ranlotto.com/api/public/v1/lottery/result/latest",
+      "timeout_sec": 10,
+      "priority": 3
     }
   },
   "notifications": {
@@ -37,7 +44,14 @@
       "second_prize": false,
       "third_prize": false
     },
-    "custom_watched_numbers": ["95", "42", "84", "19", "56", "289594"],
+    "custom_watched_numbers": [
+      "95",
+      "42",
+      "84",
+      "19",
+      "56",
+      "289594"
+    ],
     "cooldown_minutes": 15,
     "max_retries": 3
   },
@@ -47,7 +61,11 @@
       "server": "https://ntfy.sh",
       "topic": "lottery-auto-alert-bb26-7f4c9d2e-6a1f-4c0b-8d37-91e2a6c5b740",
       "priority": "high",
-      "tags": ["moneybag", "dart", "loudspeaker"],
+      "tags": [
+        "moneybag",
+        "dart",
+        "loudspeaker"
+      ],
       "click_url": "https://news.sanook.com/lotto/"
     },
     "telegram": {
@@ -77,7 +95,11 @@
   "ntfy": {
     "server": "https://ntfy.sh",
     "default_priority": "high",
-    "tags": ["moneybag", "dart", "loudspeaker"],
+    "tags": [
+      "moneybag",
+      "dart",
+      "loudspeaker"
+    ],
     "click_url": "https://news.sanook.com/lotto/",
     "attach_results": true
   },
