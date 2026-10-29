@@ -66,3 +66,29 @@ def test_non_stock_ntfy_body_uses_real_line_breaks(monkeypatch):
     assert ok is True
     assert "\n" in sent["body"]
     assert "\\n" not in sent["body"]
+
+
+
+def test_stock_groups_are_separated_and_faq_is_not_scraped(monkeypatch):
+    html = """
+    <h2>หวยหุ้นต่างประเทศ</h2>
+    <article><h3>หวยหุ้นนิคเคอิเช้า</h3><p>ออก 09:30 น.</p><p>มีผลแล้ว งวด 29 ตุลาคม 2569</p><p>3 ตัวบน 128</p><p>2 ตัวล่าง 09</p></article>
+    <h2>หวยหุ้น VIP</h2>
+    <article><h3>หวยหุ้นนิคเคอิ VIP เช้า</h3><p>ออก 09:05 น.</p><p>มีผลแล้ว งวด 29 ตุลาคม 2569</p><p>3 ตัวบน 469</p><p>2 ตัวล่าง 63</p></article>
+    <h2>หวยหุ้นพิเศษ</h2>
+    <article><h3>หวยหุ้นนิคเคอิพิเศษ เช้า</h3><p>ออก 09:05 น.</p><p>มีผลแล้ว งวด 29 ตุลาคม 2569</p><p>3 ตัวบน 774</p><p>2 ตัวล่าง 32</p></article>
+    <h2>หวยหุ้น VISA</h2>
+    <article><h3>หวยหุ้นนิคเคอิ VISA เช้า</h3><p>ออก 09:15 น.</p><p>มีผลแล้ว งวด 29 ตุลาคม 2569</p><p>3 ตัวบน 521</p><p>2 ตัวล่าง 44</p></article>
+    <h2>คำถามที่พบบ่อยเกี่ยวกับหวยหุ้น</h2>
+    <h3>หวยหุ้นในหน้านี้มีกี่รายการ?</h3>
+    """
+    monkeypatch.setattr(lc, "_http_get_text", lambda url, timeout=15: html)
+    rows = lc.fetch_from_pholhuay_stock_groups()
+    assert len(rows) == 4
+    assert {row["หมวดหวย"] for row in rows} == {
+        "stock", "stock_vip", "stock_special", "stock_visa"
+    }
+    vip = next(row for row in rows if row["หมวดหวย"] == "stock_vip")
+    assert vip["ชื่อหวย"] == "หวยหุ้นนิคเคอิ VIP เช้า"
+    assert vip["เลขบน_3_ตัว"] == "469"
+    assert vip["เลขล่าง_2_ตัว"] == "63"
