@@ -1,14 +1,19 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-10-29T20:22:23.069659+07:00",
-  "last_run_date_thai": "29/10/2026 20:22:23 น.",
-  "total_checks": 183,
+  "last_run_timestamp": "2026-10-29T20:22:58.793659+07:00",
+  "last_run_date_thai": "29/10/2026 20:22:58 น.",
+  "total_checks": 184,
   "last_source_used": "ThaiLottoAPI + stock group scraper",
   "status_message": "ตรวจพบผลสดงวด 29.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper",
-  "active_sources_count": 60,
+  "active_sources_count": 12,
   "latest_draw_detected": "29.10.2026",
   "notifications_sent_today": 61,
   "recent_logs": [
+    {
+      "timestamp": "2026-10-29T20:22:58.793659+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 29.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
     {
       "timestamp": "2026-10-29T20:22:23.069659+07:00",
       "level": "INFO",
@@ -101,11 +106,6 @@
     },
     {
       "timestamp": "2026-10-29T12:45:14.942535+07:00",
-      "level": "WARNING",
-      "message": "ไม่พบผลหวยสดจากแหล่งข้อมูลที่เปิดใช้งาน รอบนี้จึงไม่มีการส่งผลหวย"
-    },
-    {
-      "timestamp": "2026-10-29T12:03:18.564813+07:00",
       "level": "WARNING",
       "message": "ไม่พบผลหวยสดจากแหล่งข้อมูลที่เปิดใช้งาน รอบนี้จึงไม่มีการส่งผลหวย"
     }
