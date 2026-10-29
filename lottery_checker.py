@@ -142,7 +142,7 @@ def fetch_from_pholhuay_stock_groups() -> list:
                     break
             if not card_text:
                 continue
-            date_match = re.search(r"งวด\s*วันที่?\s*(\d{1,2}\s+[^\s]+\s+\d{4})", card_text)
+            date_match = re.search(r"งวด\s*(?:วันที่\s*)?(\d{1,2}\s+[^\s]+\s+\d{4})", card_text)
             top_match = re.search(r"3 ตัวบน\s*(\d{3})", card_text)
             bottom_match = re.search(r"2 ตัวล่าง\s*(\d{2})", card_text)
             if not (date_match and top_match and bottom_match):
