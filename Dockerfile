@@ -22,15 +22,13 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/server.ts ./server.ts
+COPY --from=build /app/server.js ./server.js
 COPY --from=build /app/config ./config
 COPY --from=build /app/status ./status
 COPY --from=build /app/lottery_previous_results.json ./lottery_previous_results.json
 COPY --from=build /app/settings_loader.py ./settings_loader.py
 COPY --from=build /app/lottery_checker.py ./lottery_checker.py
 
-RUN npm install -g tsx
-
 EXPOSE 3000
 
-CMD ["tsx", "server.ts"]
+CMD ["node", "server.js"]
