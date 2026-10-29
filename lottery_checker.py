@@ -31,7 +31,12 @@ def _http_get_json(url: str, timeout: int = 10, headers: dict = None) -> dict:
     if requests:
         res = requests.get(url, headers=headers, timeout=timeout)
         if res.status_code == 200:
-            return res.json()
+            try:
+                return res.json()
+            except ValueError as e:
+                print(f"[WARN] Invalid JSON from {url}: {e}")
+                return {}
+        print(f"[WARN] GET {url} returned HTTP {res.status_code}")
         return {}
     else:
         req = urllib.request.Request(url, headers=headers)
