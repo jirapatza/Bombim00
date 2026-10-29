@@ -302,7 +302,7 @@ def send_ntfy_notification(row: dict) -> bool:
     body_pattern = tmpl.get("body", "🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n📡 แหล่งข้อมูล: {source}")
 
     template_vars = {
-        "lottery_name": "สลากกินแบ่งรัฐบาล",
+        "lottery_name": row.get("ชื่อหวย", "สลากกินแบ่งรัฐบาล"),
         "draw_date": draw_date,
         "first_prize": first_prize,
         "last_2": last_2,
@@ -314,7 +314,17 @@ def send_ntfy_notification(row: dict) -> bool:
 
     try:
         title = title_pattern.format(**template_vars)
-        body = f"{title}\n\n" + body_pattern.format(**template_vars)
+        if row.get("หมวดหวย") == "stock":
+            body = (
+                f"{title}\\n\\n"
+                f"📈 ตลาด: {row.get('ชื่อหวย', 'หวยหุ้น')}\\n"
+                f"🔺 3 ตัวบน: {row.get('เลขบน_3_ตัว', row.get('รางวัลที่_1', '-'))}\\n"
+                f"🔻 2 ตัวล่าง: {row.get('เลขล่าง_2_ตัว', row.get('เลขท้าย_2_ตัว', '-'))}\\n"
+                f"📅 งวด: {draw_date}\\n"
+                f"📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'unknown')}"
+            )
+        else:
+            body = f"{title}\\n\\n" + body_pattern.format(**template_vars)
     except Exception:
         title = f"📢 ผลสลากกินแบ่งรัฐบาล งวด {draw_date}"
         body = f"{title}\n\n🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'official')}"
