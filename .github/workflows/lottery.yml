@@ -78,6 +78,7 @@ jobs:
         run: |
           PYTHONPATH=. pytest tests/
 
+      # One-time server-delivery verification requested; this marker is used for this run only.
       - name: Send one-time ntfy connectivity test
         if: (github.event_name == 'workflow_dispatch' && inputs.test_notification) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[test-notification]'))
         env:
