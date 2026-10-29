@@ -1,14 +1,19 @@
 {
-  "system_status": "degraded",
-  "last_run_timestamp": "2026-10-29T19:19:46.158910+07:00",
-  "last_run_date_thai": "29/10/2026 19:19:46 น.",
-  "total_checks": 173,
-  "last_source_used": "glo",
-  "status_message": "ไม่พบผลหวยสดจากแหล่งข้อมูลที่เปิดใช้งาน รอบนี้จึงไม่มีการส่งผลหวย",
+  "system_status": "healthy",
+  "last_run_timestamp": "2026-10-29T19:55:04.647244+07:00",
+  "last_run_date_thai": "29/10/2026 19:55:04 น.",
+  "total_checks": 174,
+  "last_source_used": "LotteryChecks",
+  "status_message": "ตรวจพบผลสดงวด งวดวันที่ 16 ตุลาคม 2569 ผ่านแหล่ง LotteryChecks",
   "active_sources_count": 1,
-  "latest_draw_detected": "16 ตุลาคม 2569",
-  "notifications_sent_today": 0,
+  "latest_draw_detected": "งวดวันที่ 16 ตุลาคม 2569",
+  "notifications_sent_today": 1,
   "recent_logs": [
+    {
+      "timestamp": "2026-10-29T19:55:04.647244+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด งวดวันที่ 16 ตุลาคม 2569 ผ่านแหล่ง LotteryChecks"
+    },
     {
       "timestamp": "2026-10-29T19:19:46.158910+07:00",
       "level": "WARNING",
@@ -101,11 +106,6 @@
     },
     {
       "timestamp": "2026-10-29T05:57:35.164849+07:00",
-      "level": "INFO",
-      "message": "ตรวจสอบผลสลากสำเร็จ (งวด ไม่พบข้อมูล) ผ่านแหล่ง auto"
-    },
-    {
-      "timestamp": "2026-10-29T05:17:52.024430+07:00",
       "level": "INFO",
       "message": "ตรวจสอบผลสลากสำเร็จ (งวด ไม่พบข้อมูล) ผ่านแหล่ง auto"
     }
