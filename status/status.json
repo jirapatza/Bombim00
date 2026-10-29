@@ -1,14 +1,19 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-10-29T17:10:51.472707+07:00",
-  "last_run_date_thai": "29/10/2026 17:10:51 น.",
-  "total_checks": 170,
+  "last_run_timestamp": "2026-10-29T17:57:55.477641+07:00",
+  "last_run_date_thai": "29/10/2026 17:57:55 น.",
+  "total_checks": 171,
   "last_source_used": "glo",
   "status_message": "ไม่พบผลหวยสดจากแหล่งข้อมูลที่เปิดใช้งาน รอบนี้จึงไม่มีการส่งผลหวย",
   "active_sources_count": 1,
   "latest_draw_detected": "16 ตุลาคม 2569",
   "notifications_sent_today": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-10-29T17:57:55.477641+07:00",
+      "level": "WARNING",
+      "message": "ไม่พบผลหวยสดจากแหล่งข้อมูลที่เปิดใช้งาน รอบนี้จึงไม่มีการส่งผลหวย"
+    },
     {
       "timestamp": "2026-10-29T17:10:51.472707+07:00",
       "level": "WARNING",
@@ -101,11 +106,6 @@
     },
     {
       "timestamp": "2026-10-29T03:59:50.910256+07:00",
-      "level": "INFO",
-      "message": "ตรวจสอบผลสลากสำเร็จ (งวด ไม่พบข้อมูล) ผ่านแหล่ง auto"
-    },
-    {
-      "timestamp": "2026-10-29T03:15:20.720022+07:00",
       "level": "INFO",
       "message": "ตรวจสอบผลสลากสำเร็จ (งวด ไม่พบข้อมูล) ผ่านแหล่ง auto"
     }
