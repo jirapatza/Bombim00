@@ -7,6 +7,7 @@ Lottery Alert System: สคริปต์ตรวจสอบผลสลา�
 import os
 import sys
 import json
+import re
 import datetime
 
 try:
