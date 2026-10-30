@@ -55,11 +55,10 @@ jobs:
 
       - name: Verify Node server endpoints
         env:
-          NODE_ENV: production
           PORT: "3000"
           DISABLE_BACKGROUND_CHECK: "true"
         run: |
-          node server.js > /tmp/lottery-server.log 2>&1 &
+          npm start > /tmp/lottery-server.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 30); do
@@ -69,6 +68,7 @@ jobs:
             sleep 1
           done
           cat /tmp/health.json
+          cat /tmp/lottery-server.log
           grep -q '"ok":true' /tmp/health.json
           curl --fail --silent http://127.0.0.1:3000/api/status > /tmp/status.json
           cat /tmp/status.json
