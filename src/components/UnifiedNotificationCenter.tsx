@@ -115,8 +115,8 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
         body: JSON.stringify({
           topic: topic.trim(),
           server: cleanServer,
-          title: `📢 ทดสอบแจ้งเตือนผลหวย งวด ${drawDate}`,
-          message: `🎯 รางวัลที่ 1: ${firstPrize}\n🔢 เลขท้าย 2 ตัว: ${last2}\n✅ เชื่อมต่อระบบแจ้งเตือนเข้ามือถือสำเร็จเรียบร้อย!`,
+          title: `ทดสอบแจ้งเตือน ${lotteryName} งวด ${drawDate}`,
+          message: `ข้อความทดสอบเท่านั้น (ไม่ใช่ผลหวยจริง)\n🎯 หวย: ${lotteryName}\n🔺 3 ตัวบน: ${top3}\n🔻 2 ตัวล่าง: ${last2}\nระบบส่งคำขอไปยัง ntfy server; โปรดตรวจสอบการได้รับบน Android ด้วยตนเอง`,
         }),
       });
 
