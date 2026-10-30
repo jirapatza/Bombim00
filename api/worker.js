@@ -84,6 +84,10 @@ export default {
     };
 
     try {
+      if (path === "/api/simulate-runner" && request.method === "POST") {
+        return new Response(JSON.stringify({ message: "โหมดจำลองทำงานในแอปเท่านั้น ไม่ได้สั่งรัน GitHub Actions จริง", stdout: "✓ เชื่อมต่อ Cloudflare Worker แล้ว\\n✓ อ่านคำสั่งจำลองสำเร็จ\\nℹ️ หากต้องการรันจริง ให้ใช้ปุ่มสั่งรัน GitHub Actions" }), { status: 200, headers: corsHeaders });
+      }
+
       // Android editor: pull a file from the configured repository.
       if (path === "/api/github/get-remote-file" && request.method === "POST") {
         const body = incomingBody;
