@@ -210,7 +210,7 @@ app.post('/api/test-channel', async (req, res) => {
         avatar_url: 'https://raw.githubusercontent.com/jirapatza/Bombim00/main/public/icon-192.png',
         embeds: [{
           title: '📢 ทดสอบการแจ้งเตือน Lottery Alert System (Discord)',
-          description: message || 'ทดสอบการเชื่อมต่อระบบแจ้งเตือนผลสลากกินแบ่งและหวยผ่าน Discord Webhook สำเร็จเรียบร้อย! 🎉\n\n🎯 **ตัวอย่างรางวัลที่ 1:** `289594`\n🔢 **เลขท้าย 2 ตัว:** `84`\n✨ **เลขหน้า 3 ตัว:** `012, 425`\n🌟 **เลขท้าย 3 ตัว:** `318, 972`',
+          description: message || 'ข้อความทดสอบเท่านั้น (ไม่ใช่ผลหวยจริง) 🎯\\n\\nหวยหุ้น VIP ตัวอย่าง\\n🔺 **3 ตัวบน:** `469`\\n🔻 **2 ตัวล่าง:** `63`',
           color: 0xf59e0b, // Amber Gold
           timestamp: new Date().toISOString(),
           footer: { text: 'Lottery Alert System Pro • Discord Webhook' }
@@ -310,7 +310,10 @@ app.post('/api/test-ntfy', async (req, res) => {
     });
 
     if (ntfyRes.ok) {
-      return res.json({ success: true, message: `ส่งแจ้งเตือน ntfy ไปยัง topic '${cleanTopic}' สำเร็จ! ✅` });
+      return res.json({
+        success: true,
+        message: `ntfy server accepted the publish request for topic '${cleanTopic}'. Android device receipt cannot be verified by the server.`,
+      });
     } else {
       const errText = await ntfyRes.text();
       return res.status(ntfyRes.status).json({ success: false, error: `ntfy ตอบกลับ HTTP ${ntfyRes.status}: ${errText}` });
