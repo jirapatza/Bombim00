@@ -1,0 +1,106 @@
+name: Runtime Smoke Tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "server.ts"
+      - "Dockerfile"
+      - "package.json"
+      - "requirements.txt"
+      - "lottery_checker.py"
+      - "settings_loader.py"
+      - "tests/**"
+      - ".github/workflows/runtime-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - "server.ts"
+      - "Dockerfile"
+      - "package.json"
+      - "requirements.txt"
+      - "lottery_checker.py"
+      - "settings_loader.py"
+      - "tests/**"
+      - ".github/workflows/runtime-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Node dependencies and build
+        run: |
+          npm install
+          npm run build
+
+      - name: Verify Node server endpoints
+        env:
+          PORT: "3001"
+          DISABLE_BACKGROUND_CHECK: "true"
+        run: |
+          node server.js > /tmp/lottery-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3001/api/health > /tmp/health.json; then
+              break
+            fi
+            sleep 1
+          done
+          cat /tmp/health.json
+          cat /tmp/lottery-server.log
+          grep -q '"ok":true' /tmp/health.json
+          curl --fail --silent http://127.0.0.1:3001/api/status > /tmp/status.json
+          test -s /tmp/status.json
+
+      - name: Install Python dependencies and run tests
+        run: |
+          python -m pip install -r requirements.txt
+          python -m compileall -q lottery_checker.py settings_loader.py
+          python -m pytest -q
+
+      - name: Build Docker image
+        run: docker build -t lottery-alert:smoke .
+
+      - name: Verify Docker endpoints
+        env:
+          DISABLE_BACKGROUND_CHECK: "true"
+        run: |
+          docker run -d --name lottery-alert-smoke -p 3002:3000 -e DISABLE_BACKGROUND_CHECK="$DISABLE_BACKGROUND_CHECK" lottery-alert:smoke
+          trap 'docker rm -f lottery-alert-smoke >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent http://127.0.0.1:3002/api/health > /tmp/docker-health.json; then
+              break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' lottery-alert-smoke 2>/dev/null || true)" != "true" ]; then
+              break
+            fi
+            sleep 2
+          done
+          if ! grep -q '"ok":true' /tmp/docker-health.json 2>/dev/null; then
+            echo "Docker health endpoint did not become ready. Container diagnostics:"
+            docker ps -a --filter name=lottery-alert-smoke
+            docker logs lottery-alert-smoke || true
+            docker inspect lottery-alert-smoke || true
+            exit 1
+          fi
+          cat /tmp/docker-health.json
+          curl --fail --silent http://127.0.0.1:3002/api/status

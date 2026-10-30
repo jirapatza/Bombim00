@@ -134,3 +134,24 @@ def test_fetch_from_ranlotto_rejects_unpublished_result(monkeypatch):
         "success": True, "data": {"date": "2026-11-01", "state": "scheduled", "result": {"first_prize": "123456", "last_two": "78"}}
     })
     assert lc.fetch_from_ranlotto() == []
+
+
+
+def test_ntfy_notification_requires_secret_when_public_topic_is_removed(monkeypatch):
+    import lottery_checker as lc
+
+    posted = []
+    monkeypatch.setattr(lc, "NTFY_TOPIC", "")
+    monkeypatch.setattr(lc, "S", {
+        "channels": {"ntfy": {"enabled": True, "topic": ""}},
+        "ntfy": {"server": "https://ntfy.sh"}
+    })
+    monkeypatch.setattr(lc, "_http_post", lambda *args, **kwargs: posted.append(args) or True)
+
+    assert lc.send_ntfy_notification({
+        "ชื่อหวย": "ทดสอบ",
+        "งวดวันที่": "ทดสอบ",
+        "รางวัลที่_1": "123456",
+        "เลขท้าย_2_ตัว": "78",
+    }) is False
+    assert posted == []

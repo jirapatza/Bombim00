@@ -78,7 +78,7 @@
     "ntfy": {
       "enabled": true,
       "server": "https://ntfy.sh",
-      "topic": "lottery-auto-alert-bb26-7f4c9d2e-6a1f-4c0b-8d37-91e2a6c5b740",
+      "topic": "",
       "priority": "high",
       "tags": [
         "moneybag",

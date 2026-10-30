@@ -82,10 +82,13 @@ jobs:
       - name: Send one-time VIP alert and sound test
         if: (github.event_name == 'workflow_dispatch' && inputs.test_notification) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[test-notification]'))
         env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC || 'lottery-auto-alert-bb26-7f4c9d2e-6a1f-4c0b-8d37-91e2a6c5b740' }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           set -euo pipefail
-          test -n "$NTFY_TOPIC"
+          if [ -z "$NTFY_TOPIC" ]; then
+            echo "::warning::NTFY_TOPIC secret is not configured; skipping the notification test."
+            exit 0
+          fi
           curl --fail --show-error --silent --max-time 20 \
             -H "Title: ทดสอบเสียงแจ้งเตือนหุ้น VIP" \
             -H "Priority: urgent" \
@@ -95,9 +98,17 @@ jobs:
             "https://ntfy.sh/$NTFY_TOPIC"
           echo "NTFY_HTTP_ACCEPTED=1 (server accepted the publish request; Android receipt is not verifiable here)"
 
+      - name: Check notification secret configuration
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          if [ -z "$NTFY_TOPIC" ]; then
+            echo "::warning::NTFY_TOPIC secret is not configured; push notifications will be skipped until it is added."
+          fi
+
       - name: Run Lottery Checker & Alert
         env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC || 'lottery-auto-alert-bb26-7f4c9d2e-6a1f-4c0b-8d37-91e2a6c5b740' }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           FORCE_NOTIFY: ${{ github.event.inputs.force_notify }}
         run: |
           python lottery_checker.py
