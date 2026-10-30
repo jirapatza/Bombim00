@@ -42,6 +42,8 @@ interface GitHubRun {
   };
 }
 
+const API_BASE = 'https://bombim00-github-api.jirapatcip2557.workers.dev';
+
 interface GitHubAppRunnerProps {
   onRefreshStatus?: () => void;
   systemStatus?: any;
@@ -87,7 +89,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
   const fetchWorkflowYaml = async () => {
     setIsLoadingWorkflow(true);
     try {
-      const res = await fetch('/api/github/workflow');
+      const res = await fetch(`${API_BASE}/api/github/workflow`);
       const data = await res.json();
       if (data.content) {
         setWorkflowYaml(data.content);
@@ -106,7 +108,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
       const res = await fetch('/api/github/workflow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: workflowYaml }),
+        body: JSON.stringify({ token, content: workflowYaml }),
       });
       const data = await res.json();
       if (data.success) {
@@ -145,10 +147,10 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
     // Save credentials to localStorage
     localStorage.setItem('gh_repo', repo);
     localStorage.setItem('gh_branch', branch);
-    localStorage.setItem('gh_token', token);
+    // Do not persist the GitHub credential in browser storage.
 
     try {
-      const res = await fetch('/api/github/dispatch', {
+      const res = await fetch(`${API_BASE}/api/github/dispatch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -187,7 +189,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
     setRunsError(null);
 
     try {
-      const res = await fetch('/api/github/runs', {
+      const res = await fetch(`${API_BASE}/api/github/runs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -216,13 +218,10 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
     setSimulationLogs(['🚀 กำลังเตรียมสภาพแวดล้อม Python 3.11 และอ่าน settings.json...']);
 
     try {
-      const res = await fetch('/api/github/simulate-runner', {
+      const res = await fetch('/api/trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          forceNotify,
-          lotteryTarget,
-        }),
+        body: JSON.stringify({ token, forceNotify, lotteryTarget }),
       });
 
       const data = await res.json();
