@@ -14,6 +14,9 @@ var app = express();
 var PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
 app.use(express.json());
 
+var SETTINGS_PATH = path.join(__dirname, "config", "settings.json");
+var STATUS_PATH = path.join(__dirname, "status", "status.json");
+
 function ensureRuntimePaths() {
   for (const dir of ["config", "status", "data"]) {
     fs.mkdirSync(path.join(__dirname, dir), { recursive: true });
@@ -43,8 +46,6 @@ app.get("/api/health", (req, res) => {
   }
 });
 
-var SETTINGS_PATH = path.join(__dirname, "config", "settings.json");
-var STATUS_PATH = path.join(__dirname, "status", "status.json");
 var RESULTS_PATH = path.join(__dirname, "lottery_previous_results.json");
 var ALL_LOTTERIES_PATH = path.join(__dirname, "data", "all_lotteries.json");
 var WORKFLOW_PATH = path.join(__dirname, ".github", "workflows", "lottery.yml");
@@ -737,6 +738,7 @@ async function runBackgroundAutoCheck() {
   }
 }
 async function startServer() {
+  ensureRuntimePaths();
   const isProd = process.env.NODE_ENV === "production";
   if (!isProd) {
     const { createServer } = await import("vite");
@@ -753,8 +755,12 @@ async function startServer() {
   }
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`\u{1F680} Lottery Alert Dashboard server running on http://0.0.0.0:${PORT}`);
-    setTimeout(runBackgroundAutoCheck, 5e3);
-    setInterval(runBackgroundAutoCheck, 10 * 60 * 1e3);
+    if (process.env.DISABLE_BACKGROUND_CHECK !== "true") {
+      setTimeout(runBackgroundAutoCheck, 5e3);
+      setInterval(runBackgroundAutoCheck, 10 * 60 * 1e3);
+    } else {
+      console.log("[AUTO-RUNNER] Background checks disabled by environment.");
+    }
   });
 }
 startServer();
