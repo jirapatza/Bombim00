@@ -60,7 +60,7 @@ export function ProjectCodeEditor({
   } | null>(null);
 
   // GitHub credentials & commit metadata
-  const [repo, setRepo] = useState<string>(() => localStorage.getItem('gh_repo') || defaultRepo || 'user/lottery-alert');
+  const [repo, setRepo] = useState<string>(() => localStorage.getItem('gh_repo') || defaultRepo || 'jirapatza/Bombim00');
   const [branch, setBranch] = useState<string>(() => localStorage.getItem('gh_branch') || defaultBranch || 'main');
   const [token, setToken] = useState<string>(() => localStorage.getItem('gh_token') || '');
   const [showToken, setShowToken] = useState<boolean>(false);
@@ -146,10 +146,6 @@ export function ProjectCodeEditor({
     try {
       localStorage.setItem(`draft:${selectedFilePath}`, editorContent);
       const data = { success: true };
-
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'Failed to save file');
-      }
 
       setOriginalContent(editorContent);
       setActionFeedback({
@@ -298,12 +294,13 @@ export function ProjectCodeEditor({
     }
 
     try {
-      const res = await fetch('/api/save-file', {
+      const res = await fetch(`${API_BASE}/api/github/commit-file`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          filePath: newFilePath.trim(),
+          token: token.trim(), filePath: newFilePath.trim(),
           content: '# New file created via Lottery Alert Dashboard\n',
+          commitMessage: `Create ${newFilePath.trim()} via Lottery Alert App`,
         }),
       });
       const data = await res.json();
