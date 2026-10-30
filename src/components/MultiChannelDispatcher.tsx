@@ -471,7 +471,7 @@ export const MultiChannelDispatcher: React.FC<MultiChannelProps> = ({
                 📢 ผล{sampleLotteryName}
               </div>
               <div className="text-xs text-slate-300 leading-relaxed font-mono">
-                งวดวันที่ {latestDraw?.งวดวันที่ || '16 ตุลาคม 2569'}
+                งวดวันที่ {sampleDrawDate}
                 <br /><br />
                 🔺 <b>3 ตัวบน:</b> <span className="bg-[#17212b] px-1 py-0.5 rounded text-amber-300">{sampleTop3}</span><br />
                 🔻 <b>2 ตัวล่าง:</b> <span className="bg-[#17212b] px-1 py-0.5 rounded text-emerald-300">{sampleBottom2}</span><br />
@@ -527,18 +527,18 @@ export const MultiChannelDispatcher: React.FC<MultiChannelProps> = ({
           <div className="bg-[#7494c0] p-6 rounded-3xl flex justify-center items-center">
             <div className="w-72 bg-white rounded-2xl overflow-hidden shadow-2xl text-slate-900">
               <div className="bg-[#111827] p-4 text-white">
-                <div className="text-sm font-bold text-[#fbbf24]">📢 ผลสลากกินแบ่งรัฐบาล</div>
-                <div className="text-[10px] text-slate-400">งวดวันที่ {latestDraw?.งวดวันที่ || '16 ตุลาคม 2569'}</div>
+                <div className="text-sm font-bold text-[#fbbf24]">📢 ผล{sampleLotteryName}</div>
+                <div className="text-[10px] text-slate-400">งวดวันที่ {sampleDrawDate}</div>
               </div>
               <div className="p-4 space-y-3">
                 <div className="bg-slate-900 text-white p-3 rounded-xl">
-                  <div className="text-[10px] text-amber-400 font-bold uppercase">รางวัลที่ 1 (6,000,000 บ.)</div>
+                  <div className="text-[10px] text-amber-400 font-bold uppercase">3 ตัวบน (ตัวอย่าง)</div>
                   <div className="text-2xl font-black text-yellow-200 font-mono tracking-wider">
                     {sampleTop3}
                   </div>
                 </div>
                 <div className="bg-emerald-950 text-white p-3 rounded-xl">
-                  <div className="text-[10px] text-emerald-400 font-bold uppercase">เลขท้าย 2 ตัว (2,000 บ.)</div>
+                  <div className="text-[10px] text-emerald-400 font-bold uppercase">2 ตัวล่าง (ตัวอย่าง)</div>
                   <div className="text-2xl font-black text-emerald-300 font-mono tracking-wider">
                     {sampleBottom2}
                   </div>
