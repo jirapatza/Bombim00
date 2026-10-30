@@ -21,6 +21,21 @@ on:
         description: 'Force dispatch notification even if already sent'
         required: false
         default: 'false'
+      lottery_target:
+        description: 'Lottery category to check and notify'
+        required: false
+        type: choice
+        options:
+          - all
+          - vip
+          - foreign_stock
+          - hanoi
+          - lao
+          - thai_stock
+          - government
+          - malay
+          - liw
+        default: all
       test_notification:
         description: 'Send one test message to ntfy (does not claim phone receipt)'
         required: false
@@ -109,7 +124,8 @@ jobs:
       - name: Run Lottery Checker & Alert
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          FORCE_NOTIFY: ${{ github.event.inputs.force_notify }}
+          FORCE_NOTIFY: ${{ github.event.inputs.force_notify || 'false' }}
+          LOTTERY_TARGET: ${{ github.event.inputs.lottery_target || 'all' }}
         run: |
           python lottery_checker.py
 
