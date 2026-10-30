@@ -39,7 +39,7 @@ export function MobileNotificationHub({
   nextClosing,
 }: MobileNotificationHubProps) {
   const [topic, setTopic] = useState<string>(
-    () => localStorage.getItem('mobile_ntfy_topic') || currentTopic || 'lottery-alert-thai'
+    () => currentTopic || localStorage.getItem('mobile_ntfy_topic') || ''
   );
   const [server, setServer] = useState<string>('https://ntfy.sh');
   const [priority, setPriority] = useState<string>('urgent'); // 5 = urgent (vibrate + ring)
