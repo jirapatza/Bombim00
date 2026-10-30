@@ -84,10 +84,10 @@ jobs:
         env:
           DISABLE_BACKGROUND_CHECK: "true"
         run: |
-          docker run -d --name lottery-alert-smoke -p 3000:3000 -e DISABLE_BACKGROUND_CHECK="$DISABLE_BACKGROUND_CHECK" lottery-alert:smoke
+          docker run -d --name lottery-alert-smoke -p 3002:3000 -e DISABLE_BACKGROUND_CHECK="$DISABLE_BACKGROUND_CHECK" lottery-alert:smoke
           trap 'docker rm -f lottery-alert-smoke >/dev/null 2>&1 || true' EXIT
           for attempt in $(seq 1 40); do
-            if curl --fail --silent http://127.0.0.1:3000/api/health > /tmp/docker-health.json; then
+            if curl --fail --silent http://127.0.0.1:3002/api/health > /tmp/docker-health.json; then
               break
             fi
             if [ "$(docker inspect -f '{{.State.Running}}' lottery-alert-smoke 2>/dev/null || true)" != "true" ]; then
@@ -103,4 +103,4 @@ jobs:
             exit 1
           fi
           cat /tmp/docker-health.json
-          curl --fail --silent http://127.0.0.1:3000/api/status
+          curl --fail --silent http://127.0.0.1:3002/api/status
