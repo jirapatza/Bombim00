@@ -1825,6 +1825,7 @@ export default function App() {
               setActiveTab('summary');
             }}
             onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
+            onSpeakText={(text) => speakCustomText(text)}
             voiceEnabled={voiceEnabled}
             onToggleVoice={() => {
               const nextState = !voiceEnabled;
