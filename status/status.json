@@ -1,14 +1,19 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-10-31T01:15:22.437275+07:00",
-  "last_run_date_thai": "31/10/2026 01:15:22 น.",
-  "total_checks": 271,
+  "last_run_timestamp": "2026-10-31T01:16:07.437112+07:00",
+  "last_run_date_thai": "31/10/2026 01:16:07 น.",
+  "total_checks": 272,
   "last_source_used": "ThaiLottoAPI + ผลหวย.com stock groups",
   "status_message": "ตรวจพบผลสดงวด 16.10.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups",
   "active_sources_count": 55,
   "latest_draw_detected": "16.10.2026",
   "notifications_sent_today": 18,
   "recent_logs": [
+    {
+      "timestamp": "2026-10-31T01:16:07.437112+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 16.10.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
+    },
     {
       "timestamp": "2026-10-31T01:15:22.437275+07:00",
       "level": "INFO",
@@ -103,11 +108,6 @@
       "timestamp": "2026-10-30T15:12:23.680Z",
       "level": "INFO",
       "message": "[SELF-HEAL] ดำเนินการตรวจสอบและซ่อมแซมระบบอัตโนมัติสำเร็จ: ตรวจสอบและสร้างไดเรกทอรีระบบ config, status, data สมบูรณ์"
-    },
-    {
-      "timestamp": "2026-10-30T22:12:17.727710+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
     }
   ]
 }
