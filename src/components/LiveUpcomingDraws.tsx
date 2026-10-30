@@ -151,9 +151,16 @@ export function LiveUpcomingDraws({
 
   useEffect(() => {
     if (urgentClosingLottery && closingAlarmEnabled) {
-      const key = `${urgentClosingLottery.item.id}_${urgentClosingLottery.minsLeft}`;
+      const dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+      const key = `bombim00:closing-warning:${dateKey}:${urgentClosingLottery.item.id}`;
       if (lastAlarmKeyRef.current !== key) {
         lastAlarmKeyRef.current = key;
+        try {
+          if (window.localStorage.getItem(key) === 'sent') return;
+          window.localStorage.setItem(key, 'sent');
+        } catch {
+          // In-memory key still prevents repeat warnings during this app session.
+        }
         const message = `แจ้งเตือนปิดรับ ${urgentClosingLottery.item.name} จะปิดรับในอีก ${urgentClosingLottery.minsLeft} นาที เวลา ${urgentClosingLottery.item.closeTimeStr}`;
         if (voiceEnabled && onSpeakText) {
           onSpeakText(message);
