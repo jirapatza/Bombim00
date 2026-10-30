@@ -994,10 +994,14 @@ export default function App() {
   const handleTriggerCheck = async () => {
     setIsTriggering(true);
     try {
-      const res = await fetch(`${workerUrl}/api/trigger`, { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        showToast('⚡ ดำเนินการตรวจสอบผลเรียบร้อยแล้ว');
+      const apiBase = workerUrl.replace(/\\/+$/, '');
+      const res = await fetch(`${apiBase}/api/trigger`, {
+        method: 'POST',
+        headers: dashPassword ? { Authorization: `Bearer ${dashPassword}` } : {},
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        showToast('⚡ ส่งคำสั่งตรวจสอบไปยัง GitHub Actions แล้ว');
         setStatus(data.status);
         fetchData();
 
@@ -1024,9 +1028,12 @@ export default function App() {
           },
         ]);
       } else {
-        showToast('เกิดข้อผิดพลาดในการตรวจสอบ');
+        const reason = data.error || data.message || `HTTP ${res.status}`;
+        showToast(`เกิดข้อผิดพลาดในการตรวจสอบ: ${reason}`);
+        console.error('Trigger workflow failed:', res.status, data);
       }
     } catch (err: any) {
+      console.error('Trigger workflow connection failed:', err);
       showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อตรวจสอบได้');
     } finally {
       setIsTriggering(false);
