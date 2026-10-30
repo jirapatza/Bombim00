@@ -140,8 +140,8 @@ export function MobileNotificationHub({
     setIsSending(true);
     setSendResult(null);
 
-    const title = `📢 ผล${currentPreview.name} งวด ${currentPreview.date}`;
-    const message = `${currentPreview.flag} ${currentPreview.name}\n📅 งวดวันที่: ${currentPreview.date}\n\n🎯 3 ตัวบน / รางวัลที่ 1: ${currentPreview.firstPrize}\n🔢 2 ตัวล่าง: ${currentPreview.bottom2}\n\n⏰ หวยรอบถัดไปที่กำลังจะปิด: ${currentPreview.nextClosing}${customNote ? `\n💬 หมายเหตุ: ${customNote}` : ''}\n📡 ระบบส่งแจ้งเตือนอัตโนมัติ`;
+    const title = `ทดสอบแจ้งเตือน: ${currentPreview.name}`;
+    const message = `ข้อความทดสอบเท่านั้น (ไม่ใช่ผลหวยจริง)\n${currentPreview.flag} ${currentPreview.name}\n📅 งวดอ้างอิง: ${currentPreview.date}\n\n🎯 3 ตัวบน / รางวัลที่ 1: ${currentPreview.firstPrize}\n🔢 2 ตัวล่าง: ${currentPreview.bottom2}\n\n⏰ หวยรอบถัดไปที่กำลังจะปิด: ${currentPreview.nextClosing}${customNote ? `\n💬 หมายเหตุ: ${customNote}` : ''}\n📡 ทดสอบการส่งผ่าน ntfy`;
 
     try {
       // Send directly to ntfy. The APK is a static Capacitor app and has no
@@ -447,7 +447,7 @@ export function MobileNotificationHub({
               className="w-full py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-sm rounded-2xl shadow-xl shadow-amber-500/25 transition cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-50"
             >
               <Send className={`w-4 h-4 ${isSending ? 'animate-spin' : ''}`} />
-              {isSending ? 'กำลังยิงแจ้งเตือนเข้าโทรศัพท์...' : '🚀 ยิงการแจ้งเตือนเข้ามือถือทันที (Send Test to Phone)'}
+              {isSending ? 'กำลังยิงแจ้งเตือนเข้าโทรศัพท์...' : '🚀 ส่งข้อความทดสอบไปยัง ntfy'}
             </button>
 
             {/* Send Result status */}
