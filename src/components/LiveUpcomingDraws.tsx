@@ -271,9 +271,9 @@ export function LiveUpcomingDraws({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {/* Simulation dropdown if user wants to test morning/afternoon/night */}
-          <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1 text-xs">
+        <div className="flex items-center gap-2">
+          {/* Simulation dropdown for previewing timeline periods */}
+          <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs">
             <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
             <select
               value={simulatedHour === null ? 'real' : simulatedHour}
@@ -284,16 +284,16 @@ export function LiveUpcomingDraws({
               className="bg-transparent text-slate-300 font-medium focus:outline-none cursor-pointer"
             >
               <option value="real">🕒 เวลาจริง ({bangkokTime.timeStr})</option>
-              <option value="9">🌅 จำลอง 09:00 น. (เช้า - รอ 31 หวย)</option>
-              <option value="12">☀️ จำลอง 12:00 น. (เที่ยง)</option>
-              <option value="15">🌤️ จำลอง 15:30 น. (บ่ายแก่)</option>
-              <option value="18">🌇 จำลอง 18:00 น. (ช่วงเย็น)</option>
-              <option value="21">🌙 จำลอง 21:00 น. (รอบค่ำ)</option>
-              <option value="23">🌌 จำลอง 23:15 น. (รอบดึก)</option>
+              <option value="9">🌅 เช้า 09:00 น. (รอ 31 หวย)</option>
+              <option value="12">☀️ เที่ยง 12:00 น.</option>
+              <option value="15">🌤️ บ่าย 15:30 น.</option>
+              <option value="18">🌇 เย็น 18:00 น.</option>
+              <option value="21">🌙 ค่ำ 21:00 น.</option>
+              <option value="23">🌌 ดึก 23:15 น.</option>
             </select>
           </div>
 
-          {/* Closing Alarm Sound Toggle */}
+          {/* 5-minute Closing Alarm Sound Toggle */}
           <button
             type="button"
             onClick={() => {
@@ -302,7 +302,7 @@ export function LiveUpcomingDraws({
               localStorage.setItem('lottery_closing_alarm', String(next));
               if (next) playClosingAlertChime();
             }}
-            className={`px-3 py-2 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 cursor-pointer ${
               closingAlarmEnabled
                 ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                 : 'bg-slate-800 text-slate-400 border-slate-700'
@@ -310,20 +310,7 @@ export function LiveUpcomingDraws({
             title="เตือนด้วยเสียงเมื่อมีหวยเหลือ 5 นาทีก่อนปิดรับ"
           >
             {closingAlarmEnabled ? <Bell className="w-3.5 h-3.5 text-amber-400" /> : <BellOff className="w-3.5 h-3.5" />}
-            <span>{closingAlarmEnabled ? 'เตือน 5 นาที: เปิด' : 'เตือน 5 นาที: ปิด'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onToggleVoice}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition flex items-center gap-2 cursor-pointer ${
-              voiceEnabled
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                : 'bg-slate-800 text-slate-400 border-slate-700'
-            }`}
-          >
-            {voiceEnabled ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4" />}
-            <span>{voiceEnabled ? 'เสียงประกาศภาษาไทย: เปิด' : 'เสียงประกาศ: ปิด'}</span>
+            <span className="hidden sm:inline">{closingAlarmEnabled ? 'เตือน 5 นาที: เปิด' : 'เตือน 5 นาที: ปิด'}</span>
           </button>
         </div>
       </div>
@@ -468,18 +455,18 @@ export function LiveUpcomingDraws({
                 <button
                   type="button"
                   onClick={() => onSpeakLottery(nextLottery)}
-                  className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
                 >
                   <Volume2 className="w-4 h-4" />
-                  ทดสอบเสียงแจ้งเตือนหวยนี้
+                  <span>ฟังเสียงประกาศรอบนี้</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => onSelectLottery(nextLottery)}
-                  className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-xl border border-slate-700 transition cursor-pointer flex items-center gap-1"
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-xl border border-slate-700 transition cursor-pointer flex items-center gap-1 active:scale-95"
                 >
-                  ดูรายละเอียด
+                  <span>ดูรายละเอียด</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>

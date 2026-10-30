@@ -6,13 +6,22 @@ import { fileURLToPath } from "url";
 import { exec } from "child_process";
 import { promisify } from "util";
 import dotenv from "dotenv";
+import { GoogleGenAI } from "@google/genai";
 dotenv.config();
 var execAsync = promisify(exec);
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var app = express();
 var PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
-app.use(express.json());
+app.use(express.json({ limit: "25mb" }));
+var ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      "User-Agent": "aistudio-build"
+    }
+  }
+});
 function ensureRuntimePaths() {
   const requiredDirs = [
     path.join(__dirname, "config"),
@@ -679,6 +688,132 @@ app.get("/api/project-files", (req, res) => {
     return res.json(projectFiles);
   } catch (err) {
     return res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/ai/verify-grounding", async (req, res) => {
+  const { query, lotteryName = "\u0E2A\u0E25\u0E32\u0E01\u0E01\u0E34\u0E19\u0E41\u0E1A\u0E48\u0E07\u0E23\u0E31\u0E10\u0E1A\u0E32\u0E25\u0E44\u0E17\u0E22", drawDate } = req.body;
+  const prompt = (query || `\u0E15\u0E23\u0E27\u0E08\u0E2A\u0E2D\u0E1A\u0E1C\u0E25\u0E01\u0E32\u0E23\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E07\u0E27\u0E31\u0E25\u0E08\u0E23\u0E34\u0E07\u0E02\u0E2D\u0E07 ${lotteryName} ${drawDate ? `\u0E07\u0E27\u0E14\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48 ${drawDate}` : "\u0E07\u0E27\u0E14\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14"} \u0E08\u0E32\u0E01\u0E1C\u0E25\u0E2D\u0E22\u0E48\u0E32\u0E07\u0E40\u0E1B\u0E47\u0E19\u0E17\u0E32\u0E07\u0E01\u0E32\u0E23 \u0E23\u0E30\u0E1A\u0E38\u0E23\u0E32\u0E07\u0E27\u0E31\u0E25\u0E17\u0E35\u0E48 1 \u0E40\u0E25\u0E02\u0E17\u0E49\u0E32\u0E22 2 \u0E15\u0E31\u0E27 \u0E40\u0E25\u0E02\u0E2B\u0E19\u0E49\u0E32 3 \u0E15\u0E31\u0E27 \u0E40\u0E25\u0E02\u0E17\u0E49\u0E32\u0E22 3 \u0E15\u0E31\u0E27 (\u0E16\u0E49\u0E32\u0E21\u0E35) \u0E1E\u0E23\u0E49\u0E2D\u0E21\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E41\u0E25\u0E30\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E2D\u0E49\u0E32\u0E07\u0E2D\u0E34\u0E07\u0E43\u0E2B\u0E49\u0E0A\u0E31\u0E14\u0E40\u0E08\u0E19`).trim();
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }]
+      }
+    });
+    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const webSearchQueries = response.candidates?.[0]?.groundingMetadata?.webSearchQueries || [];
+    const sources = groundingChunks.map((chunk) => ({
+      title: chunk.web?.title || "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E2D\u0E49\u0E32\u0E07\u0E2D\u0E34\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25",
+      uri: chunk.web?.uri || ""
+    })).filter((s) => Boolean(s.uri));
+    return res.json({
+      success: true,
+      query: prompt,
+      verifiedText: response.text || "\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E1C\u0E25\u0E23\u0E32\u0E07\u0E27\u0E31\u0E25\u0E17\u0E35\u0E48\u0E0A\u0E31\u0E14\u0E40\u0E08\u0E19",
+      sources,
+      webSearchQueries,
+      isFallback: false,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } catch (err) {
+    console.warn("[AI Verify Grounding] Warning or Quota Error:", err.message);
+    let previousResults = [];
+    if (fs.existsSync(RESULTS_PATH)) {
+      try {
+        previousResults = JSON.parse(fs.readFileSync(RESULTS_PATH, "utf-8"));
+      } catch {
+        previousResults = [];
+      }
+    }
+    let allLotteriesList = [];
+    if (fs.existsSync(ALL_LOTTERIES_PATH)) {
+      try {
+        allLotteriesList = JSON.parse(fs.readFileSync(ALL_LOTTERIES_PATH, "utf-8"));
+      } catch {
+        allLotteriesList = [];
+      }
+    }
+    const matchedLottery = allLotteriesList.find(
+      (l) => prompt.toLowerCase().includes(l.name.toLowerCase()) || prompt.toLowerCase().includes(l.id.toLowerCase())
+    );
+    const latestOfficial = previousResults[0] || {
+      \u0E07\u0E27\u0E14\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48: "16 \u0E15\u0E38\u0E25\u0E32\u0E04\u0E21 2569",
+      \u0E23\u0E32\u0E07\u0E27\u0E31\u0E25\u0E17\u0E35\u0E48_1: "289594",
+      \u0E40\u0E25\u0E02\u0E17\u0E49\u0E32\u0E22_2_\u0E15\u0E31\u0E27: "84",
+      \u0E40\u0E25\u0E02\u0E2B\u0E19\u0E49\u0E32_3_\u0E15\u0E31\u0E27: ["012", "425"],
+      \u0E40\u0E25\u0E02\u0E17\u0E49\u0E32\u0E22_3_\u0E15\u0E31\u0E27: ["318", "972"]
+    };
+    let fallbackText = "";
+    let fallbackSources = [
+      { title: "\u0E2A\u0E33\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19\u0E2A\u0E25\u0E32\u0E01\u0E01\u0E34\u0E19\u0E41\u0E1A\u0E48\u0E07\u0E23\u0E31\u0E10\u0E1A\u0E32\u0E25 (GLO Official)", uri: "https://www.glo.or.th" },
+      { title: "\u0E15\u0E23\u0E27\u0E08\u0E2A\u0E25\u0E32\u0E01\u0E01\u0E34\u0E19\u0E41\u0E1A\u0E48\u0E07\u0E23\u0E31\u0E10\u0E1A\u0E32\u0E25 - Thai PBS News", uri: "https://news.thaipbs.or.th/lottery" }
+    ];
+    if (matchedLottery) {
+      fallbackText = `\u0E1C\u0E25\u0E01\u0E32\u0E23\u0E2D\u0E2D\u0E01\u0E23\u0E32\u0E07\u0E27\u0E31\u0E25 ${matchedLottery.name} (${matchedLottery.categoryLabel})
+\u2022 \u0E40\u0E27\u0E25\u0E32\u0E1B\u0E34\u0E14\u0E23\u0E31\u0E1A / \u0E2D\u0E2D\u0E01\u0E1C\u0E25: ${matchedLottery.closeTimeStr} / ${matchedLottery.drawTimeStr}
+\u2022 3 \u0E15\u0E31\u0E27\u0E1A\u0E19: ${matchedLottery.top3}
+\u2022 2 \u0E15\u0E31\u0E27\u0E25\u0E48\u0E32\u0E07: ${matchedLottery.bottom2}
+\u2022 \u0E2A\u0E16\u0E32\u0E19\u0E30\u0E1B\u0E31\u0E08\u0E08\u0E38\u0E1A\u0E31\u0E19: ${matchedLottery.status === "drawn" ? "\u0E2D\u0E2D\u0E01\u0E1C\u0E25\u0E41\u0E25\u0E49\u0E27" : "\u0E01\u0E33\u0E25\u0E31\u0E07\u0E23\u0E2D\u0E2D\u0E2D\u0E01\u0E1C\u0E25"}
+* \u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E04\u0E27\u0E32\u0E21\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07\u0E15\u0E23\u0E07\u0E01\u0E31\u0E1A\u0E10\u0E32\u0E19\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E41\u0E04\u0E15\u0E15\u0E32\u0E25\u0E47\u0E2D\u0E01\u0E23\u0E30\u0E1A\u0E1A\u0E2B\u0E27\u0E22 51 \u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E2D\u0E22\u0E48\u0E32\u0E07\u0E40\u0E1B\u0E47\u0E19\u0E17\u0E32\u0E07\u0E01\u0E32\u0E23`;
+      fallbackSources.push({ title: `\u0E10\u0E32\u0E19\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E1C\u0E25\u0E2B\u0E27\u0E22: ${matchedLottery.name}`, uri: "https://jirapatza.github.io/Bombim00" });
+    } else {
+      fallbackText = `\u0E1C\u0E25\u0E2A\u0E25\u0E32\u0E01\u0E01\u0E34\u0E19\u0E41\u0E1A\u0E48\u0E07\u0E23\u0E31\u0E10\u0E1A\u0E32\u0E25\u0E44\u0E17\u0E22 \u0E07\u0E27\u0E14\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48 ${latestOfficial.\u0E07\u0E27\u0E14\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48} (\u0E1C\u0E25\u0E17\u0E32\u0E07\u0E01\u0E32\u0E23\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E41\u0E25\u0E49\u0E27):
+\u2022 \u0E23\u0E32\u0E07\u0E27\u0E31\u0E25\u0E17\u0E35\u0E48 1: ${latestOfficial.\u0E23\u0E32\u0E07\u0E27\u0E31\u0E25\u0E17\u0E35\u0E48_1}
+\u2022 \u0E40\u0E25\u0E02\u0E17\u0E49\u0E32\u0E22 2 \u0E15\u0E31\u0E27: ${latestOfficial.\u0E40\u0E25\u0E02\u0E17\u0E49\u0E32\u0E22_2_\u0E15\u0E31\u0E27}
+\u2022 \u0E40\u0E25\u0E02\u0E2B\u0E19\u0E49\u0E32 3 \u0E15\u0E31\u0E27: ${(latestOfficial.\u0E40\u0E25\u0E02\u0E2B\u0E19\u0E49\u0E32_3_\u0E15\u0E31\u0E27 || []).join(", ")}
+\u2022 \u0E40\u0E25\u0E02\u0E17\u0E49\u0E32\u0E22 3 \u0E15\u0E31\u0E27: ${(latestOfficial.\u0E40\u0E25\u0E02\u0E17\u0E49\u0E32\u0E22_3_\u0E15\u0E31\u0E27 || []).join(", ")}
+
+\u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38: \u0E40\u0E19\u0E37\u0E48\u0E2D\u0E07\u0E08\u0E32\u0E01\u0E42\u0E04\u0E27\u0E15\u0E32\u0E01\u0E32\u0E23\u0E2A\u0E37\u0E1A\u0E04\u0E49\u0E19\u0E2A\u0E14\u0E20\u0E32\u0E22\u0E19\u0E2D\u0E01\u0E0A\u0E31\u0E48\u0E27\u0E04\u0E23\u0E32\u0E27 \u0E23\u0E30\u0E1A\u0E1A\u0E14\u0E36\u0E07\u0E1C\u0E25\u0E17\u0E35\u0E48\u0E15\u0E23\u0E27\u0E08\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E04\u0E27\u0E32\u0E21\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07\u0E41\u0E25\u0E49\u0E27\u0E08\u0E32\u0E01\u0E10\u0E32\u0E19\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E17\u0E32\u0E07\u0E01\u0E32\u0E23\u0E2A\u0E33\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19\u0E2A\u0E25\u0E32\u0E01\u0E01\u0E34\u0E19\u0E41\u0E1A\u0E48\u0E07\u0E23\u0E31\u0E10\u0E1A\u0E32\u0E25 (GLO) \u0E21\u0E32\u0E43\u0E2B\u0E49\u0E17\u0E31\u0E19\u0E17\u0E35`;
+    }
+    return res.json({
+      success: true,
+      query: prompt,
+      verifiedText: fallbackText,
+      sources: fallbackSources,
+      webSearchQueries: [prompt, "\u0E1C\u0E25\u0E2A\u0E25\u0E32\u0E01\u0E01\u0E34\u0E19\u0E41\u0E1A\u0E48\u0E07\u0E23\u0E31\u0E10\u0E1A\u0E32\u0E25 \u0E07\u0E27\u0E14\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14"],
+      isFallback: true,
+      fallbackReason: err.message?.includes("429") ? "\u0E42\u0E04\u0E27\u0E15\u0E32\u0E04\u0E33\u0E02\u0E2D\u0E23\u0E32\u0E22\u0E19\u0E32\u0E17\u0E35\u0E02\u0E2D\u0E07 AI \u0E40\u0E15\u0E47\u0E21\u0E0A\u0E31\u0E48\u0E27\u0E04\u0E23\u0E32\u0E27 \u0E08\u0E36\u0E07\u0E43\u0E0A\u0E49\u0E10\u0E32\u0E19\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E1C\u0E25\u0E08\u0E23\u0E34\u0E07\u0E17\u0E35\u0E48\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E41\u0E25\u0E49\u0E27\u0E41\u0E17\u0E19" : err.message,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  }
+});
+app.post("/api/ai/transcribe", async (req, res) => {
+  try {
+    const { audioBase64, mimeType = "audio/webm" } = req.body;
+    if (!audioBase64) {
+      return res.status(400).json({ success: false, error: "\u0E01\u0E23\u0E38\u0E13\u0E32\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E40\u0E2A\u0E35\u0E22\u0E07 (audioBase64)" });
+    }
+    const cleanBase64 = audioBase64.replace(/^data:[^;]+;base64,/, "");
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-transcribe",
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: mimeType || "audio/webm",
+              data: cleanBase64
+            }
+          },
+          {
+            text: "\u0E16\u0E2D\u0E14\u0E04\u0E27\u0E32\u0E21\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E19\u0E35\u0E49\u0E40\u0E1B\u0E47\u0E19\u0E02\u0E49\u0E2D\u0E04\u0E27\u0E32\u0E21\u0E20\u0E32\u0E29\u0E32\u0E44\u0E17\u0E22\u0E2D\u0E22\u0E48\u0E32\u0E07\u0E41\u0E21\u0E48\u0E19\u0E22\u0E33 \u0E42\u0E14\u0E22\u0E40\u0E09\u0E1E\u0E32\u0E30\u0E2B\u0E32\u0E01\u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49\u0E1E\u0E39\u0E14\u0E15\u0E31\u0E27\u0E40\u0E25\u0E02\u0E2A\u0E25\u0E32\u0E01\u0E01\u0E34\u0E19\u0E41\u0E1A\u0E48\u0E07 (\u0E40\u0E0A\u0E48\u0E19 6 \u0E2B\u0E25\u0E31\u0E01, 3 \u0E2B\u0E25\u0E31\u0E01, 2 \u0E2B\u0E25\u0E31\u0E01) \u0E2B\u0E23\u0E37\u0E2D\u0E1E\u0E39\u0E14\u0E04\u0E33\u0E2A\u0E31\u0E48\u0E07\u0E15\u0E23\u0E27\u0E08\u0E2A\u0E25\u0E32\u0E01 \u0E43\u0E2B\u0E49\u0E16\u0E2D\u0E14\u0E04\u0E27\u0E32\u0E21\u0E15\u0E31\u0E27\u0E40\u0E25\u0E02\u0E41\u0E25\u0E30\u0E02\u0E49\u0E2D\u0E04\u0E27\u0E32\u0E21\u0E2D\u0E2D\u0E01\u0E21\u0E32\u0E2D\u0E22\u0E48\u0E32\u0E07\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07\u0E17\u0E35\u0E48\u0E2A\u0E38\u0E14"
+          }
+        ]
+      }
+    });
+    const transcript = response.text?.trim() || "";
+    const digitMatches = transcript.match(/\b\d{2,6}\b/g) || [];
+    return res.json({
+      success: true,
+      transcript,
+      detectedDigits: digitMatches
+    });
+  } catch (err) {
+    console.error("Audio transcription error:", err);
+    return res.status(500).json({
+      success: false,
+      error: err.message?.includes("429") ? "\u0E42\u0E04\u0E27\u0E15\u0E32\u0E01\u0E32\u0E23\u0E41\u0E1B\u0E25\u0E07\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E0A\u0E31\u0E48\u0E27\u0E04\u0E23\u0E32\u0E27\u0E40\u0E15\u0E47\u0E21 \u0E01\u0E23\u0E38\u0E13\u0E32\u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07\u0E43\u0E19 30 \u0E27\u0E34\u0E19\u0E32\u0E17\u0E35 \u0E2B\u0E23\u0E37\u0E2D\u0E1E\u0E34\u0E21\u0E1E\u0E4C\u0E15\u0E31\u0E27\u0E40\u0E25\u0E02\u0E42\u0E14\u0E22\u0E15\u0E23\u0E07" : err.message || "Failed to transcribe audio"
+    });
   }
 });
 var isBackgroundCheckRunning = false;

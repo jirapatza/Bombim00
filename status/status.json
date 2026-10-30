@@ -1,14 +1,74 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-10-30T17:52:30.965264+07:00",
-  "last_run_date_thai": "30/10/2026 17:52:30 น.",
-  "total_checks": 242,
+  "last_run_timestamp": "2026-10-30T18:53:52.453324+07:00",
+  "last_run_date_thai": "30/10/2026 18:53:52 น.",
+  "total_checks": 254,
   "last_source_used": "ThaiLottoAPI + stock group scraper",
   "status_message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper",
   "active_sources_count": 56,
   "latest_draw_detected": "30.10.2026",
-  "notifications_sent_today": 58,
+  "notifications_sent_today": 170,
   "recent_logs": [
+    {
+      "timestamp": "2026-10-30T18:53:52.453324+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T18:52:53.656208+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T18:45:14.100296+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T18:41:37.483040+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T18:35:08.558649+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T18:33:40.666976+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T18:24:51.876765+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T18:24:13.430707+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T18:22:09.687163+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T18:21:00.847432+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T18:19:18.039952+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T18:16:23.357797+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
     {
       "timestamp": "2026-10-30T17:52:30.965264+07:00",
       "level": "INFO",
@@ -46,66 +106,6 @@
     },
     {
       "timestamp": "2026-10-30T14:23:42.581196+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T14:05:04.723247+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T13:55:43.039784+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T13:25:43.580631+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T13:25:04.001521+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T13:10:26.503548+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T13:09:35.786115+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T13:08:40.082981+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T13:08:16.773922+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T13:07:43.537132+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T13:03:38.457156+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T12:18:52.286668+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T11:48:26.918414+07:00",
       "level": "INFO",
       "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
     }

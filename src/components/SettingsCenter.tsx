@@ -338,6 +338,7 @@ export function SettingsCenter({
         <GitHubAppRunner
           onRefreshStatus={onRefreshData}
           systemStatus={status}
+          allLotteriesCount={allLotteries?.length || 54}
         />
       )}
 

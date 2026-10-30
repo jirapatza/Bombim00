@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Ticket,
   Search,
@@ -10,7 +10,12 @@ import {
   Copy,
   Printer,
   Sparkles,
-  RotateCcw
+  RotateCcw,
+  Mic,
+  MicOff,
+  Globe,
+  RefreshCw,
+  ExternalLink,
 } from 'lucide-react';
 
 interface BatchProps {
@@ -32,6 +37,124 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
   );
   const [checkedResults, setCheckedResults] = useState<TicketMatch[] | null>(null);
   const [copiedSlip, setCopiedSlip] = useState(false);
+
+  // Audio transcription & Voice input state (gemini-3.5-transcribe)
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [voiceToast, setVoiceToast] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  // Search Grounding verification state (gemini-3.8-flash)
+  const [isVerifyingGrounding, setIsVerifyingGrounding] = useState(false);
+  const [groundingVerifiedText, setGroundingVerifiedText] = useState<string | null>(null);
+  const [groundingSources, setGroundingSources] = useState<any[]>([]);
+
+  // Cleanup media recorder on unmount
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
+
+  const handleStartVoice = async () => {
+    setVoiceToast(null);
+    audioChunksRef.current = [];
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('เบราว์เซอร์ไม่รองรับการบันทึกเสียง');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        await sendVoiceToTranscribe(blob);
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      setVoiceToast('🎙️ กำลังฟังเสียง... พูดหมายเลขสลาก เช่น "289594" หรือ "แปดสี่"');
+    } catch (err: any) {
+      setVoiceToast(`❌ ไมโครโฟน: ${err.message || 'ไม่สามารถเปิดไมค์ได้'}`);
+      setIsRecording(false);
+    }
+  };
+
+  const handleStopVoice = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  const sendVoiceToTranscribe = async (blob: Blob) => {
+    setIsTranscribing(true);
+    setVoiceToast('⏳ กำลังถอดเสียงด้วย Gemini 3.5 Transcribe...');
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = async () => {
+        const base64data = reader.result as string;
+        const res = await fetch('/api/ai/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audioBase64: base64data, mimeType: 'audio/webm' }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const digits: string[] = data.detectedDigits || [];
+          const text = data.transcript || '';
+          if (digits.length > 0) {
+            setRawTicketsInput((prev) => {
+              const existing = prev.trim();
+              return existing ? `${existing}\n${digits.join('\n')}` : digits.join('\n');
+            });
+            setVoiceToast(`✅ ถอดเสียงสำเร็จ: "${text}" (เพิ่มเลข: ${digits.join(', ')})`);
+          } else {
+            setVoiceToast(`ℹ️ ถอดเสียง: "${text}"`);
+          }
+        } else {
+          setVoiceToast(`❌ ${data.error || 'ถอดเสียงล้มเหลว'}`);
+        }
+        setIsTranscribing(false);
+      };
+    } catch (err: any) {
+      setVoiceToast(`❌ ผิดพลาด: ${err.message}`);
+      setIsTranscribing(false);
+    }
+  };
+
+  const handleVerifyCurrentDrawGrounding = async () => {
+    setIsVerifyingGrounding(true);
+    try {
+      const res = await fetch('/api/ai/verify-grounding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lotteryName: 'สลากกินแบ่งรัฐบาลไทย',
+          drawDate: selectedDrawDate,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setGroundingVerifiedText(data.verifiedText);
+        setGroundingSources(data.sources || []);
+      }
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setIsVerifyingGrounding(false);
+    }
+  };
 
   // Deduplicate available draw dates to prevent duplicate key errors in React
   const uniqueDrawDates = useMemo(() => {
@@ -177,22 +300,71 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
           </p>
         </div>
 
-        {/* Draw Date Selector */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-400 font-semibold">เลือกงวดที่ตรวจ:</label>
-          <select
-            value={selectedDrawDate}
-            onChange={(e) => setSelectedDrawDate(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-amber-300 font-semibold focus:outline-none"
+        {/* Draw Date Selector & Grounding Verification */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleVerifyCurrentDrawGrounding}
+            disabled={isVerifyingGrounding}
+            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            {uniqueDrawDates.map((date, idx) => (
-              <option key={`draw-date-${date}-${idx}`} value={date}>
-                {date}
-              </option>
-            ))}
-          </select>
+            <Globe className={`w-3.5 h-3.5 ${isVerifyingGrounding ? 'animate-spin' : 'text-emerald-400'}`} />
+            {isVerifyingGrounding ? 'กำลังยืนยันด้วย Google...' : 'ยืนยันผลด้วย Google Search'}
+          </button>
+
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-slate-400 font-semibold">เลือกงวดที่ตรวจ:</label>
+            <select
+              value={selectedDrawDate}
+              onChange={(e) => setSelectedDrawDate(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-amber-300 font-semibold focus:outline-none"
+            >
+              {uniqueDrawDates.map((date, idx) => (
+                <option key={`draw-date-${date}-${idx}`} value={date}>
+                  {date}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
+
+      {/* Grounding Verification Result Box */}
+      {groundingVerifiedText && (
+        <div className="bg-slate-900/90 border border-emerald-500/40 p-4 rounded-3xl space-y-2 text-xs animate-fade-in shadow-lg">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span className="font-bold text-emerald-400 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" />
+              ผลสลากยืนยันสดจาก Google Search Grounding (gemini-3.8-flash)
+            </span>
+            <button
+              type="button"
+              onClick={() => setGroundingVerifiedText(null)}
+              className="text-slate-500 hover:text-slate-300 cursor-pointer"
+            >
+              ปิด
+            </button>
+          </div>
+          <p className="text-slate-200 leading-relaxed whitespace-pre-wrap">{groundingVerifiedText}</p>
+          {groundingSources.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-slate-400">
+              <span>แหล่งอ้างอิง:</span>
+              {groundingSources.slice(0, 3).map((s, i) => (
+                <a
+                  key={i}
+                  href={s.uri}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-emerald-400 hover:underline flex items-center gap-0.5"
+                >
+                  {s.title}
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Input Box & Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -200,12 +372,31 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
         <div className="lg:col-span-1 bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-4">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-200">
-              วางหมายเลขสลาก (1 ใบต่อ 1 บรรทัด หรือคั่นด้วย ,)
+              วางหมายเลขสลาก (1 ใบต่อ 1 บรรทัด)
             </label>
-            <span className="text-[10px] text-slate-500">
-              รองรับทั้ง 2, 3, หรือ 6 หลัก
-            </span>
+
+            {/* Voice Input Button */}
+            <button
+              type="button"
+              onClick={isRecording ? handleStopVoice : handleStartVoice}
+              disabled={isTranscribing}
+              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                isRecording
+                  ? 'bg-rose-600 text-white animate-pulse'
+                  : 'bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40'
+              } disabled:opacity-50`}
+              title="พูดเลขสลากด้วยเสียงเพื่อถอดความอัตโนมัติ"
+            >
+              {isRecording ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              <span>{isRecording ? 'หยุดพูด' : '🎙️ พูดเลขสลาก'}</span>
+            </button>
           </div>
+
+          {voiceToast && (
+            <div className="text-[11px] p-2.5 rounded-xl bg-slate-950 border border-indigo-500/40 text-indigo-300 animate-fade-in font-medium">
+              {voiceToast}
+            </div>
+          )}
 
           <textarea
             rows={8}

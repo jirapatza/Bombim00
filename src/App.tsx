@@ -57,6 +57,8 @@ import {
   ListOrdered,
   TableProperties,
   TrendingUp,
+  Globe,
+  Mic,
 } from 'lucide-react';
 
 import { BroadcastKiosk } from './components/BroadcastKiosk';
@@ -74,14 +76,20 @@ import { LiveUpcomingDraws } from './components/LiveUpcomingDraws';
 import { SettingsCenter } from './components/SettingsCenter';
 import { NotificationPipelineInspector } from './components/NotificationPipelineInspector';
 import { AppDownloadModal } from './components/AppDownloadModal';
+import { DataAccuracyCenter } from './components/DataAccuracyCenter';
 
 interface LotteryResult {
+  ชื่อหวย?: string;
+  หมวดหวย?: string;
+  หวย?: string;
   งวดวันที่: string;
   วันที่จัดรูปแบบ?: string;
   รางวัลที่_1: string;
   เลขท้าย_2_ตัว: string;
-  เลขหน้า_3_ตัว: string[];
-  เลขท้าย_3_ตัว: string[];
+  เลขบน_3_ตัว?: string;
+  เลขล่าง_2_ตัว?: string;
+  เลขหน้า_3_ตัว?: string[];
+  เลขท้าย_3_ตัว?: string[];
   รางวัลข้างเคียงรางวัลที่_1?: string[];
   รางวัลที่_2?: string[];
   แหล่งข้อมูล?: string;
@@ -321,10 +329,12 @@ const TEMPLATE_PRESETS = {
 export default function App() {
   const [activeTab, setActiveTab] = useState<
     | 'live'
-    | 'catalog'
+    | 'summary'
+    | 'checker'
+    | 'accuracy'
     | 'analytics'
     | 'settings'
-    | 'summary'
+    | 'catalog'
     | 'github'
     | 'mobile'
     | 'overview'
@@ -340,6 +350,9 @@ export default function App() {
     | 'files'
     | 'pipeline'
   >('live');
+  const [checkerSubTab, setCheckerSubTab] = useState<'accuracy' | 'batch' | 'history'>('accuracy');
+  const [historyPrizeFilter, setHistoryPrizeFilter] = useState<'all' | 'first' | 'last2' | '3digits' | 'thai'>('all');
+  const [historySearchTerm, setHistorySearchTerm] = useState<string>('');
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [settings, setSettings] = useState<any>(null);
   const [results, setResults] = useState<LotteryResult[]>([]);
@@ -1513,58 +1526,25 @@ export default function App() {
         </div>
       )}
 
-      {/* Zero-Config Active Auto-Pilot Banner */}
-      <div className="bg-gradient-to-r from-emerald-950 via-slate-950 to-emerald-950 border-b border-emerald-500/40 px-4 py-2.5 text-xs">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 text-emerald-300 font-semibold">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <span>🟢 ระบบตรวจผลและส่งแจ้งเตือนทำงานอัตโนมัติ 24 ชม. (คุณไม่ต้องตั้งค่าอะไรเพิ่มอีกแล้ว พร้อมใช้งานทันที)</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsDownloadModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs flex items-center gap-1.5 transition shadow-md shadow-amber-500/20 cursor-pointer active:scale-95"
-            >
-              <Smartphone className="w-4 h-4" />
-              📲 ติดตั้งแอพลงมือถือทันที
-            </button>
-            <a
-              href="https://ntfy.sh/lottery-bombimm43"
-              target="_blank"
-              rel="noreferrer"
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-1.5 transition border border-slate-700"
-            >
-              <span>รับแจ้งเตือน ntfy</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          </div>
-        </div>
-      </div>
-
-      {/* Top Header */}
-      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      {/* Executive Header & Navigation */}
+      <header className="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur sticky top-0 z-40 shadow-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 text-slate-950">
-              <Bell className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/25 text-slate-950 font-black">
+              <Trophy className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-bold text-lg text-slate-50 tracking-tight">
-                  Lottery Alert Dashboard
+                <h1 className="font-black text-base sm:text-lg text-white tracking-tight">
+                  ระบบตรวจและแจ้งเตือนผลหวยสด
                 </h1>
-                <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Active
+                  ระบบอัตโนมัติ 24 ชม.
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
-                ระบบแจ้งเตือนสลากกินแบ่งและหวย พร้อมตัวปรับแต่งรูปแบบข้อความและเสียงพูดภาษาไทย
+              <p className="text-xs text-slate-400 hidden sm:block">
+                ศูนย์กลางผลสลาก 51 หวย • เช็คผลสดเรียลไทม์ • ยืนยันข้อมูลด้วย AI &amp; เสียงประกาศไทย
               </p>
             </div>
           </div>
@@ -1578,97 +1558,113 @@ export default function App() {
                 showToast(nextState ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
               }}
               title={voiceEnabled ? 'เสียงพูดภาษาไทย: เปิดอยู่' : 'เสียงพูดภาษาไทย: ปิดอยู่'}
-              className={`px-3 py-2 text-xs font-semibold rounded-lg border cursor-pointer transition flex items-center gap-1.5 ${
+              className={`px-3 py-2 text-xs font-bold rounded-xl border cursor-pointer transition flex items-center gap-1.5 ${
                 voiceEnabled
-                  ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-500'
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-sm'
+                  : 'bg-slate-800/90 border-slate-700 text-slate-400 hover:text-slate-200'
               }`}
             >
               {voiceEnabled ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4" />}
-              <span className="hidden sm:inline">{voiceEnabled ? 'เสียงไทย: เปิด' : 'เสียงไทย: ปิด'}</span>
+              <span className="hidden md:inline">{voiceEnabled ? 'เสียงไทย: เปิด' : 'เสียงไทย: ปิด'}</span>
             </button>
 
             <button
               onClick={handleTriggerCheck}
               disabled={isTriggering}
-              className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 transition flex items-center gap-1.5 shadow-md shadow-amber-500/15 disabled:opacity-50 cursor-pointer active:scale-95"
+              className="px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 transition flex items-center gap-1.5 shadow-md shadow-amber-500/20 disabled:opacity-50 cursor-pointer active:scale-95"
             >
-              <Play className={`w-3.5 h-3.5 ${isTriggering ? 'animate-spin' : ''}`} />
-              {isTriggering ? 'กำลังตรวจ...' : 'ตรวจสอบผลทันที'}
+              <Play className={`w-3.5 h-3.5 fill-current ${isTriggering ? 'animate-spin' : ''}`} />
+              <span>{isTriggering ? 'กำลังตรวจ...' : 'ตรวจผลทันที'}</span>
+            </button>
+
+            <button
+              onClick={() => setIsDownloadModalOpen(true)}
+              className="px-3.5 py-2 text-xs font-bold rounded-xl bg-purple-600/90 hover:bg-purple-600 text-white transition flex items-center gap-1.5 border border-purple-500/40 shadow-sm cursor-pointer active:scale-95"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-amber-300" />
+              <span className="hidden sm:inline">📲 โหลดแอป / APK</span>
             </button>
 
             <button
               onClick={fetchData}
               disabled={isLoading}
               title="รีเฟรชข้อมูล"
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700 cursor-pointer"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700 cursor-pointer"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
-            </button>
-
-            <button
-              onClick={() => setIsDownloadModalOpen(true)}
-              className="px-3.5 py-2 text-xs font-bold rounded-lg bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white transition flex items-center gap-1.5 shadow-md shadow-purple-600/25 cursor-pointer active:scale-95"
-            >
-              <Smartphone className="w-3.5 h-3.5 text-amber-300" />
-              <span>📲 โหลดแอป / APK</span>
             </button>
           </div>
         </div>
 
-        {/* Consolidated 3-Tab Navigation */}
+        {/* 5 Distinct Consolidated Navigation Tabs */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <nav className="flex space-x-2 sm:space-x-3 border-t border-slate-800/60 overflow-x-auto py-2.5 text-xs font-semibold">
-            {/* Tab 1: Live Upcoming & About-to-draw */}
+          <nav className="flex space-x-2 border-t border-slate-800/60 overflow-x-auto py-2 text-xs font-bold no-scrollbar">
+            {/* Tab 1: Live & Upcoming */}
             <button
               onClick={() => setActiveTab('live')}
-              className={`px-4 py-2.5 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
                 activeTab === 'live'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/25 scale-[1.02]'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
               }`}
             >
               <Radio className={`w-4 h-4 ${activeTab === 'live' ? 'animate-pulse text-slate-950' : 'text-amber-400'}`} />
-              <span>🕒 หน้าหลัก: หวยที่กำลังจะออกผล</span>
+              <span>🕒 หวยสด &amp; คิวออกผล</span>
             </button>
 
-            {/* Tab 2: Daily Results Summary Table */}
+            {/* Tab 2: Daily 51 Lotteries Summary Table */}
             <button
               onClick={() => setActiveTab('summary')}
-              className={`px-4 py-2.5 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
                 activeTab === 'summary'
-                  ? 'bg-indigo-600 text-white font-black shadow-lg shadow-indigo-600/25 scale-[1.02]'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
               }`}
             >
               <TableProperties className="w-4 h-4 text-indigo-400" />
-              <span>📊 ตารางสรุปผลรายวัน ({allLotteries.length || 51} หวย เรียงตามเวลา)</span>
+              <span>📊 ตารางสรุป 51 หวย</span>
             </button>
 
-            {/* Tab 3: Lottery Trend Analytics with Recharts */}
+            {/* Tab 3: Unified Ticket Checker & AI Accuracy Center */}
+            <button
+              onClick={() => {
+                setActiveTab('checker');
+                setCheckerSubTab('accuracy');
+              }}
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+                activeTab === 'checker' || activeTab === 'accuracy' || activeTab === 'batch' || activeTab === 'results'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/25'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
+              }`}
+            >
+              <Search className={`w-4 h-4 ${activeTab === 'checker' || activeTab === 'accuracy' ? 'text-slate-950' : 'text-emerald-400'}`} />
+              <span>🔍 ตรวจสลาก &amp; ความแม่นยำ AI</span>
+            </button>
+
+            {/* Tab 4: Analytics & 10 Draws Trends */}
             <button
               onClick={() => setActiveTab('analytics')}
-              className={`px-4 py-2.5 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
                 activeTab === 'analytics'
-                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black shadow-lg shadow-amber-500/25 scale-[1.02]'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-md shadow-amber-500/25'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
               }`}
             >
               <TrendingUp className={`w-4 h-4 ${activeTab === 'analytics' ? 'text-slate-950' : 'text-amber-400'}`} />
-              <span>📈 แนวโน้มตัวเลข 10 งวด (Recharts)</span>
+              <span>📈 สถิติ &amp; เลขเด่น 10 งวด</span>
             </button>
 
-            {/* Tab 4: Unified Settings Center */}
+            {/* Tab 5: Settings & Automation Center */}
             <button
               onClick={() => setActiveTab('settings')}
-              className={`px-4 py-2.5 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'settings'
-                  ? 'bg-slate-800 text-amber-300 font-bold border border-amber-500/50 shadow-lg scale-[1.02]'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+                activeTab === 'settings' || activeTab === 'channels' || activeTab === 'template' || activeTab === 'worker' || activeTab === 'github'
+                  ? 'bg-slate-800 text-amber-300 border border-amber-500/50 shadow-md'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
               }`}
             >
               <Settings className="w-4 h-4 text-amber-400" />
-              <span>⚙️ ศูนย์ตั้งค่า &amp; ระบบแจ้งเตือน</span>
+              <span>⚙️ ตั้งค่า &amp; ระบบอัตโนมัติ</span>
             </button>
           </nav>
         </div>
@@ -2433,148 +2429,7 @@ export default function App() {
           />
         )}
 
-        {/* ==================== TAB: RESULTS & TICKET CHECKER ==================== */}
-        {activeTab === 'results' && (
-          <div className="space-y-6">
-            <div className="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-500/30 rounded-3xl p-6 shadow-xl">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
-                  <Search className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-base text-white">ตรวจรางวัลสลากกินแบ่งรัฐบาล (Check Ticket)</h3>
-                  <p className="text-xs text-slate-400">กรอกหมายเลขสลาก 6 หลัก หรือ 2-3 หลักเพื่อตรวจกับงวดล่าสุดทันที</p>
-                </div>
-              </div>
 
-              <div className="flex flex-wrap gap-3 max-w-xl">
-                <input
-                  type="text"
-                  maxLength={6}
-                  placeholder="กรอกเลขสลาก เช่น 289594 หรือ 84"
-                  value={ticketInput}
-                  onChange={(e) => setTicketInput(e.target.value.replace(/\D/g, ''))}
-                  className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-base font-mono tracking-widest text-amber-300 focus:outline-none focus:border-indigo-400"
-                />
-                <button
-                  type="button"
-                  onClick={handleCheckTicket}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl cursor-pointer transition"
-                >
-                  ตรวจรางวัล
-                </button>
-              </div>
-
-              {ticketResult && (
-                <div
-                  className={`mt-4 p-4 rounded-2xl border ${
-                    ticketResult.wins.length > 0
-                      ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200'
-                      : 'bg-slate-950/60 border-slate-800 text-slate-300'
-                  }`}
-                >
-                  <div className="font-bold text-sm">{ticketResult.message}</div>
-                  {ticketResult.wins.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {ticketResult.wins.map((w, i) => (
-                        <div key={i} className="text-xs font-semibold text-emerald-300 flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                          {w}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                <History className="w-4 h-4 text-amber-400" />
-                ประวัติผลสลากกินแบ่งรัฐบาล (lottery_previous_results.json)
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {results.map((row, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-xs font-bold text-slate-200">
-                          งวด {row.งวดวันที่}
-                        </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase font-mono">
-                          {row.แหล่งข้อมูล || 'glo'}
-                        </span>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80">
-                          <div className="text-[10px] text-amber-400 font-semibold uppercase">รางวัลที่ 1</div>
-                          <div className="text-2xl font-black font-mono text-amber-300 tracking-wider">
-                            {row.รางวัลที่_1}
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80">
-                            <div className="text-[10px] text-emerald-400 font-semibold">เลขท้าย 2 ตัว</div>
-                            <div className="text-xl font-black font-mono text-emerald-300">
-                              {row.เลขท้าย_2_ตัว}
-                            </div>
-                          </div>
-
-                          <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80">
-                            <div className="text-[10px] text-slate-400 font-semibold">สถานะแจ้งเตือน</div>
-                            <div className="text-xs font-bold text-slate-300 mt-1 capitalize">
-                              {row.สถานะการแจ้งเตือน || 'Sent'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-500">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextClosing = getNextClosingLottery();
-                          triggerAnnouncements([
-                            {
-                              id: 'hist-' + idx,
-                              lotteryName: 'สลากกินแบ่งรัฐบาล',
-                              drawDate: row.งวดวันที่,
-                              firstPrize: row.รางวัลที่_1,
-                              last2Digits: row.เลขท้าย_2_ตัว,
-                              front3Digits: row.เลขหน้า_3_ตัว,
-                              last3Digits: row.เลขท้าย_3_ตัว,
-                              source: row.แหล่งข้อมูล,
-                              nextClosing: nextClosing,
-                            },
-                          ]);
-                        }}
-                        className="text-amber-400 hover:underline cursor-pointer flex items-center gap-1 font-semibold"
-                      >
-                        <Volume2 className="w-3.5 h-3.5" />
-                        เปิดเสียงอ่านงวดนี้
-                      </button>
-
-                      <button
-                        onClick={() => copyToClipboard(`ผลสลากงวด ${row.งวดวันที่}: รางวัลที่ 1 = ${row.รางวัลที่_1}, เลขท้าย 2 ตัว = ${row.เลขท้าย_2_ตัว}`, `row-${idx}`)}
-                        className="text-slate-400 hover:text-slate-200 cursor-pointer flex items-center gap-1"
-                      >
-                        <Copy className="w-3 h-3" />
-                        คัดลอกสรุป
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ==================== TAB: NTFY TESTER ==================== */}
         {activeTab === 'tester' && (
@@ -3080,6 +2935,7 @@ export default function App() {
           <GitHubAppRunner
             onRefreshStatus={fetchData}
             systemStatus={status}
+            allLotteriesCount={allLotteries.length}
           />
         )}
 
@@ -3109,8 +2965,8 @@ export default function App() {
           />
         )}
 
-        {/* ==================== TAB 3: LOTTERY STATS, ANALYTICS & BATCH TICKET CHECKER ==================== */}
-        {(activeTab === 'analytics' || activeTab === 'batch' || activeTab === 'results') && (
+        {/* ==================== TAB 4: LOTTERY STATS & TREND ANALYTICS ==================== */}
+        {activeTab === 'analytics' && (
           <div className="space-y-6">
             <LotteryTrendAnalytics
               results={results}
@@ -3126,10 +2982,625 @@ export default function App() {
               watchedNumbers={settings?.notifications?.custom_watched_numbers || []}
               onAddWatchedNumber={handleAddWatchedNumber}
             />
-            <BatchTicketChecker
-              results={results}
-              latestDraw={latestDraw}
-            />
+          </div>
+        )}
+
+        {/* ==================== TAB 3: SMART TICKET CHECKER & AI ACCURACY CENTER ==================== */}
+        {(activeTab === 'checker' || activeTab === 'accuracy' || activeTab === 'batch' || activeTab === 'results') && (
+          <div className="space-y-6">
+            {/* Sub-navigation bar */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 shadow-lg flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCheckerSubTab('accuracy')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
+                    checkerSubTab === 'accuracy'
+                      ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                      : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  <Globe className={`w-4 h-4 ${checkerSubTab === 'accuracy' ? 'text-slate-950' : 'text-emerald-400'}`} />
+                  <span>🛡️ ยืนยันข้อมูลสด AI (Google Search &amp; Voice)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCheckerSubTab('batch')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
+                    checkerSubTab === 'batch'
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                      : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  <Ticket className={`w-4 h-4 ${checkerSubTab === 'batch' ? 'text-slate-950' : 'text-amber-400'}`} />
+                  <span>🎯 ตรวจรางวัลสลาก (เดี่ยว &amp; ชุดหลายใบ)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCheckerSubTab('history')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
+                    checkerSubTab === 'history'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                      : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  <History className="w-4 h-4" />
+                  <span>📜 ประวัติผลสลากย้อนหลัง ({results.length} งวด)</span>
+                </button>
+              </div>
+
+              <div className="text-xs text-slate-400 px-2 font-medium hidden lg:flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>งวดล่าสุด:</span>
+                <span className="font-bold text-amber-300">{latestDraw?.งวดวันที่ || '16 ตุลาคม 2569'}</span>
+              </div>
+            </div>
+
+            {/* Subtab 1: AI Search Grounding & Voice Verification */}
+            {checkerSubTab === 'accuracy' && (
+              <DataAccuracyCenter
+                allLotteries={allLotteries}
+                latestDraw={latestDraw}
+                onApplyTicketCheck={(numbers) => {
+                  setTicketInput(numbers[0] || '');
+                  setCheckerSubTab('batch');
+                  showToast(`นำหมายเลข [${numbers.join(', ')}] เข้าสู่ระบบตรวจรางวัลเรียบร้อยแล้ว`);
+                }}
+                onSelectLottery={(item) => setSelectedCatalogLottery(item)}
+              />
+            )}
+
+            {/* Subtab 2: Single & Batch Ticket Checker */}
+            {checkerSubTab === 'batch' && (
+              <BatchTicketChecker
+                results={results}
+                latestDraw={latestDraw}
+              />
+            )}
+
+            {/* Subtab 3: Past Results History with Prize Filter Dropdown */}
+            {checkerSubTab === 'history' && (() => {
+              const filteredHistoryResults = results.filter((row) => {
+                // Search query filter (matches prize number, draw date, or lottery name)
+                if (historySearchTerm.trim()) {
+                  const term = historySearchTerm.trim().toLowerCase();
+                  const nameMatch = (row.ชื่อหวย || '').toLowerCase().includes(term);
+                  const dateMatch = (row.งวดวันที่ || '').toLowerCase().includes(term);
+                  const firstMatch = (row.รางวัลที่_1 || '').includes(term);
+                  const last2Match = (row.เลขท้าย_2_ตัว || '').includes(term);
+                  const front3Match = Array.isArray(row.เลขหน้า_3_ตัว) && row.เลขหน้า_3_ตัว.some((n) => n.includes(term));
+                  const last3Match = Array.isArray(row.เลขท้าย_3_ตัว) && row.เลขท้าย_3_ตัว.some((n) => n.includes(term));
+                  const top3Match = (row.เลขบน_3_ตัว || '').includes(term);
+                  if (!nameMatch && !dateMatch && !firstMatch && !last2Match && !front3Match && !last3Match && !top3Match) {
+                    return false;
+                  }
+                }
+
+                // Prize type dropdown filter
+                if (historyPrizeFilter === 'first') {
+                  return Boolean(row.รางวัลที่_1 && row.รางวัลที่_1.trim() !== '');
+                }
+                if (historyPrizeFilter === 'last2') {
+                  return Boolean(row.เลขท้าย_2_ตัว && row.เลขท้าย_2_ตัว.trim() !== '');
+                }
+                if (historyPrizeFilter === '3digits') {
+                  const hasFront3 = Array.isArray(row.เลขหน้า_3_ตัว) && row.เลขหน้า_3_ตัว.length > 0;
+                  const hasLast3 = Array.isArray(row.เลขท้าย_3_ตัว) && row.เลขท้าย_3_ตัว.length > 0;
+                  const hasTop3 = Boolean(row.เลขบน_3_ตัว && row.เลขบน_3_ตัว.trim() !== '');
+                  return hasFront3 || hasLast3 || hasTop3;
+                }
+                if (historyPrizeFilter === 'thai') {
+                  return (
+                    (row.ชื่อหวย && row.ชื่อหวย.includes('สลากกินแบ่ง')) ||
+                    (row.หมวดหวย && row.หมวดหวย === 'thai') ||
+                    (row.งวดวันที่ && row.งวดวันที่.includes('ตุลาคม 2569'))
+                  );
+                }
+                return true;
+              });
+
+              // Statistics calculation
+              const totalFiltered = filteredHistoryResults.length;
+              const evenCount = filteredHistoryResults.filter((r) => {
+                const n = parseInt(r.เลขท้าย_2_ตัว, 10);
+                return !isNaN(n) && n % 2 === 0;
+              }).length;
+              const oddCount = filteredHistoryResults.filter((r) => {
+                const n = parseInt(r.เลขท้าย_2_ตัว, 10);
+                return !isNaN(n) && n % 2 !== 0;
+              }).length;
+
+              return (
+                <div className="space-y-5">
+                  {/* Filter Toolbar Card */}
+                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+                          <History className="w-5 h-5 text-amber-400" />
+                          ประวัติผลสลากและหวยย้อนหลัง (Results History)
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          ค้นหาและกรองผลรางวัลย้อนหลังจากฐานข้อมูล <code className="text-amber-300 font-mono">lottery_previous_results.json</code>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                          แสดง <strong className="text-amber-400">{totalFiltered}</strong> / {results.length} งวด
+                        </span>
+                        {(historyPrizeFilter !== 'all' || historySearchTerm) && (
+                          <button
+                            onClick={() => {
+                              setHistoryPrizeFilter('all');
+                              setHistorySearchTerm('');
+                            }}
+                            className="text-xs px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-300 border border-rose-500/20 hover:bg-rose-500/20 transition flex items-center gap-1 cursor-pointer"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            ล้างตัวกรอง
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Controls row: Dropdown Filter + Search Box */}
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2 border-t border-slate-800/80">
+                      {/* Dropdown Selector */}
+                      <div className="md:col-span-5 flex flex-col gap-1.5">
+                        <label htmlFor="history-prize-filter-select" className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                          <ListFilter className="w-3.5 h-3.5 text-amber-400" />
+                          กรองประเภทรางวัล (Prize Filter):
+                        </label>
+                        <div className="relative">
+                          <select
+                            id="history-prize-filter-select"
+                            value={historyPrizeFilter}
+                            onChange={(e) => setHistoryPrizeFilter(e.target.value as any)}
+                            className="w-full bg-slate-950 border border-slate-700 hover:border-amber-400 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-medium appearance-none cursor-pointer transition focus:outline-none focus:ring-1 focus:ring-amber-400/50 pr-10 shadow-inner"
+                          >
+                            <option value="all">📋 ทุกรางวัล (All Prizes / มุมมองเต็ม)</option>
+                            <option value="first">🏆 เฉพาะรางวัลที่ 1 (Only 1st Prize Focus)</option>
+                            <option value="last2">🟢 เฉพาะเลขท้าย 2 ตัว (Only 2-Digit Prizes Focus)</option>
+                            <option value="3digits">✨ เฉพาะเลข 3 ตัว (Front / Last 3-Digits)</option>
+                            <option value="thai">🇹🇭 เฉพาะสลากกินแบ่งรัฐบาล (Thai Gov Only)</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-400">
+                            <SlidersHorizontal className="w-4 h-4 text-amber-400" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Search Input Box */}
+                      <div className="md:col-span-7 flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                          <Search className="w-3.5 h-3.5 text-emerald-400" />
+                          ค้นหาตัวเลข / งวด / ชื่อหวย:
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={historySearchTerm}
+                            onChange={(e) => setHistorySearchTerm(e.target.value)}
+                            placeholder="พิมพ์เลขรางวัล เช่น 781, 69 หรือชื่อหวย เช่น นิเคอิ, ฮานอย..."
+                            className="w-full bg-slate-950 border border-slate-700 hover:border-slate-600 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 transition focus:outline-none focus:ring-1 focus:ring-emerald-400/50 pr-8 shadow-inner"
+                          />
+                          {historySearchTerm ? (
+                            <button
+                              onClick={() => setHistorySearchTerm('')}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 cursor-pointer"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-500">
+                              <Search className="w-4 h-4" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick Filter Chips (1-tap pill selectors) */}
+                    <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                      <span className="text-[11px] text-slate-400 mr-1 flex items-center gap-1">
+                        เลือกด่วน:
+                      </span>
+                      {[
+                        { id: 'all', label: 'ทั้งหมด (All)', icon: '📋' },
+                        { id: 'first', label: 'เฉพาะรางวัลที่ 1', icon: '🏆' },
+                        { id: 'last2', label: 'เฉพาะเลขท้าย 2 ตัว', icon: '🟢' },
+                        { id: '3digits', label: 'เฉพาะเลข 3 ตัว', icon: '✨' },
+                        { id: 'thai', label: 'สลากกินแบ่งรัฐบาล', icon: '🇹🇭' },
+                      ].map((chip) => {
+                        const active = historyPrizeFilter === chip.id;
+                        return (
+                          <button
+                            key={chip.id}
+                            type="button"
+                            onClick={() => setHistoryPrizeFilter(chip.id as any)}
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition flex items-center gap-1.5 ${
+                              active
+                                ? 'bg-amber-400 text-slate-950 shadow-md font-bold'
+                                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60'
+                            }`}
+                          >
+                            <span>{chip.icon}</span>
+                            <span>{chip.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Dynamic Insight Banner based on selected filter */}
+                    {historyPrizeFilter === 'first' && (
+                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5 text-xs text-amber-200 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span>
+                            <strong>โหมดเจาะจงรางวัลที่ 1:</strong> ขยายขนาดตัวเลขรางวัลที่ 1 ให้เด่นชัด พร้อมปุ่มลัดคัดลอกเฉพาะเลขรางวัลที่ 1 ทันที
+                          </span>
+                        </div>
+                        <span className="font-mono text-amber-300 font-bold bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/40">
+                          {totalFiltered} งวดที่มีรางวัลที่ 1
+                        </span>
+                      </div>
+                    )}
+
+                    {historyPrizeFilter === 'last2' && (
+                      <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-2.5 text-xs text-emerald-200 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <span>
+                            <strong>โหมดเจาะจงเลขท้าย 2 ตัว:</strong> เน้นแสดงผลเลข 2 ตัว พร้อมวิเคราะห์ความถี่เลขคู่/เลขคี่
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 font-mono text-[11px]">
+                          <span className="bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30 text-emerald-300">
+                            เลขคู่: {evenCount} งวด
+                          </span>
+                          <span className="bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30 text-emerald-300">
+                            เลขคี่: {oddCount} งวด
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {historyPrizeFilter === '3digits' && (
+                      <div className="bg-sky-500/10 border border-sky-500/30 rounded-xl px-4 py-2.5 text-xs text-sky-200 flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-sky-400 shrink-0" />
+                        <span>
+                          <strong>โหมดเจาะจงเลข 3 ตัว:</strong> แสดงเลขหน้า 3 ตัว, เลขท้าย 3 ตัว และเลขบน 3 ตัวอย่างชัดเจน
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Empty state if no results */}
+                  {filteredHistoryResults.length === 0 ? (
+                    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-10 text-center space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
+                        <Search className="w-6 h-6" />
+                      </div>
+                      <h4 className="font-bold text-slate-200">ไม่พบผลรางวัลที่ตรงกับเงื่อนไขการกรอง</h4>
+                      <p className="text-xs text-slate-400 max-w-md mx-auto">
+                        ลองเปลี่ยนคำค้นหา หรือเลือกตัวกรองประเภทรางวัลเป็น "ทุกรางวัล (All Prizes)" เพื่อดูข้อมูลทั้งหมด
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHistoryPrizeFilter('all');
+                          setHistorySearchTerm('');
+                        }}
+                        className="px-4 py-2 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs hover:bg-amber-300 transition cursor-pointer"
+                      >
+                        ล้างเงื่อนไขการค้นหาทั้งหมด
+                      </button>
+                    </div>
+                  ) : (
+                    /* History Cards Grid */
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredHistoryResults.map((row, idx) => {
+                        const lotteryTitle = row.ชื่อหวย || 'สลากกินแบ่งรัฐบาล (ไทย)';
+                        const hasFront3 = Array.isArray(row.เลขหน้า_3_ตัว) && row.เลขหน้า_3_ตัว.length > 0;
+                        const hasLast3 = Array.isArray(row.เลขท้าย_3_ตัว) && row.เลขท้าย_3_ตัว.length > 0;
+                        const hasTop3 = Boolean(row.เลขบน_3_ตัว && row.เลขบน_3_ตัว.trim() !== '');
+
+                        // Determine card accent styling based on active prize filter
+                        let cardBorder = 'hover:border-slate-700 border-slate-800';
+                        if (historyPrizeFilter === 'first') {
+                          cardBorder = 'border-amber-500/40 hover:border-amber-400/70 shadow-amber-950/20';
+                        } else if (historyPrizeFilter === 'last2') {
+                          cardBorder = 'border-emerald-500/40 hover:border-emerald-400/70 shadow-emerald-950/20';
+                        } else if (historyPrizeFilter === '3digits') {
+                          cardBorder = 'border-sky-500/40 hover:border-sky-400/70 shadow-sky-950/20';
+                        }
+
+                        return (
+                          <div
+                            key={idx}
+                            className={`bg-slate-900/90 border rounded-2xl p-5 transition flex flex-col justify-between shadow-lg relative overflow-hidden group ${cardBorder}`}
+                          >
+                            {/* Card Top: Lottery Title & Date */}
+                            <div>
+                              <div className="flex items-start justify-between gap-2 mb-3">
+                                <div>
+                                  <div className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                                    {lotteryTitle}
+                                  </div>
+                                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                                    งวด {row.งวดวันที่}
+                                  </div>
+                                </div>
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase font-mono border border-slate-700/60 shrink-0">
+                                  {row.แหล่งข้อมูล || 'glo'}
+                                </span>
+                              </div>
+
+                              {/* ADAPTIVE PRIZE VIEW: Mode 1 - Only 1st Prize Focus */}
+                              {historyPrizeFilter === 'first' ? (
+                                <div className="space-y-3">
+                                  <div className="bg-gradient-to-br from-amber-950/40 via-slate-950 to-slate-950 p-4 rounded-xl border border-amber-500/40 shadow-inner">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <span className="text-[11px] text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                                        <Trophy className="w-3.5 h-3.5" />
+                                        รางวัลที่ 1 (1st Prize)
+                                      </span>
+                                      <span className="text-[10px] text-amber-300/80 font-mono">
+                                        {row.รางวัลที่_1.length} หลัก
+                                      </span>
+                                    </div>
+                                    <div className="text-3xl sm:text-4xl font-black font-mono text-amber-300 tracking-wider text-center py-2 select-all">
+                                      {row.รางวัลที่_1}
+                                    </div>
+                                    <div className="flex items-center justify-center gap-2 pt-1 border-t border-amber-500/20">
+                                      <button
+                                        type="button"
+                                        onClick={() => copyToClipboard(row.รางวัลที่_1, `first-${idx}`)}
+                                        className="text-[11px] px-2.5 py-1 rounded bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 transition font-semibold cursor-pointer flex items-center gap-1"
+                                      >
+                                        <Copy className="w-3 h-3" />
+                                        คัดลอกเฉพาะรางวัลที่ 1
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Secondary context pill */}
+                                  <div className="flex items-center justify-between px-3 py-2 bg-slate-950/60 rounded-xl border border-slate-800/80 text-xs">
+                                    <span className="text-slate-400">เลขท้าย 2 ตัวประกอบ:</span>
+                                    <span className="font-mono font-bold text-emerald-400">{row.เลขท้าย_2_ตัว}</span>
+                                  </div>
+                                </div>
+                              ) : historyPrizeFilter === 'last2' ? (
+                                /* ADAPTIVE PRIZE VIEW: Mode 2 - Only 2-Digit Focus */
+                                <div className="space-y-3">
+                                  <div className="bg-gradient-to-br from-emerald-950/40 via-slate-950 to-slate-950 p-4 rounded-xl border border-emerald-500/40 shadow-inner">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <span className="text-[11px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                                        <Sparkles className="w-3.5 h-3.5" />
+                                        เลขท้าย 2 ตัว (2-Digit Prize)
+                                      </span>
+                                      {(() => {
+                                        const num = parseInt(row.เลขท้าย_2_ตัว, 10);
+                                        return !isNaN(num) ? (
+                                          <span className="text-[10px] text-emerald-300/80 font-mono">
+                                            {num % 2 === 0 ? 'เลขคู่' : 'เลขคี่'} • {num >= 50 ? 'สูง' : 'ต่ำ'}
+                                          </span>
+                                        ) : null;
+                                      })()}
+                                    </div>
+                                    <div className="text-4xl sm:text-5xl font-black font-mono text-emerald-400 tracking-wider text-center py-2 select-all">
+                                      {row.เลขท้าย_2_ตัว}
+                                    </div>
+                                    <div className="flex items-center justify-center gap-2 pt-1 border-t border-emerald-500/20">
+                                      <button
+                                        type="button"
+                                        onClick={() => copyToClipboard(row.เลขท้าย_2_ตัว, `last2-${idx}`)}
+                                        className="text-[11px] px-2.5 py-1 rounded bg-emerald-400/20 hover:bg-emerald-400/30 text-emerald-200 transition font-semibold cursor-pointer flex items-center gap-1"
+                                      >
+                                        <Copy className="w-3 h-3" />
+                                        คัดลอกเฉพาะเลข 2 ตัว
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Secondary context pill */}
+                                  <div className="flex items-center justify-between px-3 py-2 bg-slate-950/60 rounded-xl border border-slate-800/80 text-xs">
+                                    <span className="text-slate-400">รางวัลที่ 1 อ้างอิง:</span>
+                                    <span className="font-mono font-bold text-amber-300">{row.รางวัลที่_1}</span>
+                                  </div>
+                                </div>
+                              ) : historyPrizeFilter === '3digits' ? (
+                                /* ADAPTIVE PRIZE VIEW: Mode 3 - 3-Digit Focus */
+                                <div className="space-y-3">
+                                  <div className="bg-gradient-to-br from-sky-950/40 via-slate-950 to-slate-950 p-4 rounded-xl border border-sky-500/40 shadow-inner space-y-3">
+                                    <div className="text-[11px] text-sky-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                                      <Layers className="w-3.5 h-3.5" />
+                                      กลุ่มรางวัลเลข 3 ตัว (3-Digits)
+                                    </div>
+
+                                    {/* Front 3 digits */}
+                                    {hasFront3 && (
+                                      <div>
+                                        <div className="text-[10px] text-slate-400 mb-1">เลขหน้า 3 ตัว:</div>
+                                        <div className="flex gap-2">
+                                          {row.เลขหน้า_3_ตัว!.map((n, i) => (
+                                            <span key={i} className="px-3 py-1 bg-sky-900/40 border border-sky-500/30 rounded-lg text-lg font-mono font-bold text-sky-200">
+                                              {n}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Last 3 digits */}
+                                    {hasLast3 && (
+                                      <div>
+                                        <div className="text-[10px] text-slate-400 mb-1">เลขท้าย 3 ตัว:</div>
+                                        <div className="flex gap-2">
+                                          {row.เลขท้าย_3_ตัว!.map((n, i) => (
+                                            <span key={i} className="px-3 py-1 bg-amber-900/40 border border-amber-500/30 rounded-lg text-lg font-mono font-bold text-amber-200">
+                                              {n}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Top 3 (if stock) */}
+                                    {hasTop3 && !hasFront3 && !hasLast3 && (
+                                      <div>
+                                        <div className="text-[10px] text-slate-400 mb-1">เลขบน 3 ตัว (หุ้น/ต่างประเทศ):</div>
+                                        <div className="text-2xl font-mono font-bold text-sky-300">
+                                          {row.เลขบน_3_ตัว}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800 text-center">
+                                      <div className="text-[10px] text-slate-400">รางวัลที่ 1</div>
+                                      <div className="font-mono font-bold text-amber-300">{row.รางวัลที่_1}</div>
+                                    </div>
+                                    <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800 text-center">
+                                      <div className="text-[10px] text-slate-400">เลขท้าย 2 ตัว</div>
+                                      <div className="font-mono font-bold text-emerald-400">{row.เลขท้าย_2_ตัว}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                /* ADAPTIVE PRIZE VIEW: Mode Default - All Prizes Overview */
+                                <div className="space-y-3">
+                                  <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-[10px] text-amber-400 font-semibold uppercase flex items-center gap-1">
+                                        <Trophy className="w-3 h-3" />
+                                        รางวัลที่ 1
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => copyToClipboard(row.รางวัลที่_1, `c1-${idx}`)}
+                                        className="text-[10px] text-slate-400 hover:text-amber-300 cursor-pointer"
+                                        title="คัดลอกรางวัลที่ 1"
+                                      >
+                                        <Copy className="w-2.5 h-2.5" />
+                                      </button>
+                                    </div>
+                                    <div className="text-2xl font-black font-mono text-amber-300 tracking-wider">
+                                      {row.รางวัลที่_1}
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[10px] text-emerald-400 font-semibold">เลขท้าย 2 ตัว</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => copyToClipboard(row.เลขท้าย_2_ตัว, `c2-${idx}`)}
+                                          className="text-[10px] text-slate-400 hover:text-emerald-300 cursor-pointer"
+                                          title="คัดลอกเลขท้าย 2 ตัว"
+                                        >
+                                          <Copy className="w-2.5 h-2.5" />
+                                        </button>
+                                      </div>
+                                      <div className="text-xl font-black font-mono text-emerald-300">
+                                        {row.เลขท้าย_2_ตัว}
+                                      </div>
+                                    </div>
+
+                                    <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80">
+                                      <div className="text-[10px] text-slate-400 font-semibold">สถานะแจ้งเตือน</div>
+                                      <div className="text-xs font-bold text-slate-300 mt-1 capitalize flex items-center gap-1">
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                        {row.สถานะการแจ้งเตือน || 'Sent'}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* 3-Digit chips preview if available */}
+                                  {(hasFront3 || hasLast3) && (
+                                    <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800/60 text-[11px] space-y-1">
+                                      {hasFront3 && (
+                                        <div className="flex items-center gap-1 text-slate-400">
+                                          <span>หน้า 3 ตัว:</span>
+                                          <span className="font-mono font-bold text-slate-200">
+                                            {row.เลขหน้า_3_ตัว!.join(', ')}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {hasLast3 && (
+                                        <div className="flex items-center gap-1 text-slate-400">
+                                          <span>ท้าย 3 ตัว:</span>
+                                          <span className="font-mono font-bold text-slate-200">
+                                            {row.เลขท้าย_3_ตัว!.join(', ')}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Card Footer: Audio Announcement & Copy Summary Buttons */}
+                            <div className="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-500">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const nextClosing = getNextClosingLottery();
+                                  triggerAnnouncements([
+                                    {
+                                      id: 'hist-' + idx,
+                                      lotteryName: row.ชื่อหวย || 'สลากกินแบ่งรัฐบาล',
+                                      drawDate: row.งวดวันที่,
+                                      firstPrize: row.รางวัลที่_1,
+                                      last2Digits: row.เลขท้าย_2_ตัว,
+                                      front3Digits: row.เลขหน้า_3_ตัว,
+                                      last3Digits: row.เลขท้าย_3_ตัว,
+                                      source: row.แหล่งข้อมูล,
+                                      nextClosing: nextClosing,
+                                    },
+                                  ]);
+                                }}
+                                className="text-amber-400 hover:text-amber-300 cursor-pointer flex items-center gap-1 font-semibold transition"
+                              >
+                                <Volume2 className="w-3.5 h-3.5" />
+                                เปิดเสียงอ่านงวดนี้
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  let copyText = `ผล${lotteryTitle} งวด ${row.งวดวันที่}: `;
+                                  if (historyPrizeFilter === 'first') {
+                                    copyText += `รางวัลที่ 1 = ${row.รางวัลที่_1}`;
+                                  } else if (historyPrizeFilter === 'last2') {
+                                    copyText += `เลขท้าย 2 ตัว = ${row.เลขท้าย_2_ตัว}`;
+                                  } else {
+                                    copyText += `รางวัลที่ 1 = ${row.รางวัลที่_1}, เลขท้าย 2 ตัว = ${row.เลขท้าย_2_ตัว}`;
+                                    if (hasFront3) copyText += `, เลขหน้า 3 ตัว = ${row.เลขหน้า_3_ตัว!.join(' ')}`;
+                                    if (hasLast3) copyText += `, เลขท้าย 3 ตัว = ${row.เลขท้าย_3_ตัว!.join(' ')}`;
+                                  }
+                                  copyToClipboard(copyText, `row-${idx}`);
+                                }}
+                                className="text-slate-400 hover:text-slate-200 cursor-pointer flex items-center gap-1 transition"
+                              >
+                                <Copy className="w-3 h-3" />
+                                คัดลอกสรุป
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 

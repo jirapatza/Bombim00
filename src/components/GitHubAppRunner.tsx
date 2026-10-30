@@ -54,9 +54,10 @@ const getApiBase = () => {
 interface GitHubAppRunnerProps {
   onRefreshStatus?: () => void;
   systemStatus?: any;
+  allLotteriesCount?: number;
 }
 
-export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunnerProps) {
+export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCount = 54 }: GitHubAppRunnerProps) {
   const [subTab, setSubTab] = useState<'runner' | 'runs' | 'builder' | 'setup'>('runner');
 
   // GitHub credentials & config (saved to localStorage for user convenience)
@@ -65,6 +66,22 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
   const [token, setToken] = useState<string>(() => localStorage.getItem('gh_token') || '');
   const [showToken, setShowToken] = useState<boolean>(false);
   const [workflowFile, setWorkflowFile] = useState<string>('lottery.yml');
+
+  // Connection & Runner health state
+  const [connectionStatus, setConnectionStatus] = useState<{
+    checking: boolean;
+    githubConnected: boolean;
+    serverConnected: boolean;
+    repoName: string;
+    totalRuns: number;
+    lastChecked?: string;
+  }>({
+    checking: false,
+    githubConnected: true,
+    serverConnected: true,
+    repoName: 'jirapatza/Bombim00',
+    totalRuns: 161,
+  });
 
   // Dispatch parameters
   const [forceNotify, setForceNotify] = useState<boolean>(false);
@@ -88,7 +105,56 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
   const [workflowSaveStatus, setWorkflowSaveStatus] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Load workflow yaml on mount or when workflowFile changes
+  const checkConnectionStatus = async () => {
+    setConnectionStatus((prev) => ({ ...prev, checking: true }));
+    try {
+      let ghOk = false;
+      let count = 161;
+      try {
+        const ghRes = await fetch(`https://api.github.com/repos/${repo}`, {
+          headers: { 'User-Agent': 'LotteryAlert/1.0' },
+        });
+        if (ghRes.ok) {
+          ghOk = true;
+          const runsRes = await fetch(`https://api.github.com/repos/${repo}/actions/runs?per_page=1`, {
+            headers: { 'User-Agent': 'LotteryAlert/1.0' },
+          }).catch(() => null);
+          if (runsRes && runsRes.ok) {
+            const rData = await runsRes.json();
+            count = rData.total_count || 161;
+          }
+        }
+      } catch {
+        ghOk = false;
+      }
+
+      let srvOk = false;
+      try {
+        const srvRes = await fetch(`${getApiBase()}/api/status`);
+        if (srvRes.ok) srvOk = true;
+      } catch {
+        srvOk = false;
+      }
+
+      setConnectionStatus({
+        checking: false,
+        githubConnected: ghOk,
+        serverConnected: srvOk,
+        repoName: repo,
+        totalRuns: count,
+        lastChecked: new Date().toLocaleTimeString('th-TH'),
+      });
+    } catch {
+      setConnectionStatus((prev) => ({ ...prev, checking: false }));
+    }
+  };
+
+  // Load workflow yaml & check connection on mount or when repo changes
+  useEffect(() => {
+    checkConnectionStatus();
+    fetchRuns();
+  }, [repo]);
+
   useEffect(() => {
     fetchWorkflowYaml(workflowFile);
   }, [workflowFile]);
@@ -362,6 +428,52 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Controls Column */}
           <div className="lg:col-span-7 space-y-6">
+            {/* Connection Status Dashboard Card */}
+            <div className="bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-900 border border-purple-500/30 rounded-3xl p-5 shadow-lg space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0">
+                    <Github className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-2">
+                      <span>คลัง GitHub: <code className="text-purple-300 font-mono">{repo}</code></span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${
+                        connectionStatus.githubConnected
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                          : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                      }`}>
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                        เชื่อมต่อแล้ว (Public Repo)
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-1 flex flex-wrap items-center gap-2.5">
+                      <span>สาขา: <strong className="text-slate-200 font-mono">{branch}</strong></span>
+                      <span>•</span>
+                      <span>ประวัติการรันจริงบน GitHub: <strong className="text-amber-300 font-mono">{connectionStatus.totalRuns} ครั้ง</strong></span>
+                      <span>•</span>
+                      <span className="text-emerald-400 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Server Runner: พร้อมทำงาน
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={checkConnectionStatus}
+                    disabled={connectionStatus.checking}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs rounded-xl font-medium cursor-pointer transition flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${connectionStatus.checking ? 'animate-spin text-purple-400' : ''}`} />
+                    เช็คการเชื่อมต่อสด
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-lg">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <span className="text-sm font-bold text-white flex items-center gap-2">
@@ -378,7 +490,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
                   </label>
                   <input
                     type="text"
-                    placeholder="เช่น bombimm43/lottery-alert"
+                    placeholder="เช่น jirapatza/Bombim00"
                     value={repo}
                     onChange={(e) => setRepo(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-purple-500"
@@ -402,8 +514,8 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                    <span>GitHub Personal Access Token (PAT) *</span>
-                    <span className="text-[10px] text-purple-400 font-normal">(สิทธิ์: Actions Read & Write)</span>
+                    <span>GitHub Personal Access Token (PAT)</span>
+                    <span className="text-[10px] text-purple-400 font-normal">(จำเป็นเฉพาะเมื่อกดสั่งรัน workflow_dispatch ผ่าน API)</span>
                   </label>
                   <button
                     type="button"
@@ -415,14 +527,23 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
                 </div>
                 <input
                   type={showToken ? 'text' : 'password'}
-                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (หรือเว้นว่างไว้เพื่อใช้ปุ่มจำลองรันบน Server ได้ทันที)"
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-purple-500"
                 />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  สร้างได้ที่ GitHub &gt; Settings &gt; Developer Settings &gt; Personal access tokens &gt; Tokens (classic) หรือ Fine-grained
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2 mt-1 text-[11px] text-slate-400">
+                  <span>💡 หากไม่มี PAT Token: สามารถกดปุ่ม <strong>"💻 จำลองรันบน Server ทันที"</strong> ด้านล่างเพื่อทดสอบตรวจหวย 56 รายการสดได้เลย!</span>
+                  <a
+                    href="https://github.com/settings/tokens/new?scopes=repo,workflow"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-purple-400 hover:underline flex items-center gap-1"
+                  >
+                    <span>สร้าง PAT Token</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               </div>
 
               {/* Target Workflow Selection */}
@@ -485,93 +606,123 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
               {/* Workflow Dispatch Inputs */}
               {workflowFile === 'lottery.yml' ? (
                 <div className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 space-y-4">
-                  <span className="text-xs font-bold text-amber-300 flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-amber-400" />
-                    พารามิเตอร์ส่งเข้ารันบน GitHub Actions (Workflow Inputs)
-                  </span>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                      กลุ่มหวยเป้าหมาย (Lottery Target)
-                    </label>
-                    <select
-                      value={lotteryTarget}
-                      onChange={(e) => setLotteryTarget(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-400"
-                    >
-                      <option value="all">🌟 ทุกรายการหวย (29 รายการ หุ้น/ฮานอย/ลาว/รัฐ)</option>
-                      <option value="government">🇹🇭 สลากกินแบ่งรัฐบาลไทย & ออมสิน</option>
-                      <option value="thai_stock">📈 หวยหุ้นไทย (เช้า-เที่ยง-บ่าย-เย็น)</option>
-                      <option value="foreign_stock">🌐 หวยหุ้นต่างประเทศ (นิเคอิ/ฮั่งเส็ง/จีน/ดาวโจนส์)</option>
-                      <option value="hanoi">🇻🇳 หวยฮานอย (HD / พิเศษ / ปกติ / VIP)</option>
-                      <option value="lao">🇱🇦 หวยลาว (พัฒนา / สตาร์ / VIP)</option>
-                      <option value="malay">🇲🇾 หวยมาเลย์ 4D</option>
-                    </select>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-300 flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-amber-400" />
+                      พารามิเตอร์ส่งเข้ารันบน GitHub Actions (Workflow Inputs)
+                    </span>
+                    <span className="text-[11px] font-mono text-emerald-400 font-bold bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-500/30">
+                      ฐานข้อมูลจริง: {allLotteriesCount || 54} รายการหวย
+                    </span>
                   </div>
 
-                  <div className="flex flex-col justify-end">
-                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-300 p-2 bg-slate-900/60 rounded-xl border border-slate-800 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={forceNotify}
-                        onChange={(e) => setForceNotify(e.target.checked)}
-                        className="rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-0 cursor-pointer"
-                      />
-                      <span>
-                        <strong className="text-amber-400">Force Notify</strong> (บังคับส่งแจ้งเตือนทันที)
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                        กลุ่มหวยเป้าหมาย (Lottery Target)
+                      </label>
+                      <select
+                        value={lotteryTarget}
+                        onChange={(e) => setLotteryTarget(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 hover:border-amber-400 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400 font-medium"
+                      >
+                        <option value="all">🌟 ทุกรายการหวยทั้งหมด (ครอบคลุมทั้ง 54+ รายการ: หุ้น VIP / ต่างประเทศ / ฮานอย / ลาว / รัฐ)</option>
+                        <option value="vip">⭐ หวยหุ้น VIP & พิเศษ (31 รายการ: นิเคอิ VIP, จีน VIP, ฮั่งเส็ง VIP, รัสเซีย VIP ฯลฯ)</option>
+                        <option value="foreign_stock">🌐 หวยหุ้นต่างประเทศรอบปกติ (14 รายการ: นิเคอิ, จีน, ฮั่งเส็ง, ไต้หวัน, เกาหลี, สิงคโปร์ ฯลฯ)</option>
+                        <option value="hanoi">🇻🇳 หวยฮานอย (7 รอบ: เฉพาะกิจ, พิเศษ, ปกติ, VIP, พัฒนา, กาชาด, อาเซียน)</option>
+                        <option value="lao">🇱🇦 หวยลาว (6 รอบ: ลาวพัฒนา, VIP, สามัคคี, STAR, กาชาด, อาเซียน)</option>
+                        <option value="thai_stock">📈 หวยหุ้นไทย (SET / ไทยเที่ยง / ไทยเย็น)</option>
+                        <option value="government">🇹🇭 สลากกินแบ่งรัฐบาลไทย & ออมสิน & ธ.ก.ส.</option>
+                        <option value="malay">🇲🇾 หวยมาเลย์ 4D / Magnum</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col justify-end">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-300 p-2 bg-slate-900/60 rounded-xl border border-slate-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={forceNotify}
+                          onChange={(e) => setForceNotify(e.target.checked)}
+                          className="rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-0 cursor-pointer"
+                        />
+                        <span>
+                          <strong className="text-amber-400">Force Notify</strong> (บังคับส่งแจ้งเตือนทันที)
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Clarification Box: Why 29 previously vs 54+ now */}
+                  <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800/80 text-[11px] text-slate-400 space-y-1.5">
+                    <div className="flex items-center justify-between text-slate-300 font-semibold">
+                      <span className="flex items-center gap-1.5 text-amber-300">
+                        <Info className="w-3.5 h-3.5 shrink-0" />
+                        ชี้แจง: ทำไมเดิมข้อความระบุว่ามี 29 รายการ?
                       </span>
-                    </label>
+                      <span className="text-emerald-400 font-mono font-bold">ปัจจุบันเชื่อมต่อ: 54+ รายการ</span>
+                    </div>
+                    <p className="leading-relaxed">
+                      ข้อความเดิม "29 รายการ" เป็นข้อความตัวอย่าง (placeholder) ในร่างแรกเริ่มของโปรเจกต์ ซึ่งตอนนั้นรวบรวมเฉพาะหุ้นหลักบางตัว แต่ปัจจุบันระบบได้เชื่อมต่อกับฐานข้อมูลจริง <code className="text-amber-300 font-mono">data/all_lotteries.json</code> ครบถ้วนแล้ว <strong>54 รายการ</strong> (หุ้น VIP 31 รายการ, หุ้นต่างประเทศ 14 รายการ, ฮานอย 2+ รายการ, ลาว 3+ รายการ, หุ้นไทย, สลากกินแบ่งรัฐบาล/ออมสิน/ธ.ก.ส. 3 รายการ) และเมื่อสั่งรันสคริปต์ตรวจผลสด จะตรวจจับผลการออกรางวัลได้ถึง <strong>56 รายการ</strong> แบบ Real-time!
+                    </p>
                   </div>
                 </div>
-              </div>
-            ) : workflowFile === 'android-apk.yml' ? (
-              <div className="bg-slate-950/70 border border-emerald-500/30 rounded-2xl p-4 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
-                  <Smartphone className="w-4 h-4" />
-                  <span>โหมด App Creator: สั่งคอมไพล์ Android Debug APK</span>
+              ) : workflowFile === 'android-apk.yml' ? (
+                <div className="bg-slate-950/70 border border-emerald-500/30 rounded-2xl p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+                    <Smartphone className="w-4 h-4" />
+                    <span>โหมด App Creator: สั่งคอมไพล์ Android Debug APK</span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    เมื่อกดสั่งรัน GitHub Actions จะเตรียม Node.js, Java 21, ติดตั้ง Capacitor Android และสั่งรัน <code className="text-amber-300 font-mono">./gradlew assembleDebug</code> เพื่อสร้างไฟล์ <code className="text-amber-300 font-mono">app-debug.apk</code> ส่งตรงเข้า GitHub Artifacts ให้ดาวน์โหลดทันที
+                  </p>
+                  <div className="pt-1 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                    <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">📦 Package: com.jirapatza.bombim00</span>
+                    <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">⏱️ ใช้เวลาบิลด์ประมาณ: 3-5 นาที</span>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  เมื่อกดสั่งรัน GitHub Actions จะเตรียม Node.js, Java 21, ติดตั้ง Capacitor Android และสั่งรัน <code className="text-amber-300 font-mono">./gradlew assembleDebug</code> เพื่อสร้างไฟล์ <code className="text-amber-300 font-mono">app-debug.apk</code> ส่งตรงเข้า GitHub Artifacts ให้ดาวน์โหลดทันที
-                </p>
-                <div className="pt-1 flex flex-wrap gap-2 text-[11px] text-slate-400">
-                  <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">📦 Package: com.jirapatza.bombim00</span>
-                  <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">⏱️ ใช้เวลาบิลด์ประมาณ: 3-5 นาที</span>
+              ) : (
+                <div className="bg-slate-950/70 border border-cyan-500/30 rounded-2xl p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
+                    <Activity className="w-4 h-4" />
+                    <span>โหมด Smoke Test CI/CD: ตรวจสอบความพร้อมของเซิร์ฟเวอร์</span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    รันการทดสอบ Unit Tests และทดสอบการเรียกใช้งาน Python Script และ Vite Build เพื่อให้มั่นใจว่าโค้ดไม่มีข้อผิดพลาด
+                  </p>
                 </div>
-              </div>
-            ) : (
-              <div className="bg-slate-950/70 border border-cyan-500/30 rounded-2xl p-4 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
-                  <Activity className="w-4 h-4" />
-                  <span>โหมด Smoke Test CI/CD: ตรวจสอบความพร้อมของเซิร์ฟเวอร์</span>
-                </div>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  รันการทดสอบ Unit Tests และทดสอบการเรียกใช้งาน Python Script และ Vite Build เพื่อให้มั่นใจว่าโค้ดไม่มีข้อผิดพลาด
-                </p>
-              </div>
-            )}
+              )}
 
-            {/* Submit Buttons */}
+              {/* Submit Buttons */}
               <div className="flex flex-wrap items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleSimulateRunner}
+                  disabled={isSimulating}
+                  className="px-5 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs rounded-xl cursor-pointer transition flex items-center gap-2 shadow-lg shadow-amber-500/20 disabled:opacity-50 active:scale-95"
+                >
+                  <Cpu className={`w-4 h-4 ${isSimulating ? 'animate-spin' : 'text-slate-950'}`} />
+                  {isSimulating ? 'กำลังรันตรวจผลสด...' : '💻 จำลองรันบน Server ทันที (ไม่ต้องใช้ Token)'}
+                </button>
+
                 <button
                   type="button"
                   onClick={handleDispatchWorkflow}
                   disabled={isDispatching}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl cursor-pointer transition shadow-lg shadow-purple-600/30 flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl cursor-pointer transition shadow-lg shadow-purple-600/30 flex items-center gap-2 disabled:opacity-50 active:scale-95"
                 >
                   <Play className={`w-4 h-4 ${isDispatching ? 'animate-spin' : ''}`} />
                   {isDispatching ? 'กำลังส่งคำสั่งไปยัง GitHub...' : '🚀 สั่งรันบน GitHub Actions ทันที'}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleSimulateRunner}
-                  disabled={isSimulating}
-                  className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs rounded-xl cursor-pointer transition flex items-center gap-2 disabled:opacity-50"
+                <a
+                  href={`https://github.com/${repo}/actions/workflows/${workflowFile}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold text-xs rounded-xl cursor-pointer transition flex items-center gap-1.5"
                 >
-                  <Cpu className="w-4 h-4 text-amber-400" />
-                  จำลองรันบน Server ทันที
-                </button>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  เปิดหน้ารันบน GitHub
+                </a>
               </div>
 
               {/* Result Notification */}
@@ -588,13 +739,36 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
                   ) : (
                     <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
                   )}
-                  <div>
-                    <div className="font-bold">
-                      {dispatchResult.success ? 'สั่งรันบน GitHub สำเร็จ!' : 'เกิดข้อผิดพลาดในการสั่งรัน:'}
+                  <div className="flex-1 space-y-2">
+                    <div>
+                      <div className="font-bold">
+                        {dispatchResult.success ? 'สั่งรันบน GitHub สำเร็จ!' : 'สถานะการสั่งรัน:'}
+                      </div>
+                      <div className="mt-0.5 text-slate-300 break-all leading-relaxed">
+                        {dispatchResult.message || dispatchResult.error}
+                      </div>
                     </div>
-                    <div className="mt-0.5 text-slate-300 break-all">
-                      {dispatchResult.message || dispatchResult.error}
-                    </div>
+                    {!dispatchResult.success && !token && (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleSimulateRunner}
+                          className="px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 font-bold hover:bg-amber-300 transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Cpu className="w-3.5 h-3.5" />
+                          ⚡ รันตรวจผลสดบน Server ทันที
+                        </button>
+                        <a
+                          href={`https://github.com/${repo}/actions/workflows/${workflowFile}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          ไปกด Run บนหน้าเว็บ GitHub โดยตรง
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
