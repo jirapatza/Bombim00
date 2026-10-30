@@ -939,7 +939,7 @@ export default function App() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const apiBase = (workerUrl || 'https://bombim00-github-api.jirapatcip2557.workers.dev').replace(/\\/$/, '');
+      const apiBase = (workerUrl || 'https://bombim00-github-api.jirapatcip2557.workers.dev').replace(/\/+$/, '');
       const [resStatus, resSettings, resResults, resFiles, resAllLotteries] = await Promise.all([
         fetch(`${apiBase}/api/status`).then((r) => r.ok ? r.json() : null).catch(() => null),
         fetch(`${apiBase}/api/settings`).then((r) => r.ok ? r.json() : null).catch(() => null),
