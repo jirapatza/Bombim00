@@ -6,6 +6,8 @@ import {
   RefreshCw,
   Settings,
   FileCode2,
+  Bookmark,
+  CheckSquare,
   Send,
   Sliders,
   History,
@@ -77,6 +79,8 @@ import { SettingsCenter } from './components/SettingsCenter';
 import { NotificationPipelineInspector } from './components/NotificationPipelineInspector';
 import { AppDownloadModal } from './components/AppDownloadModal';
 import { DataAccuracyCenter } from './components/DataAccuracyCenter';
+import { GoogleWorkspaceHub } from './components/GoogleWorkspaceHub';
+import { FirebaseSyncCenter } from './components/FirebaseSyncCenter';
 
 interface LotteryResult {
   ชื่อหวย?: string;
@@ -349,6 +353,8 @@ export default function App() {
     | 'deployment'
     | 'files'
     | 'pipeline'
+    | 'workspace'
+    | 'firestore'
   >('live');
   const [checkerSubTab, setCheckerSubTab] = useState<'accuracy' | 'batch' | 'history'>('accuracy');
   const [historyPrizeFilter, setHistoryPrizeFilter] = useState<'all' | 'first' | 'last2' | '3digits' | 'thai'>('all');
@@ -1654,7 +1660,33 @@ export default function App() {
               <span>📈 สถิติ &amp; เลขเด่น 10 งวด</span>
             </button>
 
-            {/* Tab 5: Settings & Automation Center */}
+            {/* Tab 5: Google Workspace (Tasks & Keep) */}
+            <button
+              onClick={() => setActiveTab('workspace')}
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+                activeTab === 'workspace'
+                  ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/25'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
+              }`}
+            >
+              <Bookmark className={`w-4 h-4 ${activeTab === 'workspace' ? 'text-white' : 'text-indigo-400'}`} />
+              <span>📑 Google Tasks &amp; Keep</span>
+            </button>
+
+            {/* Tab 6: Cloud Firestore (Firebase) */}
+            <button
+              onClick={() => setActiveTab('firestore')}
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+                activeTab === 'firestore'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-bold shadow-md shadow-amber-500/25'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
+              }`}
+            >
+              <Database className={`w-4 h-4 ${activeTab === 'firestore' ? 'text-slate-950' : 'text-amber-400'}`} />
+              <span>🔥 Firebase Cloud</span>
+            </button>
+
+            {/* Tab 7: Settings & Automation Center */}
             <button
               onClick={() => setActiveTab('settings')}
               className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
@@ -3607,6 +3639,16 @@ export default function App() {
         {/* ==================== TAB: DEPLOYMENT PLAYBOOK & GUIDE ==================== */}
         {activeTab === 'deployment' && (
           <DeploymentPlaybook />
+        )}
+
+        {/* ==================== TAB: GOOGLE WORKSPACE (TASKS & KEEP) ==================== */}
+        {activeTab === 'workspace' && (
+          <GoogleWorkspaceHub latestResult={results[0]} />
+        )}
+
+        {/* ==================== TAB: FIREBASE FIRESTORE CLOUD DATABASE ==================== */}
+        {activeTab === 'firestore' && (
+          <FirebaseSyncCenter latestResult={results[0]} />
         )}
       </main>
 

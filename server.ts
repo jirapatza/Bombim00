@@ -990,7 +990,7 @@ async function runBackgroundAutoCheck() {
 async function startServer() {
   ensureRuntimePaths();
 
-  const isProd = process.env.NODE_ENV === 'production';
+  const isProd = process.env.NODE_ENV === 'production' || __filename.endsWith('server.js');
 
   if (!isProd) {
     const { createServer } = await import('vite');

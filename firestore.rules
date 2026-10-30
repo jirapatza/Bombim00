@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // User profile documents
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && isValidId(userId)
+                    && incoming().userId == userId
+                    && incoming().email is string
+                    && incoming().email.size() <= 120;
+      allow update: if isOwner(userId) && isValidId(userId)
+                    && incoming().userId == userId
+                    && incoming().email is string
+                    && incoming().email.size() <= 120;
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Watched numbers
+      match /watched_numbers/{numberId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(numberId)
+                      && incoming().userId == userId
+                      && incoming().number is string
+                      && incoming().number.size() <= 6;
+        allow update: if isOwner(userId) && isValidId(numberId)
+                      && incoming().userId == userId
+                      && incoming().number is string
+                      && incoming().number.size() <= 6;
+        allow delete: if isOwner(userId) && isValidId(numberId);
+      }
+
+      // Saved tickets
+      match /saved_tickets/{ticketId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(ticketId)
+                      && incoming().userId == userId
+                      && incoming().ticketNumber is string
+                      && incoming().ticketNumber.size() <= 6;
+        allow update: if isOwner(userId) && isValidId(ticketId)
+                      && incoming().userId == userId
+                      && incoming().ticketNumber is string
+                      && incoming().ticketNumber.size() <= 6;
+        allow delete: if isOwner(userId) && isValidId(ticketId);
+      }
+
+      // Reminders synced with Google Tasks & Keep
+      match /reminders/{reminderId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(reminderId)
+                      && incoming().userId == userId
+                      && incoming().title is string
+                      && incoming().title.size() <= 200;
+        allow update: if isOwner(userId) && isValidId(reminderId)
+                      && incoming().userId == userId
+                      && incoming().title is string
+                      && incoming().title.size() <= 200;
+        allow delete: if isOwner(userId) && isValidId(reminderId);
+      }
+    }
+  }
+}

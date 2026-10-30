@@ -1,0 +1,82 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and lottery alert preferences",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Auth UID of the user" },
+        "displayName": { "type": "string", "maxLength": 100, "description": "Display name" },
+        "email": { "type": "string", "maxLength": 120, "description": "Email address" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Update timestamp" }
+      },
+      "required": ["userId", "email"]
+    },
+    "WatchedNumber": {
+      "title": "WatchedNumber",
+      "description": "Watched lottery numbers for auto matching and notifications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Document ID" },
+        "userId": { "type": "string", "description": "Owner user ID" },
+        "number": { "type": "string", "maxLength": 6, "description": "Watched 2-6 digit number" },
+        "note": { "type": "string", "maxLength": 200, "description": "Note or label" },
+        "lotteryTarget": { "type": "string", "maxLength": 50, "description": "Target lottery name or all" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["userId", "number"]
+    },
+    "SavedTicket": {
+      "title": "SavedTicket",
+      "description": "User's saved lottery tickets to check",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Document ID" },
+        "userId": { "type": "string", "description": "Owner user ID" },
+        "ticketNumber": { "type": "string", "maxLength": 6, "description": "6-digit ticket number" },
+        "drawDate": { "type": "string", "maxLength": 50, "description": "Target draw date" },
+        "lotteryType": { "type": "string", "maxLength": 50, "description": "Lottery type" },
+        "checked": { "type": "boolean", "description": "Whether checked" },
+        "wonPrize": { "type": "string", "maxLength": 100, "description": "Won prize name if any" },
+        "rewardAmount": { "type": "number", "description": "Prize amount in THB" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["userId", "ticketNumber"]
+    },
+    "UserTaskReminder": {
+      "title": "UserTaskReminder",
+      "description": "Lottery draw reminder synchronized with Google Tasks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Document ID" },
+        "userId": { "type": "string", "description": "Owner user ID" },
+        "title": { "type": "string", "maxLength": 200, "description": "Task title" },
+        "notes": { "type": "string", "maxLength": 500, "description": "Task details" },
+        "dueDate": { "type": "string", "description": "Due date" },
+        "googleTaskId": { "type": "string", "maxLength": 100, "description": "Remote Google Tasks ID" },
+        "completed": { "type": "boolean", "description": "Completion status" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["userId", "title"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User document storing basic profile information"
+    },
+    "/users/{userId}/watched_numbers/{numberId}": {
+      "schema": "WatchedNumber",
+      "description": "Custom watched numbers subcollection owned by the user"
+    },
+    "/users/{userId}/saved_tickets/{ticketId}": {
+      "schema": "SavedTicket",
+      "description": "Saved lottery tickets subcollection owned by the user"
+    },
+    "/users/{userId}/reminders/{reminderId}": {
+      "schema": "UserTaskReminder",
+      "description": "Lottery reminders synchronized with Google Tasks and Keep"
+    }
+  }
+}
