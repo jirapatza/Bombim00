@@ -172,8 +172,8 @@ export default {
           return new Response(JSON.stringify({ error: "Failed to list repository files" }), { status: treeRes.status, headers: corsHeaders });
         }
         const treeData = await treeRes.json();
-        const allowed = /\\.(py|js|mjs|cjs|ts|tsx|json|ya?ml|toml|md)$/i;
-        const blocked = /(^|\\/)(node_modules|dist|build|\\.git)(\\/|$)|(^|\\/)\\.env/i;
+        const allowed = /\.(py|js|mjs|cjs|ts|tsx|json|ya?ml|toml|md)$/i;
+        const blocked = /(^|\/)(node_modules|dist|build|\.git)(\/|$)|(^|\/)\.env/i;
         const files = (treeData.tree || [])
           .filter((item) => item.type === "blob" && allowed.test(item.path) && !blocked.test(item.path))
           .slice(0, 40);
