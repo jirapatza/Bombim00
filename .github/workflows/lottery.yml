@@ -82,7 +82,7 @@ jobs:
       - name: Send one-time VIP alert and sound test
         if: (github.event_name == 'workflow_dispatch' && inputs.test_notification) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[test-notification]'))
         env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC || 'lottery-auto-alert-bb26-7f4c9d2e-6a1f-4c0b-8d37-91e2a6c5b740' }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           set -euo pipefail
           test -n "$NTFY_TOPIC"
@@ -97,7 +97,7 @@ jobs:
 
       - name: Run Lottery Checker & Alert
         env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC || 'lottery-auto-alert-bb26-7f4c9d2e-6a1f-4c0b-8d37-91e2a6c5b740' }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           FORCE_NOTIFY: ${{ github.event.inputs.force_notify }}
         run: |
           python lottery_checker.py
