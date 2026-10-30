@@ -626,14 +626,15 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
                         onChange={(e) => setLotteryTarget(e.target.value)}
                         className="w-full bg-slate-900 border border-slate-700 hover:border-amber-400 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400 font-medium"
                       >
-                        <option value="all">🌟 ทุกรายการหวยทั้งหมด (ครอบคลุมทั้ง 54+ รายการ: หุ้น VIP / ต่างประเทศ / ฮานอย / ลาว / รัฐ)</option>
+                        <option value="all">🌟 ทุกรายการที่แหล่งข้อมูลรองรับ (ไม่รวมหวยแม่โขงที่ตัดออก)</option>
                         <option value="vip">⭐ หวยหุ้น VIP & พิเศษ (31 รายการ: นิเคอิ VIP, จีน VIP, ฮั่งเส็ง VIP, รัสเซีย VIP ฯลฯ)</option>
                         <option value="foreign_stock">🌐 หวยหุ้นต่างประเทศรอบปกติ (14 รายการ: นิเคอิ, จีน, ฮั่งเส็ง, ไต้หวัน, เกาหลี, สิงคโปร์ ฯลฯ)</option>
-                        <option value="hanoi">🇻🇳 หวยฮานอย (7 รอบ: เฉพาะกิจ, พิเศษ, ปกติ, VIP, พัฒนา, กาชาด, อาเซียน)</option>
-                        <option value="lao">🇱🇦 หวยลาว (6 รอบ: ลาวพัฒนา, VIP, สามัคคี, STAR, กาชาด, อาเซียน)</option>
+                        <option value="hanoi">🇻🇳 หวยฮานอย (2 รายการในแคตตาล็อกหลัก)</option>
+                        <option value="lao">🇱🇦 หวยลาว (3 รายการในแคตตาล็อกหลัก)</option>
                         <option value="thai_stock">📈 หวยหุ้นไทย (SET / ไทยเที่ยง / ไทยเย็น)</option>
-                        <option value="government">🇹🇭 สลากกินแบ่งรัฐบาลไทย & ออมสิน & ธ.ก.ส.</option>
+                        <option value="government">🇹🇭 สลากกินแบ่งรัฐบาล / ออมสิน / ธ.ก.ส. (3 รายการ)</option>
                         <option value="malay">🇲🇾 หวยมาเลย์ 4D / Magnum</option>
+                        <option value="liw">⏱️ หวย LIW (รอบทุก 15 นาที)</option>
                       </select>
                     </div>
 
