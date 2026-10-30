@@ -2548,7 +2548,6 @@ export default function App() {
             status={status}
             latestDraw={latestDraw}
             allLotteries={allLotteries}
-            nextClosing={nextClosingNow}
             onSpeak={speakCustomText}
             voiceEnabled={voiceEnabled}
             onToggleVoice={(v) => {
