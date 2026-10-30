@@ -1235,24 +1235,24 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
         ? matchedCachedResult.รางวัลที่_1 || '-'
         : matchedCachedResult.เลขบน_3_ตัว || matchedCachedResult.รางวัลที่_1 || '-';
       const lowerNumber = matchedCachedResult.เลขล่าง_2_ตัว || matchedCachedResult.เลขท้าย_2_ตัว || '-';
-      fallbackText = `ข้อมูลที่บันทึกไว้ล่าสุดของ ${lotteryName} (ข้อมูลย้อนหลังจากแคช ไม่ใช่การตรวจสอบสด):\\n` +
-        `• วันที่งวด: ${matchedCachedResult.งวดวันที่ || matchedCachedResult.วันที่จัดรูปแบบ || 'ไม่ระบุ'}\\n` +
+      fallbackText = `ข้อมูลที่บันทึกไว้ล่าสุดของ ${lotteryName} (ข้อมูลย้อนหลังจากแคช ไม่ใช่การตรวจสอบสด):\n` +
+        `• วันที่งวด: ${matchedCachedResult.งวดวันที่ || matchedCachedResult.วันที่จัดรูปแบบ || 'ไม่ระบุ'}\n` +
         (isGovernment
-          ? `• รางวัลที่ 1: ${upperNumber}\\n• เลขท้าย 2 ตัว: ${lowerNumber}\\n`
-          : `• 3 ตัวบน: ${upperNumber}\\n• 2 ตัวล่าง: ${lowerNumber}\\n`) +
-        `• แหล่งข้อมูลเดิม: ${matchedCachedResult.แหล่งข้อมูล || 'ไม่ระบุ'}\\n` +
+          ? `• รางวัลที่ 1: ${upperNumber}\n• เลขท้าย 2 ตัว: ${lowerNumber}\n`
+          : `• 3 ตัวบน: ${upperNumber}\n• 2 ตัวล่าง: ${lowerNumber}\n`) +
+        `• แหล่งข้อมูลเดิม: ${matchedCachedResult.แหล่งข้อมูล || 'ไม่ระบุ'}\n` +
         `หมายเหตุ: ข้อมูลนี้มาจากผลที่เคยบันทึกไว้ ระบบยังยืนยันผลสดไม่ได้ในขณะนี้`;
       fallbackSources.push({ title: 'คลังผลหวยที่ระบบบันทึกไว้', uri: 'https://github.com/jirapatza/Bombim00' });
     } else if (matchedLottery) {
-      fallbackText = `พบรายการ ${matchedLottery.name} ในแคตตาล็อกระบบ\\n` +
-        `• หมวด: ${matchedLottery.categoryLabel || matchedLottery.category || 'ไม่ระบุ'}\\n` +
-        `• เวลาปิดรับ: ${matchedLottery.closeTimeStr || 'ไม่ระบุ'}\\n` +
-        `• เวลาออกรางวัลตามตาราง: ${matchedLottery.drawTimeStr || 'ไม่ระบุ'}\\n` +
-        `• สถานะในแคตตาล็อก: ${matchedLottery.status || 'ไม่ระบุ'}\\n` +
+      fallbackText = `พบรายการ ${matchedLottery.name} ในแคตตาล็อกระบบ\n` +
+        `• หมวด: ${matchedLottery.categoryLabel || matchedLottery.category || 'ไม่ระบุ'}\n` +
+        `• เวลาปิดรับ: ${matchedLottery.closeTimeStr || 'ไม่ระบุ'}\n` +
+        `• เวลาออกรางวัลตามตาราง: ${matchedLottery.drawTimeStr || 'ไม่ระบุ'}\n` +
+        `• สถานะในแคตตาล็อก: ${matchedLottery.status || 'ไม่ระบุ'}\n` +
         `ยังไม่มีผลรางวัลที่ตรงกับรายการนี้ในแคช จึงไม่แสดงตัวเลขแทนผลจริง`;
       fallbackSources.push({ title: 'แคตตาล็อกหวยในโปรเจกต์', uri: 'https://github.com/jirapatza/Bombim00' });
     } else {
-      fallbackText = `ยังไม่พบผลรางวัลที่ตรงกับคำค้น "${prompt}" ในข้อมูลที่ระบบบันทึกไว้\\n` +
+      fallbackText = `ยังไม่พบผลรางวัลที่ตรงกับคำค้น "${prompt}" ในข้อมูลที่ระบบบันทึกไว้\n` +
         `บริการตรวจสอบสดขัดข้องชั่วคราว ระบบจึงไม่แสดงตัวเลขตัวอย่างหรืออ้างว่าเป็นผลทางการ เพื่อป้องกันข้อมูลผิดพลาด`;
     }
 
