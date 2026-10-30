@@ -7,6 +7,3 @@ REPO = "jirapatza/Bombim00"
 BRANCH = "main"
 WORKFLOW = "lottery.yml"
 ALLOW_ORIGIN = "*"
-
-[secrets]
-required = ["GITHUB_TOKEN", "DASH_PASSWORD"]
