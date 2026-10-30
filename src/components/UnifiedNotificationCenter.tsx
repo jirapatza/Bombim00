@@ -101,9 +101,12 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
     setIsTestingNtfy(true);
     setTestResult(null);
 
-    const firstPrize = latestDraw?.รางวัลที่_1 || '289594';
-    const last2 = latestDraw?.เลขท้าย_2_ตัว || '84';
-    const drawDate = latestDraw?.งวดวันที่ || '16 ตุลาคม 2569';
+    const sampleLottery = allLotteries.find((item) => item.category !== 'gov_savings') || allLotteries[0];
+    const lotteryName = sampleLottery?.name || latestDraw?.ชื่อหวย || 'ตัวอย่างหวย';
+    const top3 = sampleLottery?.top3 || (sampleLottery?.firstPrize ? String(sampleLottery.firstPrize).slice(-3) : '') ||
+      (latestDraw?.รางวัลที่_1 ? String(latestDraw.รางวัลที่_1).slice(-3) : '-') || '-';
+    const last2 = sampleLottery?.bottom2 || latestDraw?.เลขท้าย_2_ตัว || '-';
+    const drawDate = sampleLottery?.date || latestDraw?.งวดวันที่ || 'ตัวอย่างสำหรับทดสอบ';
 
     try {
       const res = await fetch('/api/test-ntfy', {
@@ -119,7 +122,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
 
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
-        setTestResult({ success: true, message: `ส่งแจ้งเตือนเข้าแอปมือถือ (ห้อง: ${topic}) สำเร็จแล้ว! 📲` });
+        setTestResult({ success: true, message: `ntfy server ตอบรับคำขอส่งไปยัง topic ${topic} แล้ว โปรดตรวจสอบมือถือด้วยตนเอง (ยังยืนยันการรับบนเครื่องไม่ได้)` });
       } else {
         setTestResult({ success: false, message: data.error || `HTTP ${res.status}: ส่งไม่สำเร็จ` });
       }
