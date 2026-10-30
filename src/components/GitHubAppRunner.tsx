@@ -105,7 +105,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
     setIsSavingWorkflow(true);
     setWorkflowSaveStatus(null);
     try {
-      const res = await fetch('/api/github/workflow', {
+      const res = await fetch(`${API_BASE}/api/github/workflow`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, content: workflowYaml }),
@@ -218,7 +218,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
     setSimulationLogs(['🚀 กำลังเตรียมสภาพแวดล้อม Python 3.11 และอ่าน settings.json...']);
 
     try {
-      const res = await fetch('/api/trigger', {
+      const res = await fetch(`${API_BASE}/api/simulate-runner`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, forceNotify, lotteryTarget }),
