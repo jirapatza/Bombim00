@@ -53,14 +53,14 @@ jobs:
 
       - name: Verify Node server endpoints
         env:
-          PORT: "3000"
+          PORT: "3001"
           DISABLE_BACKGROUND_CHECK: "true"
         run: |
-          npm start > /tmp/lottery-server.log 2>&1 &
+          node server.js > /tmp/lottery-server.log 2>&1 &
           SERVER_PID=$!
-          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          trap 'kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:3000/api/health > /tmp/health.json; then
+            if curl --fail --silent http://127.0.0.1:3001/api/health > /tmp/health.json; then
               break
             fi
             sleep 1
@@ -68,7 +68,7 @@ jobs:
           cat /tmp/health.json
           cat /tmp/lottery-server.log
           grep -q '"ok":true' /tmp/health.json
-          curl --fail --silent http://127.0.0.1:3000/api/status > /tmp/status.json
+          curl --fail --silent http://127.0.0.1:3001/api/status > /tmp/status.json
           test -s /tmp/status.json
 
       - name: Install Python dependencies and run tests
@@ -85,6 +85,7 @@ jobs:
           DISABLE_BACKGROUND_CHECK: "true"
         run: |
           docker run -d --name lottery-alert-smoke -p 3000:3000 -e DISABLE_BACKGROUND_CHECK="$DISABLE_BACKGROUND_CHECK" lottery-alert:smoke
+          trap 'docker rm -f lottery-alert-smoke >/dev/null 2>&1 || true' EXIT
           for attempt in $(seq 1 40); do
             if curl --fail --silent http://127.0.0.1:3000/api/health > /tmp/docker-health.json; then
               break
@@ -103,4 +104,3 @@ jobs:
           fi
           cat /tmp/docker-health.json
           curl --fail --silent http://127.0.0.1:3000/api/status
-          docker rm -f lottery-alert-smoke >/dev/null
