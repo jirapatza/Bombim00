@@ -1,14 +1,19 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-10-30T10:38:52.000309+07:00",
-  "last_run_date_thai": "30/10/2026 10:38:52 น.",
-  "total_checks": 218,
+  "last_run_timestamp": "2026-10-30T10:51:38.708314+07:00",
+  "last_run_date_thai": "30/10/2026 10:51:38 น.",
+  "total_checks": 219,
   "last_source_used": "ThaiLottoAPI + stock group scraper",
   "status_message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper",
   "active_sources_count": 47,
   "latest_draw_detected": "30.10.2026",
   "notifications_sent_today": 11,
   "recent_logs": [
+    {
+      "timestamp": "2026-10-30T10:51:38.708314+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
     {
       "timestamp": "2026-10-30T10:38:52.000309+07:00",
       "level": "INFO",
@@ -101,11 +106,6 @@
     },
     {
       "timestamp": "2026-10-30T00:20:54.541018+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด งวดวันที่ 16 ตุลาคม 2569 ผ่านแหล่ง LotteryChecks"
-    },
-    {
-      "timestamp": "2026-10-30T00:20:44.508649+07:00",
       "level": "INFO",
       "message": "ตรวจพบผลสดงวด งวดวันที่ 16 ตุลาคม 2569 ผ่านแหล่ง LotteryChecks"
     }
