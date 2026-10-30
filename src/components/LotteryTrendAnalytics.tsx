@@ -100,23 +100,7 @@ export const LotteryTrendAnalytics: React.FC<LotteryTrendAnalyticsProps> = ({
     // Default to at most `drawLimit` (10) draws
     const sliced = filtered.slice(0, drawLimit);
 
-    // If dataset is small, generate mock structured historical draws for seamless visual inspection
-    if (sliced.length === 0) {
-      const fallbackList: LotteryResultItem[] = [
-        { งวดวันที่: '16 ต.ค. 2569', รางวัลที่_1: '289594', เลขท้าย_2_ตัว: '84', เลขบน_3_ตัว: '594', ชื่อหวย: 'สลากกินแบ่งรัฐบาล' },
-        { งวดวันที่: '01 ต.ค. 2569', รางวัลที่_1: '607093', เลขท้าย_2_ตัว: '59', เลขบน_3_ตัว: '093', ชื่อหวย: 'สลากกินแบ่งรัฐบาล' },
-        { งวดวันที่: '16 ก.ย. 2569', รางวัลที่_1: '032703', เลขท้าย_2_ตัว: '79', เลขบน_3_ตัว: '703', ชื่อหวย: 'สลากกินแบ่งรัฐบาล' },
-        { งวดวันที่: '01 ก.ย. 2569', รางวัลที่_1: '199606', เลขท้าย_2_ตัว: '94', เลขบน_3_ตัว: '606', ชื่อหวย: 'สลากกินแบ่งรัฐบาล' },
-        { งวดวันที่: '16 ส.ค. 2569', รางวัลที่_1: '858383', เลขท้าย_2_ตัว: '44', เลขบน_3_ตัว: '383', ชื่อหวย: 'สลากกินแบ่งรัฐบาล' },
-        { งวดวันที่: '01 ส.ค. 2569', รางวัลที่_1: '407041', เลขท้าย_2_ตัว: '46', เลขบน_3_ตัว: '041', ชื่อหวย: 'สลากกินแบ่งรัฐบาล' },
-        { งวดวันที่: '16 ก.ค. 2569', รางวัลที่_1: '367336', เลขท้าย_2_ตัว: '21', เลขบน_3_ตัว: '336', ชื่อหวย: 'สลากกินแบ่งรัฐบาล' },
-        { งวดวันที่: '01 ก.ค. 2569', รางวัลที่_1: '922608', เลขท้าย_2_ตัว: '31', เลขบน_3_ตัว: '608', ชื่อหวย: 'สลากกินแบ่งรัฐบาล' },
-        { งวดวันที่: '16 มิ.ย. 2569', รางวัลที่_1: '518504', เลขท้าย_2_ตัว: '31', เลขบน_3_ตัว: '504', ชื่อหวย: 'สลากกินแบ่งรัฐบาล' },
-        { งวดวันที่: '01 มิ.ย. 2569', รางวัลที่_1: '530593', เลขท้าย_2_ตัว: '42', เลขบน_3_ตัว: '593', ชื่อหวย: 'สลากกินแบ่งรัฐบาล' },
-      ];
-      return fallbackList.slice(0, drawLimit);
-    }
-
+    // Only analyze recorded results. Never inject mock lottery numbers into a real analytics view.
     return sliced;
   }, [results, targetCategory, drawLimit]);
 
@@ -363,6 +347,13 @@ export const LotteryTrendAnalytics: React.FC<LotteryTrendAnalyticsProps> = ({
         </div>
       </div>
 
+      {recentDraws.length === 0 ? (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 text-sm text-slate-300">
+          <div className="font-bold text-amber-300 mb-1">ยังไม่มีข้อมูลผลย้อนหลังที่ตรวจสอบได้</div>
+          <p>เลือกหมวดอื่นหรือรอให้ระบบบันทึกผลจริงก่อน ระบบจะไม่สร้างตัวเลขตัวอย่างมาแสดงเป็นสถิติ</p>
+        </div>
+      ) : (
+        <>
       {/* Highlights & Top Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Hot Digits Card */}
@@ -716,7 +707,7 @@ export const LotteryTrendAnalytics: React.FC<LotteryTrendAnalyticsProps> = ({
                       {item.งวดวันที่ || item.วันที่จัดรูปแบบ || `งวดที่ ${idx + 1}`}
                     </td>
                     <td className="py-2.5 px-3 text-slate-300 whitespace-nowrap">
-                      {item.ชื่อหวย || 'สลากกินแบ่งรัฐบาล'}
+                      {item.ชื่อหวย || item.หวย || 'ไม่ระบุชื่อหวย'}
                     </td>
                     <td className="py-2.5 px-3">
                       <span className="font-mono font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
@@ -745,6 +736,8 @@ export const LotteryTrendAnalytics: React.FC<LotteryTrendAnalyticsProps> = ({
           </table>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };
