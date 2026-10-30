@@ -138,7 +138,7 @@ export function MobileNotificationHub({
     try {
       // Send directly to ntfy. The APK is a static Capacitor app and has no
       // same-origin Express API, so a relative /api URL will fail on-device.
-      const ntfyUrl = `${server.replace(/\\/$/, '')}/${encodeURIComponent(topic.trim())}`;
+      const ntfyUrl = `${server.replace(/\/$/, '')}/${encodeURIComponent(topic.trim())}`;
       const res = await fetch(ntfyUrl, {
         method: 'POST',
         headers: {
