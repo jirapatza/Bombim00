@@ -27,6 +27,7 @@ interface MobileNotificationHubProps {
   latestDraw?: any;
   allLotteries?: any[];
   onSpeak?: (text: string) => void;
+  nextClosing?: { name: string; closeTimeStr: string };
 }
 
 export function MobileNotificationHub({
@@ -35,6 +36,7 @@ export function MobileNotificationHub({
   latestDraw,
   allLotteries = [],
   onSpeak,
+  nextClosing,
 }: MobileNotificationHubProps) {
   const [topic, setTopic] = useState<string>(
     () => localStorage.getItem('mobile_ntfy_topic') || currentTopic || 'lottery-alert-thai'
@@ -45,7 +47,13 @@ export function MobileNotificationHub({
   const [sendResult, setSendResult] = useState<{ success?: boolean; message?: string; error?: string; timestamp?: string } | null>(null);
 
   // Selected lottery for testing
-  const [selectedLotteryId, setSelectedLotteryId] = useState<string>('gov');
+  const [selectedLotteryId, setSelectedLotteryId] = useState<string>('');
+
+  useEffect(() => {
+    if (!selectedLotteryId && allLotteries.length > 0) {
+      setSelectedLotteryId(allLotteries[0].id);
+    }
+  }, [allLotteries, selectedLotteryId]);
   const [customNote, setCustomNote] = useState<string>('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -90,11 +98,11 @@ export function MobileNotificationHub({
       return {
         name: 'สลากกินแบ่งรัฐบาล',
         flag: '🇹🇭',
-        date: latestDraw?.งวดวันที่ || '16 ตุลาคม 2569',
-        top3: (latestDraw?.รางวัลที่_1 || '289594').slice(-3),
-        bottom2: latestDraw?.เลขท้าย_2_ตัว || '84',
-        firstPrize: latestDraw?.รางวัลที่_1 || '289594',
-        nextClosing: 'หวยฮานอยพิเศษ (17:00 น.)',
+        date: latestDraw?.งวดวันที่ || 'งวดล่าสุด',
+        top3: latestDraw?.รางวัลที่_1 ? String(latestDraw.รางวัลที่_1).slice(-3) : '-',
+        bottom2: latestDraw?.เลขท้าย_2_ตัว || '-',
+        firstPrize: latestDraw?.รางวัลที่_1 || '-',
+        nextClosing: nextClosing ? `${nextClosing.name} (${nextClosing.closeTimeStr})` : 'ตรวจสอบตารางรอบถัดไป',
       };
     }
     const found = allLotteries.find((l) => l.id === selectedLotteryId);
@@ -106,17 +114,17 @@ export function MobileNotificationHub({
         top3: found.top3 || '-',
         bottom2: found.bottom2 || '-',
         firstPrize: found.firstPrize || found.top3 || '-',
-        nextClosing: 'หวยลาวพัฒนา (20:30 น.)',
+        nextClosing: nextClosing ? `${nextClosing.name} (${nextClosing.closeTimeStr})` : 'ตรวจสอบตารางรอบถัดไป',
       };
     }
     return {
-      name: 'ผลสลากกินแบ่ง',
-      flag: '🇹🇭',
-      date: 'งวดล่าสุด',
-      top3: '594',
-      bottom2: '84',
-      firstPrize: '289594',
-      nextClosing: 'หวยฮานอยพิเศษ (17:00 น.)',
+      name: 'ยังไม่มีรายการหวยให้ทดสอบ',
+      flag: '🎯',
+      date: 'ยังไม่มีข้อมูล',
+      top3: '-',
+      bottom2: '-',
+      firstPrize: '-',
+      nextClosing: nextClosing ? `${nextClosing.name} (${nextClosing.closeTimeStr})` : 'ตรวจสอบตารางรอบถัดไป',
     };
   };
 
@@ -160,7 +168,7 @@ export function MobileNotificationHub({
 
       setSendResult({
         success: true,
-        message: data.message || `ส่งการแจ้งเตือนไปยังโทรศัพท์สำเร็จผ่าน ${server}/${topic}`,
+        message: `ntfy รับคำขอส่งข้อความแล้ว (${server}/${topic}) แต่ยังยืนยันไม่ได้ว่ามือถือได้รับข้อความ`,
         timestamp: new Date().toLocaleTimeString('th-TH'),
       });
 
@@ -178,7 +186,7 @@ export function MobileNotificationHub({
 
       // Voice read out if handler provided
       if (onSpeak) {
-        onSpeak(`ประกาศผล ${currentPreview.name} รางวัลออกเลข ${currentPreview.firstPrize} สองตัว ${currentPreview.bottom2}`);
+        onSpeak(`ทดสอบเสียงแจ้งเตือน ${currentPreview.name} ตัวเลขทดสอบ ${currentPreview.firstPrize} และ ${currentPreview.bottom2}`);
       }
     } catch (err: any) {
       setSendResult({
@@ -400,12 +408,12 @@ export function MobileNotificationHub({
                   onChange={(e) => setSelectedLotteryId(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
                 >
-                  <option value="gov">สลากกินแบ่งรัฐบาล (GLO)</option>
                   {allLotteries.map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.flag} {l.name} ({l.drawTimeStr})
                     </option>
                   ))}
+                  <option value="gov">สลากกินแบ่งรัฐบาล (GLO)</option>
                 </select>
               </div>
 
