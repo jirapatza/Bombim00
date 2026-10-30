@@ -47,7 +47,12 @@ export default {
     const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
     const clientPassword = bearer || customHeader;
 
-    const isAuthed = env.DASH_PASSWORD ? clientPassword === env.DASH_PASSWORD : false;
+    let incomingBody = {};
+    if (request.method !== "GET" && request.method !== "OPTIONS") {
+      try { incomingBody = await request.clone().json(); } catch { incomingBody = {}; }
+    }
+    const requestToken = incomingBody.token || "";
+    const isAuthed = env.DASH_PASSWORD ? clientPassword === env.DASH_PASSWORD : Boolean(requestToken);
 
     // Public mode is intentionally read-only. Every write requires a configured
     // dashboard password; GitHub mutations additionally require GITHUB_TOKEN.
@@ -70,7 +75,7 @@ export default {
     const repo = env.REPO || "user/lottery-alert";
     const branch = env.BRANCH || "main";
     const workflow = env.WORKFLOW || "lottery.yml";
-    const ghToken = env.GITHUB_TOKEN;
+    const ghToken = env.GITHUB_TOKEN || requestToken;
 
     const ghHeaders = {
       "User-Agent": "LotteryAlert-Worker/1.0",
@@ -79,6 +84,70 @@ export default {
     };
 
     try {
+      // Android editor: pull a file from the configured repository.
+      if (path === "/api/github/get-remote-file" && request.method === "POST") {
+        const body = incomingBody;
+        const filePath = String(body.filePath || "");
+        if (!filePath || filePath.includes("..") || filePath.startsWith("/") || filePath.startsWith(".env")) return new Response(JSON.stringify({ error: "Invalid file path" }), { status: 400, headers: corsHeaders });
+        const remote = await fetch("https://api.github.com/repos/" + repo + "/contents/" + filePath + "?ref=" + encodeURIComponent(branch), { headers: ghHeaders });
+        if (!remote.ok) return new Response(JSON.stringify({ error: "Unable to read remote file", details: await remote.text() }), { status: remote.status, headers: corsHeaders });
+        const file = await remote.json();
+        const content = file.encoding === "base64" ? decodeURIComponent(escape(atob(file.content.replace(/\\n/g, "")))) : file.content;
+        return new Response(JSON.stringify({ content, sha: file.sha, size: file.size }), { status: 200, headers: corsHeaders });
+      }
+
+      // Android editor: create or update a repository file.
+      if (path === "/api/github/commit-file" && request.method === "POST") {
+        if (!ghToken) return new Response(JSON.stringify({ error: "GitHub token is required to write repository files" }), { status: 503, headers: corsHeaders });
+        const body = incomingBody;
+        const filePath = String(body.filePath || "");
+        if (!filePath || filePath.includes("..") || filePath.startsWith("/") || filePath.startsWith(".env")) return new Response(JSON.stringify({ error: "Invalid or blocked file path" }), { status: 400, headers: corsHeaders });
+        const fileUrl = "https://api.github.com/repos/" + repo + "/contents/" + filePath + "?ref=" + encodeURIComponent(branch);
+        const currentRes = await fetch(fileUrl, { headers: ghHeaders });
+        let sha;
+        if (currentRes.ok) sha = (await currentRes.json()).sha;
+        else if (currentRes.status !== 404) return new Response(JSON.stringify({ error: "Unable to inspect current file", details: await currentRes.text() }), { status: currentRes.status, headers: corsHeaders });
+        const encoded = btoa(unescape(encodeURIComponent(String(body.content || ""))));
+        const saved = await fetch("https://api.github.com/repos/" + repo + "/contents/" + filePath, { method: "PUT", headers: { ...ghHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ message: String(body.commitMessage || ("Update " + filePath)), content: encoded, branch, ...(sha ? { sha } : {}) }) });
+        const result = await saved.json();
+        if (!saved.ok) return new Response(JSON.stringify({ error: result.message || "GitHub commit failed" }), { status: saved.status, headers: corsHeaders });
+        return new Response(JSON.stringify({ success: true, message: "บันทึกไฟล์ขึ้น GitHub สำเร็จ", commit_sha: result.commit && result.commit.sha, html_url: result.content && result.content.html_url }), { status: 200, headers: corsHeaders });
+      }
+
+      // Workflow builder and Actions controls.
+      if (path === "/api/github/workflow" && request.method === "GET") {
+        const r = await fetch("https://api.github.com/repos/" + repo + "/contents/.github/workflows/" + workflow + "?ref=" + encodeURIComponent(branch), { headers: ghHeaders });
+        if (!r.ok) return new Response(JSON.stringify({ error: "Unable to load workflow YAML" }), { status: r.status, headers: corsHeaders });
+        const f = await r.json();
+        return new Response(JSON.stringify({ content: decodeURIComponent(escape(atob(f.content.replace(/\\n/g, "")))), sha: f.sha }), { status: 200, headers: corsHeaders });
+      }
+      if (path === "/api/github/workflow" && request.method === "POST") {
+        if (!ghToken) return new Response(JSON.stringify({ error: "GitHub token is required to update workflow" }), { status: 503, headers: corsHeaders });
+        const filePath = ".github/workflows/" + workflow;
+        const r = await fetch("https://api.github.com/repos/" + repo + "/contents/" + filePath + "?ref=" + encodeURIComponent(branch), { headers: ghHeaders });
+        if (!r.ok) return new Response(JSON.stringify({ error: "Unable to read workflow before update" }), { status: r.status, headers: corsHeaders });
+        const f = await r.json();
+        const encoded = btoa(unescape(encodeURIComponent(String(incomingBody.content || ""))));
+        const saved = await fetch("https://api.github.com/repos/" + repo + "/contents/" + filePath, { method: "PUT", headers: { ...ghHeaders, "Content-Type": "application/json" }, body: JSON.stringify({ message: "chore: update workflow from app", content: encoded, branch, sha: f.sha }) });
+        const result = await saved.json();
+        if (!saved.ok) return new Response(JSON.stringify({ error: result.message || "Workflow update failed" }), { status: saved.status, headers: corsHeaders });
+        return new Response(JSON.stringify({ success: true, commit: result.commit && result.commit.sha }), { status: 200, headers: corsHeaders });
+      }
+      if (path === "/api/github/dispatch" && request.method === "POST") {
+        if (!ghToken) return new Response(JSON.stringify({ error: "GitHub token is required to dispatch workflow" }), { status: 503, headers: corsHeaders });
+        const selectedWorkflow = String(incomingBody.workflow || workflow);
+        const r = await fetch("https://api.github.com/repos/" + repo + "/actions/workflows/" + selectedWorkflow + "/dispatches", { method: "POST", headers: ghHeaders, body: JSON.stringify({ ref: branch, inputs: incomingBody.inputs || {} }) });
+        if (!r.ok) return new Response(JSON.stringify({ error: "Workflow dispatch failed", details: await r.text() }), { status: r.status, headers: corsHeaders });
+        return new Response(JSON.stringify({ success: true, message: "สั่งรัน GitHub Actions แล้ว" }), { status: 200, headers: corsHeaders });
+      }
+      if (path === "/api/github/runs" && request.method === "POST") {
+        const selectedWorkflow = String(incomingBody.workflow || workflow);
+        const r = await fetch("https://api.github.com/repos/" + repo + "/actions/workflows/" + selectedWorkflow + "/runs?per_page=10", { headers: ghHeaders });
+        const data = await r.json();
+        if (!r.ok) return new Response(JSON.stringify({ error: data.message || "Unable to fetch workflow runs" }), { status: r.status, headers: corsHeaders });
+        return new Response(JSON.stringify({ success: true, workflow_runs: data.workflow_runs || [] }), { status: 200, headers: corsHeaders });
+      }
+
       // 1. GET /api/status - Read status/status.json
       if (path === "/api/status" && request.method === "GET") {
         const ghUrl = `https://raw.githubusercontent.com/${repo}/${branch}/status/status.json?cache_bust=${Date.now()}`;
