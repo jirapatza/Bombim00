@@ -95,6 +95,14 @@ jobs:
             "https://ntfy.sh/$NTFY_TOPIC"
           echo "NTFY_HTTP_ACCEPTED=1 (server accepted the publish request; Android receipt is not verifiable here)"
 
+      - name: Check notification secret configuration
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          if [ -z "$NTFY_TOPIC" ]; then
+            echo "::warning::NTFY_TOPIC secret is not configured; push notifications will be skipped until it is added."
+          fi
+
       - name: Run Lottery Checker & Alert
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
