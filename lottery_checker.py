@@ -577,18 +577,21 @@ def send_ntfy_notification(row: dict) -> bool:
         "last_2": last_2,
         "front_3": front_3,
         "last_3": last_3,
-        "source": row.get('แหล่งข้อมูล', 'official'),
-        "next_closing": "หวยฮานอยพิเศษ (17:00 น.)"
+        "source": row.get('แหล่งข้อมูล', 'unknown'),
+        "next_closing": "ตรวจสอบตารางเวลาปิดรับในแอป"
     }
 
     try:
         title = title_pattern.format(**template_vars)
-        if str(row.get("หมวดหวย", "")).startswith("stock"):
+        category = _lottery_category(row)
+        if category not in {"government", "gov_savings"}:
+            top3 = row.get("เลขบน_3_ตัว") or row.get("top3") or first_prize or "-"
+            bottom2 = row.get("เลขล่าง_2_ตัว") or row.get("เลขท้าย_2_ตัว") or row.get("bottom2") or last_2 or "-"
             body = (
                 f"{title}\n\n"
-                f"📈 ตลาด: {row.get('ชื่อหวย', 'หวยหุ้น')}\n"
-                f"🔺 3 ตัวบน: {row.get('เลขบน_3_ตัว', row.get('รางวัลที่_1', '-'))}\n"
-                f"🔻 2 ตัวล่าง: {row.get('เลขล่าง_2_ตัว', row.get('เลขท้าย_2_ตัว', '-'))}\n"
+                f"🎯 หวย: {row.get('ชื่อหวย', 'หวย')}\n"
+                f"🔺 3 ตัวบน: {top3}\n"
+                f"🔻 2 ตัวล่าง: {bottom2}\n"
                 f"📅 งวด: {draw_date}\n"
                 f"📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'unknown')}"
             )
@@ -629,11 +632,25 @@ def send_discord_notification(row: dict) -> bool:
     if not webhook_url:
         return False
 
+    category = _lottery_category(row)
+    if category in {"government", "gov_savings"}:
+        description = (
+            f"🎯 **รางวัลที่ 1:** `{row.get('รางวัลที่_1', '-')}`\n"
+            f"🔢 **เลขท้าย 2 ตัว:** `{row.get('เลขท้าย_2_ตัว', '-')}`\n"
+            f"✨ **เลขหน้า 3 ตัว:** `{', '.join(row.get('เลขหน้า_3_ตัว', []))}`\n"
+            f"🌟 **เลขท้าย 3 ตัว:** `{', '.join(row.get('เลขท้าย_3_ตัว', []))}`"
+        )
+    else:
+        description = (
+            f"🎯 **หวย:** {row.get('ชื่อหวย', 'หวย')}\n"
+            f"🔺 **3 ตัวบน:** `{row.get('เลขบน_3_ตัว') or row.get('top3') or row.get('รางวัลที่_1', '-')}`\n"
+            f"🔻 **2 ตัวล่าง:** `{row.get('เลขล่าง_2_ตัว') or row.get('เลขท้าย_2_ตัว') or '-'}`"
+        )
     payload = {
         "username": "Lottery Alert Bot",
         "embeds": [{
-            "title": f"📢 ผลสลากกินแบ่งรัฐบาล งวดวันที่ {row.get('งวดวันที่', '')}",
-            "description": f"🎯 **รางวัลที่ 1:** `{row.get('รางวัลที่_1', '-')}`\n🔢 **เลขท้าย 2 ตัว:** `{row.get('เลขท้าย_2_ตัว', '-')}`\n✨ **เลขหน้า 3 ตัว:** `{', '.join(row.get('เลขหน้า_3_ตัว', []))}`\n🌟 **เลขท้าย 3 ตัว:** `{', '.join(row.get('เลขท้าย_3_ตัว', []))}`\n⏰ **ปิดรอบถัดไป:** หวยฮานอยพิเศษ (17:00 น.)",
+            "title": f"📢 ผล{row.get('ชื่อหวย', 'หวย')} งวดวันที่ {row.get('งวดวันที่', '')}",
+            "description": description + f"\n📡 **แหล่งข้อมูล:** {row.get('แหล่งข้อมูล', 'unknown')}",
             "color": 16107019,
             "footer": {"text": "Lottery Alert System Pro"}
         }]
@@ -656,13 +673,24 @@ def send_telegram_notification(row: dict) -> bool:
     if not bot_token or not chat_id:
         return False
 
+    category = _lottery_category(row)
+    if category in {"government", "gov_savings"}:
+        result_text = (
+            f"🎯 <b>รางวัลที่ 1:</b> <code>{row.get('รางวัลที่_1', '-')}</code>\n"
+            f"🔢 <b>เลขท้าย 2 ตัว:</b> <code>{row.get('เลขท้าย_2_ตัว', '-')}</code>\n"
+            f"✨ <b>เลขหน้า 3 ตัว:</b> <code>{', '.join(row.get('เลขหน้า_3_ตัว', []))}</code>\n"
+            f"🌟 <b>เลขท้าย 3 ตัว:</b> <code>{', '.join(row.get('เลขท้าย_3_ตัว', []))}</code>"
+        )
+    else:
+        result_text = (
+            f"🎯 <b>หวย:</b> {row.get('ชื่อหวย', 'หวย')}\n"
+            f"🔺 <b>3 ตัวบน:</b> <code>{row.get('เลขบน_3_ตัว') or row.get('top3') or row.get('รางวัลที่_1', '-')}</code>\n"
+            f"🔻 <b>2 ตัวล่าง:</b> <code>{row.get('เลขล่าง_2_ตัว') or row.get('เลขท้าย_2_ตัว') or '-'}</code>"
+        )
     text = (
-        f"📢 <b>ผลสลากกินแบ่งรัฐบาล งวดวันที่ {row.get('งวดวันที่', '')}</b>\n\n"
-        f"🎯 <b>รางวัลที่ 1:</b> <code>{row.get('รางวัลที่_1', '-')}</code>\n"
-        f"🔢 <b>เลขท้าย 2 ตัว:</b> <code>{row.get('เลขท้าย_2_ตัว', '-')}</code>\n"
-        f"✨ <b>เลขหน้า 3 ตัว:</b> <code>{', '.join(row.get('เลขหน้า_3_ตัว', []))}</code>\n"
-        f"🌟 <b>เลขท้าย 3 ตัว:</b> <code>{', '.join(row.get('เลขท้าย_3_ตัว', []))}</code>\n"
-        f"⏰ <b>ปิดรอบถัดไป:</b> หวยฮานอยพิเศษ (17:00 น.)"
+        f"📢 <b>ผล{row.get('ชื่อหวย', 'หวย')} งวดวันที่ {row.get('งวดวันที่', '')}</b>\n\n"
+        f"{result_text}\n"
+        f"📡 <b>แหล่งข้อมูล:</b> {row.get('แหล่งข้อมูล', 'unknown')}"
     )
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
