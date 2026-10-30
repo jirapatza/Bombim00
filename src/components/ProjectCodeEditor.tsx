@@ -28,6 +28,8 @@ interface ProjectFile {
   content: string;
 }
 
+const API_BASE = 'https://bombim00-github-api.jirapatcip2557.workers.dev';
+
 interface ProjectCodeEditorProps {
   onRefreshProject?: () => void;
   defaultRepo?: string;
@@ -79,7 +81,7 @@ export function ProjectCodeEditor({
   const loadFiles = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/project-files');
+      const res = await fetch(`${API_BASE}/api/project-files`);
       const data: ProjectFile[] = await res.json();
       setFiles(data);
 
@@ -142,15 +144,8 @@ export function ProjectCodeEditor({
     setIsSavingLocal(true);
     setActionFeedback(null);
     try {
-      const res = await fetch('/api/save-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filePath: selectedFilePath,
-          content: editorContent,
-        }),
-      });
-      const data = await res.json();
+      localStorage.setItem(`draft:${selectedFilePath}`, editorContent);
+      const data = { success: true };
 
       if (!res.ok || data.error) {
         throw new Error(data.error || 'Failed to save file');
@@ -159,7 +154,7 @@ export function ProjectCodeEditor({
       setOriginalContent(editorContent);
       setActionFeedback({
         type: 'success',
-        message: `บันทึกไฟล์ '${selectedFilePath}' ลงเครื่องเรียบร้อยแล้ว!`,
+        message: `บันทึกร่างไฟล์ '${selectedFilePath}' ไว้ในแอปเรียบร้อยแล้ว!`,
       });
 
       // Update in files list
@@ -195,7 +190,7 @@ export function ProjectCodeEditor({
     const msg = commitMessage.trim() || `Update ${selectedFilePath} via Lottery Alert App [Web Direct]`;
 
     try {
-      const res = await fetch('/api/github/commit-file', {
+      const res = await fetch(`${API_BASE}/api/github/commit-file`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -219,7 +214,7 @@ export function ProjectCodeEditor({
       // Save credentials in localStorage
       localStorage.setItem('gh_repo', repo.trim());
       localStorage.setItem('gh_branch', branch.trim());
-      localStorage.setItem('gh_token', token.trim());
+      // Do not persist the GitHub credential in browser storage.
       localStorage.setItem('gh_author_name', authorName.trim());
       localStorage.setItem('gh_author_email', authorEmail.trim());
 
@@ -258,7 +253,7 @@ export function ProjectCodeEditor({
     setIsFetchingRemote(true);
     setActionFeedback(null);
     try {
-      const res = await fetch('/api/github/get-remote-file', {
+      const res = await fetch(`${API_BASE}/api/github/get-remote-file`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
