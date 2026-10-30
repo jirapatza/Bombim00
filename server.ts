@@ -671,98 +671,53 @@ app.post('/api/github/commit-file', async (req, res) => {
 // 5. POST /api/check-now - Trigger check (simulated / live check)
 app.post('/api/check-now', async (req, res) => {
   try {
-    const now = new Date();
-    const thaiTime = now.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
-    const isoTime = now.toISOString();
-
-    let settings: any = {};
-    if (fs.existsSync(SETTINGS_PATH)) {
-      settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-    }
-
-    const enabledSources = Object.keys(settings.sources || {}).filter(
-      (k) => settings.sources[k]?.enabled
-    );
-
-    const sourceUsed = enabledSources.length > 0 ? enabledSources[0] : 'glo';
-
-    let previousResults: any[] = [];
-    if (fs.existsSync(RESULTS_PATH)) {
-      previousResults = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
-    }
-
-    const latestDraw = previousResults[0]?.งวดวันที่ || '16 ตุลาคม 2569';
-
+    const lotteryTarget = String(req.body?.lotteryTarget || 'all');
+    const run = await runBackgroundAutoCheck(lotteryTarget);
     let currentStatus: any = {};
+    let currentResults: any[] = [];
     if (fs.existsSync(STATUS_PATH)) {
-      try {
-        currentStatus = JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8'));
-      } catch {
-        currentStatus = {};
-      }
+      try { currentStatus = JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8')); } catch { currentStatus = {}; }
     }
-
-    const newLogs = [
-      {
-        timestamp: isoTime,
-        level: 'INFO',
-        message: `Manual check triggered via Dashboard at ${thaiTime}. Checked sources: [${enabledSources.join(', ')}]`,
-      },
-      ...(currentStatus.recent_logs || []),
-    ].slice(0, 20);
-
-    const updatedStatus = {
-      system_status: 'healthy',
-      last_run_timestamp: isoTime,
-      last_run_date_thai: thaiTime,
-      total_checks: (currentStatus.total_checks || 0) + 1,
-      last_source_used: sourceUsed,
-      status_message: `ตรวจสอบผลผ่านแหล่ง ${sourceUsed} เรียบร้อยแล้ว (งวด ${latestDraw})`,
-      active_sources_count: enabledSources.length,
-      latest_draw_detected: latestDraw,
-      notifications_sent_today: (currentStatus.notifications_sent_today || 0) + 1,
-      sources_health: {
-        pholhuay: { status: settings.sources?.pholhuay?.enabled ? 'ok' : 'disabled', last_response_ms: 280, last_checked: isoTime },
-        glo: { status: settings.sources?.glo?.enabled ? 'ok' : 'disabled', last_response_ms: 390, last_checked: isoTime },
-        sanook: { status: settings.sources?.sanook?.enabled ? 'ok' : 'disabled', last_response_ms: null, last_checked: null },
-      },
-      recent_logs: newLogs,
-    };
-
-    fs.writeFileSync(STATUS_PATH, JSON.stringify(updatedStatus, null, 2), 'utf-8');
-
-    return res.json({
-      success: true,
-      message: 'Triggered check successfully',
-      status: updatedStatus,
+    if (fs.existsSync(RESULTS_PATH)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
+        currentResults = Array.isArray(parsed) ? parsed : [];
+      } catch { currentResults = []; }
+    }
+    return res.status(run.success ? 200 : 502).json({
+      success: run.success,
+      message: run.success ? 'ตรวจสอบผลหวยจากแหล่งข้อมูลจริงเสร็จแล้ว' : 'การตรวจสอบผลหวยไม่สำเร็จ',
+      error: run.error || null,
+      status: currentStatus,
+      results: currentResults,
     });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // 6. POST /api/trigger - Trigger check and return immediate status
 app.post('/api/trigger', async (req, res) => {
   try {
-    // Trigger background check process
-    runBackgroundAutoCheck().catch((err) => console.warn('[TRIGGER] Background check note:', err.message));
-
-    // Wait 500ms
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
+    const lotteryTarget = String(req.body?.lotteryTarget || 'all');
+    const run = await runBackgroundAutoCheck(lotteryTarget);
     let currentStatus: any = {};
+    let currentResults: any[] = [];
     if (fs.existsSync(STATUS_PATH)) {
-      try {
-        currentStatus = JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8'));
-      } catch {
-        currentStatus = {};
-      }
+      try { currentStatus = JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8')); } catch { currentStatus = {}; }
     }
-
-    return res.json({
-      success: true,
-      message: 'ส่งคำสั่งตรวจสอบผลสลากและอัปเดตระบบเรียบร้อยแล้ว',
+    if (fs.existsSync(RESULTS_PATH)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
+        currentResults = Array.isArray(parsed) ? parsed : [];
+      } catch { currentResults = []; }
+    }
+    return res.status(run.success ? 200 : 502).json({
+      success: run.success,
+      message: run.success ? 'ตรวจสอบผลหวยจากแหล่งข้อมูลจริงเสร็จแล้ว' : 'การตรวจสอบผลหวยไม่สำเร็จ',
+      error: run.error || null,
       status: currentStatus,
+      results: currentResults,
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
@@ -1351,23 +1306,26 @@ app.post('/api/ai/transcribe', async (req, res) => {
 
 let isBackgroundCheckRunning = false;
 
-async function runBackgroundAutoCheck() {
+async function runBackgroundAutoCheck(lotteryTarget = 'all'): Promise<{ success: boolean; error?: string }> {
   if (isBackgroundCheckRunning) {
-    console.log('[AUTO-RUNNER] Previous check still running, skipping this tick.');
-    return;
+    const message = 'A previous lottery check is still running.';
+    console.log(`[AUTO-RUNNER] ${message}`);
+    return { success: false, error: message };
   }
   isBackgroundCheckRunning = true;
   try {
     const env = {
       ...process.env,
       FORCE_NOTIFY: 'false',
-      LOTTERY_TARGET: 'all',
+      LOTTERY_TARGET: String(lotteryTarget || 'all'),
     };
-    // 45 seconds timeout to prevent hanging child processes
     await execAsync('python3 lottery_checker.py', { env, cwd: __dirname, timeout: 45000 });
-    console.log(`[AUTO-RUNNER] Background lottery check completed at ${new Date().toISOString()}`);
+    console.log(`[AUTO-RUNNER] Background lottery check completed at ${new Date().toISOString()} (target: ${env.LOTTERY_TARGET})`);
+    return { success: true };
   } catch (err: any) {
-    console.warn(`[AUTO-RUNNER] Background check note:`, err.message);
+    const message = err?.stderr || err?.message || 'Lottery checker failed.';
+    console.warn('[AUTO-RUNNER] Background check failed:', message);
+    return { success: false, error: String(message) };
   } finally {
     isBackgroundCheckRunning = false;
   }
