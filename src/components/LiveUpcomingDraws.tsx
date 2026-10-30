@@ -30,6 +30,7 @@ interface LiveUpcomingDrawsProps {
   lotteries: LotteryItem[];
   onSelectLottery: (lottery: LotteryItem) => void;
   onSpeakLottery: (lottery: LotteryItem) => void;
+  onSpeakText?: (text: string) => void;
   voiceEnabled: boolean;
   onToggleVoice: () => void;
   onNavigateToSummary?: () => void;
@@ -79,6 +80,7 @@ export function LiveUpcomingDraws({
   lotteries,
   onSelectLottery,
   onSpeakLottery,
+  onSpeakText,
   voiceEnabled,
   onToggleVoice,
   onNavigateToSummary,
@@ -152,10 +154,15 @@ export function LiveUpcomingDraws({
       const key = `${urgentClosingLottery.item.id}_${urgentClosingLottery.minsLeft}`;
       if (lastAlarmKeyRef.current !== key) {
         lastAlarmKeyRef.current = key;
-        playClosingAlertChime();
+        const message = `แจ้งเตือนปิดรับ ${urgentClosingLottery.item.name} จะปิดรับในอีก ${urgentClosingLottery.minsLeft} นาที เวลา ${urgentClosingLottery.item.closeTimeStr}`;
+        if (voiceEnabled && onSpeakText) {
+          onSpeakText(message);
+        } else {
+          playClosingAlertChime();
+        }
       }
     }
-  }, [urgentClosingLottery, closingAlarmEnabled]);
+  }, [urgentClosingLottery, closingAlarmEnabled, voiceEnabled, onSpeakText]);
 
   // Sort ALL lotteries strictly by real timeline (09:30 morning to 04:00 night)
   const chronoSortedAll = useMemo(() => {
