@@ -195,7 +195,38 @@ export default {
         return new Response(JSON.stringify(projectFiles.filter(Boolean)), { status: 200, headers: corsHeaders });
       }
 
-      // 7. POST /api/trigger - Trigger GitHub Action workflow manually
+      // 7. POST /api/all-lotteries - Update the public lottery catalog in GitHub
+      if (path === "/api/all-lotteries" && request.method === "POST") {
+        if (!ghToken) {
+          return new Response(JSON.stringify({ error: "Write disabled: GitHub token is not configured. Public read-only mode remains available." }), { status: 503, headers: corsHeaders });
+        }
+        const updatedCatalog = await request.json();
+        const contentStr = JSON.stringify(updatedCatalog, null, 2);
+        const contentBase64 = btoa(unescape(encodeURIComponent(contentStr)));
+        const fileUrl = `https://api.github.com/repos/${repo}/contents/data/all_lotteries.json?ref=${branch}`;
+        const currentRes = await fetch(fileUrl, { headers: ghHeaders });
+        if (!currentRes.ok) {
+          return new Response(JSON.stringify({ error: "Unable to read current lottery catalog", details: await currentRes.text() }), { status: currentRes.status, headers: corsHeaders });
+        }
+        const current = await currentRes.json();
+        const commitRes = await fetch(`https://api.github.com/repos/${repo}/contents/data/all_lotteries.json`, {
+          method: "PUT",
+          headers: ghHeaders,
+          body: JSON.stringify({
+            message: "chore: update lottery catalog via dashboard",
+            content: contentBase64,
+            branch,
+            sha: current.sha
+          })
+        });
+        if (!commitRes.ok) {
+          return new Response(JSON.stringify({ error: "GitHub catalog update failed", details: await commitRes.text() }), { status: commitRes.status, headers: corsHeaders });
+        }
+        const result = await commitRes.json();
+        return new Response(JSON.stringify({ success: true, message: "Lottery catalog saved to GitHub", commit: result.commit?.sha }), { status: 200, headers: corsHeaders });
+      }
+
+      // 8. POST /api/trigger - Trigger GitHub Action workflow manually
       if (path === "/api/trigger" && request.method === "POST") {
         if (!ghToken) {
           return new Response(JSON.stringify({ error: "GITHUB_TOKEN not configured on Worker" }), { status: 500, headers: corsHeaders });
@@ -216,7 +247,7 @@ export default {
         return new Response(JSON.stringify({ success: true, message: `Workflow '${workflow}' dispatched successfully on branch '${branch}'.` }), { status: 200, headers: corsHeaders });
       }
 
-      // 8. GET /api/runs - Get workflow execution runs
+      // 9. GET /api/runs - Get workflow execution runs
       if (path === "/api/runs" && request.method === "GET") {
         const runsUrl = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?per_page=5`;
         const runsRes = await fetch(runsUrl, { headers: ghHeaders });
@@ -227,7 +258,7 @@ export default {
         return new Response(JSON.stringify(runsData), { status: 200, headers: corsHeaders });
       }
 
-      // 9. POST /api/test-ntfy - Send test notification to ntfy
+      // 10. POST /api/test-ntfy - Send test notification to ntfy
       if (path === "/api/test-ntfy" && request.method === "POST") {
         const body = await request.json();
         const server = (body.server || "https://ntfy.sh").replace(/\/$/, "");
