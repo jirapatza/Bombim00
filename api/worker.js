@@ -54,17 +54,10 @@ export default {
     const requestToken = incomingBody.token || "";
     const isAuthed = env.DASH_PASSWORD ? clientPassword === env.DASH_PASSWORD : Boolean(requestToken);
 
-    // Public mode is intentionally read-only. Every write requires a configured
-    // dashboard password; GitHub mutations additionally require GITHUB_TOKEN.
+    // Writes require either the configured dashboard password or a GitHub token
+    // supplied for this request. The token is never stored by this Worker.
     const isWriteMethod = ["POST", "PUT", "DELETE"].includes(request.method);
-    if (isWriteMethod && !env.DASH_PASSWORD) {
-      return new Response(
-        JSON.stringify({ error: "Read-only mode: configure DASH_PASSWORD to enable write operations." }),
-        { status: 503, headers: corsHeaders }
-      );
-    }
 
-    // Read routes can be public or authed based on config
     if (isWriteMethod && !isAuthed) {
       return new Response(
         JSON.stringify({ error: "Unauthorized. Invalid or missing DASH_PASSWORD." }),
