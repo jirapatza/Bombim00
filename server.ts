@@ -261,7 +261,6 @@ async function runBackgroundAutoCheck() {
   try {
     const env = {
       ...process.env,
-      NTFY_TOPIC: 'lottery-bombimm43',
       FORCE_NOTIFY: 'false',
       LOTTERY_TARGET: 'all',
     };
@@ -293,8 +292,12 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Lottery Alert Dashboard server running on http://0.0.0.0:${PORT}`);
-    setTimeout(runBackgroundAutoCheck, 5000);
-    setInterval(runBackgroundAutoCheck, 10 * 60 * 1000);
+    if (process.env.DISABLE_BACKGROUND_CHECK !== 'true') {
+      setTimeout(runBackgroundAutoCheck, 5000);
+      setInterval(runBackgroundAutoCheck, 10 * 60 * 1000);
+    } else {
+      console.log('[AUTO-RUNNER] Background checks disabled by DISABLE_BACKGROUND_CHECK.');
+    }
   });
 }
 
