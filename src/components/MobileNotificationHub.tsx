@@ -136,24 +136,26 @@ export function MobileNotificationHub({
     const message = `${currentPreview.flag} ${currentPreview.name}\n📅 งวดวันที่: ${currentPreview.date}\n\n🎯 3 ตัวบน / รางวัลที่ 1: ${currentPreview.firstPrize}\n🔢 2 ตัวล่าง: ${currentPreview.bottom2}\n\n⏰ หวยรอบถัดไปที่กำลังจะปิด: ${currentPreview.nextClosing}${customNote ? `\n💬 หมายเหตุ: ${customNote}` : ''}\n📡 ระบบส่งแจ้งเตือนอัตโนมัติ`;
 
     try {
-      const res = await fetch('/api/send-mobile-push', {
+      // Send directly to ntfy. The APK is a static Capacitor app and has no
+      // same-origin Express API, so a relative /api URL will fail on-device.
+      const ntfyUrl = `${server.replace(/\\/$/, '')}/${encodeURIComponent(topic.trim())}`;
+      const res = await fetch(ntfyUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          server,
-          topic: topic.trim(),
-          title,
-          message,
-          priority,
-          tags: 'tada,loudspeaker,moneybag',
-          clickUrl: window.location.origin,
-        }),
+        headers: {
+          'Title': title,
+          'Priority': priority === 'urgent' ? '5' : priority === 'high' ? '4' : '3',
+          'Tags': 'tada,loudspeaker,moneybag',
+          'Click': window.location.origin,
+        },
+        body: message,
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      let data: any = {};
+      try { data = responseText ? JSON.parse(responseText) : {}; } catch { data = { message: responseText }; }
 
       if (!res.ok || data.error) {
-        throw new Error(data.error || 'Failed to send mobile push');
+        throw new Error(data.error || data.message || `ส่ง ntfy ไม่สำเร็จ (HTTP ${res.status})`);
       }
 
       setSendResult({
@@ -185,6 +187,22 @@ export function MobileNotificationHub({
       });
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleTestSound = () => {
+    const sample = 'ทดสอบระบบเสียงแจ้งเตือน เฮียฮวดพารวย ขอให้โชคดีทุกท่าน';
+    if (onSpeak) {
+      onSpeak(sample);
+      return;
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(sample);
+      utterance.lang = 'th-TH';
+      window.speechSynthesis.speak(utterance);
+    } else {
+      alert('อุปกรณ์นี้ไม่รองรับระบบอ่านออกเสียง');
     }
   };
 
@@ -404,6 +422,15 @@ export function MobileNotificationHub({
                 />
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleTestSound}
+              className="w-full py-3 mb-2 bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-sm rounded-2xl border border-amber-500/30 transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Volume2 className="w-4 h-4" />
+              🔊 ทดสอบเสียงอ่านภาษาไทย
+            </button>
 
             <button
               type="button"
