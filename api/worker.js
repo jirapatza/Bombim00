@@ -47,10 +47,19 @@ export default {
     const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
     const clientPassword = bearer || customHeader;
 
-    const isAuthed = env.DASH_PASSWORD ? clientPassword === env.DASH_PASSWORD : true;
+    const isAuthed = env.DASH_PASSWORD ? clientPassword === env.DASH_PASSWORD : false;
+
+    // Public mode is intentionally read-only. Every write requires a configured
+    // dashboard password; GitHub mutations additionally require GITHUB_TOKEN.
+    const isWriteMethod = ["POST", "PUT", "DELETE"].includes(request.method);
+    if (isWriteMethod && !env.DASH_PASSWORD) {
+      return new Response(
+        JSON.stringify({ error: "Read-only mode: configure DASH_PASSWORD to enable write operations." }),
+        { status: 503, headers: corsHeaders }
+      );
+    }
 
     // Read routes can be public or authed based on config
-    const isWriteMethod = ["POST", "PUT", "DELETE"].includes(request.method);
     if (isWriteMethod && !isAuthed) {
       return new Response(
         JSON.stringify({ error: "Unauthorized. Invalid or missing DASH_PASSWORD." }),
@@ -144,7 +153,49 @@ export default {
         return new Response(JSON.stringify(data), { status: 200, headers: corsHeaders });
       }
 
-      // 5. POST /api/trigger - Trigger GitHub Action workflow manually
+      // 5. GET /api/all-lotteries - Read the lottery catalog used by the dashboard
+      if (path === "/api/all-lotteries" && request.method === "GET") {
+        const ghUrl = `https://raw.githubusercontent.com/${repo}/${branch}/data/all_lotteries.json?cache_bust=${Date.now()}`;
+        const res = await fetch(ghUrl);
+        if (!res.ok) {
+          return new Response(JSON.stringify({ error: "Failed to fetch lottery catalog" }), { status: res.status, headers: corsHeaders });
+        }
+        const data = await res.json();
+        return new Response(JSON.stringify(data), { status: 200, headers: corsHeaders });
+      }
+
+      // 6. GET /api/project-files - Read-only project file browser (public repository)
+      if (path === "/api/project-files" && request.method === "GET") {
+        const treeUrl = `https://api.github.com/repos/${repo}/git/trees/${branch}?recursive=1`;
+        const treeRes = await fetch(treeUrl, { headers: ghHeaders });
+        if (!treeRes.ok) {
+          return new Response(JSON.stringify({ error: "Failed to list repository files" }), { status: treeRes.status, headers: corsHeaders });
+        }
+        const treeData = await treeRes.json();
+        const allowed = /\\.(py|js|mjs|cjs|ts|tsx|json|ya?ml|toml|md)$/i;
+        const blocked = /(^|\\/)(node_modules|dist|build|\\.git)(\\/|$)|(^|\\/)\\.env/i;
+        const files = (treeData.tree || [])
+          .filter((item) => item.type === "blob" && allowed.test(item.path) && !blocked.test(item.path))
+          .slice(0, 40);
+        const projectFiles = await Promise.all(files.map(async (item) => {
+          const rawUrl = `https://raw.githubusercontent.com/${repo}/${branch}/${item.path}`;
+          const fileRes = await fetch(rawUrl);
+          if (!fileRes.ok) return null;
+          const content = await fileRes.text();
+          if (content.length > 200000) return null;
+          const parts = item.path.split("/");
+          const ext = item.path.split(".").pop() || "text";
+          return {
+            name: parts[parts.length - 1],
+            path: item.path,
+            category: parts.length > 1 ? parts[0] : ext.toUpperCase(),
+            content
+          };
+        }));
+        return new Response(JSON.stringify(projectFiles.filter(Boolean)), { status: 200, headers: corsHeaders });
+      }
+
+      // 7. POST /api/trigger - Trigger GitHub Action workflow manually
       if (path === "/api/trigger" && request.method === "POST") {
         if (!ghToken) {
           return new Response(JSON.stringify({ error: "GITHUB_TOKEN not configured on Worker" }), { status: 500, headers: corsHeaders });
@@ -165,7 +216,7 @@ export default {
         return new Response(JSON.stringify({ success: true, message: `Workflow '${workflow}' dispatched successfully on branch '${branch}'.` }), { status: 200, headers: corsHeaders });
       }
 
-      // 6. GET /api/runs - Get workflow execution runs
+      // 8. GET /api/runs - Get workflow execution runs
       if (path === "/api/runs" && request.method === "GET") {
         const runsUrl = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?per_page=5`;
         const runsRes = await fetch(runsUrl, { headers: ghHeaders });
@@ -176,7 +227,7 @@ export default {
         return new Response(JSON.stringify(runsData), { status: 200, headers: corsHeaders });
       }
 
-      // 7. POST /api/test-ntfy - Send test notification to ntfy
+      // 9. POST /api/test-ntfy - Send test notification to ntfy
       if (path === "/api/test-ntfy" && request.method === "POST") {
         const body = await request.json();
         const server = (body.server || "https://ntfy.sh").replace(/\/$/, "");
