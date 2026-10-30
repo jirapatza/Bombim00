@@ -486,6 +486,7 @@ export default function App() {
   const queueTimeoutRef = useRef<any>(null);
   const announcementQueueRef = useRef<LotteryAnnouncement[]>([]);
   const knownResultsRef = useRef<Set<string> | null>(null);
+  const triggerAnnouncementsRef = useRef<(items: LotteryAnnouncement[]) => void>(() => {});
 
   const showToast = (msg: string) => {
     setNotificationToast(msg);
@@ -799,16 +800,19 @@ export default function App() {
     if (!items || items.length === 0) return;
 
     stopSpeech();
-    playChime();
+    if (voiceEnabled) playChime();
     announcementQueueRef.current = [...items];
     setAnnouncementQueue(items);
     setCurrentQueueIndex(0);
     setIsModalOpen(true);
 
-    setTimeout(() => {
-      speakCurrentAnnouncement(items[0], 0, items.length);
-    }, 400);
+    if (voiceEnabled) {
+      setTimeout(() => {
+        speakCurrentAnnouncement(items[0], 0, items.length);
+      }, 400);
+    }
   };
+  triggerAnnouncementsRef.current = triggerAnnouncements;
 
   const handleReplay = () => {
     const current = announcementQueue[currentQueueIndex];
@@ -1079,7 +1083,7 @@ export default function App() {
 
       if (newResults.length > 0) {
         const nextClosing = getNextClosingLottery();
-        triggerAnnouncements(newResults.map((row: any, index) => ({
+        triggerAnnouncementsRef.current(newResults.map((row: any, index) => ({
           id: `live-${getLotteryResultFingerprint(row)}-${index}`,
           lotteryName: row.ชื่อหวย || row.หวย || row.lotteryName || 'หวย',
           drawDate: row.งวดวันที่ || row.วันที่จัดรูปแบบ || row.drawDate || 'งวดล่าสุด',
