@@ -16,7 +16,7 @@ on:
       - ".github/workflows/android-apk.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: bombim00-android-apk
@@ -61,10 +61,39 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
 
-      - name: Upload installable APK
+      - name: Upload installable APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Bombim00-Android-debug-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Prepare APK for GitHub Release
+        run: |
+          mkdir -p release-assets
+          cp android/app/build/outputs/apk/debug/app-debug.apk release-assets/Bombim00-latest.apk
+
+      - name: Publish GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        with:
+          tag_name: latest-apk
+          name: "Bombim00 Android App (Latest APK)"
+          body: |
+            ## 📱 Bombim00 - ระบบตรวจและแจ้งเตือนผลหวยสด (Android APK)
+            ไฟล์ติดตั้งแอปพลิเคชัน Android พร้อมเสียงประกาศผลภาษาไทยและแจ้งเตือนอัตโนมัติ
+
+            ### 📥 ลิงก์ดาวน์โหลด:
+            - ดาวน์โหลดไฟล์: **[Bombim00-latest.apk](https://github.com/${{ github.repository }}/releases/download/latest-apk/Bombim00-latest.apk)**
+
+            ### 🚀 วิธีการติดตั้งบนมือถือ Android:
+            1. ดาวน์โหลดไฟล์ `Bombim00-latest.apk` ลงในโทรศัพท์
+            2. แตะเปิดไฟล์ APK แล้วเลือก "ติดตั้ง" (Install)
+            3. หากระบบถาม ให้เลือก "อนุญาตการติดตั้งจากแหล่งที่ไม่รู้จัก" (Allow from this source)
+            4. เปิดแอปและเริ่มใช้งานระบบแจ้งเตือนสลากได้ทันที!
+          files: release-assets/Bombim00-latest.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

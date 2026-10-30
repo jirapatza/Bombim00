@@ -81,6 +81,7 @@ import { AppDownloadModal } from './components/AppDownloadModal';
 import { DataAccuracyCenter } from './components/DataAccuracyCenter';
 import { GoogleWorkspaceHub } from './components/GoogleWorkspaceHub';
 import { FirebaseSyncCenter } from './components/FirebaseSyncCenter';
+import { SystemMonitorKiosk } from './components/SystemMonitorKiosk';
 
 interface LotteryResult {
   ชื่อหวย?: string;
@@ -355,6 +356,7 @@ export default function App() {
     | 'pipeline'
     | 'workspace'
     | 'firestore'
+    | 'monitor'
   >('live');
   const [checkerSubTab, setCheckerSubTab] = useState<'accuracy' | 'batch' | 'history'>('accuracy');
   const [historyPrizeFilter, setHistoryPrizeFilter] = useState<'all' | 'first' | 'last2' | '3digits' | 'thai'>('all');
@@ -1686,7 +1688,20 @@ export default function App() {
               <span>🔥 Firebase Cloud</span>
             </button>
 
-            {/* Tab 7: Settings & Automation Center */}
+            {/* Tab 7: System & Devices Health Monitor (NOC & 1-Click Self-Healing) */}
+            <button
+              onClick={() => setActiveTab('monitor')}
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+                activeTab === 'monitor'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-md shadow-emerald-500/25 ring-2 ring-emerald-400'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
+              }`}
+            >
+              <Activity className={`w-4 h-4 ${activeTab === 'monitor' ? 'text-slate-950 animate-spin' : 'text-emerald-400'}`} />
+              <span>🖥️ มอนิเตอร์ &amp; ซ่อมแซมระบบ</span>
+            </button>
+
+            {/* Tab 8: Settings & Automation Center */}
             <button
               onClick={() => setActiveTab('settings')}
               className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
@@ -3649,6 +3664,11 @@ export default function App() {
         {/* ==================== TAB: FIREBASE FIRESTORE CLOUD DATABASE ==================== */}
         {activeTab === 'firestore' && (
           <FirebaseSyncCenter latestResult={results[0]} />
+        )}
+
+        {/* ==================== TAB: SYSTEM & DEVICES HEALTH MONITOR (NOC & 1-CLICK SELF-HEAL) ==================== */}
+        {activeTab === 'monitor' && (
+          <SystemMonitorKiosk />
         )}
       </main>
 
