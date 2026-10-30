@@ -343,7 +343,7 @@ const TEMPLATE_PRESETS = {
     title: '📢 ผล{lottery_name} งวด {draw_date}',
     body: '🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n⏰ ปิดรอบถัดไป: {next_closing}\n📡 แหล่งข้อมูล: {source}',
     speech_script: 'ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. รางวัลที่หนึ่ง ออกเลข {first_prize_spelled}. เลขท้ายสองตัว ออกเลข {last_2_spelled}. และหวยรอบถัดไปที่จะปิดรับคือ {next_closing_name} ปิดรับเวลา {next_closing_time} {polite_ending}.',
-    polite_particle: 'ค่ะ',
+    polite_particle: 'ครับ',
     font_family: 'sans',
     font_size: 'large',
     modal_theme: 'gold',
