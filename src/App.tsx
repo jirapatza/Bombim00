@@ -434,7 +434,7 @@ export default function App() {
   // Tester state
   const [testTopic, setTestTopic] = useState<string>('my-lottery-alert-test');
   const [testPriority, setTestPriority] = useState<string>('high');
-  const [testCustomMessage, setTestCustomMessage] = useState<string>('ทดสอบแจ้งเตือนผลสลากกินแบ่งรัฐบาล: รางวัลที่ 1 ออก 289594, เลขท้าย 2 ตัว ออก 84!');
+  const [testCustomMessage, setTestCustomMessage] = useState<string>('ข้อความทดสอบแจ้งเตือนหวย VIP และหุ้นต่างประเทศ (ไม่ใช่ผลหวยจริง)');
   const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
 
   // Cloudflare Worker settings & Reconnection Helper state
@@ -1253,17 +1253,18 @@ export default function App() {
     })));
   };
 
-  // Helper for live preview of message
+  // Preview uses the currently selected catalog lottery, not a hard-coded Thai government example.
   const getRenderedPreview = () => {
+    const previewLottery = selectedCatalogLottery || allLotteries.find((item) => item.category !== 'gov_savings') || allLotteries[0];
     const sample = {
-      '{lottery_name}': 'สลากกินแบ่งรัฐบาล',
-      '{draw_date}': '16 ตุลาคม 2569',
-      '{first_prize}': '289594',
-      '{last_2}': '84',
-      '{front_3}': '012, 425',
-      '{last_3}': '318, 972',
-      '{source}': 'GLO Official',
-      '{next_closing}': 'หวยฮานอยพิเศษ (17:00 น.)',
+      '{lottery_name}': previewLottery?.name || 'ตัวอย่างหวย',
+      '{draw_date}': previewLottery?.date || 'ตัวอย่างสำหรับทดสอบ',
+      '{first_prize}': previewLottery?.top3 || previewLottery?.firstPrize || '-',
+      '{last_2}': previewLottery?.bottom2 || '-',
+      '{front_3}': Array.isArray(previewLottery?.front3) ? previewLottery.front3.join(', ') : '-',
+      '{last_3}': Array.isArray(previewLottery?.last3) ? previewLottery.last3.join(', ') : '-',
+      '{source}': 'ตัวอย่างจากแคตตาล็อก (ไม่ใช่ผลสด)',
+      '{next_closing}': nextClosingNow ? `${nextClosingNow.name} (${nextClosingNow.closeTimeStr})` : 'รอบถัดไป',
     };
 
     let title = templateTitle;
@@ -1404,7 +1405,7 @@ export default function App() {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(`🔔 ส่งการแจ้งเตือนทดสอบไปยัง ${testTopic} สำเร็จ!`);
+        showToast(`ntfy รับคำขอทดสอบแล้ว (${testTopic}); ยังยืนยันการรับบนมือถือไม่ได้`);
       } else {
         showToast(`เกิดข้อผิดพลาด: ${data.error || 'ส่งไม่สำเร็จ'}`);
       }
