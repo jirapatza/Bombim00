@@ -1152,7 +1152,7 @@ export default function App() {
     checkClosingAlerts();
     const timer = window.setInterval(checkClosingAlerts, 15000);
     return () => window.clearInterval(timer);
-  }, [voiceEnabled]);
+  }, [voiceEnabled, speechRate]);
 
   const handleTriggerCheck = async () => {
     setIsTriggering(true);
