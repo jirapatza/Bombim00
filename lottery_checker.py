@@ -612,7 +612,7 @@ def send_ntfy_notification(row: dict) -> bool:
     click_url = S.get("ntfy", {}).get("click_url", "")
 
     headers = {
-        "Title": "Lottery result alert",
+        "Title": title,
         "Priority": priority,
         "Tags": tags,
     }
