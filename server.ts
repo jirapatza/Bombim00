@@ -210,7 +210,7 @@ app.post('/api/test-channel', async (req, res) => {
         avatar_url: 'https://raw.githubusercontent.com/jirapatza/Bombim00/main/public/icon-192.png',
         embeds: [{
           title: '📢 ทดสอบการแจ้งเตือน Lottery Alert System (Discord)',
-          description: message || 'ข้อความทดสอบเท่านั้น (ไม่ใช่ผลหวยจริง) 🎯\\n\\nหวยหุ้น VIP ตัวอย่าง\\n🔺 **3 ตัวบน:** `469`\\n🔻 **2 ตัวล่าง:** `63`',
+          description: message || 'ข้อความทดสอบเท่านั้น (ไม่ใช่ผลหวยจริง) 🎯\n\nหวยหุ้น VIP ตัวอย่าง\n🔺 **3 ตัวบน:** `469`\n🔻 **2 ตัวล่าง:** `63`',
           color: 0xf59e0b, // Amber Gold
           timestamp: new Date().toISOString(),
           footer: { text: 'Lottery Alert System Pro • Discord Webhook' }
