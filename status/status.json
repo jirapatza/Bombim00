@@ -1,14 +1,19 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-10-31T01:32:58.484781+07:00",
-  "last_run_date_thai": "31/10/2026 01:32:58 น.",
-  "total_checks": 281,
+  "last_run_timestamp": "2026-10-31T01:33:56.368624+07:00",
+  "last_run_date_thai": "31/10/2026 01:33:56 น.",
+  "total_checks": 282,
   "last_source_used": "ThaiLottoAPI + ผลหวย.com stock groups",
   "status_message": "ตรวจพบผลสดงวด 16.10.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups",
   "active_sources_count": 56,
   "latest_draw_detected": "16.10.2026",
   "notifications_sent_today": 19,
   "recent_logs": [
+    {
+      "timestamp": "2026-10-31T01:33:56.368624+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 16.10.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
+    },
     {
       "timestamp": "2026-10-31T01:32:58.484781+07:00",
       "level": "INFO",
@@ -101,11 +106,6 @@
     },
     {
       "timestamp": "2026-10-31T01:03:37.037586+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 16.10.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
-    },
-    {
-      "timestamp": "2026-10-31T01:02:46.060398+07:00",
       "level": "INFO",
       "message": "ตรวจพบผลสดงวด 16.10.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
     }
