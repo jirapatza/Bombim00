@@ -63,12 +63,16 @@ def source_enabled(S: Dict[str, Any], source_name: str) -> bool:
 
 
 def result_fingerprint(row: Dict[str, Any]) -> str:
-    """Stable identity for the same lottery draw and its result values."""
+    """Stable identity for one lottery draw, including all supported result formats."""
     identity = {
-        "lottery": str(row.get("ชื่อหวย") or row.get("lottery_name") or row.get("หวย") or "สลากกินแบ่งรัฐบาล").strip().casefold(),
+        # Prefer provider IDs over display names so harmless label changes do not re-alert.
+        "lottery": str(row.get("หวย") or row.get("lottery_id") or row.get("id") or row.get("ชื่อหวย") or row.get("lottery_name") or "หวยไม่ระบุชื่อ").strip().casefold(),
+        "category": str(row.get("หมวดหวย") or row.get("category") or "").strip().casefold(),
         "draw_date": str(row.get("งวดวันที่") or row.get("วันที่จัดรูปแบบ") or row.get("date") or "").strip(),
-        "first": str(row.get("รางวัลที่_1") or row.get("firstPrize") or row.get("first") or "").strip(),
-        "last2": str(row.get("เลขท้าย_2_ตัว") or row.get("bottom2") or row.get("last2") or "").strip(),
+        "first": str(row.get("รางวัลที่_1") or row.get("เลขบน_3_ตัว") or row.get("top3") or row.get("firstPrize") or row.get("first") or "").strip(),
+        "last2": str(row.get("เลขท้าย_2_ตัว") or row.get("เลขล่าง_2_ตัว") or row.get("bottom2") or row.get("last2") or "").strip(),
+        "top3": str(row.get("เลขบน_3_ตัว") or row.get("top3") or "").strip(),
+        "bottom2": str(row.get("เลขล่าง_2_ตัว") or row.get("bottom2") or "").strip(),
         "front3": sorted(str(x).strip() for x in (row.get("เลขหน้า_3_ตัว") or row.get("front3") or []) if str(x).strip()),
         "last3": sorted(str(x).strip() for x in (row.get("เลขท้าย_3_ตัว") or row.get("last3") or []) if str(x).strip()),
     }
