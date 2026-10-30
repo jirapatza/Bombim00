@@ -55,7 +55,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
   // GitHub credentials & config (saved to localStorage for user convenience)
   const [repo, setRepo] = useState<string>(() => localStorage.getItem('gh_repo') || 'jirapatza/Bombim00');
   const [branch, setBranch] = useState<string>(() => localStorage.getItem('gh_branch') || 'main');
-  const [token, setToken] = useState<string>(() => '');
+  const [token, setToken] = useState<string>(() => localStorage.getItem('gh_token') || '');
   const [showToken, setShowToken] = useState<boolean>(false);
   const [workflowFile, setWorkflowFile] = useState<string>('lottery.yml');
 
