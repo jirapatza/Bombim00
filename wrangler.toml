@@ -1,0 +1,9 @@
+name = "bombim00-github-api"
+main = "api/worker.js"
+compatibility_date = "2026-10-30"
+
+[vars]
+REPO = "jirapatza/Bombim00"
+BRANCH = "main"
+WORKFLOW = "lottery.yml"
+ALLOW_ORIGIN = "*"
