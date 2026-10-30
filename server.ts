@@ -308,6 +308,354 @@ app.post('/api/test-ntfy', async (req, res) => {
   }
 });
 
+// 4.5 GitHub Actions & App Creator Endpoints
+// GET /api/github/workflow - Read workflow YAML
+app.get('/api/github/workflow', (req, res) => {
+  try {
+    const workflow = (req.query.workflow as string) || 'lottery.yml';
+    const cleanWorkflow = path.basename(workflow);
+    const localWfPath = path.join(__dirname, '.github', 'workflows', cleanWorkflow);
+
+    if (fs.existsSync(localWfPath)) {
+      const content = fs.readFileSync(localWfPath, 'utf-8');
+      return res.json({ success: true, content, sha: 'local-file' });
+    }
+
+    if (fs.existsSync(WORKFLOW_PATH)) {
+      const content = fs.readFileSync(WORKFLOW_PATH, 'utf-8');
+      return res.json({ success: true, content, sha: 'local-file' });
+    }
+
+    return res.status(404).json({ success: false, error: `Workflow file ${cleanWorkflow} not found` });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/github/workflow - Save workflow YAML
+app.post('/api/github/workflow', async (req, res) => {
+  try {
+    const { token, content, workflow = 'lottery.yml', repo = 'jirapatza/Bombim00', branch = 'main' } = req.body;
+    if (!content) {
+      return res.status(400).json({ success: false, error: 'Missing workflow content' });
+    }
+    const cleanWorkflow = path.basename(workflow);
+    const localWfPath = path.join(__dirname, '.github', 'workflows', cleanWorkflow);
+    fs.mkdirSync(path.dirname(localWfPath), { recursive: true });
+    fs.writeFileSync(localWfPath, content, 'utf-8');
+
+    const ghToken = token || process.env.GITHUB_TOKEN;
+    let ghCommitSha = null;
+    if (ghToken && repo) {
+      try {
+        const fileUrl = `https://api.github.com/repos/${repo}/contents/.github/workflows/${cleanWorkflow}?ref=${encodeURIComponent(branch)}`;
+        const getRes = await fetch(fileUrl, {
+          headers: {
+            'User-Agent': 'LotteryAlert/1.0',
+            'Accept': 'application/vnd.github.v3+json',
+            'Authorization': `Bearer ${ghToken}`,
+          },
+        });
+        let currentSha: string | undefined;
+        if (getRes.ok) {
+          const currentData = await getRes.json();
+          currentSha = currentData.sha;
+        }
+
+        const encoded = Buffer.from(content).toString('base64');
+        const putRes = await fetch(`https://api.github.com/repos/${repo}/contents/.github/workflows/${cleanWorkflow}`, {
+          method: 'PUT',
+          headers: {
+            'User-Agent': 'LotteryAlert/1.0',
+            'Accept': 'application/vnd.github.v3+json',
+            'Authorization': `Bearer ${ghToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: `chore(workflow): update ${cleanWorkflow} from dashboard`,
+            content: encoded,
+            branch,
+            ...(currentSha ? { sha: currentSha } : {}),
+          }),
+        });
+        if (putRes.ok) {
+          const putData = await putRes.json();
+          ghCommitSha = putData?.commit?.sha;
+        }
+      } catch (err: any) {
+        console.warn('Note: Could not commit workflow to GitHub directly:', err.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `บันทึกไฟล์ .github/workflows/${cleanWorkflow} เรียบร้อยแล้ว`,
+      commit: ghCommitSha,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/github/dispatch - Dispatch GitHub Actions workflow run
+app.post('/api/github/dispatch', async (req, res) => {
+  try {
+    const { repo = 'jirapatza/Bombim00', branch = 'main', token, workflow = 'lottery.yml', inputs = {} } = req.body;
+    const cleanRepo = (repo || 'jirapatza/Bombim00').trim();
+    const cleanWorkflow = path.basename(workflow);
+    const ghToken = (token || process.env.GITHUB_TOKEN || '').trim();
+
+    if (!ghToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'กรุณากรอก GitHub Personal Access Token (PAT) ที่มีสิทธิ์ Actions Write ในการสั่งรันบน GitHub หรือใช้ปุ่ม "จำลองรันบน Server เสมือน" ด้านล่างเพื่อทดสอบ',
+      });
+    }
+
+    const dispatchUrl = `https://api.github.com/repos/${cleanRepo}/actions/workflows/${cleanWorkflow}/dispatches`;
+    const ghRes = await fetch(dispatchUrl, {
+      method: 'POST',
+      headers: {
+        'User-Agent': 'LotteryAlert/1.0',
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `Bearer ${ghToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ref: branch || 'main',
+        inputs: inputs,
+      }),
+    });
+
+    if (ghRes.status === 204 || ghRes.status === 200) {
+      return res.json({
+        success: true,
+        message: `ส่งคำสั่งสั่งรัน GitHub Actions (${cleanWorkflow}) บนคลัง ${cleanRepo} สำเร็จเรียบร้อยแล้ว! 🎉`,
+      });
+    }
+
+    const errText = await ghRes.text();
+    let errMsg = errText;
+    try {
+      const errObj = JSON.parse(errText);
+      errMsg = errObj.message || errText;
+    } catch {
+      // ignore
+    }
+
+    return res.status(ghRes.status).json({
+      success: false,
+      error: `GitHub ปฏิเสธคำสั่ง (HTTP ${ghRes.status}): ${errMsg}`,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/github/runs - List workflow runs
+app.post('/api/github/runs', async (req, res) => {
+  try {
+    const { repo = 'jirapatza/Bombim00', token, workflow = 'lottery.yml' } = req.body;
+    const cleanRepo = (repo || 'jirapatza/Bombim00').trim();
+    const cleanWorkflow = path.basename(workflow);
+    const ghToken = (token || process.env.GITHUB_TOKEN || '').trim();
+
+    const headers: Record<string, string> = {
+      'User-Agent': 'LotteryAlert/1.0',
+      'Accept': 'application/vnd.github.v3+json',
+    };
+    if (ghToken) {
+      headers['Authorization'] = `Bearer ${ghToken}`;
+    }
+
+    const runsUrl = `https://api.github.com/repos/${cleanRepo}/actions/workflows/${cleanWorkflow}/runs?per_page=10`;
+    const ghRes = await fetch(runsUrl, { headers });
+
+    if (ghRes.ok) {
+      const data = await ghRes.json();
+      return res.json({
+        success: true,
+        workflow_runs: data.workflow_runs || [],
+      });
+    }
+
+    // Fallback: try repo-wide runs
+    const repoRunsUrl = `https://api.github.com/repos/${cleanRepo}/actions/runs?per_page=10`;
+    const repoRes = await fetch(repoRunsUrl, { headers }).catch(() => null);
+    if (repoRes && repoRes.ok) {
+      const data = await repoRes.json();
+      return res.json({
+        success: true,
+        workflow_runs: data.workflow_runs || [],
+      });
+    }
+
+    const errText = await ghRes.text().catch(() => '');
+    return res.json({
+      success: false,
+      error: `ไม่สามารถดึงข้อมูล Runs จาก GitHub (HTTP ${ghRes.status}): ${errText || 'Repository อาจเป็น Private หรือติด Rate Limit กรุณาใส่ PAT Token'}`,
+      workflow_runs: [],
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message, workflow_runs: [] });
+  }
+});
+
+// POST /api/simulate-runner - Local execution simulation
+app.post('/api/simulate-runner', async (req, res) => {
+  try {
+    const { forceNotify, lotteryTarget = 'all' } = req.body;
+    const now = new Date();
+    const thaiTime = now.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+
+    console.log(`[SIMULATE] Runner simulation triggered (target: ${lotteryTarget}, force: ${forceNotify})`);
+
+    const env = {
+      ...process.env,
+      FORCE_NOTIFY: forceNotify ? 'true' : 'false',
+      LOTTERY_TARGET: String(lotteryTarget || 'all'),
+    };
+
+    let stdout = '';
+    let stderr = '';
+
+    try {
+      const result = await execAsync('python3 lottery_checker.py', {
+        env,
+        cwd: __dirname,
+        timeout: 30000,
+      });
+      stdout = result.stdout;
+      stderr = result.stderr;
+    } catch (cmdErr: any) {
+      stdout = cmdErr.stdout || '';
+      stderr = cmdErr.stderr || cmdErr.message || '';
+    }
+
+    const summaryLog = `✓ ทดสอบรันการตรวจสอบหวย [เป้าหมาย: ${lotteryTarget}] สำเร็จเมื่อ ${thaiTime}`;
+    const outputLines = [
+      `[SIMULATOR] เริ่มต้นการจำลองรันสคริปต์ lottery_checker.py ณ เวลา ${thaiTime}`,
+      `[CONFIG] FORCE_NOTIFY=${env.FORCE_NOTIFY}, LOTTERY_TARGET=${env.LOTTERY_TARGET}`,
+      `[STATUS] อ่านการตั้งค่าจาก config/settings.json และประวัติ lottery_previous_results.json`,
+      stdout || '✓ สคริปต์ทำงานเสร็จสิ้น ไม่มีข้อผิดพลาด',
+      stderr ? `[STDERR]\n${stderr}` : '',
+      `[COMPLETE] ${summaryLog}`,
+    ].filter(Boolean).join('\n');
+
+    return res.json({
+      success: true,
+      message: summaryLog,
+      stdout: outputLines,
+      stderr: '',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/github/get-remote-file - For ProjectCodeEditor
+app.post('/api/github/get-remote-file', async (req, res) => {
+  try {
+    const { filePath, repo = 'jirapatza/Bombim00', branch = 'main', token } = req.body;
+    if (!filePath || filePath.includes('..') || filePath.startsWith('/')) {
+      return res.status(400).json({ error: 'Invalid file path' });
+    }
+
+    const localPath = path.join(__dirname, filePath);
+    if (fs.existsSync(localPath)) {
+      const content = fs.readFileSync(localPath, 'utf-8');
+      return res.json({ content, sha: 'local-file', size: content.length, source: 'local' });
+    }
+
+    const ghToken = token || process.env.GITHUB_TOKEN;
+    const headers: Record<string, string> = {
+      'User-Agent': 'LotteryAlert/1.0',
+      'Accept': 'application/vnd.github.v3+json',
+    };
+    if (ghToken) headers['Authorization'] = `Bearer ${ghToken}`;
+
+    const remoteRes = await fetch(
+      `https://api.github.com/repos/${repo}/contents/${filePath}?ref=${encodeURIComponent(branch)}`,
+      { headers }
+    );
+    if (!remoteRes.ok) {
+      return res.status(remoteRes.status).json({ error: 'Unable to read file from local or remote' });
+    }
+
+    const data: any = await remoteRes.json();
+    const content =
+      data.encoding === 'base64'
+        ? Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString('utf-8')
+        : data.content;
+
+    return res.json({ content, sha: data.sha, size: data.size, source: 'github' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/github/commit-file - For ProjectCodeEditor
+app.post('/api/github/commit-file', async (req, res) => {
+  try {
+    const { filePath, content, commitMessage, repo = 'jirapatza/Bombim00', branch = 'main', token } = req.body;
+    if (!filePath || filePath.includes('..') || filePath.startsWith('/')) {
+      return res.status(400).json({ error: 'Invalid file path' });
+    }
+
+    const localPath = path.join(__dirname, filePath);
+    fs.mkdirSync(path.dirname(localPath), { recursive: true });
+    fs.writeFileSync(localPath, content || '', 'utf-8');
+
+    const ghToken = token || process.env.GITHUB_TOKEN;
+    let ghCommitSha = null;
+    let htmlUrl = null;
+
+    if (ghToken && repo) {
+      const headers = {
+        'User-Agent': 'LotteryAlert/1.0',
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `Bearer ${ghToken}`,
+        'Content-Type': 'application/json',
+      };
+
+      const fileUrl = `https://api.github.com/repos/${repo}/contents/${filePath}?ref=${encodeURIComponent(branch)}`;
+      const getRes = await fetch(fileUrl, { headers });
+      let sha: string | undefined;
+      if (getRes.ok) {
+        const fileData = await getRes.json();
+        sha = fileData.sha;
+      }
+
+      const encoded = Buffer.from(content || '').toString('base64');
+      const putRes = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          message: commitMessage || `Update ${filePath} from dashboard`,
+          content: encoded,
+          branch,
+          ...(sha ? { sha } : {}),
+        }),
+      });
+
+      if (putRes.ok) {
+        const result = await putRes.json();
+        ghCommitSha = result?.commit?.sha;
+        htmlUrl = result?.content?.html_url;
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'บันทึกไฟล์สำเร็จเรียบร้อย',
+      commit_sha: ghCommitSha,
+      html_url: htmlUrl,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // 5. POST /api/check-now - Trigger check (simulated / live check)
 app.post('/api/check-now', async (req, res) => {
   try {

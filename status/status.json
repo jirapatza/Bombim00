@@ -1,14 +1,29 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-10-30T14:29:40.991549+07:00",
-  "last_run_date_thai": "30/10/2026 14:29:40 น.",
-  "total_checks": 239,
+  "last_run_timestamp": "2026-10-30T17:52:30.965264+07:00",
+  "last_run_date_thai": "30/10/2026 17:52:30 น.",
+  "total_checks": 242,
   "last_source_used": "ThaiLottoAPI + stock group scraper",
   "status_message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper",
-  "active_sources_count": 52,
+  "active_sources_count": 56,
   "latest_draw_detected": "30.10.2026",
-  "notifications_sent_today": 43,
+  "notifications_sent_today": 58,
   "recent_logs": [
+    {
+      "timestamp": "2026-10-30T17:52:30.965264+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T17:52:29.517312+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
+    {
+      "timestamp": "2026-10-30T17:45:47.833460+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
+    },
     {
       "timestamp": "2026-10-30T14:29:40.991549+07:00",
       "level": "INFO",
@@ -91,21 +106,6 @@
     },
     {
       "timestamp": "2026-10-30T11:48:26.918414+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T11:47:42.987609+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T11:44:48.986478+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
-    },
-    {
-      "timestamp": "2026-10-30T11:31:34.368024+07:00",
       "level": "INFO",
       "message": "ตรวจพบผลสดงวด 30.10.2026 ผ่านแหล่ง ThaiLottoAPI + stock group scraper"
     }

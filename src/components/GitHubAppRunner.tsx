@@ -23,7 +23,8 @@ import {
   FolderGit2,
   Sparkles,
   Zap,
-  Info
+  Info,
+  Smartphone,
 } from 'lucide-react';
 
 interface GitHubRun {
@@ -42,7 +43,13 @@ interface GitHubRun {
   };
 }
 
-const API_BASE = 'https://bombim00-github-api.jirapatcip2557.workers.dev';
+const getApiBase = () => {
+  const custom = localStorage.getItem('cf_worker_url');
+  if (custom && custom.trim() && custom !== 'https://bombim00-github-api.jirapatcip2557.workers.dev') {
+    return custom.replace(/\/+$/, '');
+  }
+  return '';
+};
 
 interface GitHubAppRunnerProps {
   onRefreshStatus?: () => void;
@@ -81,15 +88,15 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
   const [workflowSaveStatus, setWorkflowSaveStatus] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Load workflow yaml on mount
+  // Load workflow yaml on mount or when workflowFile changes
   useEffect(() => {
-    fetchWorkflowYaml();
-  }, []);
+    fetchWorkflowYaml(workflowFile);
+  }, [workflowFile]);
 
-  const fetchWorkflowYaml = async () => {
+  const fetchWorkflowYaml = async (wf = workflowFile) => {
     setIsLoadingWorkflow(true);
     try {
-      const res = await fetch(`${API_BASE}/api/github/workflow`);
+      const res = await fetch(`${getApiBase()}/api/github/workflow?workflow=${encodeURIComponent(wf)}`);
       const data = await res.json();
       if (data.content) {
         setWorkflowYaml(data.content);
@@ -105,14 +112,14 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
     setIsSavingWorkflow(true);
     setWorkflowSaveStatus(null);
     try {
-      const res = await fetch(`${API_BASE}/api/github/workflow`, {
+      const res = await fetch(`${getApiBase()}/api/github/workflow`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, content: workflowYaml }),
+        body: JSON.stringify({ token, repo, branch, workflow: workflowFile, content: workflowYaml }),
       });
       const data = await res.json();
       if (data.success) {
-        setWorkflowSaveStatus('บันทึกไฟล์ .github/workflows/lottery.yml สำเร็จเรียบร้อย');
+        setWorkflowSaveStatus(`บันทึกไฟล์ .github/workflows/${workflowFile} สำเร็จเรียบร้อย`);
         setTimeout(() => setWorkflowSaveStatus(null), 4000);
       } else {
         setWorkflowSaveStatus(`ผิดพลาด: ${data.error}`);
@@ -150,7 +157,12 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
     // Do not persist the GitHub credential in browser storage.
 
     try {
-      const res = await fetch(`${API_BASE}/api/github/dispatch`, {
+      const inputs = workflowFile === 'lottery.yml' ? {
+        force_notify: forceNotify ? 'true' : 'false',
+        lottery_target: lotteryTarget,
+      } : {};
+
+      const res = await fetch(`${getApiBase()}/api/github/dispatch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -158,10 +170,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
           branch,
           token,
           workflow: workflowFile,
-          inputs: {
-            force_notify: forceNotify ? 'true' : 'false',
-            lottery_target: lotteryTarget,
-          },
+          inputs,
         }),
       });
 
@@ -189,7 +198,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
     setRunsError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/github/runs`, {
+      const res = await fetch(`${getApiBase()}/api/github/runs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -215,10 +224,10 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
   // Simulate local runner execution
   const handleSimulateRunner = async () => {
     setIsSimulating(true);
-    setSimulationLogs(['🚀 กำลังเตรียมสภาพแวดล้อม Python 3.11 และอ่าน settings.json...']);
+    setSimulationLogs(['🚀 กำลังเตรียมสภาพแวดล้อม Python 3.10/3.11 และอ่าน settings.json...']);
 
     try {
-      const res = await fetch(`${API_BASE}/api/simulate-runner`, {
+      const res = await fetch(`${getApiBase()}/api/simulate-runner`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, forceNotify, lotteryTarget }),
@@ -416,12 +425,70 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
                 </p>
               </div>
 
+              {/* Target Workflow Selection */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300 block flex items-center justify-between">
+                  <span>เลือก Workflow การทำงานที่ต้องการรัน (Target Workflow) *</span>
+                  <span className="text-[10px] text-amber-400 font-mono">.github/workflows/{workflowFile}</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setWorkflowFile('lottery.yml')}
+                    className={`p-3 rounded-xl border text-left cursor-pointer transition flex flex-col gap-1 ${
+                      workflowFile === 'lottery.yml'
+                        ? 'bg-purple-950/50 border-purple-500 text-white shadow-lg shadow-purple-500/20'
+                        : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Zap className={`w-3.5 h-3.5 ${workflowFile === 'lottery.yml' ? 'text-amber-400' : 'text-slate-400'}`} />
+                      <span className="text-xs font-bold text-slate-100">lottery.yml</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">ตรวจหวย & แจ้งเตือนอัตโนมัติ</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setWorkflowFile('android-apk.yml')}
+                    className={`p-3 rounded-xl border text-left cursor-pointer transition flex flex-col gap-1 ${
+                      workflowFile === 'android-apk.yml'
+                        ? 'bg-purple-950/50 border-purple-500 text-white shadow-lg shadow-purple-500/20'
+                        : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Smartphone className={`w-3.5 h-3.5 ${workflowFile === 'android-apk.yml' ? 'text-emerald-400' : 'text-slate-400'}`} />
+                      <span className="text-xs font-bold text-slate-100">android-apk.yml</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">App Creator: บิลด์ไฟล์ APK</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setWorkflowFile('runtime-smoke.yml')}
+                    className={`p-3 rounded-xl border text-left cursor-pointer transition flex flex-col gap-1 ${
+                      workflowFile === 'runtime-smoke.yml'
+                        ? 'bg-purple-950/50 border-purple-500 text-white shadow-lg shadow-purple-500/20'
+                        : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Activity className={`w-3.5 h-3.5 ${workflowFile === 'runtime-smoke.yml' ? 'text-cyan-400' : 'text-slate-400'}`} />
+                      <span className="text-xs font-bold text-slate-100">runtime-smoke.yml</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">Smoke Test CI/CD</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Workflow Dispatch Inputs */}
-              <div className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 space-y-4">
-                <span className="text-xs font-bold text-amber-300 flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-amber-400" />
-                  พารามิเตอร์ส่งเข้ารันบน GitHub Actions (Workflow Inputs)
-                </span>
+              {workflowFile === 'lottery.yml' ? (
+                <div className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 space-y-4">
+                  <span className="text-xs font-bold text-amber-300 flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                    พารามิเตอร์ส่งเข้ารันบน GitHub Actions (Workflow Inputs)
+                  </span>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -458,8 +525,33 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
                   </div>
                 </div>
               </div>
+            ) : workflowFile === 'android-apk.yml' ? (
+              <div className="bg-slate-950/70 border border-emerald-500/30 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+                  <Smartphone className="w-4 h-4" />
+                  <span>โหมด App Creator: สั่งคอมไพล์ Android Debug APK</span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  เมื่อกดสั่งรัน GitHub Actions จะเตรียม Node.js, Java 21, ติดตั้ง Capacitor Android และสั่งรัน <code className="text-amber-300 font-mono">./gradlew assembleDebug</code> เพื่อสร้างไฟล์ <code className="text-amber-300 font-mono">app-debug.apk</code> ส่งตรงเข้า GitHub Artifacts ให้ดาวน์โหลดทันที
+                </p>
+                <div className="pt-1 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                  <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">📦 Package: com.jirapatza.bombim00</span>
+                  <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">⏱️ ใช้เวลาบิลด์ประมาณ: 3-5 นาที</span>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-950/70 border border-cyan-500/30 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
+                  <Activity className="w-4 h-4" />
+                  <span>โหมด Smoke Test CI/CD: ตรวจสอบความพร้อมของเซิร์ฟเวอร์</span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  รันการทดสอบ Unit Tests และทดสอบการเรียกใช้งาน Python Script และ Vite Build เพื่อให้มั่นใจว่าโค้ดไม่มีข้อผิดพลาด
+                </p>
+              </div>
+            )}
 
-              {/* Submit Buttons */}
+            {/* Submit Buttons */}
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
                   type="button"
@@ -700,13 +792,38 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-lg">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <FileCode2 className="w-4 h-4 text-purple-400" />
-                ปรับแต่งไฟล์ .github/workflows/lottery.yml
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <FileCode2 className="w-4 h-4 text-purple-400" />
+                  ปรับแต่งไฟล์ .github/workflows/{workflowFile}
+                </h3>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800 font-mono">
+                  {isLoadingWorkflow ? 'กำลังโหลด...' : 'พร้อมแก้ไข'}
+                </span>
+              </div>
               <p className="text-xs text-slate-400 mt-0.5">
                 แก้ไขกำหนดเวลา Cron, ตัวแปร Secrets, และขั้นตอนการทำงานของ GitHub Actions
               </p>
+              {/* Workflow switcher pills */}
+              <div className="flex items-center gap-1.5 mt-2">
+                {['lottery.yml', 'android-apk.yml', 'runtime-smoke.yml'].map((wf) => (
+                  <button
+                    key={wf}
+                    type="button"
+                    onClick={() => {
+                      setWorkflowFile(wf);
+                      fetchWorkflowYaml(wf);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-mono cursor-pointer transition ${
+                      workflowFile === wf
+                        ? 'bg-purple-600 text-white font-bold'
+                        : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                    }`}
+                  >
+                    {wf}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -800,6 +917,51 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus }: GitHubAppRunn
               <p className="text-xs text-slate-400 mt-1">
                 ทำตาม 4 ขั้นตอนสั้นๆ นี้เพื่อเปิดระบบแจ้งเตือนอัตโนมัติบน GitHub ให้ทำงานฟรี 24 ชม. ตลอดชีพ
               </p>
+            </div>
+
+            {/* App Creator Quick Action Banner */}
+            <div className="bg-gradient-to-r from-emerald-950/60 via-slate-900 to-purple-950/60 border border-emerald-500/40 rounded-2xl p-5 shadow-xl">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                    <Smartphone className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-base font-bold text-white">App Creator (บิลด์แอพมือถือ Android APK)</h4>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        Capacitor + GitHub Actions
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-1 max-w-xl">
+                      สร้างไฟล์ติดตั้ง APK สำหรับมือถือ Android จากโปรเจกต์นี้โดยตรงผ่านเวิร์กโฟลว์ <code className="text-emerald-300 font-mono">android-apk.yml</code> เมื่อสร้างเสร็จสามารถดาวน์โหลดไฟล์ติดตั้งได้ทันที
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWorkflowFile('android-apk.yml');
+                      setSubTab('runner');
+                    }}
+                    className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl cursor-pointer transition shadow-md shadow-emerald-600/30 flex items-center gap-1.5"
+                  >
+                    <Play className="w-4 h-4" />
+                    สั่งสร้าง APK ตอนนี้
+                  </button>
+                  <a
+                    href={`https://github.com/${repo}/actions/workflows/android-apk.yml`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold text-xs rounded-xl cursor-pointer transition flex items-center gap-1.5"
+                  >
+                    <ExternalLink className="w-4 h-4 text-emerald-400" />
+                    ดูไฟล์ APK ที่สร้างแล้ว
+                  </a>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-4">
