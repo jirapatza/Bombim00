@@ -47,7 +47,7 @@ export function MobileNotificationHub({
       setTopic(currentTopic);
       localStorage.setItem('mobile_ntfy_topic', currentTopic);
     }
-  }, [currentTopic]);
+  }, [currentTopic, topic]);
 
   const [server, setServer] = useState<string>('https://ntfy.sh');
   const [priority, setPriority] = useState<string>('urgent'); // 5 = urgent (vibrate + ring)
