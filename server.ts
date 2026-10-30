@@ -1194,7 +1194,8 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
     let previousResults: any[] = [];
     if (fs.existsSync(RESULTS_PATH)) {
       try {
-        previousResults = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
+        const parsed = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
+        previousResults = Array.isArray(parsed) ? parsed : [];
       } catch {
         previousResults = [];
       }
@@ -1203,7 +1204,8 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
     let allLotteriesList: any[] = [];
     if (fs.existsSync(ALL_LOTTERIES_PATH)) {
       try {
-        allLotteriesList = JSON.parse(fs.readFileSync(ALL_LOTTERIES_PATH, 'utf-8'));
+        const parsed = JSON.parse(fs.readFileSync(ALL_LOTTERIES_PATH, 'utf-8'));
+        allLotteriesList = Array.isArray(parsed) ? parsed : [];
       } catch {
         allLotteriesList = [];
       }
