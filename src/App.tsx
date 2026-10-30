@@ -55,12 +55,14 @@ import {
   ListFilter,
   Github,
   ListOrdered,
-  TableProperties
+  TableProperties,
+  TrendingUp,
 } from 'lucide-react';
 
 import { BroadcastKiosk } from './components/BroadcastKiosk';
 import { MultiChannelDispatcher } from './components/MultiChannelDispatcher';
 import { LotteryAnalytics } from './components/LotteryAnalytics';
+import { LotteryTrendAnalytics } from './components/LotteryTrendAnalytics';
 import { BatchTicketChecker } from './components/BatchTicketChecker';
 import { DeploymentPlaybook } from './components/DeploymentPlaybook';
 import { DailySummaryTable, LotteryItem } from './components/DailySummaryTable';
@@ -366,7 +368,13 @@ export default function App() {
   const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
 
   // Cloudflare Worker settings & Reconnection Helper state
-  const [workerUrl, setWorkerUrl] = useState<string>(localStorage.getItem('cf_worker_url') || 'https://bombim00-github-api.jirapatcip2557.workers.dev');
+  const [workerUrl, setWorkerUrl] = useState<string>(() => {
+    const saved = localStorage.getItem('cf_worker_url');
+    if (!saved || saved === 'https://bombim00-github-api.jirapatcip2557.workers.dev') {
+      return '';
+    }
+    return saved;
+  });
   const [dashPassword, setDashPassword] = useState<string>(localStorage.getItem('cf_dash_password') || '');
   const [isWorkerConnected, setIsWorkerConnected] = useState<boolean>(false);
   const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
@@ -939,7 +947,7 @@ export default function App() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const apiBase = (workerUrl || 'https://bombim00-github-api.jirapatcip2557.workers.dev').replace(/\/+$/, '');
+      const apiBase = workerUrl ? workerUrl.replace(/\/+$/, '') : '';
       const [resStatus, resSettings, resResults, resFiles, resAllLotteries] = await Promise.all([
         fetch(`${apiBase}/api/status`).then((r) => r.ok ? r.json() : null).catch(() => null),
         fetch(`${apiBase}/api/settings`).then((r) => r.ok ? r.json() : null).catch(() => null),
@@ -986,23 +994,70 @@ export default function App() {
       window.speechSynthesis.getVoices();
     }
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return;
+      }
       fetchData();
     }, 15000);
-    return () => clearInterval(interval);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const handleTriggerCheck = async () => {
     setIsTriggering(true);
     try {
-      const apiBase = workerUrl.replace(/\\/+$/, '');
-      const res = await fetch(`${apiBase}/api/trigger`, {
-        method: 'POST',
-        headers: dashPassword ? { Authorization: `Bearer ${dashPassword}` } : {},
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        showToast('⚡ ส่งคำสั่งตรวจสอบไปยัง GitHub Actions แล้ว');
-        setStatus(data.status);
+      let res: Response | null = null;
+      let data: any = null;
+
+      // 1. If custom remote worker URL is set with password, attempt it
+      if (workerUrl && dashPassword) {
+        try {
+          const apiBase = workerUrl.replace(/\/+$/, '');
+          const remoteRes = await fetch(`${apiBase}/api/trigger`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${dashPassword}` },
+          });
+          const remoteData = await remoteRes.json().catch(() => ({}));
+          if (remoteRes.ok && remoteData.success) {
+            res = remoteRes;
+            data = remoteData;
+          }
+        } catch {
+          res = null;
+        }
+      }
+
+      // 2. If remote not used or failed (e.g., 401), use local fullstack Express backend
+      if (!res || !res.ok) {
+        try {
+          const localRes = await fetch('/api/trigger', { method: 'POST' });
+          const localData = await localRes.json().catch(() => ({}));
+          if (localRes.ok && localData.success) {
+            res = localRes;
+            data = localData;
+          }
+        } catch {
+          // Fallback to check-now
+          const fallbackRes = await fetch('/api/check-now', { method: 'POST' });
+          const fallbackData = await fallbackRes.json().catch(() => ({}));
+          res = fallbackRes;
+          data = fallbackData;
+        }
+      }
+
+      if (res && res.ok && (data?.success || data?.ok)) {
+        showToast('⚡ ตรวจสอบผลสลากและแจ้งเตือนเรียบร้อยแล้ว');
+        if (data.status) setStatus(data.status);
         fetchData();
 
         const nextClosing = getNextClosingLottery();
@@ -1028,9 +1083,9 @@ export default function App() {
           },
         ]);
       } else {
-        const reason = data.error || data.message || `HTTP ${res.status}`;
+        const reason = data?.error || data?.message || (res ? `HTTP ${res.status}` : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
         showToast(`เกิดข้อผิดพลาดในการตรวจสอบ: ${reason}`);
-        console.error('Trigger workflow failed:', res.status, data);
+        console.error('Trigger workflow failed:', res?.status, data);
       }
     } catch (err: any) {
       console.error('Trigger workflow connection failed:', err);
@@ -1590,7 +1645,20 @@ export default function App() {
               <span>📊 ตารางสรุปผลรายวัน ({allLotteries.length || 51} หวย เรียงตามเวลา)</span>
             </button>
 
-            {/* Tab 3: Unified Settings Center */}
+            {/* Tab 3: Lottery Trend Analytics with Recharts */}
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`px-4 py-2.5 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+                activeTab === 'analytics'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black shadow-lg shadow-amber-500/25 scale-[1.02]'
+                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
+              }`}
+            >
+              <TrendingUp className={`w-4 h-4 ${activeTab === 'analytics' ? 'text-slate-950' : 'text-amber-400'}`} />
+              <span>📈 แนวโน้มตัวเลข 10 งวด (Recharts)</span>
+            </button>
+
+            {/* Tab 4: Unified Settings Center */}
             <button
               onClick={() => setActiveTab('settings')}
               className={`px-4 py-2.5 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
@@ -2331,6 +2399,16 @@ export default function App() {
             latestDraw={latestDraw}
             allLotteries={allLotteries}
             onSpeak={speakCustomText}
+            voiceEnabled={voiceEnabled}
+            onToggleVoice={(v) => {
+              setVoiceEnabled(v);
+              if (!v) stopSpeech();
+              showToast(v ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
+            }}
+            onStopSpeech={stopSpeech}
+            isSpeaking={isSpeaking}
+            onTriggerCheck={handleTriggerCheck}
+            isTriggering={isTriggering}
             templateProps={{
               templateTitle,
               setTemplateTitle,
@@ -3034,6 +3112,15 @@ export default function App() {
         {/* ==================== TAB 3: LOTTERY STATS, ANALYTICS & BATCH TICKET CHECKER ==================== */}
         {(activeTab === 'analytics' || activeTab === 'batch' || activeTab === 'results') && (
           <div className="space-y-6">
+            <LotteryTrendAnalytics
+              results={results}
+              onSelectNumber={(num) => {
+                showToast(`เลือกเลข ${num} แล้ว (คัดลอกลงคลิปบอร์ดแล้ว)`);
+                if (navigator.clipboard) {
+                  navigator.clipboard.writeText(num);
+                }
+              }}
+            />
             <LotteryAnalytics
               results={results}
               watchedNumbers={settings?.notifications?.custom_watched_numbers || []}

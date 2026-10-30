@@ -182,6 +182,132 @@ app.post('/api/all-lotteries', (req, res) => {
   }
 });
 
+// 4.3 POST /api/test-channel - Test Discord / Telegram / Webhook dispatch
+app.post('/api/test-channel', async (req, res) => {
+  try {
+    const { channel, config = {}, message } = req.body;
+
+    if (channel === 'discord') {
+      const webhookUrl = (config.webhook_url || process.env.DISCORD_WEBHOOK_URL || '').trim();
+      if (!webhookUrl) {
+        return res.status(400).json({ success: false, error: 'กรุณากรอก Discord Webhook URL' });
+      }
+
+      const payload = {
+        username: 'Lottery Alert Bot',
+        avatar_url: 'https://raw.githubusercontent.com/jirapatza/Bombim00/main/public/icon-192.png',
+        embeds: [{
+          title: '📢 ทดสอบการแจ้งเตือน Lottery Alert System (Discord)',
+          description: message || 'ทดสอบการเชื่อมต่อระบบแจ้งเตือนผลสลากกินแบ่งและหวยผ่าน Discord Webhook สำเร็จเรียบร้อย! 🎉\n\n🎯 **ตัวอย่างรางวัลที่ 1:** `289594`\n🔢 **เลขท้าย 2 ตัว:** `84`\n✨ **เลขหน้า 3 ตัว:** `012, 425`\n🌟 **เลขท้าย 3 ตัว:** `318, 972`',
+          color: 0xf59e0b, // Amber Gold
+          timestamp: new Date().toISOString(),
+          footer: { text: 'Lottery Alert System Pro • Discord Webhook' }
+        }]
+      };
+
+      const discordRes = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (discordRes.ok) {
+        return res.json({ success: true, message: 'ส่งข้อความทดสอบไปยัง Discord Webhook เรียบร้อยแล้ว! ✅' });
+      } else {
+        const errorText = await discordRes.text();
+        return res.status(discordRes.status).json({ success: false, error: `Discord ปฏิเสธ (HTTP ${discordRes.status}): ${errorText}` });
+      }
+    }
+
+    if (channel === 'telegram') {
+      const botToken = (config.bot_token || process.env.TELEGRAM_BOT_TOKEN || '').trim();
+      const chatId = (config.chat_id || process.env.TELEGRAM_CHAT_ID || '').trim();
+      if (!botToken || !chatId) {
+        return res.status(400).json({ success: false, error: 'กรุณาระบุ Telegram Bot Token และ Chat ID' });
+      }
+
+      const text = message || '📢 <b>Lottery Alert System</b>\n\nทดสอบการแจ้งเตือนผ่าน Telegram Bot สำเร็จเรียบร้อย!';
+      const tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          parse_mode: 'HTML',
+        }),
+      });
+
+      const tgData: any = await tgRes.json().catch(() => ({}));
+      if (tgRes.ok && tgData.ok) {
+        return res.json({ success: true, message: 'ส่งข้อความทดสอบไปยัง Telegram สำเร็จแล้ว! ✅' });
+      } else {
+        return res.status(400).json({ success: false, error: tgData.description || 'ส่ง Telegram ไม่สำเร็จ' });
+      }
+    }
+
+    if (channel === 'webhook') {
+      const targetUrl = (config.url || '').trim();
+      if (!targetUrl) {
+        return res.status(400).json({ success: false, error: 'กรุณาระบุ Webhook URL' });
+      }
+
+      const webhookRes = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.secret_token ? { 'X-Webhook-Secret': config.secret_token } : {})
+        },
+        body: JSON.stringify({
+          event: 'lottery.test_notification',
+          timestamp: new Date().toISOString(),
+          message: message || 'Test webhook delivery',
+        }),
+      });
+
+      if (webhookRes.ok) {
+        return res.json({ success: true, message: 'ส่ง Webhook สำเร็จเรียบร้อย! ✅' });
+      } else {
+        return res.status(webhookRes.status).json({ success: false, error: `Webhook ปลายทางตอบกลับ HTTP ${webhookRes.status}` });
+      }
+    }
+
+    return res.status(400).json({ success: false, error: `ไม่รองรับ channel: ${channel}` });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4.4 POST /api/test-ntfy - Test ntfy.sh notification
+app.post('/api/test-ntfy', async (req, res) => {
+  try {
+    const { topic, server = 'https://ntfy.sh', message, title = 'Lottery Result Alert' } = req.body;
+    const cleanTopic = (topic || process.env.NTFY_TOPIC || '').trim();
+    if (!cleanTopic) {
+      return res.status(400).json({ success: false, error: 'กรุณาระบุ ntfy topic' });
+    }
+
+    const cleanServer = (server || 'https://ntfy.sh').replace(/\/+$/, '');
+    const ntfyRes = await fetch(`${cleanServer}/${cleanTopic}`, {
+      method: 'POST',
+      headers: {
+        'Title': title,
+        'Priority': 'high',
+        'Tags': 'moneybag,dart',
+      },
+      body: message || 'ทดสอบการส่งข้อความผ่าน ntfy.sh สำเร็จเรียบร้อย! 🎉',
+    });
+
+    if (ntfyRes.ok) {
+      return res.json({ success: true, message: `ส่งแจ้งเตือน ntfy ไปยัง topic '${cleanTopic}' สำเร็จ! ✅` });
+    } else {
+      const errText = await ntfyRes.text();
+      return res.status(ntfyRes.status).json({ success: false, error: `ntfy ตอบกลับ HTTP ${ntfyRes.status}: ${errText}` });
+    }
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 5. POST /api/check-now - Trigger check (simulated / live check)
 app.post('/api/check-now', async (req, res) => {
   try {
@@ -255,19 +381,100 @@ app.post('/api/check-now', async (req, res) => {
   }
 });
 
+// 6. POST /api/trigger - Trigger check and return immediate status
+app.post('/api/trigger', async (req, res) => {
+  try {
+    // Trigger background check process
+    runBackgroundAutoCheck().catch((err) => console.warn('[TRIGGER] Background check note:', err.message));
+
+    // Wait 500ms
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    let currentStatus: any = {};
+    if (fs.existsSync(STATUS_PATH)) {
+      try {
+        currentStatus = JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8'));
+      } catch {
+        currentStatus = {};
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'ส่งคำสั่งตรวจสอบผลสลากและอัปเดตระบบเรียบร้อยแล้ว',
+      status: currentStatus,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 7. GET /api/project-files - List project files for the in-app code editor
+app.get('/api/project-files', (req, res) => {
+  try {
+    const candidateFiles = [
+      'config/settings.json',
+      'lottery_checker.py',
+      'settings_loader.py',
+      'requirements.txt',
+      '.env.example',
+      'Dockerfile',
+      'docker-compose.yml',
+      'server.ts',
+      'src/App.tsx',
+    ];
+
+    const projectFiles: Array<{ name: string; path: string; category: string; content: string }> = [];
+
+    for (const relPath of candidateFiles) {
+      const fullPath = path.join(__dirname, relPath);
+      if (fs.existsSync(fullPath)) {
+        try {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          let category = 'config';
+          if (relPath.endsWith('.py')) category = 'python';
+          else if (relPath.endsWith('.ts') || relPath.endsWith('.tsx') || relPath.endsWith('.js')) category = 'backend';
+          projectFiles.push({
+            name: path.basename(relPath),
+            path: relPath,
+            category,
+            content,
+          });
+        } catch {
+          // Ignore read errors
+        }
+      }
+    }
+
+    return res.json(projectFiles);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ... keep rest of file unchanged ...
 
+let isBackgroundCheckRunning = false;
+
 async function runBackgroundAutoCheck() {
+  if (isBackgroundCheckRunning) {
+    console.log('[AUTO-RUNNER] Previous check still running, skipping this tick.');
+    return;
+  }
+  isBackgroundCheckRunning = true;
   try {
     const env = {
       ...process.env,
       FORCE_NOTIFY: 'false',
       LOTTERY_TARGET: 'all',
     };
-    await execAsync('python3 lottery_checker.py', { env, cwd: __dirname });
+    // 45 seconds timeout to prevent hanging child processes
+    await execAsync('python3 lottery_checker.py', { env, cwd: __dirname, timeout: 45000 });
     console.log(`[AUTO-RUNNER] Background lottery check completed at ${new Date().toISOString()}`);
   } catch (err: any) {
     console.warn(`[AUTO-RUNNER] Background check note:`, err.message);
+  } finally {
+    isBackgroundCheckRunning = false;
   }
 }
 

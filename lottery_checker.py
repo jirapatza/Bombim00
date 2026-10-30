@@ -105,70 +105,112 @@ def fetch_from_pholhuay_stock_groups() -> list:
     """Scrape the public results index that explicitly separates regular, VIP, special and VISA stocks."""
     url = "https://xn--t3cmiit.com/stock-lottery"
     try:
-        from bs4 import BeautifulSoup
         html = _http_get_text(url, timeout=15)
         if not html:
             print("[WARN] Stock group page returned empty HTML.")
             return []
-        soup = BeautifulSoup(html, "html.parser")
-        rows = []
-        group = ""
+
         group_map = {
             "หวยหุ้นต่างประเทศ": "stock",
             "หวยหุ้น VIP": "stock_vip",
             "หวยหุ้นพิเศษ": "stock_special",
             "หวยหุ้น VISA": "stock_visa",
         }
-        headings = soup.find_all(["h2", "h3"])
-        for heading in headings:
-            label = heading.get_text(" ", strip=True)
-            if heading.name == "h2":
-                group = ""
-                for key, value in group_map.items():
-                    if key in label:
-                        group = value
+        rows = []
+
+        # Try BeautifulSoup if available, else use zero-dependency regex parser
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html, "html.parser")
+            group = ""
+            headings = soup.find_all(["h2", "h3"])
+            for heading in headings:
+                label = heading.get_text(" ", strip=True)
+                if heading.name == "h2":
+                    group = ""
+                    for key, value in group_map.items():
+                        if key in label:
+                            group = value
+                            break
+                    continue
+                if heading.name != "h3" or not group:
+                    continue
+                if not label.startswith("หวยหุ้น") or any(q in label for q in ("ในหน้านี้", "อัปเดตเมื่อไร", "ออกวันไหน", "ดูย้อนหลัง")):
+                    continue
+                # Find the smallest nearby card/container that contains both result fields.
+                node = heading
+                card_text = ""
+                for _ in range(7):
+                    node = getattr(node, "parent", None)
+                    if node is None:
                         break
-                continue
-            if heading.name != "h3" or not group:
-                continue
-            if not label.startswith("หวยหุ้น") or any(q in label for q in ("ในหน้านี้", "อัปเดตเมื่อไร", "ออกวันไหน", "ดูย้อนหลัง")):
-                continue
-            # Find the smallest nearby card/container that contains both result fields.
-            node = heading
-            card_text = ""
-            for _ in range(7):
-                node = getattr(node, "parent", None)
-                if node is None:
-                    break
-                candidate = node.get_text(" ", strip=True)
-                if "3 ตัวบน" in candidate and "2 ตัวล่าง" in candidate and "งวด" in candidate:
-                    card_text = candidate
-                    break
-            if not card_text:
-                continue
-            date_match = re.search(r"งวด\s*(?:วันที่\s*)?(\d{1,2}\s+[^\s]+\s+\d{4})", card_text)
-            top_match = re.search(r"3 ตัวบน\s*(\d{3})", card_text)
-            bottom_match = re.search(r"2 ตัวล่าง\s*(\d{2})", card_text)
-            if not (date_match and top_match and bottom_match):
-                continue
-            date_display = date_match.group(1)
-            rows.append({
-                "ชื่อหวย": label,
-                "หวย": label,
-                "หมวดหวย": group,
-                "งวดวันที่": date_display,
-                "วันที่จัดรูปแบบ": date_display,
-                "รางวัลที่_1": top_match.group(1),
-                "เลขท้าย_2_ตัว": bottom_match.group(1),
-                "เลขบน_3_ตัว": top_match.group(1),
-                "เลขล่าง_2_ตัว": bottom_match.group(1),
-                "เลขหน้า_3_ตัว": [],
-                "เลขท้าย_3_ตัว": [],
-                "รางวัลข้างเคียงรางวัลที่_1": [],
-                "แหล่งข้อมูล": "ผลหวย.com (หน้าหุ้นแยกหมวด)",
-                "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
-                "สถานะการแจ้งเตือน": "pending"
-            })
+                    candidate = node.get_text(" ", strip=True)
+                    if "3 ตัวบน" in candidate and "2 ตัวล่าง" in candidate and "งวด" in candidate:
+                        card_text = candidate
+                        break
+                if not card_text:
+                    continue
+                date_match = re.search(r"งวด\s*(?:วันที่\s*)?(\d{1,2}\s+[^\s]+\s+\d{4})", card_text)
+                top_match = re.search(r"3 ตัวบน\s*(\d{3})", card_text)
+                bottom_match = re.search(r"2 ตัวล่าง\s*(\d{2})", card_text)
+                if not (date_match and top_match and bottom_match):
+                    continue
+                date_display = date_match.group(1)
+                rows.append({
+                    "ชื่อหวย": label,
+                    "หวย": label,
+                    "หมวดหวย": group,
+                    "งวดวันที่": date_display,
+                    "วันที่จัดรูปแบบ": date_display,
+                    "รางวัลที่_1": top_match.group(1),
+                    "เลขท้าย_2_ตัว": bottom_match.group(1),
+                    "เลขบน_3_ตัว": top_match.group(1),
+                    "เลขล่าง_2_ตัว": bottom_match.group(1),
+                    "เลขหน้า_3_ตัว": [],
+                    "เลขท้าย_3_ตัว": [],
+                    "รางวัลข้างเคียงรางวัลที่_1": [],
+                    "แหล่งข้อมูล": "ผลหวย.com (หน้าหุ้นแยกหมวด)",
+                    "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
+                    "สถานะการแจ้งเตือน": "pending"
+                })
+        except ImportError:
+            # Built-in regex extraction fallback (works with zero external dependencies)
+            current_group = "stock"
+            blocks = re.findall(r'<h([23])[^>]*>(.*?)</h\1>(.*?)(?=<h[23]|$)', html, re.DOTALL | re.IGNORECASE)
+            for level, heading_html, content_html in blocks:
+                heading_text = re.sub(r'<[^>]+>', '', heading_html).strip()
+                if level == '2':
+                    for key, value in group_map.items():
+                        if key in heading_text:
+                            current_group = value
+                            break
+                    continue
+                if level == '3' and current_group:
+                    if not heading_text.startswith("หวยหุ้น") or any(q in heading_text for q in ("ในหน้านี้", "อัปเดตเมื่อไร", "ออกวันไหน", "ดูย้อนหลัง")):
+                        continue
+                    clean_content = re.sub(r'<[^>]+>', ' ', content_html)
+                    top_match = re.search(r"3 ตัวบน\s*(\d{3})", clean_content)
+                    bottom_match = re.search(r"2 ตัวล่าง\s*(\d{2})", clean_content)
+                    date_match = re.search(r"งวด\s*(?:วันที่\s*)?(\d{1,2}\s+[^\s]+\s+\d{4})", clean_content)
+                    if top_match and bottom_match and date_match:
+                        date_display = date_match.group(1)
+                        rows.append({
+                            "ชื่อหวย": heading_text,
+                            "หวย": heading_text,
+                            "หมวดหวย": current_group,
+                            "งวดวันที่": date_display,
+                            "วันที่จัดรูปแบบ": date_display,
+                            "รางวัลที่_1": top_match.group(1),
+                            "เลขท้าย_2_ตัว": bottom_match.group(1),
+                            "เลขบน_3_ตัว": top_match.group(1),
+                            "เลขล่าง_2_ตัว": bottom_match.group(1),
+                            "เลขหน้า_3_ตัว": [],
+                            "เลขท้าย_3_ตัว": [],
+                            "รางวัลข้างเคียงรางวัลที่_1": [],
+                            "แหล่งข้อมูล": "ผลหวย.com (หน้าหุ้นแยกหมวด)",
+                            "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
+                            "สถานะการแจ้งเตือน": "pending"
+                        })
         # Avoid duplicate cards when markup nesting makes a heading repeat.
         unique, seen = [], set()
         for row in rows:
@@ -376,14 +418,11 @@ def fetch_from_pholhuay() -> list:
 
 def send_ntfy_notification(row: dict) -> bool:
     """Send lottery results to ntfy server using configuration in settings.json."""
-    ntfy_server = S.get("ntfy", {}).get("server", "https://ntfy.sh").rstrip("/")
-    topic = NTFY_TOPIC or S.get("channels", {}).get("ntfy", {}).get("topic", "")
+    ntfy_server = (S.get("channels", {}).get("ntfy", {}).get("server") or S.get("ntfy", {}).get("server", "https://ntfy.sh")).rstrip("/")
+    topic = NTFY_TOPIC or S.get("channels", {}).get("ntfy", {}).get("topic", "") or S.get("ntfy", {}).get("topic", "") or "lottery-alert-live"
     
     if not S.get("channels", {}).get("ntfy", {}).get("enabled", True):
         print("[INFO] ntfy channel is disabled in config/settings.json.")
-        return False
-    if not topic:
-        print("[ERROR] NTFY_TOPIC is empty; cannot deliver push notification.")
         return False
 
     url = f"{ntfy_server}/{topic}"

@@ -13,15 +13,15 @@ import {
   Layers,
   Sparkles,
   CheckCircle2,
-  ListOrdered
+  Bell,
+  Zap,
 } from 'lucide-react';
 
-import { MobileNotificationHub } from './MobileNotificationHub';
+import { UnifiedNotificationCenter } from './UnifiedNotificationCenter';
 import { GitHubAppRunner } from './GitHubAppRunner';
 import { ProjectCodeEditor } from './ProjectCodeEditor';
 import { MultiChannelDispatcher } from './MultiChannelDispatcher';
 import { DeploymentPlaybook } from './DeploymentPlaybook';
-import { NotificationPipelineInspector } from './NotificationPipelineInspector';
 
 interface SettingsCenterProps {
   settings: any;
@@ -34,6 +34,12 @@ interface SettingsCenterProps {
   latestDraw?: any;
   allLotteries?: any[];
   onSpeak?: (text: string) => void;
+  voiceEnabled?: boolean;
+  onToggleVoice?: (enabled: boolean) => void;
+  onStopSpeech?: () => void;
+  isSpeaking?: boolean;
+  onTriggerCheck?: () => void;
+  isTriggering?: boolean;
   // Template customization props
   templateProps: {
     templateTitle: string;
@@ -69,11 +75,18 @@ export function SettingsCenter({
   latestDraw,
   allLotteries = [],
   onSpeak,
+  voiceEnabled = true,
+  onToggleVoice,
+  onStopSpeech,
+  isSpeaking = false,
+  onTriggerCheck,
+  isTriggering = false,
   templateProps,
 }: SettingsCenterProps) {
+  // Default to the unified clean notification architecture
   const [subTab, setSubTab] = useState<
-    'pipeline' | 'mobile' | 'template' | 'github' | 'files' | 'channels' | 'playbook' | 'raw'
-  >('pipeline');
+    'unified' | 'template' | 'channels' | 'github' | 'files' | 'playbook' | 'raw'
+  >('unified');
 
   return (
     <div className="space-y-6">
@@ -89,42 +102,30 @@ export function SettingsCenter({
                 ศูนย์จัดการและตั้งค่าระบบ (Settings Center)
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                รวมการตั้งค่าทั้งหมดไว้ในที่เดียว แยกตามหมวดหมู่ชัดเจน
+                จัดระเบียบใหม่: รวมระบบแจ้งเตือนหลัก <strong>เสียงพูดไทย + แอปมือถือ</strong> ไว้ในที่เดียว ไม่ซ้ำซ้อน ไม่ตีกัน
               </p>
             </div>
           </div>
 
-          <span className="text-[11px] px-3 py-1 rounded-full bg-slate-800 text-slate-300 font-mono border border-slate-700">
-            ระบบจัดหมวดหมู่ระเบียบใหม่
+          <span className="text-[11px] px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 font-bold border border-emerald-500/20">
+            ✓ สถาปัตยกรรมรวมศูนย์ (Unified)
           </span>
         </div>
 
         {/* Sub-tab Navigation Pills */}
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+          {/* PRIMARY UNIFIED ALERT TAB */}
           <button
             type="button"
-            onClick={() => setSubTab('pipeline')}
-            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
-              subTab === 'pipeline'
-                ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+            onClick={() => setSubTab('unified')}
+            className={`px-4 py-2.5 rounded-xl transition flex items-center gap-2 cursor-pointer ${
+              subTab === 'unified'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black shadow-lg shadow-amber-500/20 scale-[1.02]'
+                : 'bg-slate-950 text-slate-300 hover:text-white border border-slate-800'
             }`}
           >
-            <ListOrdered className="w-3.5 h-3.5" />
-            ⚡ ขั้นตอนไปป์ไลน์ &amp; ลำดับเวลาหวย (Pipeline &amp; Timetable)
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSubTab('mobile')}
-            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
-              subTab === 'mobile'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            📲 แจ้งเตือนเข้ามือถือ (ntfy)
+            <Zap className={`w-3.5 h-3.5 ${subTab === 'unified' ? 'text-slate-950' : 'text-amber-400'}`} />
+            <span>🔔 ศูนย์แจ้งเตือนหลัก (เสียง &amp; แอปมือถือ)</span>
           </button>
 
           <button
@@ -132,7 +133,7 @@ export function SettingsCenter({
             onClick={() => setSubTab('template')}
             className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
               subTab === 'template'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+                ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-600/20'
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
@@ -142,15 +143,28 @@ export function SettingsCenter({
 
           <button
             type="button"
+            onClick={() => setSubTab('channels')}
+            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+              subTab === 'channels'
+                ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20'
+                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+            }`}
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            🌐 Discord / Telegram
+          </button>
+
+          <button
+            type="button"
             onClick={() => setSubTab('github')}
             className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
               subTab === 'github'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+                ? 'bg-slate-800 text-amber-300 font-bold border border-amber-500/40 shadow-md'
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
             <Github className="w-3.5 h-3.5" />
-            🐙 สั่งรัน GitHub Actions
+            🐙 GitHub Actions
           </button>
 
           <button
@@ -158,7 +172,7 @@ export function SettingsCenter({
             onClick={() => setSubTab('files')}
             className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
               subTab === 'files'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+                ? 'bg-slate-800 text-amber-300 font-bold border border-amber-500/40 shadow-md'
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
@@ -168,28 +182,15 @@ export function SettingsCenter({
 
           <button
             type="button"
-            onClick={() => setSubTab('channels')}
-            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
-              subTab === 'channels'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            🌐 Discord / Telegram / Webhook
-          </button>
-
-          <button
-            type="button"
             onClick={() => setSubTab('playbook')}
             className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
               subTab === 'playbook'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+                ? 'bg-slate-800 text-amber-300 font-bold border border-amber-500/40 shadow-md'
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
             <Rocket className="w-3.5 h-3.5" />
-            🚀 คู่มือใช้งาน (Playbook)
+            🚀 คู่มือใช้งาน
           </button>
 
           <button
@@ -197,7 +198,7 @@ export function SettingsCenter({
             onClick={() => setSubTab('raw')}
             className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
               subTab === 'raw'
-                ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+                ? 'bg-slate-800 text-amber-300 font-bold border border-amber-500/40 shadow-md'
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
@@ -207,40 +208,28 @@ export function SettingsCenter({
         </div>
       </div>
 
-      {/* SUB-TAB 0: NOTIFICATION PIPELINE & PRIORITY INSPECTOR */}
-      {subTab === 'pipeline' && (
-        <NotificationPipelineInspector
+      {/* SUB-TAB 0: UNIFIED NOTIFICATION CENTER (STREAMLINED 2-PILLAR ARCHITECTURE) */}
+      {subTab === 'unified' && (
+        <UnifiedNotificationCenter
           settings={settings}
+          onSaveSettings={onSaveSettings}
+          voiceEnabled={voiceEnabled}
+          onToggleVoice={onToggleVoice || (() => {})}
+          onSpeakSample={() => templateProps.onTestAnnouncement()}
+          onStopSpeech={onStopSpeech || (() => {})}
+          isSpeaking={isSpeaking}
+          speechRate={templateProps.speechRate}
+          onSetSpeechRate={templateProps.setSpeechRate}
           latestDraw={latestDraw}
+          status={status}
+          onTriggerCheck={onTriggerCheck}
+          isTriggering={isTriggering}
           allLotteries={allLotteries}
-          onTriggerCheck={() => onRefreshData?.()}
-          onSpeak={(text) => onSpeak?.(text)}
+          onOpenAdvanced={(tab) => setSubTab(tab as any)}
         />
       )}
 
-      {/* SUB-TAB 1: MOBILE NOTIFICATION HUB */}
-      {subTab === 'mobile' && (
-        <MobileNotificationHub
-          currentTopic={settings?.channels?.ntfy?.topic || 'lottery-bombimm43'}
-          onUpdateTopic={(newTopic) => {
-            if (settings) {
-              const updated = {
-                ...settings,
-                channels: {
-                  ...settings.channels,
-                  ntfy: { ...(settings.channels?.ntfy || {}), topic: newTopic },
-                },
-              };
-              onSaveSettings(updated);
-            }
-          }}
-          latestDraw={latestDraw}
-          allLotteries={allLotteries}
-          onSpeak={onSpeak}
-        />
-      )}
-
-      {/* SUB-TAB 2: MESSAGE TEMPLATE & VOICE CUSTOMIZATION */}
+      {/* SUB-TAB 1: MESSAGE TEMPLATE & VOICE CUSTOMIZATION */}
       {subTab === 'template' && (
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -249,43 +238,31 @@ export function SettingsCenter({
                 <Palette className="w-4 h-4 text-amber-400" />
                 ปรับแต่งรูปแบบข้อความแจ้งเตือนและเสียงประกาศไทย
               </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                กำหนดคำพูด หัวข้อ และรูปแบบตัวอักษรที่ส่งไปยังหน้าจอและโทรศัพท์
+              <p className="text-xs text-slate-400 mt-0.5">
+                ปรับแต่งบทพูดที่ใช้ประกาศและข้อความแจ้งเตือนผลสลาก
               </p>
             </div>
 
             <button
               type="button"
               onClick={templateProps.onSaveTemplate}
-              className="px-5 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs rounded-xl shadow-md cursor-pointer transition"
+              className="px-5 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs rounded-xl shadow-md cursor-pointer transition active:scale-95"
             >
               💾 บันทึกรูปแบบข้อความ
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
                 <label className="text-xs text-slate-300 font-semibold block mb-1">
-                  หัวข้อข้อความ (Message Title)
+                  หัวข้อแจ้งเตือน (Notification Title)
                 </label>
                 <input
                   type="text"
                   value={templateProps.templateTitle}
                   onChange={(e) => templateProps.setTemplateTitle(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-300 font-semibold block mb-1">
-                  เนื้อหาข้อความ (Message Body)
-                </label>
-                <textarea
-                  rows={6}
-                  value={templateProps.templateBody}
-                  onChange={(e) => templateProps.setTemplateBody(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-500 leading-relaxed"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -345,7 +322,7 @@ export function SettingsCenter({
                 <button
                   type="button"
                   onClick={templateProps.onTestAnnouncement}
-                  className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs rounded-xl shadow-md cursor-pointer transition flex items-center justify-center gap-2"
+                  className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs rounded-xl shadow-md cursor-pointer transition flex items-center justify-center gap-2 active:scale-95"
                 >
                   <Sparkles className="w-4 h-4" />
                   ทดสอบฟังเสียงประกาศ (1-Click Listen)
@@ -356,7 +333,7 @@ export function SettingsCenter({
         </div>
       )}
 
-      {/* SUB-TAB 3: GITHUB APP RUNNER */}
+      {/* SUB-TAB 2: GITHUB APP RUNNER */}
       {subTab === 'github' && (
         <GitHubAppRunner
           onRefreshStatus={onRefreshData}
@@ -364,7 +341,7 @@ export function SettingsCenter({
         />
       )}
 
-      {/* SUB-TAB 4: PROJECT CODE & FILE EDITOR */}
+      {/* SUB-TAB 3: PROJECT CODE & FILE EDITOR */}
       {subTab === 'files' && (
         <ProjectCodeEditor
           onRefreshProject={onRefreshData}
@@ -373,7 +350,7 @@ export function SettingsCenter({
         />
       )}
 
-      {/* SUB-TAB 5: MULTI-CHANNEL DISPATCHER */}
+      {/* SUB-TAB 4: MULTI-CHANNEL DISPATCHER (DISCORD / TELEGRAM) */}
       {subTab === 'channels' && (
         <MultiChannelDispatcher
           settings={settings || {}}
@@ -382,12 +359,12 @@ export function SettingsCenter({
         />
       )}
 
-      {/* SUB-TAB 6: DEPLOYMENT PLAYBOOK */}
+      {/* SUB-TAB 5: DEPLOYMENT PLAYBOOK */}
       {subTab === 'playbook' && (
         <DeploymentPlaybook />
       )}
 
-      {/* SUB-TAB 7: RAW SETTINGS.JSON */}
+      {/* SUB-TAB 6: RAW SETTINGS.JSON */}
       {subTab === 'raw' && (
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
@@ -404,7 +381,7 @@ export function SettingsCenter({
             <button
               type="button"
               onClick={onSaveRawSettings}
-              className="px-5 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs rounded-xl shadow-md cursor-pointer transition"
+              className="px-5 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs rounded-xl shadow-md cursor-pointer transition active:scale-95"
             >
               💾 บันทึก settings.json
             </button>

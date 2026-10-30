@@ -78,7 +78,7 @@
     "ntfy": {
       "enabled": true,
       "server": "https://ntfy.sh",
-      "topic": "",
+      "topic": "lottery-alert-live",
       "priority": "high",
       "tags": [
         "moneybag",

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Ticket,
   Search,
@@ -32,6 +32,27 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
   );
   const [checkedResults, setCheckedResults] = useState<TicketMatch[] | null>(null);
   const [copiedSlip, setCopiedSlip] = useState(false);
+
+  // Deduplicate available draw dates to prevent duplicate key errors in React
+  const uniqueDrawDates = useMemo(() => {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    if (latestDraw?.งวดวันที่) {
+      const d = String(latestDraw.งวดวันที่).trim();
+      if (d) {
+        seen.add(d);
+        list.push(d);
+      }
+    }
+    (results || []).forEach((r) => {
+      const d = String(r.งวดวันที่ || '').trim();
+      if (d && !seen.has(d)) {
+        seen.add(d);
+        list.push(d);
+      }
+    });
+    return list;
+  }, [results, latestDraw]);
 
   // Find target draw
   const targetDraw = results.find((r) => r.งวดวันที่ === selectedDrawDate) || latestDraw || {};
@@ -164,9 +185,9 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
             onChange={(e) => setSelectedDrawDate(e.target.value)}
             className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-amber-300 font-semibold focus:outline-none"
           >
-            {results.map((r) => (
-              <option key={r.งวดวันที่} value={r.งวดวันที่}>
-                {r.งวดวันที่}
+            {uniqueDrawDates.map((date, idx) => (
+              <option key={`draw-date-${date}-${idx}`} value={date}>
+                {date}
               </option>
             ))}
           </select>
