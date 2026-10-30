@@ -100,9 +100,16 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           set -euo pipefail
-          if [ -z "$NTFY_TOPIC" ]; then
-            echo "::warning::NTFY_TOPIC secret is not configured; skipping the notification test."
+          readarray -t NTFY_CONFIG < <(python -c 'import json; c=json.load(open("config/settings.json", encoding="utf-8")); n=c.get("channels", {}).get("ntfy", {}); print(n.get("server", "https://ntfy.sh")); print(n.get("topic", ""))')
+          NTFY_SERVER="${NTFY_SERVER:-${NTFY_CONFIG[0]}}"
+          TOPIC="${NTFY_TOPIC:-${NTFY_CONFIG[1]}}"
+          if [ -z "$TOPIC" ]; then
+            echo "::warning::No ntfy topic is configured in the Actions secret or config/settings.json; skipping the notification test."
             exit 0
+          fi
+          if [[ ! "$TOPIC" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
+            echo "::error::Configured ntfy topic contains unsupported characters."
+            exit 1
           fi
           curl --fail --show-error --silent --max-time 20 \
             -H "Title: ทดสอบเสียงแจ้งเตือนหุ้น VIP" \
@@ -110,15 +117,18 @@ jobs:
             -H "Tags: loudspeaker,bell" \
             -H "Click: https://github.com/jirapatza/Bombim00/actions" \
             -d "นี่คือข้อความทดสอบเท่านั้น ไม่ใช่ผลหวยจริง\nระบบส่งจาก GitHub Actions ไปยัง ntfy แล้ว\nถ้าต้องการให้พูดออกเสียง ให้เปิดเสียงการแจ้งเตือนของ ntfy ใน Android; ntfy ไม่สามารถสั่งเสียงพูดไทยเองจาก GitHub ได้" \
-            "https://ntfy.sh/$NTFY_TOPIC"
+            "${NTFY_SERVER%/}/$TOPIC"
           echo "NTFY_HTTP_ACCEPTED=1 (server accepted the publish request; Android receipt is not verifiable here)"
 
       - name: Check notification secret configuration
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          if [ -z "$NTFY_TOPIC" ]; then
-            echo "::warning::NTFY_TOPIC secret is not configured; push notifications will be skipped until it is added."
+          CONFIG_TOPIC="$(python -c 'import json; print(json.load(open("config/settings.json", encoding="utf-8")).get("channels", {}).get("ntfy", {}).get("topic", ""))')"
+          if [ -z "${NTFY_TOPIC:-$CONFIG_TOPIC}" ]; then
+            echo "::warning::No ntfy topic is configured; automatic push delivery cannot be sent."
+          else
+            echo "ntfy destination is configured (topic value hidden)."
           fi
 
       - name: Run Lottery Checker & Alert
