@@ -31,7 +31,7 @@ interface MobileNotificationHubProps {
 }
 
 export function MobileNotificationHub({
-  currentTopic = 'lottery-alert',
+  currentTopic = '',
   onUpdateTopic,
   latestDraw,
   allLotteries = [],
