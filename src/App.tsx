@@ -262,6 +262,15 @@ function selectThaiVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice |
   return thaiVoices.find((voice) => /male|man|ชาย/i.test(voice.name)) || thaiVoices[0];
 }
 
+function getLotteryResultFingerprint(row: any): string {
+  return JSON.stringify([
+    String(row?.หวย || row?.ชื่อหวย || row?.lotteryName || '').trim().toLocaleLowerCase(),
+    String(row?.งวดวันที่ || row?.วันที่จัดรูปแบบ || row?.drawDate || '').trim(),
+    String(row?.รางวัลที่_1 || row?.เลขบน_3_ตัว || row?.top3 || row?.firstPrize || '').trim(),
+    String(row?.เลขท้าย_2_ตัว || row?.เลขล่าง_2_ตัว || row?.bottom2 || row?.last2 || '').trim(),
+  ]);
+}
+
 function getNextClosingLottery(currentTime = new Date()): { name: string; closeTimeStr: string; remainingText: string } {
   let currentHour = currentTime.getHours();
   // If midnight to 03:00, count as 24..27
@@ -476,6 +485,7 @@ export default function App() {
   const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const queueTimeoutRef = useRef<any>(null);
   const announcementQueueRef = useRef<LotteryAnnouncement[]>([]);
+  const knownResultsRef = useRef<Set<string> | null>(null);
 
   const showToast = (msg: string) => {
     setNotificationToast(msg);
@@ -1017,14 +1027,16 @@ export default function App() {
   };
 
   // Fetch initial data
-  const fetchData = async () => {
+  const fetchData = async (): Promise<{ results: LotteryResult[]; newResults: LotteryResult[] }> => {
     setIsLoading(true);
+    let safeResults: LotteryResult[] = [];
+    let newResults: LotteryResult[] = [];
     try {
       const apiBase = workerUrl ? workerUrl.replace(/\/+$/, '') : '';
       const [resStatus, resSettings, resResults, resFiles, resAllLotteries] = await Promise.all([
         fetch(`${apiBase}/api/status`).then((r) => r.ok ? r.json() : null).catch(() => null),
         fetch(`${apiBase}/api/settings`).then((r) => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${apiBase}/api/results`).then((r) => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${apiBase}/api/results`).then((r) => r.ok ? r.json() : null).catch(() => null),
         fetch(`${apiBase}/api/project-files`).then((r) => r.ok ? r.json() : []).catch(() => []),
         fetch(`${apiBase}/api/all-lotteries`).then((r) => r.ok ? r.json() : []).catch(() => []),
       ]);
@@ -1033,8 +1045,6 @@ export default function App() {
       if (resSettings) {
         setSettings(resSettings);
         setRawSettingsJson(JSON.stringify(resSettings, null, 2));
-
-        // Load custom templates if exists
         if (resSettings.message_template) {
           const tm = resSettings.message_template;
           if (tm.title) setTemplateTitle(tm.title);
@@ -1046,19 +1056,49 @@ export default function App() {
           if (tm.font_family) setFontFamily(tm.font_family);
         }
       }
-      if (Array.isArray(resResults)) setResults(resResults);
+
+      if (Array.isArray(resResults)) {
+        safeResults = resResults as LotteryResult[];
+        const previousKeys = knownResultsRef.current;
+        if (previousKeys) {
+          newResults = safeResults.filter((row: any) => {
+            const key = getLotteryResultFingerprint(row);
+            const hasTop = Boolean(String(row?.รางวัลที่_1 || row?.เลขบน_3_ตัว || row?.top3 || row?.firstPrize || '').trim());
+            const hasBottom = Boolean(String(row?.เลขท้าย_2_ตัว || row?.เลขล่าง_2_ตัว || row?.bottom2 || row?.last2 || '').trim());
+            return hasTop && hasBottom && !previousKeys.has(key);
+          });
+        }
+        knownResultsRef.current = new Set(safeResults.map((row: any) => getLotteryResultFingerprint(row)));
+        setResults(safeResults);
+      }
       if (Array.isArray(resFiles)) setProjectFiles(resFiles);
       if (Array.isArray(resAllLotteries) && resAllLotteries.length > 0) {
         setAllLotteries(resAllLotteries);
-        if (!selectedCatalogLottery) {
-          setSelectedCatalogLottery(resAllLotteries[0]);
-        }
+        if (!selectedCatalogLottery) setSelectedCatalogLottery(resAllLotteries[0]);
+      }
+
+      if (newResults.length > 0) {
+        const nextClosing = getNextClosingLottery();
+        triggerAnnouncements(newResults.map((row: any, index) => ({
+          id: `live-${getLotteryResultFingerprint(row)}-${index}`,
+          lotteryName: row.ชื่อหวย || row.หวย || row.lotteryName || 'หวย',
+          drawDate: row.งวดวันที่ || row.วันที่จัดรูปแบบ || row.drawDate || 'งวดล่าสุด',
+          firstPrize: row.รางวัลที่_1 || row.เลขบน_3_ตัว || row.top3 || row.firstPrize || '-',
+          last2Digits: row.เลขท้าย_2_ตัว || row.เลขล่าง_2_ตัว || row.bottom2 || row.last2 || '-',
+          front3Digits: Array.isArray(row.เลขหน้า_3_ตัว) ? row.เลขหน้า_3_ตัว : [],
+          last3Digits: Array.isArray(row.เลขท้าย_3_ตัว) ? row.เลขท้าย_3_ตัว : [],
+          source: row.แหล่งข้อมูล || row.source || 'แหล่งข้อมูลผลหวย',
+          nextClosing,
+          note: 'ตรวจพบผลใหม่จากแหล่งข้อมูล',
+        })));
+        showToast(`พบผลหวยใหม่ ${newResults.length} รายการ กำลังอ่านประกาศเสียง`);
       }
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
       setIsLoading(false);
     }
+    return { results: safeResults, newResults };
   };
 
   useEffect(() => {
@@ -1120,13 +1160,13 @@ export default function App() {
       let res: Response | null = null;
       let data: any = null;
 
-      // 1. If custom remote worker URL is set with password, attempt it
       if (workerUrl && dashPassword) {
         try {
           const apiBase = workerUrl.replace(/\/+$/, '');
           const remoteRes = await fetch(`${apiBase}/api/trigger`, {
             method: 'POST',
-            headers: { Authorization: `Bearer ${dashPassword}` },
+            headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lotteryTarget: 'all' }),
           });
           const remoteData = await remoteRes.json().catch(() => ({}));
           if (remoteRes.ok && remoteData.success) {
@@ -1138,54 +1178,28 @@ export default function App() {
         }
       }
 
-      // 2. If remote not used or failed (e.g., 401), use local fullstack Express backend
       if (!res || !res.ok) {
-        try {
-          const localRes = await fetch('/api/trigger', { method: 'POST' });
-          const localData = await localRes.json().catch(() => ({}));
-          if (localRes.ok && localData.success) {
-            res = localRes;
-            data = localData;
-          }
-        } catch {
-          // Fallback to check-now
-          const fallbackRes = await fetch('/api/check-now', { method: 'POST' });
-          const fallbackData = await fallbackRes.json().catch(() => ({}));
-          res = fallbackRes;
-          data = fallbackData;
-        }
+        const localRes = await fetch('/api/trigger', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lotteryTarget: 'all' }),
+        });
+        const localData = await localRes.json().catch(() => ({}));
+        res = localRes;
+        data = localData;
       }
 
-      if (res && res.ok && (data?.success || data?.ok)) {
-        showToast('⚡ ตรวจสอบผลสลากและแจ้งเตือนเรียบร้อยแล้ว');
+      if (res && res.ok && data?.success) {
         if (data.status) setStatus(data.status);
-        fetchData();
-
-        const nextClosing = getNextClosingLottery();
-        const latest = results[0] || {
-          งวดวันที่: '16 ตุลาคม 2569',
-          รางวัลที่_1: '289594',
-          เลขท้าย_2_ตัว: '84',
-          เลขหน้า_3_ตัว: ['012', '425'],
-          เลขท้าย_3_ตัว: ['318', '972'],
-        };
-
-        triggerAnnouncements([
-          {
-            id: 'glo-' + Date.now(),
-            lotteryName: 'สลากกินแบ่งรัฐบาล',
-            drawDate: latest.งวดวันที่,
-            firstPrize: latest.รางวัลที่_1,
-            last2Digits: latest.เลขท้าย_2_ตัว,
-            front3Digits: latest.เลขหน้า_3_ตัว,
-            last3Digits: latest.เลขท้าย_3_ตัว,
-            source: 'glo',
-            nextClosing: nextClosing,
-          },
-        ]);
+        const refreshed = await fetchData();
+        if (refreshed.newResults.length === 0) {
+          showToast('ตรวจสอบแหล่งข้อมูลแล้ว แต่ยังไม่พบผลใหม่ จึงไม่อ่านผลเก่าซ้ำ');
+        } else {
+          showToast(`ตรวจพบผลใหม่ ${refreshed.newResults.length} รายการ`);
+        }
       } else {
         const reason = data?.error || data?.message || (res ? `HTTP ${res.status}` : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
-        showToast(`เกิดข้อผิดพลาดในการตรวจสอบ: ${reason}`);
+        showToast(`ตรวจสอบไม่สำเร็จ: ${reason}`);
         console.error('Trigger workflow failed:', res?.status, data);
       }
     } catch (err: any) {
