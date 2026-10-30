@@ -833,7 +833,7 @@ export default function App() {
     };
 
     try {
-      const res = await fetch('/api/settings', {
+      const res = await fetch(`${workerUrl}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedSettings),
@@ -866,7 +866,7 @@ export default function App() {
       };
       setSettings(newSettings);
       try {
-        await fetch('/api/settings', {
+        await fetch(`${workerUrl}/api/settings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newSettings),
@@ -881,7 +881,7 @@ export default function App() {
   const handleSaveMultiChannelSettings = async (newSettings: any) => {
     setSettings(newSettings);
     try {
-      const res = await fetch('/api/settings', {
+      const res = await fetch(`${workerUrl}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newSettings),
@@ -899,7 +899,7 @@ export default function App() {
     try {
       const parsed = JSON.parse(rawSettingsJson);
       setSettings(parsed);
-      const res = await fetch('/api/settings', {
+      const res = await fetch(`${workerUrl}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(parsed),
@@ -919,7 +919,7 @@ export default function App() {
   const handleUpdateAllLotteries = async (updated: LotteryItem[]) => {
     setAllLotteries(updated);
     try {
-      const res = await fetch('/api/all-lotteries', {
+      const res = await fetch(`${workerUrl}/api/all-lotteries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated),
@@ -994,7 +994,7 @@ export default function App() {
   const handleTriggerCheck = async () => {
     setIsTriggering(true);
     try {
-      const res = await fetch('/api/check-now', { method: 'POST' });
+      const res = await fetch(`${workerUrl}/api/trigger`, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
         showToast('⚡ ดำเนินการตรวจสอบผลเรียบร้อยแล้ว');
@@ -1225,7 +1225,7 @@ export default function App() {
     }
     setIsSendingTest(true);
     try {
-      const res = await fetch('/api/test-ntfy', {
+      const res = await fetch(`${workerUrl}/api/test-ntfy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
