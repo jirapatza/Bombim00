@@ -1348,6 +1348,11 @@ export default function App() {
   };
 
   const latestDraw = results.length > 0 ? results[0] : null;
+  const latestGovernmentDraw = results.find((row: any) =>
+    row?.หมวดหวย === 'government' ||
+    ['thailotto', 'gsblotto', 'baaclotto'].includes(String(row?.หวย || '').toLowerCase()) ||
+    /รัฐบาล|ออมสิน|ธ\.ก\.ส\./.test(String(row?.ชื่อหวย || ''))
+  ) || null;
 
   const handleCheckTicket = () => {
     const cleanNum = ticketInput.trim();
@@ -1863,7 +1868,7 @@ export default function App() {
         {activeTab === 'pipeline' && (
           <NotificationPipelineInspector
             settings={settings}
-            latestDraw={latestDraw}
+            latestDraw={latestGovernmentDraw}
             allLotteries={allLotteries}
             onTriggerCheck={handleTriggerCheck}
             onSpeak={speakCustomText}
