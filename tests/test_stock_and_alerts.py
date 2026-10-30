@@ -170,3 +170,48 @@ def test_stock_groups_are_separated_and_faq_is_not_scraped(monkeypatch):
     assert vip["ชื่อหวย"] == "หวยหุ้นนิคเคอิ VIP เช้า"
     assert vip["เลขบน_3_ตัว"] == "469"
     assert vip["เลขล่าง_2_ตัว"] == "63"
+
+
+def test_non_government_result_fingerprint_includes_top3_bottom2_and_category():
+    base = {
+        "ชื่อหวย": "หวยฮานอยพิเศษ",
+        "หวย": "hanoylottospecial",
+        "หมวดหวย": "hanoi",
+        "งวดวันที่": "31 ตุลาคม 2569",
+        "เลขบน_3_ตัว": "024",
+        "เลขล่าง_2_ตัว": "44",
+        "สถานะการแจ้งเตือน": "sent",
+    }
+    same_result = dict(base)
+    corrected_result = {**base, "เลขบน_3_ตัว": "025"}
+    other_category = {**base, "หมวดหวย": "stock_vip"}
+
+    assert lc.sl.result_fingerprint(base) == lc.sl.result_fingerprint(same_result)
+    assert lc.sl.was_already_notified(same_result, [base]) is True
+    assert lc.sl.result_fingerprint(base) != lc.sl.result_fingerprint(corrected_result)
+    assert lc.sl.result_fingerprint(base) != lc.sl.result_fingerprint(other_category)
+
+
+def test_ntfy_template_error_fallback_keeps_non_government_lottery_identity(monkeypatch):
+    sent = {}
+    monkeypatch.setattr(lc, "NTFY_TOPIC", "")
+    monkeypatch.setattr(lc, "S", {
+        "channels": {"ntfy": {"enabled": True, "topic": "test-topic"}},
+        "message_template": {"title": "{missing_placeholder}", "body": "invalid"}
+    })
+    monkeypatch.setattr(lc, "_http_post", lambda url, data, headers, timeout=10: sent.update(
+        body=data.decode("utf-8")
+    ) or True)
+
+    assert lc.send_ntfy_notification({
+        "ชื่อหวย": "หวยฮานอยพิเศษ",
+        "หวย": "hanoylottospecial",
+        "หมวดหวย": "hanoi",
+        "งวดวันที่": "31 ตุลาคม 2569",
+        "เลขบน_3_ตัว": "024",
+        "เลขล่าง_2_ตัว": "44",
+    }) is True
+    assert "ผลหวยฮานอยพิเศษ" in sent["body"]
+    assert "3 ตัวบน: 024" in sent["body"]
+    assert "2 ตัวล่าง: 44" in sent["body"]
+    assert "สลากกินแบ่งรัฐบาล" not in sent["body"]
