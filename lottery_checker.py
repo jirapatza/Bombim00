@@ -239,14 +239,26 @@ def _http_get_text(url: str, timeout: int = 10) -> str:
         return response.read().decode("utf-8", errors="replace")
 
 
-def fetch_from_thailottoapi_stock() -> list:
-    """Fetch published stock/VIP lottery results, the system's primary target."""
+def fetch_from_thailottoapi_results() -> list:
+    """Fetch every published, supported category from ThaiLottoAPI (excluding removed Mekong draws)."""
     cfg = S.get("sources", {}).get("thailottoapi", {})
     base = cfg.get("url", "https://thailottoapi.com/api/results")
     timeout = cfg.get("timeout_sec", 12)
-    # Use Thailand local date; request a fresh sync so the endpoint doesn't stay on yesterday's cache.
     today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date().isoformat()
     url = f"{base}?date={today}&sync=1"
+
+    category_by_key = {
+        "thailotto": "government",
+        "gsblotto": "government",
+        "baaclotto": "government",
+        "lpp": "lao",
+        "laoslotto": "lao",
+        "malaylotto": "malay",
+        "hanoylottospecial": "hanoi",
+        "hanoylotto": "hanoi",
+        "hanoylottovip": "hanoi",
+    }
+
     try:
         data = _http_get_json(url, timeout=timeout, headers={
             "User-Agent": "LotteryAlert/1.0 (+https://github.com/jirapatza/Bombim00)",
@@ -255,42 +267,155 @@ def fetch_from_thailottoapi_stock() -> list:
         if not isinstance(data, dict) or data.get("ok") is not True:
             print("[WARN] ThaiLottoAPI returned no successful response.")
             return []
+
         categories = data.get("categories") or {}
-        stock = categories.get("stock") or {}
-        items = stock.get("items") or []
+        if not isinstance(categories, dict):
+            print("[WARN] ThaiLottoAPI categories field is not an object.")
+            return []
+
         rows = []
-        for item in items:
-            if not isinstance(item, dict) or str(item.get("status", "")).lower() != "success":
+        for raw_category, category_data in categories.items():
+            # The user previously excluded every Mekong lottery; never reintroduce them from this feed.
+            if str(raw_category).lower() == "maekhong":
                 continue
-            top3 = str(item.get("top3") or "").strip()
-            bottom2 = str(item.get("bottom2") or "").strip()
-            draw_date = str(item.get("drawDateDisplay") or item.get("drawDate") or "").strip()
-            if not top3 or not bottom2 or not draw_date:
-                print(f"[WARN] Skipping incomplete stock result: {item.get('key', 'unknown')}")
+            if not isinstance(category_data, dict):
                 continue
-            rows.append({
-                "ชื่อหวย": str(item.get("label") or item.get("key") or "หวยหุ้น"),
-                "หวย": str(item.get("key") or ""),
-                "หมวดหวย": "stock",
-                "งวดวันที่": draw_date,
-                "วันที่จัดรูปแบบ": str(item.get("drawDate") or today)[:10],
-                "รางวัลที่_1": top3.zfill(3),
-                "เลขท้าย_2_ตัว": bottom2.zfill(2),
-                "เลขบน_3_ตัว": top3.zfill(3),
-                "เลขล่าง_2_ตัว": bottom2.zfill(2),
-                "เลขหน้า_3_ตัว": [],
-                "เลขท้าย_3_ตัว": [],
-                "รางวัลข้างเคียงรางวัลที่_1": [],
-                "แหล่งข้อมูล": "ThaiLottoAPI",
-                "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
-                "สถานะการแจ้งเตือน": "pending"
-            })
-        print(f"[INFO] ThaiLottoAPI stock category: {len(rows)} published result(s) for {today}.")
+
+            items = category_data.get("items") or []
+            if not isinstance(items, list):
+                continue
+
+            for item in items:
+                if not isinstance(item, dict) or str(item.get("status", "")).lower() != "success":
+                    continue
+
+                key = str(item.get("key") or "").strip()
+                label = str(item.get("label") or key or "หวย").strip()
+                key_lower = key.lower()
+                label_lower = label.casefold()
+                draw_date = str(item.get("drawDateDisplay") or item.get("drawDate") or "").strip()
+                if not key or not draw_date:
+                    print(f"[WARN] Skipping ThaiLottoAPI item without key/date: {label or 'unknown'}")
+                    continue
+
+                result_value = str(item.get("result") or "").strip()
+                top3 = str(item.get("top3") or "").strip()
+                bottom2 = str(item.get("bottom2") or item.get("last2") or "").strip()
+                first_prize = str(item.get("firstPrize") or item.get("first_prize") or "").strip()
+                if not top3:
+                    top3 = result_value[-3:] if len(result_value) >= 3 else ""
+                if not bottom2 and len(result_value) >= 2:
+                    bottom2 = result_value[-2:]
+                if not first_prize and raw_category == "lottothaihot":
+                    first_prize = result_value
+
+                if not top3 and not first_prize:
+                    print(f"[WARN] Skipping incomplete ThaiLottoAPI result: {key}")
+                    continue
+                if not bottom2:
+                    print(f"[WARN] Skipping result without 2-digit lower number: {key}")
+                    continue
+
+                if key_lower in category_by_key:
+                    lottery_category = category_by_key[key_lower]
+                elif raw_category == "stock":
+                    if "vip" in label_lower or "พิเศษ" in label_lower or "visa" in label_lower:
+                        lottery_category = "vip"
+                    elif "ไทย" in label:
+                        lottery_category = "thai_stock"
+                    else:
+                        lottery_category = "foreign_stock"
+                elif raw_category == "lottoforeign":
+                    if "malay" in key_lower or "มาเลย์" in label:
+                        lottery_category = "malay"
+                    elif "hanoy" in key_lower or "hanoi" in key_lower or "ฮานอย" in label:
+                        lottery_category = "hanoi"
+                    elif "lao" in key_lower or "ลาว" in label:
+                        lottery_category = "lao"
+                    else:
+                        lottery_category = "foreign_stock"
+                elif raw_category == "liw":
+                    lottery_category = "liw"
+                elif raw_category == "lottothaihot":
+                    lottery_category = "government"
+                else:
+                    lottery_category = str(raw_category).lower()
+
+                front3 = item.get("front3") or item.get("front3Digits") or []
+                bottom3 = item.get("bottom3") or item.get("last3") or []
+                if isinstance(front3, str):
+                    front3 = [front3] if front3 else []
+                if isinstance(bottom3, str):
+                    bottom3 = [bottom3] if bottom3 else []
+                if not isinstance(front3, list):
+                    front3 = []
+                if not isinstance(bottom3, list):
+                    bottom3 = []
+
+                rows.append({
+                    "ชื่อหวย": label,
+                    "หวย": key,
+                    "หมวดหวย": lottery_category,
+                    "งวดวันที่": draw_date,
+                    "วันที่จัดรูปแบบ": str(item.get("drawDate") or today)[:10],
+                    "รางวัลที่_1": first_prize or top3,
+                    "เลขท้าย_2_ตัว": bottom2.zfill(2),
+                    "เลขบน_3_ตัว": top3.zfill(3),
+                    "เลขล่าง_2_ตัว": bottom2.zfill(2),
+                    "เลขหน้า_3_ตัว": [str(x).zfill(3) for x in front3 if str(x).strip()],
+                    "เลขท้าย_3_ตัว": [str(x).zfill(3) for x in bottom3 if str(x).strip()],
+                    "รางวัลข้างเคียงรางวัลที่_1": [],
+                    "แหล่งข้อมูล": "ThaiLottoAPI",
+                    "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
+                    "สถานะการแจ้งเตือน": "pending"
+                })
+
+        print(f"[INFO] ThaiLottoAPI returned {len(rows)} published result(s) across supported categories for {today}.")
         return rows
     except Exception as e:
-        print(f"[WARN] Failed fetching stock results from ThaiLottoAPI: {e}")
+        print(f"[WARN] Failed fetching all supported results from ThaiLottoAPI: {e}")
         return []
 
+
+def _lottery_category(row: dict) -> str:
+    category = str(row.get("หมวดหวย") or "").strip().lower()
+    if category:
+        if category in {"stock_vip", "stock_special", "stock_visa"}:
+            return "vip"
+        if category == "stock":
+            return "thai_stock" if "ไทย" in str(row.get("ชื่อหวย", "")) else "foreign_stock"
+        return category
+
+    key = str(row.get("หวย") or "").strip().lower()
+    name = str(row.get("ชื่อหวย") or "")
+    if key in {"thailotto", "gsblotto", "baaclotto"} or any(word in name for word in ("รัฐบาล", "ออมสิน", "ธ.ก.ส.")):
+        return "government"
+    return "unknown"
+
+
+def filter_rows_by_target(rows: list, target: str = "all") -> list:
+    """Apply the selected lottery category without silently falling back to Thai-only results."""
+    target = str(target or "all").strip().lower()
+    if target in {"", "all"}:
+        return rows
+
+    allowed = {
+        "vip": {"vip"},
+        "foreign_stock": {"foreign_stock"},
+        "hanoi": {"hanoi"},
+        "lao": {"lao"},
+        "thai_stock": {"thai_stock"},
+        "government": {"government", "gov_savings"},
+        "malay": {"malay"},
+        "liw": {"liw"},
+    }
+    if target not in allowed:
+        print(f"[WARN] Unknown LOTTERY_TARGET '{target}'; refusing to send notifications.")
+        return []
+
+    filtered = [row for row in rows if _lottery_category(row) in allowed[target]]
+    print(f"[FILTER] LOTTERY_TARGET={target}: kept {len(filtered)} of {len(rows)} result(s).")
+    return filtered
 
 def fetch_from_lotterychecks() -> list:
     """Fetch latest Thai government lottery results from LotteryChecks public API."""
@@ -419,11 +544,19 @@ def fetch_from_pholhuay() -> list:
 def send_ntfy_notification(row: dict) -> bool:
     """Send lottery results to ntfy server using configuration in settings.json."""
     ntfy_server = (S.get("channels", {}).get("ntfy", {}).get("server") or S.get("ntfy", {}).get("server", "https://ntfy.sh")).rstrip("/")
-    topic = NTFY_TOPIC or S.get("channels", {}).get("ntfy", {}).get("topic", "") or S.get("ntfy", {}).get("topic", "") or "lottery-alert-live"
+    topic = NTFY_TOPIC or S.get("channels", {}).get("ntfy", {}).get("topic", "") or S.get("ntfy", {}).get("topic", "")
     
     if not S.get("channels", {}).get("ntfy", {}).get("enabled", True):
         print("[INFO] ntfy channel is disabled in config/settings.json.")
         return False
+
+    if not topic.strip():
+        print("[ERROR] ntfy topic is not configured; refusing to publish to an implicit public topic.")
+        return False
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", topic.strip()):
+        print("[ERROR] ntfy topic contains unsupported characters.")
+        return False
+    topic = topic.strip()
 
     url = f"{ntfy_server}/{topic}"
     
@@ -558,52 +691,68 @@ def main():
     print(f"Time (UTC): {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
     previous_results = sl.load_previous_results()
-    rows, source_used = [], None
+    rows, sources_used = [], []
+    lottery_target = os.environ.get("LOTTERY_TARGET", "all").strip().lower() or "all"
+    government_targets = {"all", "government"}
 
-    # Priority 1: merge regular stock API results with the site's explicitly separated VIP/special/VISA groups.
     if sl.source_enabled(S, "thailottoapi"):
-        print("[CHECK] Querying primary regular stock source: thailottoapi...")
-        regular_rows = fetch_from_thailottoapi_stock()
-        rows.extend(regular_rows)
-        if regular_rows:
-            source_used = "ThaiLottoAPI + stock group scraper"
+        print("[CHECK] Querying ThaiLottoAPI for all supported lottery categories...")
+        api_rows = fetch_from_thailottoapi_results()
+        rows.extend(api_rows)
+        if api_rows:
+            sources_used.append("ThaiLottoAPI")
 
     print("[CHECK] Querying separated regular/VIP/special/VISA stock results...")
     grouped_rows = fetch_from_pholhuay_stock_groups()
     if grouped_rows:
-        known = {(r.get("ชื่อหวย"), r.get("งวดวันที่"), r.get("เลขบน_3_ตัว"), r.get("เลขล่าง_2_ตัว")) for r in rows}
+        known = {
+            (r.get("หวย") or r.get("ชื่อหวย"), r.get("งวดวันที่"), r.get("เลขบน_3_ตัว"), r.get("เลขล่าง_2_ตัว"))
+            for r in rows
+        }
         for row in grouped_rows:
-            key = (row.get("ชื่อหวย"), row.get("งวดวันที่"), row.get("เลขบน_3_ตัว"), row.get("เลขล่าง_2_ตัว"))
+            key = (row.get("หวย") or row.get("ชื่อหวย"), row.get("งวดวันที่"), row.get("เลขบน_3_ตัว"), row.get("เลขล่าง_2_ตัว"))
             if key not in known:
                 rows.append(row)
                 known.add(key)
-        source_used = source_used or "ผลหวย.com stock groups"
+        sources_used.append("ผลหวย.com stock groups")
 
-    # Government results remain a fallback only when no live stock result is available.
-    # Never treat cached history as a fresh result.
-    if not rows and sl.source_enabled(S, "pholhuay"):
-        print("[CHECK] Querying source: pholhuay...")
-        rows = fetch_from_pholhuay()
-        if rows:
-            source_used = "pholhuay"
-    if not rows and sl.source_enabled(S, "glo"):
-        print("[CHECK] Querying source: glo...")
-        rows = fetch_from_glo()
-        if rows:
-            source_used = "glo"
-    if not rows and sl.source_enabled(S, "lotterychecks"):
-        print("[CHECK] Querying fallback source: lotterychecks...")
-        rows = fetch_from_lotterychecks()
-        if rows:
-            source_used = "LotteryChecks"
-    if not rows and sl.source_enabled(S, "ranlotto"):
-        print("[CHECK] Querying fallback source: ranlotto...")
-        rows = fetch_from_ranlotto()
-        if rows:
-            source_used = "ranlotto"
+    # Government feeds are checked independently when requested, not only when every other lottery fails.
+    if lottery_target in government_targets and not any(_lottery_category(row) == "government" for row in rows):
+        for source_name, fetcher, source_label in (
+            ("pholhuay", fetch_from_pholhuay, "pholhuay"),
+            ("glo", fetch_from_glo, "glo"),
+            ("lotterychecks", fetch_from_lotterychecks, "LotteryChecks"),
+            ("ranlotto", fetch_from_ranlotto, "ranlotto"),
+        ):
+            if not sl.source_enabled(S, source_name):
+                continue
+            print(f"[CHECK] Querying government fallback source: {source_name}...")
+            fallback_rows = fetcher()
+            if fallback_rows:
+                for row in fallback_rows:
+                    row.setdefault("หมวดหวย", "government")
+                rows.extend(fallback_rows)
+                sources_used.append(source_label)
+                break
+
+    # Remove duplicate provider rows while retaining the first complete result.
+    unique_rows, seen_rows = [], set()
+    for row in rows:
+        identity = (
+            row.get("หวย") or row.get("ชื่อหวย"),
+            row.get("งวดวันที่"),
+            row.get("เลขบน_3_ตัว") or row.get("รางวัลที่_1"),
+            row.get("เลขล่าง_2_ตัว") or row.get("เลขท้าย_2_ตัว"),
+        )
+        if identity not in seen_rows:
+            seen_rows.add(identity)
+            unique_rows.append(row)
+
+    rows = filter_rows_by_target(unique_rows, lottery_target)
+    source_used = " + ".join(dict.fromkeys(sources_used)) or None
 
     if not rows:
-        print("[INFO] No live result available; cached results will not be re-sent.")
+        print(f"[INFO] No live result available for LOTTERY_TARGET={lottery_target}; cached results will not be re-sent.")
         sl.write_status([], source_used=source_used)
         return
 
@@ -617,14 +766,14 @@ def main():
             continue
         if not force_notify and sl.was_already_notified(row, previous_results):
             row["สถานะการแจ้งเตือน"] = "sent"
-            print(f"[DEDUP] Already delivered; skip {row.get('งวดวันที่', 'unknown draw')}.")
+            print(f"[DEDUP] Already delivered; skip {row.get('ชื่อหวย', 'unknown lottery')} / {row.get('งวดวันที่', 'unknown draw')}.")
             continue
         if send_all_notifications(row):
             row["สถานะการแจ้งเตือน"] = "sent"
             delivered.append(row)
         else:
             row["สถานะการแจ้งเตือน"] = "failed"
-            print("[ERROR] All configured notification channels failed; result remains retryable.")
+            print(f"[ERROR] Delivery failed for {row.get('ชื่อหวย', 'unknown lottery')}; result remains retryable.")
 
     merged, seen = [], set()
     for row in rows + previous_results:
@@ -632,9 +781,9 @@ def main():
         if fingerprint not in seen:
             seen.add(fingerprint)
             merged.append(row)
-    sl.save_results(merged[:200])
+    sl.save_results(merged[:500])
     sl.write_status(rows, source_used=source_used, notifications_sent=len(delivered))
-    print(f"[DONE] Checked {len(rows)} live result(s); delivered {len(delivered)} notification(s).")
+    print(f"[DONE] Checked {len(rows)} live result(s) for target '{lottery_target}'; delivered {len(delivered)} notification(s).")
 
 
 if __name__ == "__main__":
