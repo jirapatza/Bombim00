@@ -366,7 +366,7 @@ export default function App() {
   const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
 
   // Cloudflare Worker settings & Reconnection Helper state
-  const [workerUrl, setWorkerUrl] = useState<string>(localStorage.getItem('cf_worker_url') || '');
+  const [workerUrl, setWorkerUrl] = useState<string>(localStorage.getItem('cf_worker_url') || 'https://bombim00-github-api.jirapatcip2557.workers.dev');
   const [dashPassword, setDashPassword] = useState<string>(localStorage.getItem('cf_dash_password') || '');
   const [isWorkerConnected, setIsWorkerConnected] = useState<boolean>(false);
   const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
@@ -939,12 +939,13 @@ export default function App() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      const apiBase = (workerUrl || 'https://bombim00-github-api.jirapatcip2557.workers.dev').replace(/\\/$/, '');
       const [resStatus, resSettings, resResults, resFiles, resAllLotteries] = await Promise.all([
-        fetch('/api/status').then((r) => r.json()).catch(() => null),
-        fetch('/api/settings').then((r) => r.json()).catch(() => null),
-        fetch('/api/results').then((r) => r.json()).catch(() => []),
-        fetch('/api/project-files').then((r) => r.json()).catch(() => []),
-        fetch('/api/all-lotteries').then((r) => r.json()).catch(() => []),
+        fetch(`${apiBase}/api/status`).then((r) => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${apiBase}/api/settings`).then((r) => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${apiBase}/api/results`).then((r) => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${apiBase}/api/project-files`).then((r) => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${apiBase}/api/all-lotteries`).then((r) => r.ok ? r.json() : []).catch(() => []),
       ]);
 
       if (resStatus) setStatus(resStatus);
