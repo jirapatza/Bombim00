@@ -1209,41 +1209,49 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
       }
     }
 
-    // Try finding exact match in all_lotteries or previous results
-    const matchedLottery = allLotteriesList.find((l: any) => 
-      prompt.toLowerCase().includes(l.name.toLowerCase()) || 
-      prompt.toLowerCase().includes(l.id.toLowerCase())
-    );
+    // Never fabricate lottery results when live verification fails.
+    const normalizedPrompt = String(prompt || '').toLocaleLowerCase('th-TH');
+    const matchedLottery = allLotteriesList.find((item: any) => {
+      const name = String(item?.name || '').toLocaleLowerCase('th-TH');
+      const id = String(item?.id || '').toLocaleLowerCase('th-TH');
+      return (name && normalizedPrompt.includes(name)) || (id && normalizedPrompt.includes(id));
+    });
 
-    const latestOfficial = previousResults[0] || {
-      งวดวันที่: '16 ตุลาคม 2569',
-      รางวัลที่_1: '289594',
-      เลขท้าย_2_ตัว: '84',
-      เลขหน้า_3_ตัว: ['012', '425'],
-      เลขท้าย_3_ตัว: ['318', '972'],
-    };
+    const matchedCachedResult = previousResults.find((row: any) => {
+      const name = String(row?.ชื่อหวย || '').toLocaleLowerCase('th-TH');
+      const key = String(row?.หวย || '').toLocaleLowerCase('th-TH');
+      return (name && normalizedPrompt.includes(name)) || (key && normalizedPrompt.includes(key));
+    });
 
     let fallbackText = '';
-    let fallbackSources = [
-      { title: 'สำนักงานสลากกินแบ่งรัฐบาล (GLO Official)', uri: 'https://www.glo.or.th' },
-      { title: 'ตรวจสลากกินแบ่งรัฐบาล - Thai PBS News', uri: 'https://news.thaipbs.or.th/lottery' },
-    ];
+    const fallbackSources: Array<{ title: string; uri: string }> = [];
 
-    if (matchedLottery) {
-      fallbackText = `ผลการออกรางวัล ${matchedLottery.name} (${matchedLottery.categoryLabel})\n` +
-        `• เวลาปิดรับ / ออกผล: ${matchedLottery.closeTimeStr} / ${matchedLottery.drawTimeStr}\n` +
-        `• 3 ตัวบน: ${matchedLottery.top3}\n` +
-        `• 2 ตัวล่าง: ${matchedLottery.bottom2}\n` +
-        `• สถานะปัจจุบัน: ${matchedLottery.status === 'drawn' ? 'ออกผลแล้ว' : 'กำลังรอออกผล'}\n` +
-        `* ข้อมูลยืนยันความถูกต้องตรงกับฐานข้อมูลแคตตาล็อกระบบหวย 51 รายการอย่างเป็นทางการ`;
-      fallbackSources.push({ title: `ฐานข้อมูลผลหวย: ${matchedLottery.name}`, uri: 'https://jirapatza.github.io/Bombim00' });
+    if (matchedCachedResult) {
+      const lotteryName = matchedCachedResult.ชื่อหวย || matchedCachedResult.หวย || 'หวย';
+      const isGovernment = ['government', 'gov_savings'].includes(String(matchedCachedResult.หมวดหวย || '').toLowerCase());
+      const upperNumber = isGovernment
+        ? matchedCachedResult.รางวัลที่_1 || '-'
+        : matchedCachedResult.เลขบน_3_ตัว || matchedCachedResult.รางวัลที่_1 || '-';
+      const lowerNumber = matchedCachedResult.เลขล่าง_2_ตัว || matchedCachedResult.เลขท้าย_2_ตัว || '-';
+      fallbackText = `ข้อมูลที่บันทึกไว้ล่าสุดของ ${lotteryName} (ข้อมูลย้อนหลังจากแคช ไม่ใช่การตรวจสอบสด):\\n` +
+        `• วันที่งวด: ${matchedCachedResult.งวดวันที่ || matchedCachedResult.วันที่จัดรูปแบบ || 'ไม่ระบุ'}\\n` +
+        (isGovernment
+          ? `• รางวัลที่ 1: ${upperNumber}\\n• เลขท้าย 2 ตัว: ${lowerNumber}\\n`
+          : `• 3 ตัวบน: ${upperNumber}\\n• 2 ตัวล่าง: ${lowerNumber}\\n`) +
+        `• แหล่งข้อมูลเดิม: ${matchedCachedResult.แหล่งข้อมูล || 'ไม่ระบุ'}\\n` +
+        `หมายเหตุ: ข้อมูลนี้มาจากผลที่เคยบันทึกไว้ ระบบยังยืนยันผลสดไม่ได้ในขณะนี้`;
+      fallbackSources.push({ title: 'คลังผลหวยที่ระบบบันทึกไว้', uri: 'https://github.com/jirapatza/Bombim00' });
+    } else if (matchedLottery) {
+      fallbackText = `พบรายการ ${matchedLottery.name} ในแคตตาล็อกระบบ\\n` +
+        `• หมวด: ${matchedLottery.categoryLabel || matchedLottery.category || 'ไม่ระบุ'}\\n` +
+        `• เวลาปิดรับ: ${matchedLottery.closeTimeStr || 'ไม่ระบุ'}\\n` +
+        `• เวลาออกรางวัลตามตาราง: ${matchedLottery.drawTimeStr || 'ไม่ระบุ'}\\n` +
+        `• สถานะในแคตตาล็อก: ${matchedLottery.status || 'ไม่ระบุ'}\\n` +
+        `ยังไม่มีผลรางวัลที่ตรงกับรายการนี้ในแคช จึงไม่แสดงตัวเลขแทนผลจริง`;
+      fallbackSources.push({ title: 'แคตตาล็อกหวยในโปรเจกต์', uri: 'https://github.com/jirapatza/Bombim00' });
     } else {
-      fallbackText = `ผลสลากกินแบ่งรัฐบาลไทย งวดวันที่ ${latestOfficial.งวดวันที่} (ผลทางการยืนยันแล้ว):\n` +
-        `• รางวัลที่ 1: ${latestOfficial.รางวัลที่_1}\n` +
-        `• เลขท้าย 2 ตัว: ${latestOfficial.เลขท้าย_2_ตัว}\n` +
-        `• เลขหน้า 3 ตัว: ${(latestOfficial.เลขหน้า_3_ตัว || []).join(', ')}\n` +
-        `• เลขท้าย 3 ตัว: ${(latestOfficial.เลขท้าย_3_ตัว || []).join(', ')}\n\n` +
-        `หมายเหตุ: เนื่องจากโควตาการสืบค้นสดภายนอกชั่วคราว ระบบดึงผลที่ตรวจยืนยันความถูกต้องแล้วจากฐานข้อมูลทางการสำนักงานสลากกินแบ่งรัฐบาล (GLO) มาให้ทันที`;
+      fallbackText = `ยังไม่พบผลรางวัลที่ตรงกับคำค้น "${prompt}" ในข้อมูลที่ระบบบันทึกไว้\\n` +
+        `บริการตรวจสอบสดขัดข้องชั่วคราว ระบบจึงไม่แสดงตัวเลขตัวอย่างหรืออ้างว่าเป็นผลทางการ เพื่อป้องกันข้อมูลผิดพลาด`;
     }
 
     return res.json({
@@ -1251,9 +1259,9 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
       query: prompt,
       verifiedText: fallbackText,
       sources: fallbackSources,
-      webSearchQueries: [prompt, 'ผลสลากกินแบ่งรัฐบาล งวดล่าสุด'],
+      webSearchQueries: [prompt],
       isFallback: true,
-      fallbackReason: err.message?.includes('429') ? 'โควตาคำขอรายนาทีของ AI เต็มชั่วคราว จึงใช้ฐานข้อมูลผลจริงที่ยืนยันแล้วแทน' : err.message,
+      fallbackReason: err.message?.includes('429') ? 'โควตาการตรวจสอบสดเต็มชั่วคราว จึงแสดงเฉพาะข้อมูลที่เคยบันทึกไว้โดยระบุว่าเป็นแคช' : err.message,
       timestamp: new Date().toISOString(),
     });
   }
