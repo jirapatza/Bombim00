@@ -291,7 +291,7 @@ export const NotificationPipelineInspector: React.FC<NotificationPipelineInspect
     // Step 3: Timeline & Watchlist Match
     setSimulatedProgress(50);
     await new Promise((r) => setTimeout(r, 450));
-    const watched = settings?.notifications?.custom_watched_numbers || ['84', '289594'];
+    const watched = settings?.notifications?.custom_watched_numbers || [];
     const matchedWatched = watched.filter((w: string) =>
       String(upperNumber || '').includes(w) || testLottery.เลขท้าย_2_ตัว === w
     );
