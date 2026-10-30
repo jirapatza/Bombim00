@@ -87,6 +87,8 @@ def test_non_stock_ntfy_body_uses_real_line_breaks(monkeypatch):
 
     ok = lc.send_ntfy_notification({
         "ชื่อหวย": "สลากกินแบ่งรัฐบาล",
+        "หวย": "thailotto",
+        "หมวดหวย": "government",
         "งวดวันที่": "16 ตุลาคม 2569",
         "รางวัลที่_1": "001234",
         "เลขท้าย_2_ตัว": "09",
@@ -99,6 +101,50 @@ def test_non_stock_ntfy_body_uses_real_line_breaks(monkeypatch):
     assert "\n" in sent["body"]
     assert "\\n" not in sent["body"]
 
+
+
+
+def test_non_government_ntfy_body_uses_top3_and_bottom2_labels(monkeypatch):
+    sent = {}
+    monkeypatch.setattr(lc, "NTFY_TOPIC", "")
+    monkeypatch.setattr(lc, "S", {
+        "ntfy": {"server": "https://ntfy.sh", "default_priority": "high", "tags": ["bell"]},
+        "channels": {"ntfy": {"enabled": True, "topic": "test-topic"}},
+        "message_template": {"title": "ผล{lottery_name} งวด {draw_date}", "body": "ไม่ใช้แม่แบบรัฐบาล"}
+    })
+    monkeypatch.setattr(lc, "_http_post", lambda url, data, headers, timeout=10: sent.update(
+        url=url, body=data.decode("utf-8")
+    ) or True)
+
+    ok = lc.send_ntfy_notification({
+        "ชื่อหวย": "หวยฮานอยพิเศษ",
+        "หวย": "hanoylottospecial",
+        "หมวดหวย": "hanoi",
+        "งวดวันที่": "31 ตุลาคม 2569",
+        "รางวัลที่_1": "024",
+        "เลขบน_3_ตัว": "024",
+        "เลขล่าง_2_ตัว": "44",
+        "เลขท้าย_2_ตัว": "44",
+        "แหล่งข้อมูล": "test"
+    })
+
+    assert ok is True
+    assert "3 ตัวบน: 024" in sent["body"]
+    assert "2 ตัวล่าง: 44" in sent["body"]
+    assert "รางวัลที่ 1:" not in sent["body"]
+
+
+def test_ntfy_does_not_publish_when_topic_is_missing(monkeypatch):
+    monkeypatch.setattr(lc, "NTFY_TOPIC", "")
+    monkeypatch.setattr(lc, "S", {
+        "ntfy": {"server": "https://ntfy.sh"},
+        "channels": {"ntfy": {"enabled": True, "topic": ""}}
+    })
+    called = []
+    monkeypatch.setattr(lc, "_http_post", lambda *args, **kwargs: called.append(True) or True)
+
+    assert lc.send_ntfy_notification({"ชื่อหวย": "ทดสอบ"}) is False
+    assert called == []
 
 
 def test_stock_groups_are_separated_and_faq_is_not_scraped(monkeypatch):
