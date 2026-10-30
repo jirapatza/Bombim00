@@ -319,7 +319,7 @@ export const GoogleWorkspaceHub: React.FC<GoogleWorkspaceHubProps> = ({ latestRe
   const handleCreateFromDrawResult = async () => {
     if (!latestResult) return;
     const formatted = formatLotteryResultForKeep({
-      lotteryName: latestResult.ชื่อหวย || latestResult.หวย || 'สลากกินแบ่งรัฐบาล',
+      lotteryName: latestResult.ชื่อหวย || latestResult.หวย || 'หวย',
       drawDate: latestResult.งวดวันที่ || latestResult.วันที่จัดรูปแบบ || 'งวดล่าสุด',
       firstPrize: latestResult.รางวัลที่_1 || latestResult.เลขบน_3_ตัว || '',
       last2Digits: latestResult.เลขท้าย_2_ตัว || latestResult.เลขล่าง_2_ตัว || '',
@@ -331,7 +331,7 @@ export const GoogleWorkspaceHub: React.FC<GoogleWorkspaceHubProps> = ({ latestRe
       id: `note-${Date.now()}`,
       title: formatted.title,
       content: formatted.body,
-      tag: '#ผลสลากกินแบ่ง',
+      tag: '#ผลหวย',
       color: 'amber',
       createdAt: new Date().toISOString(),
     };
@@ -382,24 +382,31 @@ export const GoogleWorkspaceHub: React.FC<GoogleWorkspaceHubProps> = ({ latestRe
   };
 
   const handleCreateOfficialLotteryDoc = async () => {
+    const upperNumber = latestResult?.รางวัลที่_1 || latestResult?.เลขบน_3_ตัว || latestResult?.top3;
+    const lowerNumber = latestResult?.เลขท้าย_2_ตัว || latestResult?.เลขล่าง_2_ตัว || latestResult?.bottom2;
+    if (!latestResult || !upperNumber || !lowerNumber) {
+      setDocsMessage({ type: 'error', text: 'ไม่มีผลหวยที่มีตัวเลขครบและตรวจสอบได้ จึงยังไม่สร้างเอกสาร' });
+      return;
+    }
+
     setIsCreatingDoc(true);
     setDocsMessage(null);
     try {
-      const lotteryTitle = latestResult?.ชื่อหวย || latestResult?.หวย || 'สลากกินแบ่งรัฐบาลไทย';
-      const drawDate = latestResult?.งวดวันที่ || 'งวดล่าสุด';
-      const docTitle = `รายงานผลรางวัล ${lotteryTitle} ประจำงวด ${drawDate}`;
+      const lotteryTitle = latestResult.ชื่อหวย || latestResult.หวย || 'หวย';
+      const drawDate = latestResult.งวดวันที่ || latestResult.วันที่จัดรูปแบบ || 'ไม่ระบุวันที่';
+      const docTitle = `รายงานผล ${lotteryTitle} ประจำงวด ${drawDate}`;
 
       const newDoc = await createGoogleDoc(docTitle);
 
       const content = buildLotteryDocContent({
         lotteryName: lotteryTitle,
         drawDate,
-        firstPrize: latestResult?.รางวัลที่_1 || '289594',
-        last2Digits: latestResult?.เลขท้าย_2_ตัว || '84',
-        front3Digits: latestResult?.เลขหน้า_3_ตัว || ['012', '425'],
-        last3Digits: latestResult?.เลขท้าย_3_ตัว || ['318', '972'],
-        adjacentPrizes: latestResult?.รางวัลข้างเคียงรางวัลที่_1 || ['289593', '289595'],
-        source: latestResult?.แหล่งข้อมูล || 'สำนักงานสลากกินแบ่งรัฐบาล (GLO)',
+        firstPrize: upperNumber,
+        last2Digits: lowerNumber,
+        front3Digits: latestResult.เลขหน้า_3_ตัว || [],
+        last3Digits: latestResult.เลขท้าย_3_ตัว || [],
+        adjacentPrizes: latestResult.รางวัลข้างเคียงรางวัลที่_1 || [],
+        source: latestResult.แหล่งข้อมูล || 'ไม่ระบุแหล่งข้อมูล',
       });
 
       await appendTextToDoc(newDoc.documentId, content);
@@ -1028,16 +1035,16 @@ export const GoogleWorkspaceHub: React.FC<GoogleWorkspaceHubProps> = ({ latestRe
                       สร้างเอกสารรายงานผลรางวัลงวดล่าสุดลง Google Docs
                     </h3>
                     <p className="text-xs text-slate-300 mt-0.5">
-                      ระบบจะจัดทำตารางผลรางวัลที่ 1, เลขท้าย 2 ตัว, เลข 3 ตัว และข้อมูลอ้างอิง GLO ลงในเอกสารทันที
+                      ระบบจะจัดทำเอกสารจากผลหวยที่มีตัวเลขครบและมีอยู่ในข้อมูลล่าสุดของระบบ โดยไม่เติมตัวเลขตัวอย่าง
                     </p>
                   </div>
                   <button
                     onClick={handleCreateOfficialLotteryDoc}
-                    disabled={isCreatingDoc}
+                    disabled={isCreatingDoc || !latestResult}
                     className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     <FileText className="w-4 h-4" />
-                    <span>{isCreatingDoc ? 'กำลังสร้างเอกสาร...' : 'สร้างรายงานผลสลากใน Google Docs'}</span>
+                    <span>{isCreatingDoc ? 'กำลังสร้างเอกสาร...' : 'สร้างรายงานผลหวยใน Google Docs'}</span>
                   </button>
                 </div>
 
