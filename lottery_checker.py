@@ -560,7 +560,7 @@ def send_ntfy_notification(row: dict) -> bool:
 
     url = f"{ntfy_server}/{topic}"
     
-    draw_date = row.get("งวดวันที่", "สลากกินแบ่งรัฐบาล")
+    draw_date = row.get("งวดวันที่") or row.get("วันที่จัดรูปแบบ") or "ไม่ระบุวันที่"
     first_prize = row.get("รางวัลที่_1", "-")
     last_2 = row.get("เลขท้าย_2_ตัว", "-")
     front_3 = ", ".join(row.get("เลขหน้า_3_ตัว", [])) or "-"
@@ -571,7 +571,7 @@ def send_ntfy_notification(row: dict) -> bool:
     body_pattern = tmpl.get("body", "🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n📡 แหล่งข้อมูล: {source}")
 
     template_vars = {
-        "lottery_name": row.get("ชื่อหวย", "สลากกินแบ่งรัฐบาล"),
+        "lottery_name": row.get("ชื่อหวย") or row.get("หวย") or "หวยไม่ระบุชื่อ",
         "draw_date": draw_date,
         "first_prize": first_prize,
         "last_2": last_2,
@@ -598,8 +598,14 @@ def send_ntfy_notification(row: dict) -> bool:
         else:
             body = f"{title}\n\n" + body_pattern.format(**template_vars)
     except Exception:
-        title = f"📢 ผลสลากกินแบ่งรัฐบาล งวด {draw_date}"
-        body = f"{title}\n\n🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'official')}"
+        lottery_name = row.get("ชื่อหวย") or row.get("หวย") or "หวยไม่ระบุชื่อ"
+        title = f"📢 ผล{lottery_name} งวด {draw_date}"
+        if _lottery_category(row) in {"government", "gov_savings"}:
+            body = f"{title}\n\n🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'unknown')}"
+        else:
+            top3 = row.get("เลขบน_3_ตัว") or row.get("top3") or first_prize or "-"
+            bottom2 = row.get("เลขล่าง_2_ตัว") or row.get("bottom2") or last_2 or "-"
+            body = f"{title}\n\n🎯 หวย: {lottery_name}\n🔺 3 ตัวบน: {top3}\n🔻 2 ตัวล่าง: {bottom2}\n📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'unknown')}"
 
     priority = S.get("ntfy", {}).get("default_priority", "high")
     tags = ",".join(S.get("ntfy", {}).get("tags", ["moneybag", "dart"]))
@@ -787,7 +793,7 @@ def main():
     force_notify = os.environ.get("FORCE_NOTIFY", "").strip().lower() == "true"
     delivered = []
     for row in rows:
-        row.setdefault("ชื่อหวย", "สลากกินแบ่งรัฐบาล")
+        row.setdefault("ชื่อหวย", "หวยไม่ระบุชื่อ")
         row.setdefault("แหล่งข้อมูล", source_used or "unknown")
         if not sl.should_notify(S, row):
             row["สถานะการแจ้งเตือน"] = "not_eligible"
