@@ -1319,7 +1319,7 @@ async function runBackgroundAutoCheck(lotteryTarget = 'all'): Promise<{ success:
       FORCE_NOTIFY: 'false',
       LOTTERY_TARGET: String(lotteryTarget || 'all'),
     };
-    await execAsync('python3 lottery_checker.py', { env, cwd: __dirname, timeout: 45000 });
+    await execAsync('python3 lottery_checker.py', { env, cwd: __dirname, timeout: 90000 });
     console.log(`[AUTO-RUNNER] Background lottery check completed at ${new Date().toISOString()} (target: ${env.LOTTERY_TARGET})`);
     return { success: true };
   } catch (err: any) {
