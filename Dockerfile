@@ -17,14 +17,16 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 # Install Python3 for lottery checker script
-RUN apk add --no-cache python3 py3-pip curl
+RUN apk add --no-cache python3 py3-pip py3-virtualenv curl \
+    && virtualenv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY package*.json ./
 RUN npm install --omit=dev
 
 # Python runtime dependencies for checking lottery sources
 COPY requirements.txt ./requirements.txt
-RUN python3 -m pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 RUN mkdir -p /app/config /app/status /app/data
 
