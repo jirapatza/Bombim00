@@ -487,6 +487,7 @@ export default function App() {
   const announcementQueueRef = useRef<LotteryAnnouncement[]>([]);
   const knownResultsRef = useRef<Set<string> | null>(null);
   const triggerAnnouncementsRef = useRef<(items: LotteryAnnouncement[]) => void>(() => {});
+  const lastClosingAlertKeyRef = useRef<string | null>(null);
 
   const showToast = (msg: string) => {
     setNotificationToast(msg);
@@ -1143,11 +1144,13 @@ export default function App() {
       );
       if (due.length === 0) return;
       const storageKey = `bombim00:closing-alert:${now.dateKey}:${now.hour.toString().padStart(2, '0')}:${now.minute.toString().padStart(2, '0')}`;
+      if (lastClosingAlertKeyRef.current === storageKey) return;
+      lastClosingAlertKeyRef.current = storageKey;
       try {
         if (window.localStorage.getItem(storageKey) === 'sent') return;
         window.localStorage.setItem(storageKey, 'sent');
       } catch {
-        // Storage is only used to prevent repeats after an app reload.
+        // In-memory deduplication above still prevents repeated alerts in this app session.
       }
       const names = due.map((item) => item.name).join(' และ ');
       speakCustomText(`แจ้งเตือนปิดรับหวย ${names} เวลา ${now.hour.toString().padStart(2, '0')} นาฬิกา ${now.minute.toString().padStart(2, '0')} นาทีครับ`);
