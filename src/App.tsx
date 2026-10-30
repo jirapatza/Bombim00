@@ -1930,10 +1930,10 @@ export default function App() {
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
                 <span className="text-xs text-slate-400 font-medium">งวดล่าสุดที่ตรวจพบ</span>
                 <div className="text-lg font-bold text-amber-400 mt-2 truncate">
-                  {status?.latest_draw_detected || latestDraw?.งวดวันที่ || '16 ตุลาคม 2569'}
+                  {status?.latest_draw_detected || latestDraw?.งวดวันที่ || 'ยังไม่มีข้อมูล'}
                 </div>
                 <span className="text-[11px] text-slate-500 mt-1">
-                  ผ่านแหล่ง: {status?.last_source_used?.toUpperCase() || 'GLO'}
+                  ผ่านแหล่ง: {status?.last_source_used?.toUpperCase() || latestDraw?.แหล่งข้อมูล?.toUpperCase() || '—'}
                 </span>
               </div>
 
@@ -2295,13 +2295,22 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => {
+                          const sampleLottery = selectedCatalogLottery || allLotteries[0];
+                          if (!sampleLottery) {
+                            showToast('ยังไม่มีรายการหวยให้ทดสอบเสียง');
+                            return;
+                          }
                           const sampleAnn: LotteryAnnouncement = {
-                            id: 'sample-speech',
-                            lotteryName: 'สลากกินแบ่งรัฐบาล',
-                            drawDate: '16 ตุลาคม 2569',
-                            firstPrize: '289594',
-                            last2Digits: '84',
+                            id: `sample-speech-${sampleLottery.id}`,
+                            lotteryName: sampleLottery.name,
+                            drawDate: sampleLottery.date || 'ตัวอย่างสำหรับทดสอบ',
+                            firstPrize: (sampleLottery.category === 'gov_savings' ? sampleLottery.firstPrize : sampleLottery.top3) || sampleLottery.firstPrize || '-',
+                            last2Digits: sampleLottery.bottom2 || '-',
+                            front3Digits: sampleLottery.front3 || [],
+                            last3Digits: sampleLottery.last3 || [],
+                            source: 'ตัวอย่างจากแคตตาล็อก ไม่ใช่ผลจริง',
                             nextClosing: getNextClosingLottery(),
+                            note: 'ทดสอบเสียงเท่านั้น ไม่ใช่ผลหวยจริง',
                           };
                           playChime();
                           speakCurrentAnnouncement(sampleAnn, 0, 1);
@@ -2406,21 +2415,21 @@ export default function App() {
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${themeClasses.badge}`}>
                         ตัวอย่าง Pop-up Preview
                       </span>
-                      <span className="text-xs font-bold text-white">สลากกินแบ่งรัฐบาล</span>
+                      <span className="text-xs font-bold text-white">{selectedCatalogLottery?.name || allLotteries[0]?.name || 'ตัวอย่างหวย'}</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className={`bg-slate-950/80 p-3 rounded-xl border flex flex-col items-center justify-center ${themeClasses.firstPrizeBox}`}>
-                        <span className={`text-[10px] font-bold uppercase ${themeClasses.accent}`}>รางวัลที่ 1</span>
+                        <span className={`text-[10px] font-bold uppercase ${themeClasses.accent}`}>เลขบน / รางวัลที่ 1</span>
                         <div className={`font-black font-mono tracking-wider ${themeClasses.firstPrizeText} ${sizeClasses.first}`}>
-                          289594
+                          {selectedCatalogLottery?.top3 || selectedCatalogLottery?.firstPrize || '-'}
                         </div>
                       </div>
 
                       <div className="bg-slate-950/80 p-3 rounded-xl border border-emerald-500/50 flex flex-col items-center justify-center">
-                        <span className="text-[10px] font-bold uppercase text-emerald-400">เลขท้าย 2 ตัว</span>
+                        <span className="text-[10px] font-bold uppercase text-emerald-400">เลขล่าง 2 ตัว</span>
                         <div className={`font-black font-mono tracking-wider text-emerald-300 ${sizeClasses.last2}`}>
-                          84
+                          {selectedCatalogLottery?.bottom2 || '-'}
                         </div>
                       </div>
                     </div>
@@ -3167,7 +3176,7 @@ export default function App() {
               <div className="text-xs text-slate-400 px-2 font-medium hidden lg:flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                 <span>งวดล่าสุด:</span>
-                <span className="font-bold text-amber-300">{latestDraw?.งวดวันที่ || '16 ตุลาคม 2569'}</span>
+                <span className="font-bold text-amber-300">{latestDraw?.งวดวันที่ || 'ยังไม่มีข้อมูล'}</span>
               </div>
             </div>
 
