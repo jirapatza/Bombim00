@@ -171,6 +171,7 @@ export const NotificationPipelineInspector: React.FC<NotificationPipelineInspect
   const [timelineCategoryFilter, setTimelineCategoryFilter] = useState<string>('all');
   const [timelineSearch, setTimelineSearch] = useState<string>('');
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
+  const [selectedTestLotteryId, setSelectedTestLotteryId] = useState<string>('');
   const [simulationLogs, setSimulationLogs] = useState<Array<{ step: number; title: string; status: 'ok' | 'warn' | 'pending'; time: string; message: string }>>([]);
   const [simulatedProgress, setSimulatedProgress] = useState<number>(0);
 
@@ -211,20 +212,47 @@ export const NotificationPipelineInspector: React.FC<NotificationPipelineInspect
     });
   }, [chronoSortedLotteries, timelineCategoryFilter, timelineSearch]);
 
+  const defaultTestLottery = allLotteries.find((item) => item.category !== 'gov_savings') || allLotteries[0];
+  const selectedTestLottery = selectedTestLotteryId === 'gov'
+    ? null
+    : allLotteries.find((item) => item.id === selectedTestLotteryId) || defaultTestLottery;
+
   // Run full 6-step simulation
   const runFullPipelineSimulation = async () => {
     setIsSimulating(true);
     setSimulationLogs([]);
     setSimulatedProgress(0);
 
-    const testLottery = latestDraw || {
-      งวดวันที่: '16 ตุลาคม 2569',
-      รางวัลที่_1: '289594',
-      เลขท้าย_2_ตัว: '84',
-      เลขหน้า_3_ตัว: ['012', '425'],
-      เลขท้าย_3_ตัว: ['318', '972'],
-      ชื่อหวย: 'สลากกินแบ่งรัฐบาล',
-    };
+    const isGovernment = selectedTestLotteryId === 'gov' || (!selectedTestLottery && !defaultTestLottery);
+    const testLottery = selectedTestLottery
+      ? {
+          ชื่อหวย: selectedTestLottery.name,
+          หวย: selectedTestLottery.id,
+          หมวดหวย: selectedTestLottery.category,
+          งวดวันที่: selectedTestLottery.date || 'ตัวอย่างสำหรับทดสอบ',
+          รางวัลที่_1: selectedTestLottery.category === 'gov_savings'
+            ? selectedTestLottery.firstPrize || '-'
+            : selectedTestLottery.top3 || selectedTestLottery.firstPrize || '-',
+          เลขบน_3_ตัว: selectedTestLottery.top3 || '-',
+          เลขท้าย_2_ตัว: selectedTestLottery.bottom2 || '-',
+        }
+      : latestDraw
+        ? { ...latestDraw, หมวดหวย: 'government' }
+        : null;
+
+    if (!testLottery) {
+      setSimulationLogs([{
+        step: 1,
+        title: 'Validation & Sanity Check',
+        status: 'warn',
+        time: new Date().toLocaleTimeString('th-TH'),
+        message: 'ไม่มีข้อมูลหวยในแคตตาล็อกหรือผลรัฐบาลล่าสุดให้ทดสอบ',
+      }]);
+      setIsSimulating(false);
+      return;
+    }
+
+    const usesGovernmentFormat = isGovernment || ['government', 'gov_savings'].includes(testLottery.หมวดหวย || '');
 
     const addLog = (step: number, title: string, status: 'ok' | 'warn', message: string) => {
       const time = new Date().toLocaleTimeString('th-TH');
@@ -234,25 +262,30 @@ export const NotificationPipelineInspector: React.FC<NotificationPipelineInspect
     // Step 1: Validation
     setSimulatedProgress(16);
     await new Promise((r) => setTimeout(r, 450));
-    const hasValidNumbers = Boolean(testLottery.รางวัลที่_1 && testLottery.เลขท้าย_2_ตัว);
+    const upperNumber = usesGovernmentFormat
+      ? testLottery.รางวัลที่_1
+      : testLottery.เลขบน_3_ตัว || testLottery.รางวัลที่_1;
+    const hasValidNumbers = Boolean(upperNumber && testLottery.เลขท้าย_2_ตัว && upperNumber !== '-');
     addLog(
       1,
       'Validation & Sanity Check',
       hasValidNumbers ? 'ok' : 'warn',
       hasValidNumbers
-        ? `[ผ่าน] ข้อมูลสลากสมบูรณ์: รางวัลที่ 1 (${testLottery.รางวัลที่_1}), 2 ตัวล่าง (${testLottery.เลขท้าย_2_ตัว}) ถูกต้องตามรูปแบบ`
+        ? usesGovernmentFormat
+          ? `[จำลองผ่าน] ${testLottery.ชื่อหวย}: รางวัลที่ 1 (${upperNumber}), 2 ตัวล่าง (${testLottery.เลขท้าย_2_ตัว})`
+          : `[จำลองผ่าน] ${testLottery.ชื่อหวย}: 3 ตัวบน (${upperNumber}), 2 ตัวล่าง (${testLottery.เลขท้าย_2_ตัว})`
         : '[เตือน] ไม่พบตัวเลขครบถ้วน'
     );
 
     // Step 2: Deduplication
     setSimulatedProgress(33);
     await new Promise((r) => setTimeout(r, 450));
-    const fingerprint = `${testLottery.ชื่อหวย || 'สลากกินแบ่งรัฐบาล'}_${testLottery.งวดวันที่}_${testLottery.รางวัลที่_1}`;
+    const fingerprint = `${testLottery.ชื่อหวย || 'หวย'}_${testLottery.งวดวันที่}_${upperNumber}`;
     addLog(
       2,
       'Fingerprint Hash Deduplication',
       'ok',
-      `[ผ่าน] คำนวณ Hash: ${fingerprint.slice(0, 32)}... ตรวจจับการซ้ำซ้อนสำเร็จ พร้อมดำเนินการ`
+      `[จำลอง] คำนวณ Hash: ${fingerprint.slice(0, 32)}... สำหรับตรวจจับผลซ้ำ`
     );
 
     // Step 3: Timeline & Watchlist Match
@@ -260,14 +293,14 @@ export const NotificationPipelineInspector: React.FC<NotificationPipelineInspect
     await new Promise((r) => setTimeout(r, 450));
     const watched = settings?.notifications?.custom_watched_numbers || ['84', '289594'];
     const matchedWatched = watched.filter((w: string) =>
-      testLottery.รางวัลที่_1?.includes(w) || testLottery.เลขท้าย_2_ตัว === w
+      String(upperNumber || '').includes(w) || testLottery.เลขท้าย_2_ตัว === w
     );
     addLog(
       3,
       'Watchlist Match & Timeline Ordering',
       'ok',
-      `[ผ่าน] เรียงลำดับตามเวลาหวยออกจริง ${
-        matchedWatched.length > 0 ? `🎯 ตรงกับเลขเฝ้าระวัง: [${matchedWatched.join(', ')}]!` : '(จัดคิวส่งตามเวลาออกจริง)'
+      `[จำลอง] เรียงคิว ${testLottery.ชื่อหวย} ตามเวลาที่กำหนด ${
+        matchedWatched.length > 0 ? `🎯 ตรงกับเลขเฝ้าระวัง: [${matchedWatched.join(', ')}]!` : '(ไม่มีเลขเฝ้าระวังตรงกับผลตัวอย่าง)'
       }`
     );
 
@@ -278,7 +311,7 @@ export const NotificationPipelineInspector: React.FC<NotificationPipelineInspect
       4,
       'Cooldown & Rate Limiting',
       'ok',
-      '[ผ่าน] Cooldown 15 นาทีตรวจสอบแล้ว ปลอดภัย ไม่ติด Rate Limit'
+      '[จำลอง] ตรวจเงื่อนไข Cooldown 15 นาที (ไม่ได้ส่งคำขอจริง)'
     );
 
     // Step 5: Multi-Channel Dispatch
@@ -288,7 +321,7 @@ export const NotificationPipelineInspector: React.FC<NotificationPipelineInspect
       5,
       'Multi-Channel Dispatch',
       'ok',
-      '🚀 กระจายข้อความสำเร็จ: In-App Sound 🔊 -> ntfy Mobile Push 📲 -> Discord Webhook 💬 -> Telegram Bot 🤖'
+      'จำลองเส้นทางการส่ง: In-App Sound -> ntfy -> Discord -> Telegram (ยังไม่ได้ส่งข้อความจริง)'
     );
 
     // Step 6: Persistence
@@ -298,7 +331,7 @@ export const NotificationPipelineInspector: React.FC<NotificationPipelineInspect
       6,
       'Persistence & Audit Logging',
       'ok',
-      '[สำเร็จ] อัปเดต status.json, บันทึกประวัติ และอัปเดตผลรางวัลเรียบร้อย'
+      '[จำลอง] แสดงขั้นตอนการบันทึก status และประวัติเท่านั้น ยังไม่ได้เขียนไฟล์จริง'
     );
 
     setIsSimulating(false);
@@ -327,7 +360,20 @@ export const NotificationPipelineInspector: React.FC<NotificationPipelineInspect
             </p>
           </div>
 
-          <button
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              aria-label="เลือกรายการหวยสำหรับจำลองการทดสอบ"
+              value={selectedTestLotteryId || defaultTestLottery?.id || 'gov'}
+              onChange={(event) => setSelectedTestLotteryId(event.target.value)}
+              disabled={isSimulating}
+              className="max-w-[240px] bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-200"
+            >
+              {allLotteries.map((item) => (
+                <option key={item.id} value={item.id}>{item.flag || '🎯'} {item.name}</option>
+              ))}
+              <option value="gov">🇹🇭 สลากกินแบ่งรัฐบาล (ผลล่าสุด)</option>
+            </select>
+            <button
             type="button"
             disabled={isSimulating}
             onClick={runFullPipelineSimulation}
@@ -344,7 +390,8 @@ export const NotificationPipelineInspector: React.FC<NotificationPipelineInspect
                 ทดสอบรันไปป์ไลน์ครบ 6 ขั้นตอน
               </>
             )}
-          </button>
+            </button>
+          </div>
         </div>
 
         {/* 6 Step Cards Overview */}
