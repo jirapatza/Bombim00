@@ -20,23 +20,32 @@ interface MultiChannelProps {
   settings: any;
   onSaveSettings: (newSettings: any) => void;
   latestDraw: any;
+  allLotteries?: any[];
 }
 
 export const MultiChannelDispatcher: React.FC<MultiChannelProps> = ({
   settings,
   onSaveSettings,
   latestDraw,
+  allLotteries = [],
 }) => {
   const [activeChannel, setActiveChannel] = useState<'ntfy' | 'discord' | 'telegram' | 'line' | 'webhook'>('discord');
   const [testStatus, setTestStatus] = useState<{ [key: string]: { loading: boolean; success?: boolean; message?: string } }>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const sampleLottery = allLotteries.find((item) => item.category !== 'gov_savings') || allLotteries[0];
+  const sampleLotteryName = sampleLottery?.name || latestDraw?.ชื่อหวย || 'ตัวอย่างหวย';
+  const sampleTop3 = sampleLottery?.top3 || (sampleLottery?.firstPrize ? String(sampleLottery.firstPrize).slice(-3) : '') ||
+    (latestDraw?.รางวัลที่_1 ? String(latestDraw.รางวัลที่_1).slice(-3) : '-') || '-';
+  const sampleBottom2 = sampleLottery?.bottom2 || latestDraw?.เลขท้าย_2_ตัว || '-';
+  const sampleDrawDate = sampleLottery?.date || latestDraw?.งวดวันที่ || 'ตัวอย่างสำหรับทดสอบ';
+  const sampleTestMessage = `ข้อความทดสอบเท่านั้น (ไม่ใช่ผลหวยจริง)\nหวย: ${sampleLotteryName}\n3 ตัวบน: ${sampleTop3}\n2 ตัวล่าง: ${sampleBottom2}\nตรวจสอบการได้รับบนอุปกรณ์ด้วยตนเอง`;
 
   // Local draft channel states
   const channels = settings.channels || {};
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState(channels.discord?.webhook_url || '');
   const [telegramBotToken, setTelegramBotToken] = useState(channels.telegram?.bot_token || '');
   const [telegramChatId, setTelegramChatId] = useState(channels.telegram?.chat_id || '');
-  const [ntfyTopic, setNtfyTopic] = useState(channels.ntfy?.topic || settings.ntfy?.topic || 'lottery-alert-thai-2026');
+  const [ntfyTopic, setNtfyTopic] = useState(channels.ntfy?.topic || settings.ntfy?.topic || 'lottery-alert-live');
   const [webhookUrl, setWebhookUrl] = useState(channels.webhook?.url || '');
   const [webhookSecret, setWebhookSecret] = useState(channels.webhook?.secret_token || '');
 
@@ -56,8 +65,9 @@ export const MultiChannelDispatcher: React.FC<MultiChannelProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             topic: ntfyTopic,
-            server: settings.ntfy?.server || 'https://ntfy.sh',
-            message: `📢 ผลสลากกินแบ่งรัฐบาล งวด ${latestDraw?.งวดวันที่ || '16 ต.ค. 2569'}\nรางวัลที่ 1: ${latestDraw?.รางวัลที่_1 || '289594'}\nเลขท้าย 2 ตัว: ${latestDraw?.เลขท้าย_2_ตัว || '84'}`,
+            server: settings.channels?.ntfy?.server || settings.ntfy?.server || 'https://ntfy.sh',
+            title: `ทดสอบแจ้งเตือน ${sampleLotteryName} งวด ${sampleDrawDate}`,
+            message: sampleTestMessage,
           }),
         });
         const data = await res.json();
@@ -99,11 +109,7 @@ export const MultiChannelDispatcher: React.FC<MultiChannelProps> = ({
         body: JSON.stringify({
           channel,
           config: configPayload,
-          payload: {
-            title: `📢 ผลสลากกินแบ่งรัฐบาล งวด ${latestDraw?.งวดวันที่ || '16 ตุลาคม 2569'}`,
-            description: `🎯 รางวัลที่ 1: ${latestDraw?.รางวัลที่_1 || '289594'}\n🔢 เลขท้าย 2 ตัว: ${latestDraw?.เลขท้าย_2_ตัว || '84'}\n✨ เลขหน้า 3 ตัว: ${latestDraw?.เลขหน้า_3_ตัว?.join(', ') || '012, 425'}\n🌟 เลขท้าย 3 ตัว: ${latestDraw?.เลขท้าย_3_ตัว?.join(', ') || '318, 972'}`,
-            message: `📢 <b>ผลสลากกินแบ่งรัฐบาล</b> งวดวันที่ ${latestDraw?.งวดวันที่ || '16 ตุลาคม 2569'}\n🎯 <b>รางวัลที่ 1:</b> <code>${latestDraw?.รางวัลที่_1 || '289594'}</code>\n🔢 <b>เลขท้าย 2 ตัว:</b> <code>${latestDraw?.เลขท้าย_2_ตัว || '84'}</code>`,
-          },
+          message: sampleTestMessage,
         }),
       });
 
