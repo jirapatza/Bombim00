@@ -51,7 +51,7 @@ def test_thailottoapi_fetches_all_supported_categories_and_skips_removed_maekhon
     rows = lc.fetch_from_thailottoapi_results()
 
     assert "sync=1" in seen["url"]
-    assert len(rows) == 7
+    assert len(rows) == 8
     assert {row["หมวดหวย"] for row in rows} == {
         "government", "lao", "hanoi", "malay", "thai_stock", "vip", "liw"
     }
