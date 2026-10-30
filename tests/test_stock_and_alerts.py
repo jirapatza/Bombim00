@@ -113,7 +113,7 @@ def test_non_government_ntfy_body_uses_top3_and_bottom2_labels(monkeypatch):
         "message_template": {"title": "ผล{lottery_name} งวด {draw_date}", "body": "ไม่ใช้แม่แบบรัฐบาล"}
     })
     monkeypatch.setattr(lc, "_http_post", lambda url, data, headers, timeout=10: sent.update(
-        url=url, body=data.decode("utf-8")
+        url=url, body=data.decode("utf-8"), headers=headers
     ) or True)
 
     ok = lc.send_ntfy_notification({
@@ -132,6 +132,7 @@ def test_non_government_ntfy_body_uses_top3_and_bottom2_labels(monkeypatch):
     assert "3 ตัวบน: 024" in sent["body"]
     assert "2 ตัวล่าง: 44" in sent["body"]
     assert "รางวัลที่ 1:" not in sent["body"]
+    assert "หวยฮานอยพิเศษ" in sent["headers"]["Title"]
 
 
 def test_ntfy_does_not_publish_when_topic_is_missing(monkeypatch):
