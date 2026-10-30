@@ -222,6 +222,46 @@ const LOTTERY_SCHEDULE: LotteryScheduleItem[] = [
   { name: 'ดาวโจนส์', closeTimeStr: '01:00 น.', closeHour: 25, closeMinute: 0, drawDaysLabel: 'อังคาร - เสาร์' },
 ];
 
+function getBangkokClockParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', weekday: 'long', hourCycle: 'h23',
+  }).formatToParts(date);
+  const value = (type: string) => parts.find((part) => part.type === type)?.value || '';
+  return {
+    dateKey: `${value('year')}-${value('month')}-${value('day')}`,
+    hour: Number(value('hour')), minute: Number(value('minute')),
+    day: Number(value('day')), weekday: value('weekday'),
+  };
+}
+
+function isLotteryScheduledOnDate(item: LotteryScheduleItem, weekday: string, dayOfMonth: number): boolean {
+  const rule = item.drawDaysLabel || '';
+  if (rule.includes('ทุกวัน')) return true;
+  if (rule.includes('ทุกวันที่ 16')) return dayOfMonth === 16;
+  if (rule.includes('วันที่ 1 และ 16')) return dayOfMonth === 1 || dayOfMonth === 16;
+  const weekdayThai: Record<string, string> = {
+    Sunday: 'อาทิตย์', Monday: 'จันทร์', Tuesday: 'อังคาร', Wednesday: 'พุธ',
+    Thursday: 'พฤหัส', Friday: 'ศุกร์', Saturday: 'เสาร์',
+  };
+  const todayThai = weekdayThai[weekday];
+  const orderedDays = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์'];
+  const namedDays = orderedDays.filter((name) => rule.includes(name));
+  if (!todayThai || namedDays.length === 0) return false;
+  if (rule.includes('-') && namedDays.length >= 2) {
+    const start = orderedDays.indexOf(namedDays[0]);
+    const end = orderedDays.indexOf(namedDays[namedDays.length - 1]);
+    const today = orderedDays.indexOf(todayThai);
+    return start <= end ? today >= start && today <= end : today >= start || today <= end;
+  }
+  return namedDays.includes(todayThai);
+}
+
+function selectThaiVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
+  const thaiVoices = voices.filter((voice) => voice.lang.toLowerCase().startsWith('th'));
+  return thaiVoices.find((voice) => /male|man|ชาย/i.test(voice.name)) || thaiVoices[0];
+}
+
 function getNextClosingLottery(currentTime = new Date()): { name: string; closeTimeStr: string; remainingText: string } {
   let currentHour = currentTime.getHours();
   // If midnight to 03:00, count as 24..27
@@ -428,7 +468,7 @@ export default function App() {
   const [templateTitle, setTemplateTitle] = useState<string>('📢 ผล{lottery_name} งวด {draw_date}');
   const [templateBody, setTemplateBody] = useState<string>('🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n⏰ ปิดรอบถัดไป: {next_closing}\n📡 แหล่งข้อมูล: {source}');
   const [speechScript, setSpeechScript] = useState<string>('ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. รางวัลที่หนึ่ง ออกเลข {first_prize_spelled}. เลขท้ายสองตัว ออกเลข {last_2_spelled}. และหวยรอบถัดไปที่จะปิดรับคือ {next_closing_name} ปิดรับเวลา {next_closing_time} {polite_ending}.');
-  const [politeParticle, setPoliteParticle] = useState<string>('ค่ะ');
+  const [politeParticle, setPoliteParticle] = useState<string>('ครับ');
   const [modalTheme, setModalTheme] = useState<string>('gold');
   const [fontSize, setFontSize] = useState<string>('large');
   const [fontFamily, setFontFamily] = useState<string>('sans');
@@ -678,7 +718,7 @@ export default function App() {
     utterance.pitch = 1.0;
 
     const voices = window.speechSynthesis.getVoices();
-    const thaiVoice = voices.find((v) => v.lang === 'th-TH' || v.lang.startsWith('th'));
+    const thaiVoice = selectThaiVoice(voices);
     if (thaiVoice) {
       utterance.voice = thaiVoice;
     }
@@ -721,15 +761,27 @@ export default function App() {
   };
 
   const speakCustomText = (text: string) => {
-    if (!('speechSynthesis' in window)) return;
+    if (!('speechSynthesis' in window)) {
+      showToast('อุปกรณ์นี้ไม่รองรับการอ่านออกเสียง');
+      return;
+    }
     stopSpeech();
     playChime();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'th-TH';
     utterance.rate = speechRate;
+    utterance.pitch = 0.95;
     const voices = window.speechSynthesis.getVoices();
-    const thaiVoice = voices.find((v) => v.lang === 'th-TH' || v.lang.startsWith('th'));
+    const thaiVoice = selectThaiVoice(voices);
     if (thaiVoice) utterance.voice = thaiVoice;
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      showToast('ระบบเสียงอ่านไม่สำเร็จ ตรวจสอบเสียงภาษาไทยใน Android');
+    };
+    activeUtteranceRef.current = utterance;
+    window.speechSynthesis.resume();
     window.speechSynthesis.speak(utterance);
   };
 
@@ -799,7 +851,7 @@ export default function App() {
     utterance.lang = 'th-TH';
     utterance.rate = speechRate;
     const voices = window.speechSynthesis.getVoices();
-    const thaiVoice = voices.find((v) => v.lang === 'th-TH' || v.lang.startsWith('th'));
+    const thaiVoice = selectThaiVoice(voices);
     if (thaiVoice) utterance.voice = thaiVoice;
 
     utterance.onstart = () => setIsSpeaking(true);
@@ -1034,6 +1086,34 @@ export default function App() {
     };
   }, []);
 
+  // Announce each scheduled lottery closing once at its configured closing minute.
+  // This runs while the app is open; Android/browser background suspension can delay it.
+  useEffect(() => {
+    if (!voiceEnabled || typeof window === 'undefined') return;
+    const checkClosingAlerts = () => {
+      const now = getBangkokClockParts();
+      const due = LOTTERY_SCHEDULE.filter((item) =>
+        item.closeHour % 24 === now.hour &&
+        item.closeMinute === now.minute &&
+        isLotteryScheduledOnDate(item, now.weekday, now.day)
+      );
+      if (due.length === 0) return;
+      const storageKey = `bombim00:closing-alert:${now.dateKey}:${now.hour.toString().padStart(2, '0')}:${now.minute.toString().padStart(2, '0')}`;
+      try {
+        if (window.localStorage.getItem(storageKey) === 'sent') return;
+        window.localStorage.setItem(storageKey, 'sent');
+      } catch {
+        // Storage is only used to prevent repeats after an app reload.
+      }
+      const names = due.map((item) => item.name).join(' และ ');
+      speakCustomText(`แจ้งเตือนปิดรับหวย ${names} เวลา ${now.hour.toString().padStart(2, '0')} นาฬิกา ${now.minute.toString().padStart(2, '0')} นาทีครับ`);
+      showToast(`แจ้งเตือนปิดรับ: ${names}`);
+    };
+    checkClosingAlerts();
+    const timer = window.setInterval(checkClosingAlerts, 15000);
+    return () => window.clearInterval(timer);
+  }, [voiceEnabled]);
+
   const handleTriggerCheck = async () => {
     setIsTriggering(true);
     try {
@@ -1117,56 +1197,46 @@ export default function App() {
   };
 
   const testSingleAnnouncement = () => {
+    const selected = selectedCatalogLottery || allLotteries.find((item) => item.category !== 'gov_savings') || allLotteries[0];
+    if (!selected) {
+      showToast('ยังไม่มีรายการหวยในแคตตาล็อกให้ทดสอบเสียง');
+      return;
+    }
     const nextClosing = getNextClosingLottery();
-    triggerAnnouncements([
-      {
-        id: 'demo-1',
-        lotteryName: 'สลากกินแบ่งรัฐบาล',
-        drawDate: '16 ตุลาคม 2569',
-        firstPrize: '289594',
-        last2Digits: '84',
-        front3Digits: ['012', '425'],
-        last3Digits: ['318', '972'],
-        source: 'GLO Official',
-        nextClosing: nextClosing,
-      },
-    ]);
+    const isGovernment = selected.category === 'gov_savings';
+    triggerAnnouncements([{
+      id: `demo-${selected.id}-${Date.now()}`,
+      lotteryName: selected.name,
+      drawDate: selected.date || 'ตัวอย่างสำหรับทดสอบ',
+      firstPrize: (isGovernment ? selected.firstPrize : selected.top3) || selected.firstPrize || '-',
+      last2Digits: selected.bottom2 || '-',
+      front3Digits: selected.front3 || [],
+      last3Digits: selected.last3 || [],
+      source: 'ตัวอย่างจากแคตตาล็อก (ไม่ใช่การยืนยันผลสด)',
+      nextClosing,
+      note: 'ทดสอบเสียงเท่านั้น ไม่ใช่ผลหวยจริง',
+    }]);
   };
 
   const testDualSimultaneousAnnouncements = () => {
-    const nextClosing1 = getNextClosingLottery();
-    const nextClosing2 = {
-      name: 'หวยฮานอยปกติ',
-      closeTimeStr: '18:00 น.',
-      remainingText: 'อีกประมาณ 1 ชั่วโมง',
-    };
-
-    triggerAnnouncements([
-      {
-        id: 'simul-1',
-        lotteryName: 'สลากกินแบ่งรัฐบาล (รัฐบาลไทย)',
-        drawDate: '16 ตุลาคม 2569',
-        firstPrize: '289594',
-        last2Digits: '84',
-        front3Digits: ['012', '425'],
-        last3Digits: ['318', '972'],
-        source: 'GLO กองสลาก',
-        nextClosing: nextClosing1,
-        note: 'ผลสลากออกพร้อมกัน: กำลังอ่านรายการที่ 1 (จะอ่านรายการที่ 2 อัตโนมัติ)',
-      },
-      {
-        id: 'simul-2',
-        lotteryName: 'หวยฮานอยพิเศษ (เวียดนาม)',
-        drawDate: 'ประจำวันล่าสุด',
-        firstPrize: '85412',
-        last2Digits: '39',
-        front3Digits: ['184'],
-        last3Digits: ['412'],
-        source: 'Xổ Số Hà Nội',
-        nextClosing: nextClosing2,
-        note: 'รายการที่ 2: อ่านต่อเนื่องจากรายการแรกเรียบร้อยแล้ว',
-      },
-    ]);
+    const samples = allLotteries.filter((item) => item.category !== 'gov_savings').slice(0, 2);
+    if (samples.length < 2) {
+      showToast('ต้องมีรายการหวยอย่างน้อย 2 รายการจึงจะทดสอบเสียงต่อเนื่องได้');
+      return;
+    }
+    const nextClosing = getNextClosingLottery();
+    triggerAnnouncements(samples.map((item, index) => ({
+      id: `simul-${item.id}-${Date.now()}-${index}`,
+      lotteryName: item.name,
+      drawDate: item.date || 'ตัวอย่างสำหรับทดสอบ',
+      firstPrize: item.top3 || item.firstPrize || '-',
+      last2Digits: item.bottom2 || '-',
+      front3Digits: item.front3 || [],
+      last3Digits: item.last3 || [],
+      source: 'ตัวอย่างจากแคตตาล็อก (ไม่ใช่การยืนยันผลสด)',
+      nextClosing,
+      note: `ทดสอบเสียงรายการที่ ${index + 1} ไม่ใช่ผลหวยจริง`,
+    })));
   };
 
   // Helper for live preview of message
@@ -2441,6 +2511,7 @@ export default function App() {
             status={status}
             latestDraw={latestDraw}
             allLotteries={allLotteries}
+            nextClosing={nextClosingNow}
             onSpeak={speakCustomText}
             voiceEnabled={voiceEnabled}
             onToggleVoice={(v) => {
