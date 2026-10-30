@@ -3247,10 +3247,13 @@ export default function App() {
                   return hasFront3 || hasLast3 || hasTop3;
                 }
                 if (historyPrizeFilter === 'thai') {
+                  const category = String(row.หมวดหวย || '').toLowerCase();
+                  const name = String(row.ชื่อหวย || '');
                   return (
-                    (row.ชื่อหวย && row.ชื่อหวย.includes('สลากกินแบ่ง')) ||
-                    (row.หมวดหวย && row.หมวดหวย === 'thai') ||
-                    (row.งวดวันที่ && row.งวดวันที่.includes('ตุลาคม 2569'))
+                    ['thai', 'government', 'gov_savings'].includes(category) ||
+                    name.includes('สลากกินแบ่ง') ||
+                    name.includes('ออมสิน') ||
+                    name.includes('ธ.ก.ส.')
                   );
                 }
                 return true;
