@@ -175,14 +175,14 @@ export const MultiChannelDispatcher: React.FC<MultiChannelProps> = ({
         contents: [
           {
             type: 'text',
-            text: '📢 ผลสลากกินแบ่งรัฐบาล',
+            text: `📢 ผล${sampleLotteryName}`,
             weight: 'bold',
             color: '#fbbf24',
             size: 'md',
           },
           {
             type: 'text',
-            text: `งวดวันที่ ${latestDraw?.งวดวันที่ || '16 ตุลาคม 2569'}`,
+            text: `งวดวันที่ ${sampleDrawDate}`,
             color: '#9ca3af',
             size: 'xs',
           },
@@ -200,8 +200,8 @@ export const MultiChannelDispatcher: React.FC<MultiChannelProps> = ({
             cornerRadius: 'md',
             paddingAll: 'md',
             contents: [
-              { type: 'text', text: 'รางวัลที่ 1 (6,000,000 บ.)', size: 'xxs', color: '#f59e0b', weight: 'bold' },
-              { type: 'text', text: latestDraw?.รางวัลที่_1 || '289594', size: 'xxl', weight: 'bold', color: '#fef08a' },
+              { type: 'text', text: '3 ตัวบน (ตัวอย่าง)', size: 'xxs', color: '#f59e0b', weight: 'bold' },
+              { type: 'text', text: sampleTop3, size: 'xxl', weight: 'bold', color: '#fef08a' },
             ],
           },
           {
@@ -211,8 +211,8 @@ export const MultiChannelDispatcher: React.FC<MultiChannelProps> = ({
             cornerRadius: 'md',
             paddingAll: 'md',
             contents: [
-              { type: 'text', text: 'เลขท้าย 2 ตัว (2,000 บ.)', size: 'xxs', color: '#34d399', weight: 'bold' },
-              { type: 'text', text: latestDraw?.เลขท้าย_2_ตัว || '84', size: 'xxl', weight: 'bold', color: '#6ee7b7' },
+              { type: 'text', text: '2 ตัวล่าง (ตัวอย่าง)', size: 'xxs', color: '#34d399', weight: 'bold' },
+              { type: 'text', text: sampleBottom2, size: 'xxl', weight: 'bold', color: '#6ee7b7' },
             ],
           },
         ],
@@ -382,15 +382,15 @@ export const MultiChannelDispatcher: React.FC<MultiChannelProps> = ({
             </span>
             <div className="border-l-4 border-amber-500 bg-[#2b2d31] p-4 rounded-r-xl space-y-2">
               <div className="text-sm font-bold text-amber-400">
-                📢 ผลการออกรางวัลสลากกินแบ่งรัฐบาล
+                📢 ผล{sampleLotteryName}
               </div>
               <div className="text-xs text-slate-300 whitespace-pre-line leading-relaxed font-mono">
-                งวดวันที่ {latestDraw?.งวดวันที่ || '16 ตุลาคม 2569'}
-                {'\n\n'}🎯 **รางวัลที่ 1**: `{latestDraw?.รางวัลที่_1 || '289594'}`
-                {'\n'}🔢 **เลขท้าย 2 ตัว**: `{latestDraw?.เลขท้าย_2_ตัว || '84'}`
-                {'\n'}✨ **เลขหน้า 3 ตัว**: `{(latestDraw?.เลขหน้า_3_ตัว || ['012', '425']).join(', ')}`
-                {'\n'}🌟 **เลขท้าย 3 ตัว**: `{(latestDraw?.เลขท้าย_3_ตัว || ['318', '972']).join(', ')}`
-                {'\n'}⏰ **ปิดรอบถัดไป**: หวยฮานอยพิเศษ (17:00 น.)
+                งวดวันที่ {sampleDrawDate}
+                {'\n\n'}🎯 หวย: {sampleLotteryName}
+                {'\n'}🔺 3 ตัวบน: `{sampleTop3}`
+                {'\n'}🔻 2 ตัวล่าง: `{sampleBottom2}`
+                {'\n'}ข้อความทดสอบเท่านั้น ไม่ใช่ผลหวยจริง
+                
               </div>
               <div className="text-[10px] text-slate-500 pt-2 border-t border-slate-700/60">
                 Lottery Alert Multi-Channel Dispatcher • วันนี้ เวลา 16:05 น.
@@ -468,16 +468,16 @@ export const MultiChannelDispatcher: React.FC<MultiChannelProps> = ({
             </span>
             <div className="bg-[#242f3d] p-4 rounded-2xl space-y-2 max-w-sm">
               <div className="text-sm font-bold text-amber-400">
-                📢 ผลสลากกินแบ่งรัฐบาล
+                📢 ผล{sampleLotteryName}
               </div>
               <div className="text-xs text-slate-300 leading-relaxed font-mono">
                 งวดวันที่ {latestDraw?.งวดวันที่ || '16 ตุลาคม 2569'}
                 <br /><br />
-                🎯 <b>รางวัลที่ 1:</b> <span className="bg-[#17212b] px-1 py-0.5 rounded text-amber-300">{latestDraw?.รางวัลที่_1 || '289594'}</span><br />
-                🔢 <b>เลขท้าย 2 ตัว:</b> <span className="bg-[#17212b] px-1 py-0.5 rounded text-emerald-300">{latestDraw?.เลขท้าย_2_ตัว || '84'}</span><br />
-                ✨ <b>เลขหน้า 3 ตัว:</b> {(latestDraw?.เลขหน้า_3_ตัว || ['012', '425']).join(', ')}<br />
-                🌟 <b>เลขท้าย 3 ตัว:</b> {(latestDraw?.เลขท้าย_3_ตัว || ['318', '972']).join(', ')}<br />
-                ⏰ <b>รอบถัดไปที่กำลังจะปิด:</b> หวยฮานอยพิเศษ (17:00 น.)
+                🔺 <b>3 ตัวบน:</b> <span className="bg-[#17212b] px-1 py-0.5 rounded text-amber-300">{sampleTop3}</span><br />
+                🔻 <b>2 ตัวล่าง:</b> <span className="bg-[#17212b] px-1 py-0.5 rounded text-emerald-300">{sampleBottom2}</span><br />
+                
+                
+                ข้อความทดสอบเท่านั้น ไม่ใช่ผลหวยจริง
               </div>
               <div className="text-[10px] text-slate-400 text-right">16:05 น. ✓✓</div>
             </div>
@@ -534,13 +534,13 @@ export const MultiChannelDispatcher: React.FC<MultiChannelProps> = ({
                 <div className="bg-slate-900 text-white p-3 rounded-xl">
                   <div className="text-[10px] text-amber-400 font-bold uppercase">รางวัลที่ 1 (6,000,000 บ.)</div>
                   <div className="text-2xl font-black text-yellow-200 font-mono tracking-wider">
-                    {latestDraw?.รางวัลที่_1 || '289594'}
+                    {sampleTop3}
                   </div>
                 </div>
                 <div className="bg-emerald-950 text-white p-3 rounded-xl">
                   <div className="text-[10px] text-emerald-400 font-bold uppercase">เลขท้าย 2 ตัว (2,000 บ.)</div>
                   <div className="text-2xl font-black text-emerald-300 font-mono tracking-wider">
-                    {latestDraw?.เลขท้าย_2_ตัว || '84'}
+                    {sampleBottom2}
                   </div>
                 </div>
               </div>
