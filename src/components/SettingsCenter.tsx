@@ -357,6 +357,7 @@ export function SettingsCenter({
           settings={settings || {}}
           onSaveSettings={onSaveSettings}
           latestDraw={latestDraw}
+          allLotteries={allLotteries}
         />
       )}
 
