@@ -2688,7 +2688,7 @@ export default function App() {
         {/* ==================== TAB: MOBILE NOTIFICATION HUB (100% RELIABLE) ==================== */}
         {activeTab === 'mobile' && (
           <MobileNotificationHub
-            currentTopic={settings?.channels?.ntfy?.topic || 'lottery-alert-bombimm43'}
+            currentTopic={settings?.channels?.ntfy?.topic || settings?.ntfy?.topic || ''}
             onUpdateTopic={(newTopic) => {
               if (settings) {
                 const updated = {
@@ -2703,6 +2703,7 @@ export default function App() {
             }}
             latestDraw={latestDraw}
             allLotteries={allLotteries}
+            nextClosing={getNextClosingLottery()}
             onSpeak={(txt) => {
               if (voiceEnabled) speakCustomText(txt);
             }}
