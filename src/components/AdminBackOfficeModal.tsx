@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../utils/api';
 import {
   X,
   Settings,
@@ -79,7 +80,7 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
     setIsCleaning(true);
     setCleanMessage(null);
     try {
-      const res = await fetch('/api/lotteries/cleanup-history', { method: 'POST' });
+      const res = await apiFetch('/api/lotteries/cleanup-history', { method: 'POST' });
       const data = await res.json();
       if (data.success) {
         setCleanMessage(`✅ ${data.message} (ลบไปแล้ว ${data.removedCount} รายการ, คงเหลือ ${data.totalAfter} งวดมาตรฐาน)`);
