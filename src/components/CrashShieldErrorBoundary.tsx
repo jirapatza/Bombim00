@@ -61,14 +61,21 @@ export class CrashShieldErrorBoundary extends Component<Props, State> {
     if (this.props.isolateScope) {
       this.setState({ autoRecoverCountdown: 5 });
       this.timer = setInterval(() => {
-        this.setState((prev) => {
-          if (prev.autoRecoverCountdown === null || prev.autoRecoverCountdown <= 1) {
-            clearInterval(this.timer);
-            this.handleReset();
-            return { autoRecoverCountdown: null };
+        this.setState(
+          (prev) => ({
+            autoRecoverCountdown:
+              prev.autoRecoverCountdown === null || prev.autoRecoverCountdown <= 1
+                ? null
+                : prev.autoRecoverCountdown - 1,
+          }),
+          () => {
+            // Run recovery after React commits the countdown update. Avoid
+            // calling setState from inside another setState updater.
+            if (this.state.autoRecoverCountdown === null) {
+              this.handleReset();
+            }
           }
-          return { autoRecoverCountdown: prev.autoRecoverCountdown - 1 };
-        });
+        );
       }, 1000);
     }
   }
