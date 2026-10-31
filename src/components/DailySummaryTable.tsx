@@ -323,10 +323,10 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
       const cell = Array.isArray(value) ? value.join(', ') : String(value ?? '');
       return '"' + cell.replace(/"/g, '""') + '"';
     };
-    const csv = '\\uFEFF' + [
+    const csv = '\uFEFF' + [
       columns.map(([label]) => csvCell(label)).join(','),
       ...results.map((row) => columns.map(([, key]) => csvCell(row?.[key])).join(',')),
-    ].join('\\r\\n');
+    ].join('\r\n');
     const fileName = `Bombim00-results-${new Date().toISOString().slice(0, 10)}.csv`;
 
     try {
