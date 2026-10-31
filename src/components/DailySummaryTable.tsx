@@ -1,7 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
 import {
   Calendar,
   Clock,
@@ -734,31 +731,16 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     const fileName = `Bombim00-results-${new Date().toISOString().slice(0, 10)}.csv`;
 
     try {
-      if (Capacitor.isNativePlatform()) {
-        const file = await Filesystem.writeFile({
-          path: fileName,
-          data: csv,
-          directory: Directory.Cache,
-          encoding: Encoding.UTF8,
-        });
-        await Share.share({
-          title: 'ผลหวย Bombim00',
-          text: `ส่งออกผลหวย ${results.length} รายการ`,
-          url: file.uri,
-          dialogTitle: 'บันทึกหรือแชร์ไฟล์ผลหวย',
-        });
-      } else {
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = fileName;
-        anchor.style.display = 'none';
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 1500);
-      }
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
       showToast('ส่งออก CSV เรียบร้อยแล้ว! 📥');
     } catch (error) {
       console.error('CSV export failed:', error);
