@@ -24,8 +24,8 @@
     "react-dom": "^19.0.1",
     "recharts": "^3.10.1",
     "vite": "^8.3.0",
-    "@capacitor/core": "^7.0.0",
-    "@capacitor/browser": "^7.0.0"
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/browser": "^8.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
