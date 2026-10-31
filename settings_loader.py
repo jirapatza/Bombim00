@@ -177,8 +177,17 @@ def result_fingerprint(row: Dict[str, Any]) -> str:
         
     last2 = str(row.get("เลขท้าย_2_ตัว") or row.get("เลขล่าง_2_ตัว") or row.get("bottom2") or row.get("last2") or "").strip()
 
+    category = str(row.get("หมวดหวย") or row.get("category") or "").strip().lower()
+    category_aliases = {
+        "stock_vip": "vip",
+        "stock_special": "stock_special",
+        "stock_visa": "stock_visa",
+    }
+    category = category_aliases.get(category, category)
+
     identity = {
         "lottery": lottery_name,
+        "category": category,
         "draw_date": date_str,
         "top3": top3,
         "last2": last2,
@@ -196,6 +205,10 @@ def was_already_notified(row: Dict[str, Any], previous: List[Dict[str, Any]]) ->
         # Loose match guard: same normalized name + same date + matching winning numbers
         raw_name = row.get("ชื่อหวย") or row.get("lottery_name") or row.get("หวย") or ""
         old_name = old.get("ชื่อหวย") or old.get("lottery_name") or old.get("หวย") or ""
+        row_category = str(row.get("หมวดหวย") or row.get("category") or "").strip().lower()
+        old_category = str(old.get("หมวดหวย") or old.get("category") or "").strip().lower()
+        if row_category and old_category and row_category != old_category:
+            continue
         if normalize_lottery_name(raw_name) == normalize_lottery_name(old_name):
             d1 = _parse_draw_date(row)
             d2 = _parse_draw_date(old)
