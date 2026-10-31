@@ -18,7 +18,6 @@ import {
   Download,
   Search,
   Sparkles,
-  Smartphone,
   ChevronRight,
   ChevronLeft,
   Database,
@@ -68,9 +67,9 @@ import { BatchTicketChecker } from './components/BatchTicketChecker';
 import { DailySummaryTable, LotteryItem } from './components/DailySummaryTable';
 import { LatestThreeResults } from './components/LatestThreeResults';
 import { filterLotteriesForDrawDate } from './utils/lotterySchedule';
-// Offline schedule fallback for the installed Android APK.
+// Local lottery catalog fallback for the web dashboard.
 // The source JSON also contains sample-looking prize fields; never expose those as live results.
-const offlineLotteryCatalog: LotteryItem[] = (bundledLotteryCatalog as LotteryItem[]).map((item) => ({
+const bundledLotteryFallback: LotteryItem[] = (bundledLotteryCatalog as LotteryItem[]).map((item) => ({
   ...item,
   top3: '',
   bottom2: '',
@@ -84,7 +83,6 @@ const offlineLotteryCatalog: LotteryItem[] = (bundledLotteryCatalog as LotteryIt
 import { GitHubAppRunner } from './components/GitHubAppRunner';
 import { LiveUpcomingDraws } from './components/LiveUpcomingDraws';
 import { SettingsCenter } from './components/SettingsCenter';
-import { AppDownloadModal } from './components/AppDownloadModal';
 import { DataAccuracyCenter } from './components/DataAccuracyCenter';
 import { SystemMonitorKiosk } from './components/SystemMonitorKiosk';
 import { CrashShieldErrorBoundary } from './components/CrashShieldErrorBoundary';
@@ -403,7 +401,7 @@ export default function App() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [settings, setSettings] = useState<any>(null);
   const [results, setResults] = useState<LotteryResult[]>([]);
-  const [allLotteries, setAllLotteries] = useState<LotteryItem[]>(offlineLotteryCatalog);
+  const [allLotteries, setAllLotteries] = useState<LotteryItem[]>(bundledLotteryFallback);
   const [selectedCatalogLottery, setSelectedCatalogLottery] = useState<LotteryItem | null>(null);
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<string>('lottery_checker.py');
@@ -411,7 +409,6 @@ export default function App() {
   const [isTriggering, setIsTriggering] = useState<boolean>(false);
   const [notificationToast, setNotificationToast] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState<boolean>(false);
 
   // Settings raw editor state
   const [rawSettingsMode, setRawSettingsMode] = useState<boolean>(false);
@@ -1039,8 +1036,7 @@ export default function App() {
       const [resStatus, resSettings, resResults, resFiles, resAllLotteries] = await Promise.all([
         fetchJsonWithFallback(`${apiBase}/api/status`, `${rawBase}/status/status.json`),
         fetchJsonWithFallback(`${apiBase}/api/settings`),
-        // APKs have no bundled API server. Read the same public data file that
-        // GitHub Actions updates, so installed Android builds still show real results.
+        // Use the public results file as a fallback when the web API is unavailable.
         fetchJsonWithFallback(`${apiBase}/api/results`, `${rawBase}/lottery_previous_results.json`),
         fetch(`${apiBase}/api/project-files`).then((r) => r.ok ? r.json() : []).catch(() => []),
         fetchJsonWithFallback(`${apiBase}/api/all-lotteries`, `${rawBase}/data/all_lotteries.json`),
@@ -1077,7 +1073,7 @@ export default function App() {
       }
       if (Array.isArray(resFiles)) setProjectFiles(resFiles);
       const apiLotteryCatalog = Array.isArray(resAllLotteries) ? resAllLotteries : [];
-      const bundledCatalog = offlineLotteryCatalog;
+      const bundledCatalog = bundledLotteryFallback;
       const availableCatalog = apiLotteryCatalog.length > 0 ? apiLotteryCatalog : bundledCatalog;
       setAllLotteries(availableCatalog);
       if (!selectedCatalogLottery && availableCatalog.length > 0) {
@@ -1696,14 +1692,6 @@ export default function App() {
             >
               {voiceEnabled ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4" />}
               <span className="hidden md:inline">{voiceEnabled ? 'เสียงไทย: เปิด' : 'เสียงไทย: ปิด'}</span>
-            </button>
-
-            <button
-              onClick={() => setIsDownloadModalOpen(true)}
-              className="px-3.5 py-2.5 text-xs sm:text-sm font-bold rounded-2xl bg-purple-600/90 hover:bg-purple-600 text-white transition flex items-center gap-1.5 border border-purple-500/40 shadow-sm cursor-pointer active:scale-95"
-            >
-              <Smartphone className="w-4 h-4 text-amber-300" />
-              <span className="hidden sm:inline">📲 โหลดแอป APK</span>
             </button>
 
             <button
@@ -2516,14 +2504,6 @@ export default function App() {
         Lottery Alert System • ระบบแจ้งเตือนผลหวยพร้อมเสียงพูดไทย & ตัวปรับแต่งรูปแบบข้อความตัวหนังสือ
       </footer>
 
-      {/* App Download & APK Modal */}
-      <AppDownloadModal
-        isOpen={isDownloadModalOpen}
-        onClose={() => setIsDownloadModalOpen(false)}
-        appUrl={window.location.origin}
-        githubRepo={localStorage.getItem('gh_repo') || 'jirapatza/Bombim00'}
-      />
-
       {/* Admin & Back-Office Control Center Modal */}
       <AdminBackOfficeModal
         isOpen={isAdminBackOfficeOpen}
@@ -2564,10 +2544,6 @@ export default function App() {
           onSaveTemplate: handleSaveTemplate,
           onApplyPreset: (key: string) => applyPreset(key as any),
           onTestAnnouncement: testSingleAnnouncement,
-        }}
-        onOpenAppDownload={() => {
-          setIsAdminBackOfficeOpen(false);
-          setIsDownloadModalOpen(true);
         }}
       />
     </div>
