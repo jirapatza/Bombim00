@@ -131,7 +131,7 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
       id: 'app_info' as const,
       label: 'เว็บแอป & ข้อมูลระบบ',
       sublabel: 'PWA / เวอร์ชั่นระบบ',
-      icon: Smartphone,
+      icon: Globe,
     },
   ];
 
