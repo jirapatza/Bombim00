@@ -59,7 +59,14 @@ export function MobileNotificationHub({
 
   useEffect(() => {
     if (!selectedLotteryId && allLotteries.length > 0) {
-      setSelectedLotteryId(allLotteries[0].id);
+      // Default the test preview to a non-government lottery when available.
+      // This avoids making every first-run test appear to be Thai government lottery only.
+      const initialLottery =
+        allLotteries.find((item) =>
+          item.id !== 'gov' &&
+          !/สลากกินแบ่งรัฐบาล|หวยรัฐบาล/i.test(String(item.name || ''))
+        ) || allLotteries[0];
+      setSelectedLotteryId(initialLottery.id);
     }
   }, [allLotteries, selectedLotteryId]);
   const [customNote, setCustomNote] = useState<string>('');
@@ -237,14 +244,14 @@ export function MobileNotificationHub({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold text-white tracking-tight">
-                  ศูนย์เชื่อมต่อและแจ้งเตือนเข้าโทรศัพท์มือถือ (Mobile Push 100%)
+                  ศูนย์เชื่อมต่อการแจ้งเตือนผ่าน ntfy
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
-                  iOS &amp; Android
+                  Android
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                ตั้งค่าส่งแจ้งเตือนเด้งเตือนบนหน้าจอล็อก (Lock Screen) พร้อมเสียงเตือนและการสั่นเตือนบนโทรศัพท์ไอโฟนและแอนดรอยด์ ฟรี 100% ไม่เสียค่าบริการ
+                ตั้งค่าการส่งข้อความผ่าน ntfy ไปยังอุปกรณ์ที่สมัครรับ Topic ไว้ การแสดงผล เสียง และการสั่นขึ้นอยู่กับการตั้งค่า ntfy และ Android ของเครื่อง
               </p>
             </div>
           </div>
