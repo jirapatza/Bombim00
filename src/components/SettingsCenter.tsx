@@ -18,10 +18,6 @@ import {
 } from 'lucide-react';
 
 import { UnifiedNotificationCenter } from './UnifiedNotificationCenter';
-import { GitHubAppRunner } from './GitHubAppRunner';
-import { ProjectCodeEditor } from './ProjectCodeEditor';
-import { MultiChannelDispatcher } from './MultiChannelDispatcher';
-import { DeploymentPlaybook } from './DeploymentPlaybook';
 
 interface SettingsCenterProps {
   settings: any;
@@ -84,9 +80,7 @@ export function SettingsCenter({
   templateProps,
 }: SettingsCenterProps) {
   // Default to the unified clean notification architecture
-  const [subTab, setSubTab] = useState<
-    'unified' | 'template' | 'channels' | 'github' | 'files' | 'playbook' | 'raw'
-  >('unified');
+  const [subTab, setSubTab] = useState<'unified' | 'template'>('unified');
 
   return (
     <div className="space-y-6">
@@ -141,70 +135,15 @@ export function SettingsCenter({
             🎨 ข้อความ &amp; เสียงอ่านไทย
           </button>
 
-          <button
-            type="button"
-            onClick={() => setSubTab('channels')}
-            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
-              subTab === 'channels'
-                ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            🌐 Discord / Telegram
-          </button>
 
-          <button
-            type="button"
-            onClick={() => setSubTab('github')}
-            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
-              subTab === 'github'
-                ? 'bg-slate-800 text-amber-300 font-bold border border-amber-500/40 shadow-md'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            <Github className="w-3.5 h-3.5" />
-            🐙 GitHub Actions
-          </button>
 
-          <button
-            type="button"
-            onClick={() => setSubTab('files')}
-            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
-              subTab === 'files'
-                ? 'bg-slate-800 text-amber-300 font-bold border border-amber-500/40 shadow-md'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            <FileCode2 className="w-3.5 h-3.5" />
-            💻 แก้ไขโค้ดโปรเจกต์
-          </button>
 
-          <button
-            type="button"
-            onClick={() => setSubTab('playbook')}
-            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
-              subTab === 'playbook'
-                ? 'bg-slate-800 text-amber-300 font-bold border border-amber-500/40 shadow-md'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            <Rocket className="w-3.5 h-3.5" />
-            🚀 คู่มือใช้งาน
-          </button>
 
-          <button
-            type="button"
-            onClick={() => setSubTab('raw')}
-            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
-              subTab === 'raw'
-                ? 'bg-slate-800 text-amber-300 font-bold border border-amber-500/40 shadow-md'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            ⚙️ settings.json
-          </button>
+
+
+
+
+
         </div>
       </div>
 
@@ -333,70 +272,10 @@ export function SettingsCenter({
         </div>
       )}
 
-      {/* SUB-TAB 2: GITHUB APP RUNNER */}
-      {subTab === 'github' && (
-        <GitHubAppRunner
-          onRefreshStatus={onRefreshData}
-          systemStatus={status}
-          allLotteriesCount={allLotteries?.length || 54}
-        />
-      )}
 
-      {/* SUB-TAB 3: PROJECT CODE & FILE EDITOR */}
-      {subTab === 'files' && (
-        <ProjectCodeEditor
-          onRefreshProject={onRefreshData}
-          defaultRepo={localStorage.getItem('gh_repo') || 'myuser/th-lottery-alert'}
-          defaultBranch={localStorage.getItem('gh_branch') || 'main'}
-        />
-      )}
 
-      {/* SUB-TAB 4: MULTI-CHANNEL DISPATCHER (DISCORD / TELEGRAM) */}
-      {subTab === 'channels' && (
-        <MultiChannelDispatcher
-          settings={settings || {}}
-          onSaveSettings={onSaveSettings}
-          latestDraw={latestDraw}
-          allLotteries={allLotteries}
-        />
-      )}
 
-      {/* SUB-TAB 5: DEPLOYMENT PLAYBOOK */}
-      {subTab === 'playbook' && (
-        <DeploymentPlaybook />
-      )}
 
-      {/* SUB-TAB 6: RAW SETTINGS.JSON */}
-      {subTab === 'raw' && (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-            <div>
-              <h3 className="font-bold text-base text-white flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-amber-400" />
-                แก้ไขไฟล์คอนฟิกดิบ (config/settings.json)
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                ปรับแต่งค่าตัวกรองและช่องทางการส่งข้อมูลโดยตรงในรูปแบบ JSON
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={onSaveRawSettings}
-              className="px-5 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs rounded-xl shadow-md cursor-pointer transition active:scale-95"
-            >
-              💾 บันทึก settings.json
-            </button>
-          </div>
-
-          <textarea
-            rows={18}
-            value={rawSettingsJson}
-            onChange={(e) => setRawSettingsJson(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 font-mono text-xs text-amber-300 focus:outline-none focus:border-amber-500 leading-relaxed"
-          />
-        </div>
-      )}
     </div>
   );
 }
