@@ -115,6 +115,41 @@ def should_notify(S: Dict[str, Any], row: Dict[str, Any]) -> bool:
     return any(w in number for w in watched for number in numbers) if watched else False
 
 
+
+def _parse_draw_date(row: Dict[str, Any]) -> datetime.date:
+    """Parse supported ISO, dotted, slash, and Thai Buddhist-era draw dates."""
+    thai_months = {
+        "มกราคม": 1, "ม.ค": 1, "กุมภาพันธ์": 2, "ก.พ": 2,
+        "มีนาคม": 3, "มี.ค": 3, "เมษายน": 4, "เม.ย": 4,
+        "พฤษภาคม": 5, "พ.ค": 5, "มิถุนายน": 6, "มิ.ย": 6,
+        "กรกฎาคม": 7, "ก.ค": 7, "สิงหาคม": 8, "ส.ค": 8,
+        "กันยายน": 9, "ก.ย": 9, "ตุลาคม": 10, "ต.ค": 10,
+        "พฤศจิกายน": 11, "พ.ย": 11, "ธันวาคม": 12, "ธ.ค": 12,
+    }
+    for candidate in (row.get("วันที่จัดรูปแบบ"), row.get("งวดวันที่"), row.get("date"), row.get("draw_date")):
+        value = str(candidate or "").strip()
+        if not value:
+            continue
+        for date_format in ("%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                parsed = datetime.datetime.strptime(value[:10], date_format).date()
+                return parsed.replace(year=parsed.year - 543) if parsed.year >= 2400 else parsed
+            except ValueError:
+                pass
+        parts = value.replace(",", "").split()
+        if len(parts) >= 3:
+            try:
+                day = int(parts[0])
+                month = thai_months.get(parts[1].rstrip("."))
+                year = int(parts[2])
+                if month:
+                    if year >= 2400:
+                        year -= 543
+                    return datetime.date(year, month, day)
+            except (ValueError, TypeError):
+                pass
+    return datetime.date.min
+
 def write_status(
     rows: List[Dict[str, Any]], 
     status_path: str = DEFAULT_STATUS_PATH,
@@ -163,8 +198,9 @@ def write_status(
         })
     else:
         system_status = "healthy"
-        latest_draw = rows[0].get("งวดวันที่", "ไม่ระบุ")
-        status_message = f"ตรวจพบผลสดงวด {latest_draw} ผ่านแหล่ง {source_used or 'auto'}"
+        latest_row = max(rows, key=_parse_draw_date)
+        latest_draw = latest_row.get("งวดวันที่") or latest_row.get("วันที่จัดรูปแบบ") or "ไม่ระบุ"
+        status_message = f"ตรวจพบผลสดงวดล่าสุด {latest_draw} ผ่านแหล่ง {source_used or 'auto'}"
         recent_logs.insert(0, {
             "timestamp": iso_time,
             "level": "INFO",
@@ -186,17 +222,16 @@ def write_status(
         "total_checks": total_checks,
         "last_source_used": source_used or existing.get("last_source_used", "glo"),
         "status_message": status_message,
-        # Count distinct providers, not result rows; one provider can return many lotteries.
-        "active_sources_count": len({
-            str(row.get("แหล่งข้อมูล") or "").strip()
-            for row in rows
-            if str(row.get("แหล่งข้อมูล") or "").strip()
-        } | {
-            part.strip()
-            for part in str(source_used or "").split(" + ")
-            if part.strip()
-        }),
-        "latest_draw_detected": rows[0].get("งวดวันที่", "") if rows else existing.get("latest_draw_detected", ""),
+        # Prefer the explicit provider list; fall back to provider labels on result rows.
+        "active_sources_count": len(
+            {part.strip() for part in str(source_used or "").split(" + ") if part.strip()}
+            or {
+                str(row.get("แหล่งข้อมูล") or "").strip()
+                for row in rows
+                if str(row.get("แหล่งข้อมูล") or "").strip()
+            }
+        ),
+        "latest_draw_detected": (latest_row.get("งวดวันที่") or latest_row.get("วันที่จัดรูปแบบ") or "") if rows else existing.get("latest_draw_detected", ""),
         "notifications_sent_today": previous_sent + sent_now,
         "recent_logs": recent_logs
     }
