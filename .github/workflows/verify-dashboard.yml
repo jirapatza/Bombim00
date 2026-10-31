@@ -3,6 +3,7 @@ name: Verify dashboard changes
 on:
   push:
     branches:
+      - main
       - feature/latest-three-results-dashboard
   pull_request:
     branches:
