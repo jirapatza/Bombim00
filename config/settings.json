@@ -123,9 +123,9 @@
     "attach_results": true
   },
   "schedule": {
-    "cron": "*/15 14-17 1,16 * *",
+    "cron": "*/5 * * * *",
     "timezone": "Asia/Bangkok",
-    "description": "ตรวจทุก 15 นาที ระหว่างเวลา 14:00 - 17:00 น. ในวันที่ 1 และ 16 ของทุกเดือน"
+    "description": "ตรวจสอบผลหวยอัตโนมัติทุก 5 นาทีตลอดวัน ผ่าน GitHub Actions"
   },
   "message_template": {
     "preset": "standard",
