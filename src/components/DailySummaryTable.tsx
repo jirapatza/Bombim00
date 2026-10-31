@@ -1635,7 +1635,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
       {/* Lottery Detail Modal */}
       {detailLottery && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 animate-fadeIn modal-overlay p-3 sm:p-4"
           role="presentation"
           onClick={() => setDetailLottery(null)}
         >

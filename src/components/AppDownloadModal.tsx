@@ -99,7 +99,7 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({
   const githubZipDownloadUrl = `https://github.com/${cleanRepo}/archive/refs/heads/main.zip`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-fadeIn modal-overlay">
       <div className="bg-slate-900 border border-amber-500/40 rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl relative space-y-6 max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button

@@ -139,7 +139,7 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 animate-fadeIn modal-overlay">
       <div className="relative w-full max-w-6xl h-[92vh] max-h-[900px] bg-slate-900 border border-slate-700/80 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100">
         
         {/* Modal Header */}
@@ -249,7 +249,7 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
 
             {/* ================= SUB-TAB 1: FILTER & ANTI-DUPLICATE SHIELD ================= */}
             {activeAdminSubTab === 'filter_dedup' && (
-              <div className="space-y-6 animate-in fade-in duration-150">
+              <div className="space-y-6 animate-fadeIn">
                 
                 {/* Header Banner */}
                 <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-emerald-950/50 via-slate-900 to-slate-900 border border-emerald-500/30 shadow-lg space-y-3">
@@ -331,7 +331,7 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
                   </div>
 
                   {cleanMessage && (
-                    <div className="p-4 rounded-2xl bg-slate-900 border border-slate-700 text-sm font-bold text-emerald-300 animate-in fade-in">
+                    <div className="p-4 rounded-2xl bg-slate-900 border border-slate-700 text-sm font-bold text-emerald-300 animate-fadeIn">
                       {cleanMessage}
                     </div>
                   )}
@@ -367,7 +367,7 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
 
             {/* ================= SUB-TAB 2: NOTIFICATIONS SETTINGS ================= */}
             {activeAdminSubTab === 'notifications' && (
-              <div className="space-y-6 animate-in fade-in duration-150">
+              <div className="space-y-6 animate-fadeIn">
                 <SettingsCenter
                   settings={settings}
                   onSaveSettings={onSaveSettings}
@@ -387,7 +387,7 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
 
             {/* ================= SUB-TAB 3: SYSTEM HEALTH & SELF-HEALING ================= */}
             {activeAdminSubTab === 'monitor' && (
-              <div className="space-y-6 animate-in fade-in duration-150">
+              <div className="space-y-6 animate-fadeIn">
                 <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -405,7 +405,7 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
 
             {/* ================= SUB-TAB 4: RUNNER & GITHUB ACTIONS ================= */}
             {activeAdminSubTab === 'runner' && (
-              <div className="space-y-6 animate-in fade-in duration-150">
+              <div className="space-y-6 animate-fadeIn">
                 <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -427,7 +427,7 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
 
             {/* ================= SUB-TAB 5: ACCURACY CENTER ================= */}
             {activeAdminSubTab === 'accuracy' && (
-              <div className="space-y-6 animate-in fade-in duration-150">
+              <div className="space-y-6 animate-fadeIn">
                 <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -448,7 +448,7 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
 
             {/* ================= SUB-TAB 6: APP INFO & DOWNLOAD ================= */}
             {activeAdminSubTab === 'app_info' && (
-              <div className="space-y-6 animate-in fade-in duration-150">
+              <div className="space-y-6 animate-fadeIn">
                 <div className="p-6 rounded-3xl bg-slate-950/70 border border-slate-800 space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-2xl bg-purple-500/20 text-purple-400 border border-purple-500/30">

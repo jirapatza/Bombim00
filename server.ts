@@ -412,27 +412,32 @@ app.post('/api/test-channel', async (req, res) => {
 // 4.4 POST /api/test-ntfy - Test ntfy.sh notification
 app.post('/api/test-ntfy', async (req, res) => {
   try {
-    const { topic, server = 'https://ntfy.sh', message, title = 'Lottery Result Alert' } = req.body;
+    const { topic, server = 'https://ntfy.sh', message, title } = req.body;
     const cleanTopic = (topic || process.env.NTFY_TOPIC || '').trim();
     if (!cleanTopic) {
       return res.status(400).json({ success: false, error: 'กรุณาระบุ ntfy topic' });
     }
 
     const cleanServer = (server || 'https://ntfy.sh').replace(/\/+$/, '');
+    const appUrl = 'https://ais-pre-tmu6ka6jf2ftxjs55cuads-13488795999.asia-east1.run.app';
     const ntfyRes = await fetch(`${cleanServer}/${cleanTopic}`, {
       method: 'POST',
       headers: {
-        'Title': `base64:${Buffer.from(title, 'utf8').toString('base64')}`,
-        'Priority': 'high',
-        'Tags': 'moneybag,dart',
+        'Content-Type': 'application/json; charset=utf-8',
       },
-      body: message || 'ทดสอบการส่งข้อความผ่าน ntfy.sh สำเร็จเรียบร้อย! 🎉',
+      body: JSON.stringify({
+        title: title || '📢 แจ้งเตือนผลสลากและหวยสด',
+        message: message || '📢 แจ้งเตือนผลสลากและหวยสด\n📡 แหล่งข้อมูล: 👑เฮียฮวด พารวย\nแตะเพื่อเปิดแอปตรวจรางวัลทันที',
+        priority: 4,
+        tags: ['loudspeaker', 'dart'],
+        click: appUrl,
+      }),
     });
 
     if (ntfyRes.ok) {
       return res.json({
         success: true,
-        message: `ntfy server accepted the publish request for topic '${cleanTopic}'. Android device receipt cannot be verified by the server.`,
+        message: `ส่งข้อความแจ้งเตือนผลหวยไปยัง ntfy topic '${cleanTopic}' สำเร็จเรียบร้อย! 🎉 (คลิกแล้วจะเปิดแอปนี้ทันที)`,
       });
     } else {
       const errText = await ntfyRes.text();

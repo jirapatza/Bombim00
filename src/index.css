@@ -1,5 +1,37 @@
 @import "tailwindcss";
 
+/* Anti-flicker & hardware accelerated rendering */
+html, body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+  background-color: #020617;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn,
+.animate-fade-in {
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
+/* GPU hardware acceleration for modal overlays to prevent background repainting & screen flickering */
+.modal-overlay {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: opacity;
+}
+
 .gsi-material-button {
   -moz-user-select: none;
   -webkit-user-select: none;

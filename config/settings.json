@@ -85,7 +85,7 @@
         "dart",
         "loudspeaker"
       ],
-      "click_url": "https://news.sanook.com/lotto/"
+      "click_url": "https://ais-pre-tmu6ka6jf2ftxjs55cuads-13488795999.asia-east1.run.app"
     },
     "telegram": {
       "enabled": false,
@@ -98,7 +98,7 @@
       "enabled": false,
       "webhook_url": "",
       "username": "Lottery Alert Bot",
-      "avatar_url": "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=128&auto=format&fit=crop&q=80"
+      "avatar_url": "https://raw.githubusercontent.com/jirapatza/Bombim00/main/public/icon-192.png"
     },
     "line": {
       "enabled": false,
@@ -119,7 +119,7 @@
       "dart",
       "loudspeaker"
     ],
-    "click_url": "https://news.sanook.com/lotto/",
+    "click_url": "https://ais-pre-tmu6ka6jf2ftxjs55cuads-13488795999.asia-east1.run.app",
     "attach_results": true
   },
   "schedule": {
@@ -130,8 +130,8 @@
   "message_template": {
     "preset": "standard",
     "title": "📢 ผล{lottery_name} งวด {draw_date}",
-    "body": "🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n⏰ ปิดรอบถัดไป: {next_closing}\n📡 แหล่งข้อมูล: {source}",
-    "speech_script": "ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. รางวัลที่หนึ่ง ออกเลข {first_prize_spelled}. เลขท้ายสองตัว ออกเลข {last_2_spelled}. และหวยรอบถัดไปที่จะปิดรับคือ {next_closing_name} ปิดรับเวลา {next_closing_time} {polite_ending}.",
+    "body": "🎯 หวย: {lottery_name}\n🔺 3 ตัวบน: {top3}\n🔻 2 ตัวล่าง: {bottom2}\n📅 งวดวันที่: {draw_date}\n📡 แหล่งข้อมูล: 👑เฮียฮวด พารวย",
+    "speech_script": "ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. รางวัลที่หนึ่ง หรือสามตัวบน ออกเลข {first_prize_spelled}. เลขท้ายสองตัว ออกเลข {last_2_spelled}. {polite_ending}.",
     "polite_particle": "ครับ",
     "font_family": "sans",
     "font_size": "large",

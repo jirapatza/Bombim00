@@ -354,8 +354,12 @@ def fetch_from_thailottoapi_results() -> list:
                 if not isinstance(bottom3, list):
                     bottom3 = []
 
+                canonical_label = sl.map_canonical_lottery_name(label)
+                if sl.is_disallowed_lottery(canonical_label) or sl.is_disallowed_lottery(key):
+                    continue
+
                 rows.append({
-                    "ชื่อหวย": label,
+                    "ชื่อหวย": canonical_label,
                     "หวย": key,
                     "หมวดหวย": lottery_category,
                     "งวดวันที่": draw_date,
@@ -367,7 +371,7 @@ def fetch_from_thailottoapi_results() -> list:
                     "เลขหน้า_3_ตัว": [str(x).zfill(3) for x in front3 if str(x).strip()],
                     "เลขท้าย_3_ตัว": [str(x).zfill(3) for x in bottom3 if str(x).strip()],
                     "รางวัลข้างเคียงรางวัลที่_1": [],
-                    "แหล่งข้อมูล": "ThaiLottoAPI",
+                    "แหล่งข้อมูล": "👑เฮียฮวด พารวย",
                     "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
                     "สถานะการแจ้งเตือน": "pending"
                 })
@@ -544,7 +548,7 @@ def fetch_from_pholhuay() -> list:
 
 
 def send_ntfy_notification(row: dict) -> bool:
-    """Send lottery results to ntfy server using configuration in settings.json."""
+    """Send lottery results to ntfy server using JSON payload, native UTF-8 titles, and app click URL."""
     ntfy_server = (S.get("channels", {}).get("ntfy", {}).get("server") or S.get("ntfy", {}).get("server", "https://ntfy.sh")).rstrip("/")
     topic = NTFY_TOPIC or S.get("channels", {}).get("ntfy", {}).get("topic", "") or S.get("ntfy", {}).get("topic", "")
     
@@ -560,75 +564,64 @@ def send_ntfy_notification(row: dict) -> bool:
         return False
     topic = topic.strip()
 
-    url = f"{ntfy_server}/{topic}"
-    
+    raw_lottery_name = row.get("ชื่อหวย") or row.get("หวย") or "หวยไม่ระบุชื่อ"
+    if sl.is_disallowed_lottery(raw_lottery_name):
+        print(f"[SKIP] Disallowed lottery {raw_lottery_name} skipped from ntfy alert.")
+        return False
+
+    canonical_name = sl.map_canonical_lottery_name(raw_lottery_name)
     draw_date = row.get("งวดวันที่") or row.get("วันที่จัดรูปแบบ") or "ไม่ระบุวันที่"
     first_prize = row.get("รางวัลที่_1", "-")
     last_2 = row.get("เลขท้าย_2_ตัว", "-")
     front_3 = ", ".join(row.get("เลขหน้า_3_ตัว", [])) or "-"
     last_3 = ", ".join(row.get("เลขท้าย_3_ตัว", [])) or "-"
 
-    tmpl = S.get("message_template", {})
-    title_pattern = tmpl.get("title", "📢 ผล{lottery_name} งวด {draw_date}")
-    body_pattern = tmpl.get("body", "🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n📡 แหล่งข้อมูล: {source}")
+    app_url = "https://ais-pre-tmu6ka6jf2ftxjs55cuads-13488795999.asia-east1.run.app"
+    configured_click = S.get("channels", {}).get("ntfy", {}).get("click_url") or S.get("ntfy", {}).get("click_url") or ""
+    click_url = app_url if (not configured_click or "sanook" in configured_click) else configured_click
 
-    template_vars = {
-        "lottery_name": row.get("ชื่อหวย") or row.get("หวย") or "หวยไม่ระบุชื่อ",
-        "draw_date": draw_date,
-        "first_prize": first_prize,
-        "last_2": last_2,
-        "front_3": front_3,
-        "last_3": last_3,
-        "source": row.get('แหล่งข้อมูล', 'unknown'),
-        "next_closing": "ตรวจสอบตารางเวลาปิดรับในแอป"
+    title = f"📢 ผล{canonical_name} งวด {draw_date}"
+    category = _lottery_category(row)
+    if category in {"government", "gov_savings"}:
+        body = (
+            f"🎯 หวย: {canonical_name}\n"
+            f"🏆 รางวัลที่ 1: {first_prize}\n"
+            f"🔢 เลขท้าย 2 ตัว: {last_2}\n"
+            f"✨ เลขหน้า 3 ตัว: {front_3}\n"
+            f"🌟 เลขท้าย 3 ตัว: {last_3}\n"
+            f"📅 งวดวันที่: {draw_date}\n"
+            f"📡 แหล่งข้อมูล: 👑เฮียฮวด พารวย"
+        )
+    else:
+        top3 = row.get("เลขบน_3_ตัว") or row.get("top3") or first_prize or "-"
+        bottom2 = row.get("เลขล่าง_2_ตัว") or row.get("เลขท้าย_2_ตัว") or row.get("bottom2") or last_2 or "-"
+        body = (
+            f"🎯 หวย: {canonical_name}\n"
+            f"🔺 3 ตัวบน: {top3}\n"
+            f"🔻 2 ตัวล่าง: {bottom2}\n"
+            f"📅 งวดวันที่: {draw_date}\n"
+            f"📡 แหล่งข้อมูล: 👑เฮียฮวด พารวย"
+        )
+
+    # Publish via JSON payload to prevent base64 header encoding bugs on Android
+    url = f"{ntfy_server}/{topic}"
+    payload = {
+        "title": title,
+        "message": body,
+        "priority": 4,
+        "tags": ["loudspeaker", "dart"],
+        "click": click_url,
     }
 
     try:
-        title = title_pattern.format(**template_vars)
-        category = _lottery_category(row)
-        if category not in {"government", "gov_savings"}:
-            top3 = row.get("เลขบน_3_ตัว") or row.get("top3") or first_prize or "-"
-            bottom2 = row.get("เลขล่าง_2_ตัว") or row.get("เลขท้าย_2_ตัว") or row.get("bottom2") or last_2 or "-"
-            body = (
-                f"{title}\n\n"
-                f"🎯 หวย: {row.get('ชื่อหวย', 'หวย')}\n"
-                f"🔺 3 ตัวบน: {top3}\n"
-                f"🔻 2 ตัวล่าง: {bottom2}\n"
-                f"📅 งวด: {draw_date}\n"
-                f"📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'unknown')}"
-            )
-        else:
-            body = f"{title}\n\n" + body_pattern.format(**template_vars)
-    except Exception:
-        lottery_name = row.get("ชื่อหวย") or row.get("หวย") or "หวยไม่ระบุชื่อ"
-        title = f"📢 ผล{lottery_name} งวด {draw_date}"
-        if _lottery_category(row) in {"government", "gov_savings"}:
-            body = f"{title}\n\n🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'unknown')}"
-        else:
-            top3 = row.get("เลขบน_3_ตัว") or row.get("top3") or first_prize or "-"
-            bottom2 = row.get("เลขล่าง_2_ตัว") or row.get("bottom2") or last_2 or "-"
-            body = f"{title}\n\n🎯 หวย: {lottery_name}\n🔺 3 ตัวบน: {top3}\n🔻 2 ตัวล่าง: {bottom2}\n📡 แหล่งข้อมูล: {row.get('แหล่งข้อมูล', 'unknown')}"
-
-    priority = S.get("ntfy", {}).get("default_priority", "high")
-    tags = ",".join(S.get("ntfy", {}).get("tags", ["moneybag", "dart"]))
-    click_url = S.get("ntfy", {}).get("click_url", "")
-
-    headers = {
-        # ntfy requires base64-prefixed UTF-8 for non-ASCII header values.
-        "Title": "base64:" + base64.b64encode(title.encode("utf-8")).decode("ascii"),
-        "Priority": priority,
-        "Tags": tags,
-    }
-    if click_url:
-        headers["Click"] = click_url
-
-    try:
-        success = _http_post(url, data=body.encode("utf-8"), headers=headers, timeout=10)
+        data_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        headers = {"Content-Type": "application/json; charset=utf-8"}
+        success = _http_post(url, data=data_bytes, headers=headers, timeout=10)
         if success:
-            print(f"[SUCCESS] Sent ntfy notification to topic '{topic}' via {ntfy_server}")
+            print(f"[SUCCESS] Sent clean UTF-8 ntfy notification to topic '{topic}' via {ntfy_server}")
             return True
         else:
-            print(f"[ERROR] Failed posting to ntfy.")
+            print(f"[ERROR] Failed posting JSON to ntfy.")
     except Exception as e:
         print(f"[ERROR] Failed to send ntfy notification: {e}")
 
@@ -636,37 +629,46 @@ def send_ntfy_notification(row: dict) -> bool:
 
 
 def send_discord_notification(row: dict) -> bool:
-    """Send rich embed to Discord webhook if configured."""
+    """Send rich embed to Discord webhook with source attribution and app link."""
     webhook_url = os.environ.get("DISCORD_WEBHOOK_URL") or S.get("channels", {}).get("discord", {}).get("webhook_url", "")
     if not webhook_url:
         return False
 
+    raw_lottery_name = row.get("ชื่อหวย") or row.get("หวย") or "หวยไม่ระบุชื่อ"
+    if sl.is_disallowed_lottery(raw_lottery_name):
+        return False
+
+    canonical_name = sl.map_canonical_lottery_name(raw_lottery_name)
+    app_url = "https://ais-pre-tmu6ka6jf2ftxjs55cuads-13488795999.asia-east1.run.app"
     category = _lottery_category(row)
     if category in {"government", "gov_savings"}:
         description = (
-            f"🎯 **รางวัลที่ 1:** `{row.get('รางวัลที่_1', '-')}`\n"
+            f"🎯 **หวย:** {canonical_name}\n"
+            f"🏆 **รางวัลที่ 1:** `{row.get('รางวัลที่_1', '-')}`\n"
             f"🔢 **เลขท้าย 2 ตัว:** `{row.get('เลขท้าย_2_ตัว', '-')}`\n"
             f"✨ **เลขหน้า 3 ตัว:** `{', '.join(row.get('เลขหน้า_3_ตัว', []))}`\n"
             f"🌟 **เลขท้าย 3 ตัว:** `{', '.join(row.get('เลขท้าย_3_ตัว', []))}`"
         )
     else:
         description = (
-            f"🎯 **หวย:** {row.get('ชื่อหวย', 'หวย')}\n"
+            f"🎯 **หวย:** {canonical_name}\n"
             f"🔺 **3 ตัวบน:** `{row.get('เลขบน_3_ตัว') or row.get('top3') or row.get('รางวัลที่_1', '-')}`\n"
             f"🔻 **2 ตัวล่าง:** `{row.get('เลขล่าง_2_ตัว') or row.get('เลขท้าย_2_ตัว') or '-'}`"
         )
     payload = {
         "username": "Lottery Alert Bot",
+        "avatar_url": "https://raw.githubusercontent.com/jirapatza/Bombim00/main/public/icon-192.png",
         "embeds": [{
-            "title": f"📢 ผล{row.get('ชื่อหวย', 'หวย')} งวดวันที่ {row.get('งวดวันที่', '')}",
-            "description": description + f"\n📡 **แหล่งข้อมูล:** {row.get('แหล่งข้อมูล', 'unknown')}",
+            "title": f"📢 ผล{canonical_name} งวดวันที่ {row.get('งวดวันที่', '')}",
+            "url": app_url,
+            "description": description + f"\n\n📅 **งวดวันที่:** `{row.get('งวดวันที่', '')}`\n📡 **แหล่งข้อมูล:** 👑เฮียฮวด พารวย\n🔗 [กดเปิดแอปตรวจรางวัล]({app_url})",
             "color": 16107019,
             "footer": {"text": "Lottery Alert System Pro"}
         }]
     }
 
     try:
-        success = _http_post(webhook_url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"})
+        success = _http_post(webhook_url, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"), headers={"Content-Type": "application/json"})
         if success:
             print("[SUCCESS] Sent notification to Discord Webhook.")
             return True
@@ -676,36 +678,45 @@ def send_discord_notification(row: dict) -> bool:
 
 
 def send_telegram_notification(row: dict) -> bool:
-    """Send formatted HTML to Telegram chat if configured."""
+    """Send formatted HTML to Telegram chat with source attribution and app link."""
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN") or S.get("channels", {}).get("telegram", {}).get("bot_token", "")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID") or S.get("channels", {}).get("telegram", {}).get("chat_id", "")
     if not bot_token or not chat_id:
         return False
 
+    raw_lottery_name = row.get("ชื่อหวย") or row.get("หวย") or "หวยไม่ระบุชื่อ"
+    if sl.is_disallowed_lottery(raw_lottery_name):
+        return False
+
+    canonical_name = sl.map_canonical_lottery_name(raw_lottery_name)
+    app_url = "https://ais-pre-tmu6ka6jf2ftxjs55cuads-13488795999.asia-east1.run.app"
     category = _lottery_category(row)
     if category in {"government", "gov_savings"}:
         result_text = (
-            f"🎯 <b>รางวัลที่ 1:</b> <code>{row.get('รางวัลที่_1', '-')}</code>\n"
+            f"🎯 <b>หวย:</b> {canonical_name}\n"
+            f"🏆 <b>รางวัลที่ 1:</b> <code>{row.get('รางวัลที่_1', '-')}</code>\n"
             f"🔢 <b>เลขท้าย 2 ตัว:</b> <code>{row.get('เลขท้าย_2_ตัว', '-')}</code>\n"
             f"✨ <b>เลขหน้า 3 ตัว:</b> <code>{', '.join(row.get('เลขหน้า_3_ตัว', []))}</code>\n"
             f"🌟 <b>เลขท้าย 3 ตัว:</b> <code>{', '.join(row.get('เลขท้าย_3_ตัว', []))}</code>"
         )
     else:
         result_text = (
-            f"🎯 <b>หวย:</b> {row.get('ชื่อหวย', 'หวย')}\n"
+            f"🎯 <b>หวย:</b> {canonical_name}\n"
             f"🔺 <b>3 ตัวบน:</b> <code>{row.get('เลขบน_3_ตัว') or row.get('top3') or row.get('รางวัลที่_1', '-')}</code>\n"
             f"🔻 <b>2 ตัวล่าง:</b> <code>{row.get('เลขล่าง_2_ตัว') or row.get('เลขท้าย_2_ตัว') or '-'}</code>"
         )
     text = (
-        f"📢 <b>ผล{row.get('ชื่อหวย', 'หวย')} งวดวันที่ {row.get('งวดวันที่', '')}</b>\n\n"
+        f"📢 <b>ผล{canonical_name} งวดวันที่ {row.get('งวดวันที่', '')}</b>\n\n"
         f"{result_text}\n"
-        f"📡 <b>แหล่งข้อมูล:</b> {row.get('แหล่งข้อมูล', 'unknown')}"
+        f"📅 <b>งวดวันที่:</b> <code>{row.get('งวดวันที่', '')}</code>\n"
+        f"📡 <b>แหล่งข้อมูล:</b> 👑เฮียฮวด พารวย\n\n"
+        f"🔗 <a href='{app_url}'>เปิดแอปตรวจรางวัลทันที</a>"
     )
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
     try:
-        success = _http_post(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"})
+        success = _http_post(url, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"), headers={"Content-Type": "application/json"})
         if success:
             print("[SUCCESS] Sent notification to Telegram.")
             return True

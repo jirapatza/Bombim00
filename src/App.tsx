@@ -1447,7 +1447,7 @@ export default function App() {
 
       {/* ==================== CUSTOMIZABLE MODAL POP-UP ==================== */}
       {isModalOpen && currentAnnouncement && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 animate-fadeIn modal-overlay">
           <div className={`relative w-full max-w-2xl border-2 rounded-3xl p-6 sm:p-8 flex flex-col gap-6 ${themeClasses.container}`}>
             
             {/* Top Bar inside Modal */}
@@ -1633,7 +1633,7 @@ export default function App() {
       )}
 
       {/* Executive Header & Navigation */}
-      <header className="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur sticky top-0 z-40 shadow-2xl">
+      <header className="border-b border-slate-800 bg-slate-900 sticky top-0 z-40 shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30 text-slate-950 font-black shrink-0">
@@ -2013,7 +2013,7 @@ export default function App() {
               return (
                 <div className="space-y-5">
                   {/* Filter Toolbar Card */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur space-y-4">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
                         <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">

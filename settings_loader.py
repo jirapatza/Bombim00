@@ -62,9 +62,59 @@ def source_enabled(S: Dict[str, Any], source_name: str) -> bool:
     return False
 
 
+def is_disallowed_lottery(name: str) -> bool:
+    """Return True if lottery is an unauthorized or rogue lottery like LIW, Pingpong, or Yeekee."""
+    s = str(name or "").upper()
+    disallowed = ["LIW", "ปิงปอง", "PINGPONG", "ยี่กี", "YEEKEE"]
+    return any(k in s for k in disallowed)
+
+
+def map_canonical_lottery_name(name: str) -> str:
+    """Transform raw provider lottery names into official standard Thai names."""
+    s = str(name or "").strip()
+    if not s:
+        return "หวยไม่ระบุชื่อ"
+    
+    # Hanoi specific round mappings (e.g. 17:30 is ฮานอยพิเศษ)
+    lower = s.lower()
+    if "ฮานอย" in s or "hanoi" in lower:
+        if "17:30" in s or "17.30" in s or "พิเศษ" in s:
+            return "ฮานอยพิเศษ"
+        if "18:30" in s or "18.30" in s or ("ปกติ" in s and "vip" not in lower):
+            return "ฮานอยปกติ"
+        if "19:30" in s or "19.30" in s or "vip" in lower or "วีไอพี" in s:
+            return "ฮานอย VIP"
+        if "16:30" in s or "16.30" in s or "เฉพาะกิจ" in s:
+            return "ฮานอยเฉพาะกิจ"
+        if "11:30" in s or "11.30" in s or "กาชาด" in s:
+            return "ฮานอยกาชาด"
+            
+    # Lao mappings
+    if "ลาว" in s or "lao" in lower:
+        if "20:30" in s or "20.30" in s or "พัฒนา" in s:
+            return "หวยลาวพัฒนา"
+        if "21:30" in s or "21.30" in s or "vip" in lower or "วีไอพี" in s:
+            return "หวยลาว VIP"
+        if "สตาร์" in s or "star" in lower:
+            return "หวยลาวสตาร์"
+        if "สามัคคี" in s:
+            return "หวยลาวสามัคคี"
+
+    # Thai Government & Savings
+    if any(k in s for k in ("สลากกินแบ่งรัฐบาล", "หวยรัฐบาล", "รัฐบาลไทย")):
+        return "สลากกินแบ่งรัฐบาล"
+    if "ออมสิน" in s:
+        return "หวยออมสิน"
+    if "ธ.ก.ส" in s or "ธกส" in s:
+        return "หวย ธ.ก.ส."
+
+    return s
+
+
 def normalize_lottery_name(name: str) -> str:
     """Normalize lottery name to ensure consistent matching across different sources."""
-    s = str(name or "").strip().lower()
+    canon = map_canonical_lottery_name(name)
+    s = str(canon or "").strip().lower()
     # Normalize synonyms and spelling variations
     s = s.replace("นิคเคอิ", "นิเคอิ")
     s = s.replace("สลากกินแบ่งรัฐบาล (ไทย)", "สลากกินแบ่งรัฐบาล")
@@ -74,6 +124,7 @@ def normalize_lottery_name(name: str) -> str:
     s = s.replace("ธ.ก.ส.", "หวย ธ.ก.ส.")
     s = s.replace("หวยหวย", "หวย")
     return " ".join(s.split())
+
 
 
 def _parse_draw_date(row: Dict[str, Any]) -> datetime.date:
@@ -165,6 +216,11 @@ def should_notify(S: Dict[str, Any], row: Dict[str, Any]) -> bool:
     """
     notifications = S.get("notifications", {})
     if not notifications.get("enabled", True):
+        return False
+
+    # Disallow unauthorized rogue lotteries like LIW, pingpong, or yeekee
+    raw_name = row.get("ชื่อหวย") or row.get("lottery_name") or row.get("หวย") or ""
+    if is_disallowed_lottery(raw_name):
         return False
 
     # Check if notification was already sent
