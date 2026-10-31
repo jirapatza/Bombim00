@@ -704,7 +704,6 @@ app.get("/api/system/monitor", async (req, res) => {
       { name: "data/all_lotteries.json", path: ALL_LOTTERIES_PATH, exists: fs.existsSync(ALL_LOTTERIES_PATH), critical: false },
       { name: "lottery_previous_results.json", path: RESULTS_PATH, exists: fs.existsSync(RESULTS_PATH), critical: false },
       { name: ".github/workflows/lottery.yml", path: WORKFLOW_PATH, exists: fs.existsSync(WORKFLOW_PATH), critical: false },
-      { name: ".github/workflows/android-apk.yml", path: path.join(__dirname, ".github", "workflows", "android-apk.yml"), exists: fs.existsSync(path.join(__dirname, ".github", "workflows", "android-apk.yml")), critical: false }
     ];
     for (const f of filesHealth) {
       if (f.exists && f.name.endsWith(".json")) {
