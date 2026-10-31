@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 import {
   X,
   Smartphone,
@@ -14,9 +16,7 @@ import {
   QrCode,
   Share2,
   Play,
-  RefreshCw,
   FolderDown,
-  AlertCircle,
   FileCode2,
 } from 'lucide-react';
 
@@ -38,10 +38,19 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [activeTab, setActiveTab] = useState<'apk' | 'pwa' | 'source'>('apk');
 
-  // Trigger dispatch state
-  const [ghToken, setGhToken] = useState<string>(() => localStorage.getItem('gh_pat') || '');
-  const [isDispatching, setIsDispatching] = useState(false);
-  const [dispatchResult, setDispatchResult] = useState<{ success: boolean; message: string } | null>(null);
+  // Capacitor WebView cannot reliably open target=_blank download links.
+  // Delegate APK/ZIP downloads to Android's system browser instead.
+  const openExternalUrl = async (url: string) => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await Browser.open({ url });
+      } else {
+        window.location.assign(url);
+      }
+    } catch {
+      window.location.assign(url);
+    }
+  };
 
   useEffect(() => {
     const handleBeforeInstall = (e: any) => {
@@ -81,44 +90,6 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({
     navigator.clipboard.writeText(appUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);
-  };
-
-  const handleTriggerApkBuild = async () => {
-    setIsDispatching(true);
-    setDispatchResult(null);
-    try {
-      const res = await fetch('/api/github/dispatch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          repo: githubRepo,
-          workflow: 'android-apk.yml',
-          token: ghToken.trim() || undefined,
-          branch: 'main',
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        if (ghToken.trim()) localStorage.setItem('gh_pat', ghToken.trim());
-        setDispatchResult({
-          success: true,
-          message: 'ส่งคำสั่งเริ่มบิลด์ APK บน GitHub Actions สำเร็จแล้ว! กำลังประมวลผลบนคลาวด์ (~2 นาที)',
-        });
-      } else {
-        setDispatchResult({
-          success: false,
-          message: data.error || 'ไม่สามารถสั่งรันได้ กรุณากรอก GitHub Token หรือเปิดหน้า GitHub เพื่อกดปุ่ม Run workflow',
-        });
-      }
-    } catch (err: any) {
-      setDispatchResult({
-        success: false,
-        message: err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ',
-      });
-    } finally {
-      setIsDispatching(false);
-    }
   };
 
   const cleanRepo = githubRepo || 'jirapatza/Bombim00';
@@ -219,11 +190,10 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({
 
               {/* Direct Download Buttons */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <a
-                  href={githubDirectApkUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex flex-col justify-between shadow-lg shadow-emerald-600/20 transition group"
+                <button
+                  type="button"
+                  onClick={() => void openExternalUrl(githubDirectApkUrl)}
+                  className="text-left p-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex flex-col justify-between shadow-lg shadow-emerald-600/20 transition group cursor-pointer"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="flex items-center gap-1.5">
@@ -237,11 +207,10 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({
                   </span>
                 </a>
 
-                <a
-                  href={githubReleasesUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-purple-500/40 text-white font-bold text-xs flex flex-col justify-between transition group"
+                <button
+                  type="button"
+                  onClick={() => void openExternalUrl(githubReleasesUrl)}
+                  className="text-left p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-purple-500/40 text-white font-bold text-xs flex flex-col justify-between transition group cursor-pointer"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="flex items-center gap-1.5">
@@ -256,59 +225,18 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({
                 </a>
               </div>
 
-              {/* Trigger Build in 1 Click */}
-              <div className="bg-slate-900/90 rounded-xl p-3.5 border border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <Play className="w-3.5 h-3.5 text-amber-400 fill-current" />
-                    สั่งสร้างไฟล์ APK ใหม่บน GitHub (Build Trigger)
-                  </span>
-                  <a
-                    href={githubActionsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] text-purple-400 hover:underline flex items-center gap-1"
-                  >
-                    <span>เปิด GitHub Actions</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    placeholder="GitHub PAT Token (ถ้ามีสิทธิ์ Actions)"
-                    value={ghToken}
-                    onChange={(e) => setGhToken(e.target.value)}
-                    className="flex-1 bg-slate-950 border border-slate-700 text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-purple-500 font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleTriggerApkBuild}
-                    disabled={isDispatching}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-lg transition shadow flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shrink-0"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isDispatching ? 'animate-spin' : ''}`} />
-                    <span>{isDispatching ? 'กำลังสั่งรัน...' : 'เริ่มบิลด์ APK'}</span>
-                  </button>
-                </div>
-
-                {dispatchResult && (
-                  <div
-                    className={`p-2.5 rounded-lg text-xs flex items-center gap-2 ${
-                      dispatchResult.success
-                        ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
-                        : 'bg-rose-500/15 border border-rose-500/30 text-rose-300'
-                    }`}
-                  >
-                    {dispatchResult.success ? (
-                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-                    )}
-                    <span>{dispatchResult.message}</span>
-                  </div>
-                )}
+              <div className="bg-slate-900/90 rounded-xl p-3.5 border border-slate-800 space-y-2">
+                <div className="text-xs font-bold text-white">ต้องการสร้าง APK รุ่นใหม่?</div>
+                <p className="text-[11px] text-slate-400">เปิด GitHub Actions ในเบราว์เซอร์ Android แล้วกด Run workflow เพื่อสร้างไฟล์ APK รุ่นใหม่</p>
+                <button
+                  type="button"
+                  onClick={() => void openExternalUrl(githubActionsUrl)}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-lg transition shadow flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Github className="w-4 h-4" />
+                  เปิด GitHub Actions
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               {/* Instructions */}
@@ -366,8 +294,6 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({
                   </p>
                   <a
                     href={appUrl}
-                    target="_blank"
-                    rel="noreferrer"
                     className="inline-flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 font-bold hover:underline"
                   >
                     เปิดแอพในหน้าต่างใหม่ <ExternalLink className="w-3.5 h-3.5" />
@@ -449,15 +375,14 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({
               </p>
 
               <div className="pt-2">
-                <a
-                  href={githubZipDownloadUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition"
+                <button
+                  type="button"
+                  onClick={() => void openExternalUrl(githubZipDownloadUrl)}
+                  className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   ดาวน์โหลด Source Code .ZIP จาก GitHub ทันที
-                </a>
+                </button>
               </div>
             </div>
 
