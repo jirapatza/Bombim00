@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { apiFetch } from '../utils/api';
 import {
   ShieldCheck,
   Search,
@@ -102,7 +103,7 @@ export const DataAccuracyCenter: React.FC<DataAccuracyCenterProps> = ({
     setVerifyError(null);
 
     try {
-      const res = await fetch('/api/ai/verify-grounding', {
+      const res = await apiFetch('/api/ai/verify-grounding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -196,7 +197,7 @@ export const DataAccuracyCenter: React.FC<DataAccuracyCenterProps> = ({
       reader.onloadend = async () => {
         const base64data = reader.result as string;
         try {
-          const res = await fetch('/api/ai/transcribe', {
+          const res = await apiFetch('/api/ai/transcribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
