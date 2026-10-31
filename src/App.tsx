@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import bundledLotteryCatalog from '../data/all_lotteries.json';
 import {
   Bell,
   CheckCircle2,
@@ -1077,9 +1078,22 @@ export default function App() {
         setResults(safeResults);
       }
       if (Array.isArray(resFiles)) setProjectFiles(resFiles);
-      if (Array.isArray(resAllLotteries) && resAllLotteries.length > 0) {
-        setAllLotteries(resAllLotteries);
-        if (!selectedCatalogLottery) setSelectedCatalogLottery(resAllLotteries[0]);
+      const apiLotteryCatalog = Array.isArray(resAllLotteries) ? resAllLotteries : [];
+      const bundledCatalog = (bundledLotteryCatalog as LotteryItem[]).map((item) => ({
+        ...item,
+        // The bundled file is a schedule/catalog fallback only. Never present
+        // its former sample numbers as verified lottery results.
+        top3: '',
+        bottom2: '',
+        firstPrize: '',
+        status: 'waiting' as const,
+        date: 'ไม่ระบุ',
+        source: 'ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล',
+      }));
+      const availableCatalog = apiLotteryCatalog.length > 0 ? apiLotteryCatalog : bundledCatalog;
+      setAllLotteries(availableCatalog);
+      if (!selectedCatalogLottery && availableCatalog.length > 0) {
+        setSelectedCatalogLottery(availableCatalog[0]);
       }
 
       if (newResults.length > 0) {
