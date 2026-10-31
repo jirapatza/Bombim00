@@ -1,7 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { Directory, Filesystem } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
 import {
   X,
   Download,
@@ -94,7 +91,7 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
     setTimeout(() => setShareStatus(null), 3500);
   }, [imageUrl, dateStr]);
 
-  // Comprehensive Web Share API + Capacitor Native Share
+  // Share through the browser Web Share API with download fallback
   const handleShareImage = useCallback(async () => {
     if (!canvasRef.current && !imageUrl) return;
     setIsSharing(true);
@@ -106,35 +103,7 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
     const shareTitle = `${title} (${dateStr})`;
 
     try {
-      // 1. Check if running on native Capacitor Android/iOS platform
-      if (Capacitor.isNativePlatform()) {
-        const base64Data = (imageUrl || canvasRef.current?.toDataURL('image/png') || '').replace(
-          /^data:image\/png;base64,/,
-          ''
-        );
-
-        if (base64Data) {
-          const savedFile = await Filesystem.writeFile({
-            path: fileName,
-            data: base64Data,
-            directory: Directory.Cache,
-          });
-
-          await Share.share({
-            title: shareTitle,
-            text: shareText,
-            url: savedFile.uri,
-            dialogTitle: 'แชร์รูปการสรุปผลหวยไปยังโซเชียลมีเดีย',
-          });
-
-          setShareStatus('แชร์รูปภาพผ่านแอปพลิเคชันสำเร็จแล้ว! 🎉');
-          setIsSharing(false);
-          setTimeout(() => setShareStatus(null), 3500);
-          return;
-        }
-      }
-
-      // 2. Web Share API (Level 2 with Files support)
+      // Web Share API (Level 2 with Files support)
       if (canvasRef.current) {
         canvasRef.current.toBlob(async (blob) => {
           if (!blob) {
