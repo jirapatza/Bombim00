@@ -51,11 +51,9 @@ export default {
     if (request.method !== "GET" && request.method !== "OPTIONS") {
       try { incomingBody = await request.clone().json(); } catch { incomingBody = {}; }
     }
-    const requestToken = incomingBody.token || "";
-    const isAuthed = env.DASH_PASSWORD ? clientPassword === env.DASH_PASSWORD : Boolean(requestToken);
-
-    // Writes require either the configured dashboard password or a GitHub token
-    // supplied for this request. The token is never stored by this Worker.
+    // All write/test/dispatch endpoints require a configured dashboard password.
+    // A GitHub token in the request body is a GitHub API credential, never dashboard authentication.
+    const isAuthed = Boolean(env.DASH_PASSWORD) && clientPassword === env.DASH_PASSWORD;
     const isWriteMethod = ["POST", "PUT", "DELETE"].includes(request.method);
 
     if (isWriteMethod && !isAuthed) {
