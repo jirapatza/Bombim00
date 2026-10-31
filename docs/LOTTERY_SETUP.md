@@ -43,6 +43,13 @@
 
 ---
 
+4. **ตั้งค่า Cloud Run Server Secret ด้วย**
+   - ไปที่ Cloud Run > เลือกบริการ Dashboard > Edit & Deploy New Revision > Variables & Secrets
+   - เพิ่ม Secret/Environment Variable ชื่อ `DASH_PASSWORD` โดยใช้รหัสผ่านเดียวกับ Cloudflare Worker
+   - ห้ามใส่รหัสผ่านในไฟล์โค้ดหรือ GitHub Repository
+   - Server จะปฏิเสธคำขอ POST/PUT/PATCH/DELETE หากไม่มีรหัสผ่านที่ถูกต้อง และจะปิดการเขียนทั้งหมดเมื่อเป็น Production แต่ยังไม่ได้ตั้ง Secret
+   - หน้าเว็บจะส่งรหัสผ่านที่บันทึกไว้จากการเชื่อมต่อ Dashboard ไปยัง API โดยอัตโนมัติ
+
 ## 3. การใช้งานหน้าเว็บ Dashboard
 
 หน้าเว็บ Dashboard สามารถเปิดใช้งานได้ 2 รูปแบบ:
