@@ -132,14 +132,14 @@ export class CrashShieldErrorBoundary extends Component<Props, State> {
       if (isIsolated) {
         // Compact fallback for inner component isolation
         return (
-          <div className="p-4 rounded-2xl bg-slate-900/90 border border-amber-500/40 text-slate-200 shadow-xl space-y-3 my-3">
+          <div className="p-4 rounded-2xl bg-slate-900/90 border border-sky-400/30 text-slate-200 shadow-xl space-y-3 my-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-300 flex items-center justify-center">
                   <ShieldAlert className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-amber-300">
+                  <h4 className="text-xs font-bold text-sky-200">
                     {this.props.fallbackTitle || 'ระบบป้องกันส่วนประกอบล่มทำงาน (Safe Recovery Active)'}
                   </h4>
                   <p className="text-[11px] text-slate-400">
@@ -150,7 +150,7 @@ export class CrashShieldErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 {this.state.autoRecoverCountdown !== null
@@ -165,16 +165,16 @@ export class CrashShieldErrorBoundary extends Component<Props, State> {
       // Full-page shield fallback
       return (
         <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-          <div className="w-full max-w-xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-emerald-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden space-y-6">
-            <div className="absolute top-0 right-0 translate-x-12 -translate-y-12 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="w-full max-w-xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-cyan-400/40 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden space-y-6">
+            <div className="absolute top-0 right-0 translate-x-12 -translate-y-12 w-64 h-64 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none" />
 
             <div className="flex items-start gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 shadow-lg shadow-emerald-500/25 shrink-0">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-400 flex items-center justify-center text-slate-950 shadow-lg shadow-cyan-500/25 shrink-0">
                 <ShieldAlert className="w-8 h-8" />
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-400/15 text-cyan-200 border border-cyan-400/40 uppercase">
                     Crash Shield Active
                   </span>
                   <span className="text-xs text-slate-400 font-mono">
@@ -206,7 +206,7 @@ export class CrashShieldErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition cursor-pointer active:scale-98"
+                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-400 hover:from-sky-400 hover:to-cyan-300 text-slate-950 font-black text-sm shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition cursor-pointer active:scale-98"
               >
                 <RotateCcw className="w-4 h-4" />
                 กู้คืนระบบและเริ่มทำงานต่อทันที (Auto-Recover)
@@ -246,16 +246,16 @@ export class CrashShieldErrorBoundary extends Component<Props, State> {
                 <button
                   type="button"
                   onClick={this.handleCopyReport}
-                  className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer text-[11px]"
+                  className="text-cyan-300 hover:text-cyan-200 flex items-center gap-1 cursor-pointer text-[11px]"
                 >
-                  {this.state.copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {this.state.copied ? <Check className="w-3.5 h-3.5 text-cyan-300" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{this.state.copied ? 'คัดลอกรายงานแล้ว' : 'คัดลอกรายงาน'}</span>
                 </button>
               </div>
 
               {this.state.showDetails && (
                 <div className="mt-3 p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-400 overflow-x-auto max-h-48 space-y-1">
-                  <div className="text-emerald-400 font-bold">Stack Trace:</div>
+                  <div className="text-cyan-300 font-bold">Stack Trace:</div>
                   <pre className="whitespace-pre-wrap">{this.state.error?.stack || 'No stack trace available'}</pre>
                 </div>
               )}
