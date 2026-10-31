@@ -69,7 +69,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   const [copiedSummary, setCopiedSummary] = useState(false);
   const [detailLottery, setDetailLottery] = useState<LotteryItem | null>(null);
 
-  const normalizeMatchKey = (value: unknown) => String(value ?? '').toLocaleLowerCase().replace(/[\\s._#-]+/g, '');
+  const normalizeMatchKey = (value: unknown) => String(value ?? '').toLocaleLowerCase().replace(/[\s._#-]+/g, '');
   const selectedResult = detailLottery ? results
     .filter((row) => {
       const idKey = normalizeMatchKey(detailLottery.id);
