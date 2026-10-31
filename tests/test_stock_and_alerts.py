@@ -1,3 +1,4 @@
+import base64
 import datetime
 
 import lottery_checker as lc
@@ -132,7 +133,7 @@ def test_non_government_ntfy_body_uses_top3_and_bottom2_labels(monkeypatch):
     assert "3 ตัวบน: 024" in sent["body"]
     assert "2 ตัวล่าง: 44" in sent["body"]
     assert "รางวัลที่ 1:" not in sent["body"]
-    assert "หวยฮานอยพิเศษ" in sent["headers"]["Title"]
+    assert base64.b64decode(sent["headers"]["Title"].removeprefix("base64:")).decode("utf-8") == "ผลหวยฮานอยพิเศษ งวด 31 ตุลาคม 2569"
 
 
 def test_ntfy_does_not_publish_when_topic_is_missing(monkeypatch):
@@ -216,3 +217,21 @@ def test_ntfy_template_error_fallback_keeps_non_government_lottery_identity(monk
     assert "3 ตัวบน: 024" in sent["body"]
     assert "2 ตัวล่าง: 44" in sent["body"]
     assert "สลากกินแบ่งรัฐบาล" not in sent["body"]
+
+
+def test_ntfy_title_uses_base64_utf8_header_for_thai_and_emoji(monkeypatch):
+    sent = {}
+    monkeypatch.setattr(lc, "NTFY_TOPIC", "")
+    monkeypatch.setattr(lc, "S", {
+        "channels": {"ntfy": {"enabled": True, "topic": "test-topic"}},
+        "message_template": {"title": "📢 ผล{lottery_name} งวด {draw_date}"}
+    })
+    monkeypatch.setattr(lc, "_http_post", lambda url, data, headers, timeout=10: sent.update(headers=headers) or True)
+
+    assert lc.send_ntfy_notification({
+        "ชื่อหวย": "หวยฮานอยพิเศษ", "หมวดหวย": "hanoi", "งวดวันที่": "31 ตุลาคม 2569",
+        "เลขบน_3_ตัว": "024", "เลขล่าง_2_ตัว": "44"
+    }) is True
+    encoded_title = sent["headers"]["Title"]
+    assert encoded_title.startswith("base64:")
+    assert base64.b64decode(encoded_title.removeprefix("base64:")).decode("utf-8") == "📢 ผลหวยฮานอยพิเศษ งวด 31 ตุลาคม 2569"

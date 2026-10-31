@@ -260,7 +260,7 @@ app.post("/api/test-ntfy", async (req, res) => {
     const ntfyRes = await fetch(`${cleanServer}/${cleanTopic}`, {
       method: "POST",
       headers: {
-        "Title": title,
+        "Title": `base64:${Buffer.from(title, "utf8").toString("base64")}`,
         "Priority": "high",
         "Tags": "moneybag,dart"
       },

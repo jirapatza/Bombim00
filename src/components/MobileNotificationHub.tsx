@@ -158,7 +158,7 @@ export function MobileNotificationHub({
       const res = await fetch(ntfyUrl, {
         method: 'POST',
         headers: {
-          'Title': title,
+          'Title': `base64:${btoa(Array.from(new TextEncoder().encode(title), (byte) => String.fromCharCode(byte)).join(''))}`,
           'Priority': priority === 'urgent' ? '5' : priority === 'high' ? '4' : '3',
           'Tags': 'tada,loudspeaker,moneybag',
           'Click': window.location.origin,

@@ -6,6 +6,7 @@ Lottery Alert System: สคริปต์ตรวจสอบผลสลา�
 
 import os
 import sys
+import base64
 import json
 import re
 import datetime
@@ -612,7 +613,8 @@ def send_ntfy_notification(row: dict) -> bool:
     click_url = S.get("ntfy", {}).get("click_url", "")
 
     headers = {
-        "Title": title,
+        # ntfy requires base64-prefixed UTF-8 for non-ASCII header values.
+        "Title": "base64:" + base64.b64encode(title.encode("utf-8")).decode("ascii"),
         "Priority": priority,
         "Tags": tags,
     }
