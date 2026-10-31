@@ -32,8 +32,8 @@ interface LatestThreeResultsProps {
 function parseTimestamp(value?: string): number {
   if (!value) return Number.NaN;
   const raw = value.trim();
-  const normalized = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}/.test(raw) &&
-    !/(Z|[+-]\\d{2}:?\\d{2})$/i.test(raw)
+  const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw) &&
+    !/(Z|[+-]\d{2}:?\d{2})$/i.test(raw)
     ? `${raw}+07:00`
     : raw;
   const parsed = Date.parse(normalized);
@@ -41,17 +41,17 @@ function parseTimestamp(value?: string): number {
 }
 
 function normalizeName(value?: string): string {
-  return String(value || '').toLocaleLowerCase().replace(/[\\s._#-]+/g, '');
+  return String(value || '').toLocaleLowerCase().replace(/[\s._#-]+/g, '');
 }
 
 function parseDrawDate(value?: string): string {
   const raw = String(value || '').trim();
-  const iso = raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (iso) {
     const year = Number(iso[1]) > 2400 ? Number(iso[1]) - 543 : Number(iso[1]);
     return `${year}-${String(iso[2]).padStart(2, '0')}-${String(iso[3]).padStart(2, '0')}`;
   }
-  const dmy = raw.match(/^(\\d{1,2})[./-](\\d{1,2})[./-](\\d{4})/);
+  const dmy = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
   if (dmy) {
     const year = Number(dmy[3]) > 2400 ? Number(dmy[3]) - 543 : Number(dmy[3]);
     return `${year}-${String(dmy[2]).padStart(2, '0')}-${String(dmy[1]).padStart(2, '0')}`;
@@ -64,8 +64,8 @@ function parseDrawDate(value?: string): string {
     'กันยายน': '09', 'ก.ย.': '09', 'ตุลาคม': '10', 'ต.ค.': '10',
     'พฤศจิกายน': '11', 'พ.ย.': '11', 'ธันวาคม': '12', 'ธ.ค.': '12',
   };
-  const day = raw.match(/(\\d{1,2})/);
-  const year = raw.match(/(\\d{4})/);
+  const day = raw.match(/(\d{1,2})/);
+  const year = raw.match(/(\d{4})/);
   const month = Object.entries(months).find(([name]) => raw.includes(name))?.[1];
   if (day && year && month) {
     const y = Number(year[1]) > 2400 ? Number(year[1]) - 543 : Number(year[1]);
@@ -85,7 +85,7 @@ function scheduledTimestamp(row: LatestResultRow, lotteries: LotteryItem[]): num
   const date = parseDrawDate(row.วันที่จัดรูปแบบ || row.งวดวันที่);
   if (!schedule || !date) return Number.NaN;
 
-  const time = String(schedule.drawTimeStr || '').match(/(\\d{1,2})[:.](\\d{2})/);
+  const time = String(schedule.drawTimeStr || '').match(/(\d{1,2})[:.](\d{2})/);
   if (!time) return Number.NaN;
   const hour = Number(time[1]);
   const minute = Number(time[2]);
