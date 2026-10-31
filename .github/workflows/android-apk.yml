@@ -75,18 +75,19 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
 
-      - name: Upload installable APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Bombim00-v${{ github.run_number }}-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Prepare APK for GitHub Release
+      - name: Prepare versioned APK file
         run: |
           mkdir -p release-assets
           cp android/app/build/outputs/apk/debug/app-debug.apk "release-assets/Bombim00-v${VERSION_NAME}.apk"
+          ls -lh "release-assets/Bombim00-v${VERSION_NAME}.apk"
+
+      - name: Upload installable APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bombim00-v${{ env.VERSION_NAME }}-APK
+          path: release-assets/Bombim00-v${{ env.VERSION_NAME }}.apk
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Publish GitHub Release with APK
         uses: softprops/action-gh-release@v2
