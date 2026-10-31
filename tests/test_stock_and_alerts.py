@@ -235,3 +235,29 @@ def test_ntfy_title_uses_base64_utf8_header_for_thai_and_emoji(monkeypatch):
     encoded_title = sent["headers"]["Title"]
     assert encoded_title.startswith("base64:")
     assert base64.b64decode(encoded_title.removeprefix("base64:")).decode("utf-8") == "📢 ผลหวยฮานอยพิเศษ งวด 31 ตุลาคม 2569"
+
+
+def test_stock_group_scraper_ignores_faq_headings(monkeypatch):
+    html = """
+    <h2>หวยหุ้น VISA</h2>
+    <div>
+      <h3>หวยหุ้นดาวโจนส์ VISA</h3>
+      <p>งวด 28 ตุลาคม 2569</p><p>3 ตัวบน 510</p><p>2 ตัวล่าง 53</p>
+    </div>
+    <div>
+      <h3>หวยหุ้นในหน้านี้มีกี่รายการ?</h3>
+      <p>งวด 28 ตุลาคม 2569</p><p>3 ตัวบน 510</p><p>2 ตัวล่าง 53</p>
+    </div>
+    <div>
+      <h3>ระบบอัปเดตผลหวยหุ้นเมื่อไร?</h3>
+      <p>งวด 28 ตุลาคม 2569</p><p>3 ตัวบน 510</p><p>2 ตัวล่าง 53</p>
+    </div>
+    """
+    monkeypatch.setattr(lc, "_http_get_text", lambda *args, **kwargs: html)
+
+    rows = lc.fetch_from_pholhuay_stock_groups()
+
+    assert len(rows) == 1
+    assert rows[0]["ชื่อหวย"] == "หวยหุ้นดาวโจนส์ VISA"
+    assert rows[0]["เลขบน_3_ตัว"] == "510"
+    assert rows[0]["เลขล่าง_2_ตัว"] == "53"
