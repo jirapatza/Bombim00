@@ -770,7 +770,7 @@ app.get('/api/system/monitor', async (req, res) => {
           const r = await fetch(s.url, { method: 'HEAD', signal: controller.signal }).catch(() => null);
           clearTimeout(tId);
           const ms = Date.now() - start;
-          const ok = r ? r.status < 500 : false;
+          const ok = r ? r.ok : false;
           return {
             id: s.id,
             name: s.name,
@@ -793,7 +793,7 @@ app.get('/api/system/monitor', async (req, res) => {
     );
 
     const hasMissingCriticalFiles = filesHealth.some((f) => f.critical && (!f.exists || (f as any).validJson === false));
-    const overallStatus = hasMissingCriticalFiles ? 'error' : sourceChecks.some((s) => s.status === 'error') ? 'degraded' : 'healthy';
+    const overallStatus = hasMissingCriticalFiles ? 'error' : sourceChecks.some((s) => s.status !== 'healthy') ? 'degraded' : 'healthy';
 
     return res.json({
       success: true,
@@ -807,7 +807,7 @@ app.get('/api/system/monitor', async (req, res) => {
         uptimeFormatted: uptimeStr,
         memoryUsageMB: Math.round(memory.heapUsed / 1024 / 1024),
         totalHeapMB: Math.round(memory.heapTotal / 1024 / 1024),
-        backgroundRunnerActive: !isBackgroundCheckRunning,
+        backgroundRunnerActive: process.env.DISABLE_BACKGROUND_CHECK !== 'true',
       },
       filesHealth,
       sourceChecks,
