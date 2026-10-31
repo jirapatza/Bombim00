@@ -28,6 +28,8 @@ jobs:
           node-version: 24.12.0
       - name: Install dependencies
         run: npm install
+      - name: Dependency security audit
+        run: npm audit --audit-level=high
       - name: TypeScript check
         run: npm run lint
       - name: Unit tests
