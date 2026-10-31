@@ -405,7 +405,6 @@ export default function App() {
 
   // Settings raw editor state
   const [rawSettingsMode, setRawSettingsMode] = useState<boolean>(false);
-  const [rawSettingsJson, setRawSettingsJson] = useState<string>('');
 
   // Ticket Checker state
   const [ticketInput, setTicketInput] = useState<string>('');
@@ -887,7 +886,6 @@ export default function App() {
         },
       };
       setSettings(updated);
-      setRawSettingsJson(JSON.stringify(updated, null, 2));
     }
     showToast(`ใช้แม่แบบ '${p.name}' เรียบร้อยแล้ว`);
   };
@@ -917,7 +915,6 @@ export default function App() {
       const data = await res.json();
       if (data.success) {
         setSettings(updatedSettings);
-        setRawSettingsJson(JSON.stringify(updatedSettings, null, 2));
         showToast('💾 บันทึกรูปแบบข้อความและสไตล์ตัวหนังสือเรียบร้อยแล้ว!');
       } else {
         showToast('เกิดข้อผิดพลาดในการบันทึก');
@@ -971,26 +968,6 @@ export default function App() {
     }
   };
 
-  const handleSaveRawSettings = async () => {
-    try {
-      const parsed = JSON.parse(rawSettingsJson);
-      setSettings(parsed);
-      const res = await fetch(`${workerUrl}/api/settings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(parsed),
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast('💾 บันทึกการตั้งค่า JSON สำเร็จแล้ว!');
-      } else {
-        showToast(`เกิดข้อผิดพลาด: ${data.error || 'บันทึกไม่สำเร็จ'}`);
-      }
-    } catch (e: any) {
-      showToast(`รูปแบบ JSON ไม่ถูกต้อง: ${e.message}`);
-    }
-  };
-
   // Update all lotteries (for schedule and result edits in modal)
   const handleUpdateAllLotteries = async (updated: LotteryItem[]) => {
     setAllLotteries(updated);
@@ -1029,8 +1006,7 @@ export default function App() {
       if (resStatus) setStatus(resStatus);
       if (resSettings) {
         setSettings(resSettings);
-        setRawSettingsJson(JSON.stringify(resSettings, null, 2));
-        if (resSettings.message_template) {
+          if (resSettings.message_template) {
           const tm = resSettings.message_template;
           if (tm.title) setTemplateTitle(tm.title);
           if (tm.body) setTemplateBody(tm.body);
