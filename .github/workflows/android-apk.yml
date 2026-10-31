@@ -13,6 +13,8 @@ on:
       - "package-lock.json"
       - "vite.config.ts"
       - "capacitor.config.ts"
+      - "data/**"
+      - "tsconfig.json"
       - ".github/workflows/android-apk.yml"
 
 permissions:
