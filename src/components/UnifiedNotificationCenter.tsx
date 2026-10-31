@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../utils/api';
 import {
   Volume2,
   VolumeX,
@@ -129,7 +130,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
         setTestResult({ success: true, message: `ntfy server ตอบรับคำขอส่งไปยัง topic ${topicValue} แล้ว โปรดตรวจสอบมือถือด้วยตนเอง (ยังยืนยันการรับบนเครื่องไม่ได้)` });
       };
 
-      const res = await fetch('/api/test-ntfy', {
+      const res = await apiFetch('/api/test-ntfy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic: topicValue, server: cleanServer, title, message }),
