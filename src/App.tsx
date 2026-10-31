@@ -420,6 +420,7 @@ export default function App() {
     | 'workspace'
     | 'firestore'
     | 'monitor'
+    | 'diagnostics'
   >('live');
   const [checkerSubTab, setCheckerSubTab] = useState<'accuracy' | 'batch' | 'history'>('accuracy');
   const [historyPrizeFilter, setHistoryPrizeFilter] = useState<'all' | 'first' | 'last2' | '3digits' | 'thai'>('all');
@@ -1718,116 +1719,40 @@ export default function App() {
           </div>
         </div>
 
-        {/* 5 Distinct Consolidated Navigation Tabs */}
+        {/* Main navigation: lottery operations and one combined diagnostics center */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <nav className="flex space-x-2 border-t border-slate-800/60 overflow-x-auto py-2 text-xs font-bold no-scrollbar">
-            {/* Tab 1: Live & Upcoming */}
-            <button
-              onClick={() => setActiveTab('live')}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'live'
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
-              }`}
-            >
-              <Radio className={`w-4 h-4 ${activeTab === 'live' ? 'animate-pulse text-slate-950' : 'text-amber-400'}`} />
-              <span>🕒 หวยสด &amp; คิวออกผล</span>
-            </button>
-
-            {/* Tab 2: Daily 51 Lotteries Summary Table */}
-            <button
-              onClick={() => setActiveTab('summary')}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'summary'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
-              }`}
-            >
-              <TableProperties className="w-4 h-4 text-indigo-400" />
-              <span>📊 ตารางสรุป 51 หวย</span>
-            </button>
-
-            {/* Tab 3: Unified Ticket Checker & AI Accuracy Center */}
-            <button
-              onClick={() => {
-                setActiveTab('checker');
-                setCheckerSubTab('accuracy');
-              }}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'checker' || activeTab === 'accuracy' || activeTab === 'batch' || activeTab === 'results'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/25'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
-              }`}
-            >
-              <Search className={`w-4 h-4 ${activeTab === 'checker' || activeTab === 'accuracy' ? 'text-slate-950' : 'text-emerald-400'}`} />
-              <span>🔍 ตรวจสลาก &amp; ความแม่นยำ AI</span>
-            </button>
-
-            {/* Tab 4: Analytics & 10 Draws Trends */}
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'analytics'
-                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-md shadow-amber-500/25'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
-              }`}
-            >
-              <TrendingUp className={`w-4 h-4 ${activeTab === 'analytics' ? 'text-slate-950' : 'text-amber-400'}`} />
-              <span>📈 สถิติ &amp; เลขเด่น 10 งวด</span>
-            </button>
-
-            {/* Tab 5: Google Workspace (Tasks & Keep) */}
-            <button
-              onClick={() => setActiveTab('workspace')}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'workspace'
-                  ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/25'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
-              }`}
-            >
-              <Bookmark className={`w-4 h-4 ${activeTab === 'workspace' ? 'text-white' : 'text-indigo-400'}`} />
-              <span>📑 Google Tasks &amp; Keep</span>
-            </button>
-
-            {/* Tab 6: Cloud Firestore (Firebase) */}
-            <button
-              onClick={() => setActiveTab('firestore')}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'firestore'
-                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-bold shadow-md shadow-amber-500/25'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
-              }`}
-            >
-              <Database className={`w-4 h-4 ${activeTab === 'firestore' ? 'text-slate-950' : 'text-amber-400'}`} />
-              <span>🔥 Firebase Cloud</span>
-            </button>
-
-            {/* Tab 7: System & Devices Health Monitor (NOC & 1-Click Self-Healing) */}
-            <button
-              onClick={() => setActiveTab('monitor')}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'monitor'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-md shadow-emerald-500/25 ring-2 ring-emerald-400'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
-              }`}
-            >
-              <Activity className={`w-4 h-4 ${activeTab === 'monitor' ? 'text-slate-950 animate-spin' : 'text-emerald-400'}`} />
-              <span>🖥️ มอนิเตอร์ &amp; ซ่อมแซมระบบ</span>
-            </button>
-
-            {/* Tab 8: Settings & Automation Center */}
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-                activeTab === 'settings' || activeTab === 'channels' || activeTab === 'template' || activeTab === 'worker' || activeTab === 'github'
-                  ? 'bg-slate-800 text-amber-300 border border-amber-500/50 shadow-md'
-                  : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
-              }`}
-            >
-              <Settings className="w-4 h-4 text-amber-400" />
-              <span>⚙️ ตั้งค่า &amp; ระบบอัตโนมัติ</span>
-            </button>
+          <nav className="flex gap-2 border-t border-slate-800/60 overflow-x-auto py-2 text-xs font-bold no-scrollbar">
+            {[
+              { id: 'live', label: 'หวยสด', icon: Radio },
+              { id: 'summary', label: 'ผลหวยทั้งหมด', icon: TableProperties },
+              { id: 'checker', label: 'ตรวจสลาก / ประวัติ', icon: Search },
+              { id: 'settings', label: 'ตั้งค่าแจ้งเตือน', icon: Settings },
+              { id: 'diagnostics', label: 'ศูนย์ตรวจสอบปัญหา', icon: Activity },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const selected = activeTab === tab.id ||
+                (tab.id === 'checker' && ['accuracy', 'batch', 'results'].includes(activeTab));
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab.id as any);
+                    if (tab.id === 'checker') setCheckerSubTab('accuracy');
+                  }}
+                  className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+                    selected
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                      : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </nav>
+        </div>    </nav>
         </div>
       </header>
 
@@ -3102,13 +3027,35 @@ export default function App() {
           </div>
         )}
 
-        {/* ==================== TAB: GITHUB ACTIONS RUNNER ==================== */}
-        {activeTab === 'github' && (
-          <GitHubAppRunner
-            onRefreshStatus={fetchData}
-            systemStatus={status}
-            allLotteriesCount={allLotteries.length}
-          />
+        {/* ==================== COMBINED DIAGNOSTICS CENTER ==================== */}
+        {activeTab === 'diagnostics' && (
+          <div className="space-y-6">
+            <section className="space-y-2">
+              <div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-emerald-400" />
+                  ภาพรวมสถานะและปัญหาระบบ
+                </h2>
+                <p className="text-xs text-slate-400">ตรวจสุขภาพระบบและดูรายละเอียดข้อผิดพลาดจากหน้าจอเดียว</p>
+              </div>
+              <SystemMonitorKiosk />
+            </section>
+            <div className="border-t border-slate-800" />
+            <section className="space-y-2">
+              <div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Github className="w-5 h-5 text-slate-300" />
+                  GitHub Actions และประวัติการทำงาน
+                </h2>
+                <p className="text-xs text-slate-400">ตรวจสอบ workflow และสั่งรันงานตรวจหวยเมื่อจำเป็น</p>
+              </div>
+              <GitHubAppRunner
+                onRefreshStatus={fetchData}
+                systemStatus={status}
+                allLotteriesCount={allLotteries.length}
+              />
+            </section>
+          </div>
         )}
 
         {/* ==================== TAB: LIVE BROADCAST & TV KIOSK ==================== */}
@@ -3794,10 +3741,7 @@ export default function App() {
           <FirebaseSyncCenter latestResult={results[0]} />
         )}
 
-        {/* ==================== TAB: SYSTEM & DEVICES HEALTH MONITOR (NOC & 1-CLICK SELF-HEAL) ==================== */}
-        {activeTab === 'monitor' && (
-          <SystemMonitorKiosk />
-        )}
+
       </main>
 
       {/* Footer */}
