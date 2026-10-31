@@ -27,6 +27,9 @@ concurrency:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    env:
+      APP_VERSION: "2"
+      VERSION_NAME: "2"
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -58,11 +61,8 @@ jobs:
           npx cap sync android
 
       - name: Set Android version for upgrade installs
-        env:
-          APP_VERSION: "2"
         run: |
           VERSION_CODE=$((GITHUB_RUN_NUMBER + 1000))
-          VERSION_NAME="${APP_VERSION}.0.0"
           sed -i -E "s/versionCode[[:space:]]+[0-9]+/versionCode ${VERSION_CODE}/" android/app/build.gradle
           sed -i -E "s/versionName[[:space:]]+['\\"][^'\\"]+['\\"]/versionName '${VERSION_NAME}'/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle
@@ -76,14 +76,14 @@ jobs:
       - name: Prepare versioned APK file
         run: |
           mkdir -p release-assets
-          cp android/app/build/outputs/apk/debug/app-debug.apk "release-assets/Bombim00-v${VERSION_NAME}.apk"
-          ls -lh "release-assets/Bombim00-v${VERSION_NAME}.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "release-assets/Bombim00-v${APP_VERSION}.apk"
+          ls -lh "release-assets/Bombim00-v${APP_VERSION}.apk"
 
       - name: Upload installable APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Bombim00-v${{ env.VERSION_NAME }}-APK
-          path: release-assets/Bombim00-v${{ env.VERSION_NAME }}.apk
+          name: Bombim00-v${{ env.APP_VERSION }}-APK
+          path: release-assets/Bombim00-v${{ env.APP_VERSION }}.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -98,19 +98,15 @@ jobs:
             ไฟล์ติดตั้งแอปพลิเคชัน Android พร้อมเสียงประกาศผลภาษาไทยและแจ้งเตือนอัตโนมัติ
 
             ### 📥 ลิงก์ดาวน์โหลด:
-            - ดาวน์โหลดไฟล์รุ่นนี้: **[Bombim00-v${{ env.VERSION_NAME }}.apk](https://github.com/${{ github.repository }}/releases/download/latest-apk/Bombim00-v${{ env.VERSION_NAME }}.apk)**
+            - ดาวน์โหลดไฟล์รุ่นนี้: **[Bombim00-v${{ env.APP_VERSION }}.apk](https://github.com/${{ github.repository }}/releases/download/latest-apk/Bombim00-v${{ env.APP_VERSION }}.apk)**
 
             ### 🚀 วิธีการติดตั้งบนมือถือ Android:
-            1. ดาวน์โหลดไฟล์ `Bombim00-v${{ env.VERSION_NAME }}.apk` ลงในโทรศัพท์
+            1. ดาวน์โหลดไฟล์ `Bombim00-v${{ env.APP_VERSION }}.apk` ลงในโทรศัพท์
             2. แตะเปิดไฟล์ APK แล้วเลือก "ติดตั้ง" (Install)
             3. หากระบบถาม ให้เลือก "อนุญาตการติดตั้งจากแหล่งที่ไม่รู้จัก" (Allow from this source)
             4. เปิดแอปและเริ่มใช้งานระบบแจ้งเตือนสลากได้ทันที!
-          files: release-assets/Bombim00-v${{ env.VERSION_NAME }}.apk
+          files: release-assets/Bombim00-v${{ env.APP_VERSION }}.apk
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Remove legacy unversioned APK
-        run: gh release delete-asset latest-apk Bombim00-v2.apk --yes || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
