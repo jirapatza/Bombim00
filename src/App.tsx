@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import lotteryCatalogData from '../data/all_lotteries.json';
 import bundledLotteryCatalog from '../data/all_lotteries.json';
 import {
   Bell,
@@ -71,6 +72,19 @@ import { LotteryTrendAnalytics } from './components/LotteryTrendAnalytics';
 import { BatchTicketChecker } from './components/BatchTicketChecker';
 import { DeploymentPlaybook } from './components/DeploymentPlaybook';
 import { DailySummaryTable, LotteryItem } from './components/DailySummaryTable';
+// Offline schedule fallback for the installed Android APK.
+// The source JSON also contains sample-looking prize fields; never expose those as live results.
+const offlineLotteryCatalog: LotteryItem[] = (lotteryCatalogData as LotteryItem[]).map((item) => ({
+  ...item,
+  top3: '',
+  bottom2: '',
+  firstPrize: '',
+  status: 'waiting',
+  date: '',
+  source: 'ตารางกำหนดการในแอป (ออฟไลน์)',
+}));
+
+
 import { LotteryCatalogInspector } from './components/LotteryCatalogInspector';
 import { GitHubAppRunner } from './components/GitHubAppRunner';
 import { ProjectCodeEditor } from './components/ProjectCodeEditor';
@@ -414,7 +428,7 @@ export default function App() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [settings, setSettings] = useState<any>(null);
   const [results, setResults] = useState<LotteryResult[]>([]);
-  const [allLotteries, setAllLotteries] = useState<LotteryItem[]>([]);
+  const [allLotteries, setAllLotteries] = useState<LotteryItem[]>(offlineLotteryCatalog);
   const [selectedCatalogLottery, setSelectedCatalogLottery] = useState<LotteryItem | null>(null);
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<string>('lottery_checker.py');
