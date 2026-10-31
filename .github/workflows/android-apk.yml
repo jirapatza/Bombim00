@@ -84,7 +84,7 @@ jobs:
           gradle = Path("android/app/build.gradle")
           content = gradle.read_text()
           content, replacements = re.subn(
-              r'(?m)^(\\s*versionName\\s+)(?:"[^"]*"|\\x27[^\\x27]*\\x27)',
+              r'(?m)^(\s*versionName\s+)(?:"[^"]*"|\x27[^\x27]*\x27)',
               lambda match: match.group(1) + '"' + os.environ["VERSION_NAME"] + '"',
               content,
           )
