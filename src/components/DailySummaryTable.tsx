@@ -17,16 +17,29 @@ import {
   Sparkles,
   ExternalLink,
   ChevronRight,
+  ChevronLeft,
+  History,
+  RotateCcw,
   Eye,
   RefreshCw,
   TableProperties,
   Edit3,
   Plus,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Share2,
+  Image as ImageIcon,
+  BarChart3,
+  ListFilter,
+  Check,
+  Flame,
 } from 'lucide-react';
 import { parseLotteryTimelineMinutes } from './LiveUpcomingDraws';
+import { filterLotteriesForDrawDate } from '../utils/lotterySchedule';
 import { EditLotteryModal } from './EditLotteryModal';
+import { SummaryImageModal } from './SummaryImageModal';
+import { LotteryStatsModal } from './LotteryStatsModal';
+import { QuickLotteryMenu } from './QuickLotteryMenu';
 
 export interface LotteryItem {
   id: string;
@@ -66,18 +79,158 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   nextClosing,
   results = [],
 }) => {
+  // Mode: Today vs Daily Historical Date Picker
+  const [summaryMode, setSummaryMode] = useState<'today' | 'daily'>('today');
+  
+  // Date picker state (Bangkok Time)
+  const getTodayBangkokIso = () => {
+    try {
+      const now = new Date();
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(now);
+    } catch {
+      return new Date().toISOString().slice(0, 10);
+    }
+  };
+  const todayBangkokIso = useMemo(() => getTodayBangkokIso(), []);
+  const [selectedDate, setSelectedDate] = useState<string>(todayBangkokIso);
+  const isSelectedDateToday = selectedDate === todayBangkokIso;
+
+  // Thai Date Formatter (พ.ศ.)
+  const formatThaiDisplayDate = (isoDate: string) => {
+    try {
+      const [y, m, d] = isoDate.split('-').map(Number);
+      if (!y || !m || !d) return isoDate;
+      const dateObj = new Date(y, m - 1, d);
+      return dateObj.toLocaleDateString('th-TH', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch {
+      return isoDate;
+    }
+  };
+
+  // Date Shift Helper (+1 / -1 day)
+  const shiftSelectedDate = (days: number) => {
+    try {
+      const [y, m, d] = selectedDate.split('-').map(Number);
+      const dateObj = new Date(y, m - 1, d);
+      dateObj.setDate(dateObj.getDate() + days);
+      const nextIso = dateObj.toISOString().slice(0, 10);
+      if (nextIso > todayBangkokIso) return; // Cannot pick future dates
+      setSelectedDate(nextIso);
+      setSummaryMode(nextIso === todayBangkokIso ? 'today' : 'daily');
+    } catch {
+      // fallback
+    }
+  };
+
+  // Robust Date Normalizer across ISO, Thai dotted/slashed, and Thai text
+  const normalizeDateToIso = (raw: unknown): string => {
+    if (!raw) return '';
+    const str = String(raw).trim();
+    // 1. ISO: YYYY-MM-DD
+    const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoMatch) {
+      const y = Number(isoMatch[1]);
+      const year = y > 2400 ? y - 543 : y;
+      const m = String(isoMatch[2]).padStart(2, '0');
+      const d = String(isoMatch[3]).padStart(2, '0');
+      return `${year}-${m}-${d}`;
+    }
+    // 2. DD.MM.YYYY or DD/MM/YYYY or DD-MM-YYYY
+    const dmyMatch = str.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
+    if (dmyMatch) {
+      const d = String(dmyMatch[1]).padStart(2, '0');
+      const m = String(dmyMatch[2]).padStart(2, '0');
+      const y = Number(dmyMatch[3]);
+      const year = y > 2400 ? y - 543 : y;
+      return `${year}-${m}-${d}`;
+    }
+    // 3. Thai month text
+    const thaiMonths: Record<string, string> = {
+      'ม.ค.': '01', 'มกราคม': '01',
+      'ก.พ.': '02', 'กุมภาพันธ์': '02',
+      'มี.ค.': '03', 'มีนาคม': '03',
+      'เม.ย.': '04', 'เมษายน': '04',
+      'พ.ค.': '05', 'พฤษภาคม': '05',
+      'มิ.ย.': '06', 'มิถุนายน': '06',
+      'ก.ค.': '07', 'กรกฎาคม': '07',
+      'ส.ค.': '08', 'สิงหาคม': '08',
+      'ก.ย.': '09', 'กันยายน': '09',
+      'ต.ค.': '10', 'ตุลาคม': '10',
+      'พ.ย.': '11', 'พฤศจิกายน': '11',
+      'ธ.ค.': '12', 'ธันวาคม': '12',
+    };
+    for (const [tMon, mNum] of Object.entries(thaiMonths)) {
+      if (str.includes(tMon)) {
+        const dayMatch = str.match(/(\d{1,2})/);
+        const yearMatch = str.match(/(\d{4})/);
+        if (dayMatch && yearMatch) {
+          const d = String(dayMatch[1]).padStart(2, '0');
+          const y = Number(yearMatch[1]);
+          const year = y > 2400 ? y - 543 : y;
+          return `${year}-${mNum}-${d}`;
+        }
+      }
+    }
+    return '';
+  };
+
+  // Collect all available historical draw dates from results feed and history
+  const availableHistoricalDates = useMemo(() => {
+    const datesSet = new Set<string>();
+    if (Array.isArray(results)) {
+      results.forEach((row) => {
+        const iso = normalizeDateToIso(row.วันที่จัดรูปแบบ || row.งวดวันที่ || row.date || row.draw_date);
+        if (iso) datesSet.add(iso);
+      });
+    }
+    lotteries.forEach((l) => {
+      l.history?.forEach((h) => {
+        const iso = normalizeDateToIso(h.date);
+        if (iso) datesSet.add(iso);
+      });
+    });
+    return Array.from(datesSet).sort((a, b) => b.localeCompare(a));
+  }, [results, lotteries]);
+
+  // Filter state
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'closing_soon' | 'closed_waiting' | 'announced'>('all');
   const [copiedSummary, setCopiedSummary] = useState(false);
   const [detailLottery, setDetailLottery] = useState<LotteryItem | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const normalizeMatchKey = (value: unknown) => String(value ?? '').toLocaleLowerCase().replace(/[\\s._#-]+/g, '');
+  // Modals state
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [autoShareImage, setAutoShareImage] = useState(false);
+  const [imageModalLotteries, setImageModalLotteries] = useState<LotteryItem[]>([]);
+  const [imageModalTitle, setImageModalTitle] = useState('สรุปผลหวย');
+  const [imageModalPeriod, setImageModalPeriod] = useState('สรุปภาพรวม');
+
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [statsModalLottery, setStatsModalLottery] = useState<LotteryItem | null>(null);
+
+  const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
+
+  // Schedule editor state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingLottery, setEditingLottery] = useState<LotteryItem | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const normalizeMatchKey = (value: unknown) => String(value ?? '').toLocaleLowerCase().replace(/[\s._#-]+/g, '');
   const getResultDateSortValue = (row: any): number => {
     const raw = String(row?.วันที่จัดรูปแบบ || row?.งวดวันที่ || row?.date || row?.draw_date || '').trim();
-    const iso = raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);
+    const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
     if (iso) return Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
-    const dotted = raw.match(/^(\\d{1,2})[./-](\\d{1,2})[./-](\\d{4})$/);
+    const dotted = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
     if (dotted) {
       const year = Number(dotted[3]) >= 2400 ? Number(dotted[3]) - 543 : Number(dotted[3]);
       return Date.UTC(year, Number(dotted[2]) - 1, Number(dotted[1]));
@@ -85,8 +238,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     const parsed = Date.parse(raw);
     return Number.isFinite(parsed) ? parsed : 0;
   };
-  // Explicit aliases keep similarly named draws (normal/VIP, morning/afternoon,
-  // special/VISA) from being mixed together in the detail panel.
+
   const resultAliases: Record<string, string[]> = {
     nikkei_morning: ['หวยหุ้นนิเคอิเช้า', 'หวยหุ้นนิคเคอิเช้า', 'stocknikkei1'],
     nikkei_afternoon: ['หวยหุ้นนิเคอิบ่าย', 'หวยหุ้นนิคเคอิบ่าย', 'stocknikkei2'],
@@ -114,21 +266,20 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     gsb: ['หวยออมสิน', 'gsblotto'],
     baac: ['หวยธกส.', 'หวย ธ.ก.ส.', 'baaclotto'],
   };
-  const selectedResult = detailLottery ? results
-    .filter((row) => {
-      const idKey = normalizeMatchKey(detailLottery.id);
-      const nameKey = normalizeMatchKey(detailLottery.name);
-      const allowedKeys = [idKey, nameKey, ...(resultAliases[detailLottery.id] || []).map(normalizeMatchKey)].filter(Boolean);
-      const candidates = [row.หวย, row.lottery, row.lottery_code, row.ชื่อหวย, row.lotteryName]
-        .map(normalizeMatchKey).filter(Boolean);
-      return candidates.some((key) => allowedKeys.includes(key));
-    })
-    .sort((a, b) => getResultDateSortValue(b) - getResultDateSortValue(a))[0]
-    : null;
 
-  // Schedule editor state
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingLottery, setEditingLottery] = useState<LotteryItem | null>(null);
+  const selectedResult = detailLottery
+    ? results
+        .filter((row) => {
+          const idKey = normalizeMatchKey(detailLottery.id);
+          const nameKey = normalizeMatchKey(detailLottery.name);
+          const allowedKeys = [idKey, nameKey, ...(resultAliases[detailLottery.id] || []).map(normalizeMatchKey)].filter(Boolean);
+          const candidates = [row.หวย, row.lottery, row.lottery_code, row.ชื่อหวย, row.lotteryName]
+            .map(normalizeMatchKey)
+            .filter(Boolean);
+          return candidates.some((key) => allowedKeys.includes(key));
+        })
+        .sort((a, b) => getResultDateSortValue(b) - getResultDateSortValue(a))[0]
+    : null;
 
   // Bangkok time in minutes for 4-stage live calculation
   const getBangkokMinutes = () => {
@@ -143,6 +294,23 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
 
   // Helper to get 4-stage live status for any lottery
   const getItemStage = (item: LotteryItem) => {
+    if (!isSelectedDateToday || summaryMode === 'daily') {
+      if (item.status === 'announced' || (item.top3 && item.bottom2)) {
+        return {
+          stage: 'announced' as const,
+          label: 'ออกผลแล้ว',
+          badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+          detail: `ออกผลแล้ว (งวด ${item.date})`,
+        };
+      }
+      return {
+        stage: 'closed_waiting' as const,
+        label: '⏳ รอผล / ไม่มีรอบ',
+        badgeClass: 'bg-slate-800 text-slate-400 border-slate-700',
+        detail: `ไม่มีผลบันทึกในวันที่ ${selectedDate}`,
+      };
+    }
+
     const closeMin = parseLotteryTimelineMinutes(item.closeTimeStr);
     const drawMin = parseLotteryTimelineMinutes(item.drawTimeStr);
 
@@ -183,12 +351,83 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     };
   };
 
+  // Process lotteries according to Today vs Daily Selected Date
+  const activeLotteryList = useMemo(() => {
+    if (isSelectedDateToday && summaryMode === 'today') return lotteries;
+
+    // Filter lotteries appropriate for selected date (e.g. government lotteries on 1st/16th)
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dateObj = new Date(y, (m || 1) - 1, d || 1, 12, 0, 0);
+    const baseList = filterLotteriesForDrawDate(lotteries, dateObj);
+
+    // Daily mode: map each lottery to the historical draw on selectedDate
+    return baseList.map((item) => {
+      const idKey = normalizeMatchKey(item.id);
+      const nameKey = normalizeMatchKey(item.name);
+      const allowedKeys = [idKey, nameKey, ...(resultAliases[item.id] || []).map(normalizeMatchKey)].filter(Boolean);
+
+      const matchedRows = results.filter((row) => {
+        const rowDateIso = normalizeDateToIso(row.วันที่จัดรูปแบบ || row.งวดวันที่ || row.date || row.draw_date);
+        if (rowDateIso !== selectedDate) return false;
+
+        const candidates = [row.หวย, row.lottery, row.lottery_code, row.ชื่อหวย, row.lotteryName]
+          .map(normalizeMatchKey)
+          .filter(Boolean);
+        return candidates.some((k) => allowedKeys.includes(k) || (k && nameKey && (k.includes(nameKey) || nameKey.includes(k))));
+      });
+
+      if (matchedRows.length > 0) {
+        const best = matchedRows[0];
+        const top3 = String(best.เลขบน_3_ตัว || best.top3 || (best.รางวัลที่_1 ? String(best.รางวัลที่_1).slice(-3) : '') || '').trim();
+        const bot2 = String(best.เลขล่าง_2_ตัว || best.bottom2 || best.เลขท้าย_2_ตัว || '').trim();
+        return {
+          ...item,
+          status: 'announced' as const,
+          top3: top3 || item.top3,
+          bottom2: bot2 || item.bottom2,
+          firstPrize: best.รางวัลที่_1 || item.firstPrize,
+          date: best.งวดวันที่ || selectedDate,
+          source: best.แหล่งข้อมูล || 'ประวัติผลรางวัล (JSON)',
+        };
+      }
+
+      // Check item.history
+      const historyMatch = item.history?.find((h) => {
+        const hIso = normalizeDateToIso(h.date);
+        return hIso === selectedDate;
+      });
+      if (historyMatch) {
+        return {
+          ...item,
+          status: 'announced' as const,
+          top3: historyMatch.top3,
+          bottom2: historyMatch.bottom2,
+          date: historyMatch.date,
+          source: 'ประวัติผลรางวัล',
+        };
+      }
+
+      return {
+        ...item,
+        status: 'waiting' as const,
+        top3: '',
+        bottom2: '',
+        date: selectedDate,
+      };
+    });
+  }, [lotteries, summaryMode, isSelectedDateToday, selectedDate, results]);
+
+  // Count announced results for historical date banner
+  const historicalAnnouncedCount = useMemo(() => {
+    return activeLotteryList.filter((l) => l.status === 'announced' || (l.top3 && l.bottom2)).length;
+  }, [activeLotteryList]);
+
   // Sort ALL lotteries strictly by real timeline order
   const chronoSorted = useMemo(() => {
-    return [...lotteries].sort((a, b) => {
+    return [...activeLotteryList].sort((a, b) => {
       return parseLotteryTimelineMinutes(a.drawTimeStr) - parseLotteryTimelineMinutes(b.drawTimeStr);
     });
-  }, [lotteries]);
+  }, [activeLotteryList]);
 
   // Filter items according to search, category, and 4-stage status
   const filteredLotteries = useMemo(() => {
@@ -226,16 +465,16 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
       }
       return true;
     });
-  }, [chronoSorted, selectedCategory, statusFilter, searchTerm, currentBangkokMinutes]);
+  }, [chronoSorted, selectedCategory, statusFilter, searchTerm, currentBangkokMinutes, summaryMode]);
 
   // Statistics for 4 stages
-  const totalCount = lotteries.length;
+  const totalCount = activeLotteryList.length;
   const stagesCount = useMemo(() => {
     let open = 0;
     let closing = 0;
     let closed = 0;
     let announced = 0;
-    lotteries.forEach((l) => {
+    activeLotteryList.forEach((l) => {
       const s = getItemStage(l).stage;
       if (s === 'open') open++;
       else if (s === 'closing_soon') closing++;
@@ -243,7 +482,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
       else if (s === 'announced') announced++;
     });
     return { open, closing, closed, announced };
-  }, [lotteries, currentBangkokMinutes]);
+  }, [activeLotteryList, currentBangkokMinutes, summaryMode]);
 
   const handleSaveLottery = (savedItem: LotteryItem) => {
     if (!onUpdateLotteries) return;
@@ -263,59 +502,212 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     onUpdateLotteries(updated);
   };
 
-  // Generate plain text summary for copying to LINE / Telegram
+  // Generate plain text according to user format
+  const generateBulkSummaryText = () => {
+    let periodName = 'รวมทั้งหมด';
+    if (selectedCategory === 'morning') periodName = 'รอบเช้า';
+    else if (selectedCategory === 'afternoon') periodName = 'รอบบ่าย';
+    else if (selectedCategory === 'evening') periodName = 'รอบเย็น';
+    else if (selectedCategory === 'night') periodName = 'รอบดึก';
+
+    const dateDisplay = isSelectedDateToday && summaryMode === 'today'
+      ? new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })
+      : formatThaiDisplayDate(selectedDate);
+
+    const itemsToShare = filteredLotteries.filter((l) => l.status === 'announced' || (l.top3 && l.bottom2));
+    const listToUse = itemsToShare.length > 0 ? itemsToShare : filteredLotteries;
+
+    let headerEmoji = '☀️';
+    if (periodName.includes('บ่าย')) headerEmoji = '🌤️';
+    else if (periodName.includes('เย็น')) headerEmoji = '🌆';
+    else if (periodName.includes('ดึก')) headerEmoji = '🌙';
+    else if (periodName.includes('ทั้งหมด') || periodName.includes('รวม')) headerEmoji = '📋';
+
+    let text = `${headerEmoji} สรุปผลหวย${periodName} (${dateDisplay})\n`;
+    text += `📋 ทั้งหมด ${listToUse.length} รายการ\n`;
+    text += `━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+
+    listToUse.forEach((l, idx) => {
+      const top3 = l.top3 || '---';
+      const bot2 = l.bottom2 || '--';
+      text += `${idx + 1}. ${l.flag} ${l.name} ${l.flag}\n`;
+      text += ` 👉 3 บน: ${top3} • 2 ล่าง: ${bot2}\n`;
+    });
+
+    text += `━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    text += `📢 อัปเดตเรียลไทม์ผ่าน Lottery Alert Pro\n`;
+    text += `#ผลหวย #หวยหุ้น #หวยฮานอย #หวยลาว`;
+    return text;
+  };
+
+  // Copy Full Summary Text
   const copyDailySummaryText = async () => {
-    const todayStr = new Date().toLocaleDateString('th-TH', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    let summary = `📊 ตารางสรุปผลหวยประจำวัน (${todayStr})\n`;
-    summary += `เรียงตามลำดับเวลาออกจริง ทั้งหมด ${totalCount} หวย\n`;
-    summary += `(ออกแล้ว ${stagesCount.announced} • รอผล ${stagesCount.closed} • กำลังเปิดรับ ${stagesCount.open + stagesCount.closing})\n`;
-    summary += `========================================\n`;
-
-    chronoSorted.forEach((l, idx) => {
-      if (l.status === 'announced') {
-        summary += `${idx + 1}. [${l.drawTimeStr}] ${l.flag} ${l.name}\n   👉 3 ตัวบน: ${l.top3} | 2 ตัวล่าง: ${l.bottom2}\n`;
-        if (l.setIndex) summary += `   📈 ตลาด: ${l.setIndex}\n`;
-      } else {
-        summary += `${idx + 1}. [${l.drawTimeStr}] ${l.flag} ${l.name} ⏳ ยังไม่ออก (ปิดรับ ${l.closeTimeStr})\n`;
-      }
-    });
-    summary += `========================================\n`;
-    summary += `อัปเดตล่าสุด: ${new Date().toLocaleTimeString('th-TH')} น. • Lottery Alert System\n`;
-
+    const summary = generateBulkSummaryText();
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(summary);
       } else {
-        throw new Error('Clipboard API unavailable');
+        const textarea = document.createElement('textarea');
+        textarea.value = summary;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
       }
+      setCopiedSummary(true);
+      showToast('คัดลอกข้อความสรุปตามรูปแบบเรียบร้อยแล้ว! 📋');
+      setTimeout(() => setCopiedSummary(false), 2500);
     } catch {
-      const textarea = document.createElement('textarea');
-      textarea.value = summary;
-      textarea.setAttribute('readonly', '');
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      textarea.style.pointerEvents = 'none';
-      document.body.appendChild(textarea);
-      textarea.select();
-      const copied = document.execCommand('copy');
-      textarea.remove();
-      if (!copied) {
-        window.alert('คัดลอกไม่สำเร็จ กรุณาอนุญาตการเข้าถึงคลิปบอร์ดแล้วลองอีกครั้ง');
-        return;
+      showToast('คัดลอกไม่สำเร็จ');
+    }
+  };
+
+  // Share Full Summary Text via Web Share API
+  const shareDailySummaryText = async () => {
+    const summary = generateBulkSummaryText();
+    let periodName = 'สรุปผลหวย';
+    if (selectedCategory === 'morning') periodName = 'สรุปผลหวยรอบเช้า';
+    else if (selectedCategory === 'afternoon') periodName = 'สรุปผลหวยรอบบ่าย';
+    else if (selectedCategory === 'evening') periodName = 'สรุปผลหวยรอบเย็น';
+    else if (selectedCategory === 'night') periodName = 'สรุปผลหวยรอบดึก';
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${periodName} (${summaryMode === 'today' ? 'วันนี้' : selectedDate})`,
+          text: summary,
+        });
+        showToast('แชร์สรุปผลหวยสำเร็จ! 🎉');
+      } catch {
+        copyDailySummaryText();
       }
+    } else {
+      copyDailySummaryText();
+    }
+  };
+
+  // Copy single lottery result
+  const copySingleLottery = async (l: LotteryItem) => {
+    const top3 = l.top3 || '---';
+    const bot2 = l.bottom2 || '--';
+    const dateStr = l.date || 'งวดล่าสุด';
+    const text = `${l.flag} ${l.name} ${l.flag} (งวดวันที่ ${dateStr})\n 👉 3 บน: ${top3} • 2 ล่าง: ${bot2}\n📢 อัปเดตเรียลไทม์ผ่าน Lottery Alert Pro\n#ผลหวย #${l.name.replace(/\s+/g, '')}`;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      showToast(`คัดลอกผล ${l.name} เรียบร้อยแล้ว! 📋`);
+    } catch {
+      showToast('คัดลอกไม่สำเร็จ');
+    }
+  };
+
+  // Share single lottery result
+  const shareSingleLottery = async (l: LotteryItem) => {
+    const top3 = l.top3 || '---';
+    const bot2 = l.bottom2 || '--';
+    const dateStr = l.date || 'งวดล่าสุด';
+    const text = `${l.flag} ${l.name} ${l.flag} (งวดวันที่ ${dateStr})\n 👉 3 บน: ${top3} • 2 ล่าง: ${bot2}\n📢 อัปเดตเรียลไทม์ผ่าน Lottery Alert Pro\n#ผลหวย #${l.name.replace(/\s+/g, '')}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `ผลหวย ${l.name} (${dateStr})`,
+          text: text,
+        });
+        showToast(`แชร์ผลหวย ${l.name} สำเร็จ! 🎉`);
+      } catch {
+        copySingleLottery(l);
+      }
+    } else {
+      copySingleLottery(l);
+    }
+  };
+
+  // Pronounce announcement per user instruction:
+  // For Thai Gov Lottery: read full official prizes.
+  // For stock lotteries and others: read 3 ตัว 2 ตัว without saying บน/ล่าง!
+  const handleCustomSpeakLottery = (item: LotteryItem) => {
+    const isThaiGov = item.category === 'gov_savings' || item.id === 'thai_gov' || item.name.includes('สลากกินแบ่งรัฐบาล') || item.name.includes('หวยรัฐบาลไทย');
+    const topResult = String(item.top3 || item.firstPrize || '').trim();
+    const bottomResult = String(item.bottom2 || '').trim();
+
+    if (!topResult && !bottomResult) {
+      showToast('ยังไม่มีผลรางวัลจริงสำหรับอ่านออกเสียง');
+      return;
     }
 
-    setCopiedSummary(true);
-    window.setTimeout(() => setCopiedSummary(false), 2000);
+    const thaiNums: Record<string, string> = {
+      '0': 'ศูนย์', '1': 'หนึ่ง', '2': 'สอง', '3': 'สาม', '4': 'สี่',
+      '5': 'ห้า', '6': 'หก', '7': 'เจ็ด', '8': 'แปด', '9': 'เก้า'
+    };
+    const spell = (str: string) => str.split('').map((c) => thaiNums[c] || c).join(' ');
+
+    let speechText = `ประกาศผล ${item.name} งวดวันที่ ${item.date || 'ล่าสุด'}. `;
+    if (isThaiGov && item.firstPrize) {
+      speechText += `รางวัลที่หนึ่ง ออกเลข ${spell(item.firstPrize)}. `;
+      if (bottomResult) speechText += `เลขท้ายสองตัว ออกเลข ${spell(bottomResult)}. `;
+    } else {
+      // User requirement: stocks read 3 ตัว 2 ตัว, do not say 3 บน 2 ล่าง
+      if (topResult) speechText += `สามตัว ออกเลข ${spell(topResult)}. `;
+      if (bottomResult) speechText += `สองตัว ออกเลข ${spell(bottomResult)}. `;
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(speechText);
+      u.lang = 'th-TH';
+      u.rate = 0.95;
+      const voices = window.speechSynthesis.getVoices();
+      const thaiVoice = voices.find((v) => v.lang.includes('th') || v.name.includes('Thai'));
+      if (thaiVoice) u.voice = thaiVoice;
+      window.speechSynthesis.speak(u);
+      showToast(`กำลังอ่านผล: ${item.name}`);
+    } else {
+      onSpeakLottery(item);
+    }
+  };
+
+  // Open Image Modal
+  const handleOpenImageModal = (specificLottery?: LotteryItem, autoShare = false) => {
+    setAutoShareImage(autoShare);
+    if (specificLottery) {
+      setImageModalLotteries([specificLottery]);
+      setImageModalTitle(`ผลหวย ${specificLottery.name}`);
+      setImageModalPeriod(specificLottery.periodLabel || 'ผลรางวัล');
+    } else {
+      let periodName = 'สรุปผลหวยรวมทั้งหมด';
+      if (selectedCategory === 'morning') periodName = 'สรุปผลหวยรอบเช้า';
+      else if (selectedCategory === 'afternoon') periodName = 'สรุปผลหวยรอบบ่าย';
+      else if (selectedCategory === 'evening') periodName = 'สรุปผลหวยรอบเย็น';
+      else if (selectedCategory === 'night') periodName = 'สรุปผลหวยรอบดึก';
+      else if (!isSelectedDateToday || summaryMode === 'daily') periodName = `สรุปผลหวยประจำงวด ${formatThaiDisplayDate(selectedDate)}`;
+
+      const itemsToUse = filteredLotteries.filter((l) => l.status === 'announced' || (l.top3 && l.bottom2));
+      setImageModalLotteries(itemsToUse.length > 0 ? itemsToUse : filteredLotteries);
+      setImageModalTitle(periodName);
+      setImageModalPeriod(periodName);
+    }
+    setIsImageModalOpen(true);
+  };
+
+  // Open 10-draw stats modal
+  const handleOpenStatsModal = (lottery: LotteryItem) => {
+    setStatsModalLottery(lottery);
+    setIsStatsModalOpen(true);
   };
 
   const downloadResultsCsv = async () => {
     if (!Array.isArray(results) || results.length === 0) {
-      window.alert('ยังไม่มีข้อมูลผลหวยให้ดาวน์โหลด กรุณากดรีเฟรชข้อมูลก่อน');
+      showToast('ยังไม่มีข้อมูลผลหวยให้ดาวน์โหลด');
       return;
     }
 
@@ -367,9 +759,10 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         anchor.remove();
         window.setTimeout(() => URL.revokeObjectURL(url), 1500);
       }
+      showToast('ส่งออก CSV เรียบร้อยแล้ว! 📥');
     } catch (error) {
       console.error('CSV export failed:', error);
-      window.alert('ส่งออกไฟล์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+      showToast('ส่งออกไฟล์ไม่สำเร็จ');
     }
   };
 
@@ -394,28 +787,295 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl flex flex-wrap items-center justify-between gap-4">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl bg-slate-900 border border-amber-500/50 text-white shadow-2xl flex items-center gap-2 text-sm animate-bounce">
+          <Check className="w-4 h-4 text-amber-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* =========================================================================
+          UNIFIED CALENDAR & DATE SELECTION TOOLBAR (Clean, single source of truth)
+          ========================================================================= */}
+      <div className="bg-slate-900/90 border border-slate-800 p-3 sm:p-4 rounded-2xl shadow-xl space-y-3">
+        {/* Row 1: Quick Preset Buttons, Historical Dates Dropdown, Stepper & Calendar */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Left: Quick Date Preset Pills & Feed Dates Selector */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* 1. Today Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedDate(todayBangkokIso);
+                setSummaryMode('today');
+              }}
+              className={`px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+                isSelectedDateToday && summaryMode === 'today'
+                  ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400 font-extrabold'
+                  : 'bg-slate-950 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700'
+              }`}
+            >
+              <span>☀️ สรุปวันนี้</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/25 font-mono uppercase tracking-wider font-bold">
+                Live
+              </span>
+            </button>
+
+            {/* 2. Yesterday Button */}
+            <button
+              type="button"
+              onClick={() => {
+                const d = new Date();
+                d.setDate(d.getDate() - 1);
+                const yIso = d.toISOString().slice(0, 10);
+                setSelectedDate(yIso);
+                setSummaryMode('daily');
+              }}
+              className={`px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl border transition cursor-pointer ${
+                selectedDate === (() => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - 1);
+                  return d.toISOString().slice(0, 10);
+                })()
+                  ? 'bg-amber-500 text-slate-950 font-bold border-amber-400 ring-1 ring-amber-400'
+                  : 'bg-slate-950 text-slate-400 hover:text-slate-200 border-slate-800'
+              }`}
+            >
+              เมื่อวาน
+            </button>
+
+            {/* 3. Two Days Ago Button */}
+            <button
+              type="button"
+              onClick={() => {
+                const d = new Date();
+                d.setDate(d.getDate() - 2);
+                const twoDaysAgoIso = d.toISOString().slice(0, 10);
+                setSelectedDate(twoDaysAgoIso);
+                setSummaryMode('daily');
+              }}
+              className={`px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl border transition cursor-pointer hidden sm:inline-flex ${
+                selectedDate === (() => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - 2);
+                  return d.toISOString().slice(0, 10);
+                })()
+                  ? 'bg-amber-500 text-slate-950 font-bold border-amber-400 ring-1 ring-amber-400'
+                  : 'bg-slate-950 text-slate-400 hover:text-slate-200 border-slate-800'
+              }`}
+            >
+              2 วันก่อน
+            </button>
+
+            {/* 4. Dropdown of all dates that actually have recorded data in JSON feed */}
+            {availableHistoricalDates.length > 0 && (
+              <div className="relative inline-flex items-center">
+                <select
+                  value={selectedDate}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setSelectedDate(newDate);
+                    setSummaryMode(newDate === todayBangkokIso ? 'today' : 'daily');
+                  }}
+                  className="bg-slate-950 text-amber-300 font-semibold text-xs border border-amber-500/30 hover:border-amber-400 rounded-xl px-2.5 py-2 cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  title="เลือกดูผลหวยตามงวดที่มีข้อมูลจริงในระบบ"
+                >
+                  <option value="" disabled>-- เลือกงวดที่มีข้อมูลในระบบ ({availableHistoricalDates.length} งวด) --</option>
+                  {availableHistoricalDates.map((dateStr) => (
+                    <option key={dateStr} value={dateStr}>
+                      งวด {formatThaiDisplayDate(dateStr)} {dateStr === todayBangkokIso ? '(วันนี้)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Stepper (< Calendar Input >) & All-Lotteries Menu */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Calendar Stepper */}
+            <div className="flex items-center bg-slate-950 border border-slate-700 hover:border-amber-500/50 rounded-xl p-1 transition shadow-inner">
+              {/* Previous Day Button */}
+              <button
+                type="button"
+                onClick={() => shiftSelectedDate(-1)}
+                className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-900 rounded-lg transition cursor-pointer"
+                title="ย้อนหลัง 1 วัน"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Native Calendar Date Picker */}
+              <div className="flex items-center gap-1.5 px-2">
+                <Calendar className="w-4 h-4 text-amber-400 shrink-0" />
+                <input
+                  type="date"
+                  max={todayBangkokIso}
+                  value={selectedDate}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setSelectedDate(e.target.value);
+                      setSummaryMode(e.target.value === todayBangkokIso ? 'today' : 'daily');
+                    }
+                  }}
+                  className="bg-transparent text-amber-300 font-mono text-xs sm:text-sm font-bold focus:outline-none cursor-pointer"
+                  title="คลิกไอคอนปฏิทินเพื่อเลือกวันย้อนหลัง"
+                />
+              </div>
+
+              {/* Next Day Button */}
+              <button
+                type="button"
+                onClick={() => shiftSelectedDate(1)}
+                disabled={selectedDate >= todayBangkokIso}
+                className={`p-1.5 rounded-lg transition ${
+                  selectedDate >= todayBangkokIso
+                    ? 'text-slate-600 cursor-not-allowed opacity-40'
+                    : 'text-slate-400 hover:text-amber-400 hover:bg-slate-900 cursor-pointer'
+                }`}
+                title="ถัดไป 1 วัน"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Quick Menu Button */}
+            <button
+              type="button"
+              onClick={() => setIsQuickMenuOpen(true)}
+              className="px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 flex items-center gap-2 transition cursor-pointer shadow-sm"
+            >
+              <ListFilter className="w-4 h-4 text-amber-400" />
+              <span className="hidden sm:inline">เมนูเลือกหวยทุกประเภท</span> ({lotteries.length})
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Active Historical Date Banner (Shown when inspecting past dates) */}
+        {!isSelectedDateToday && (
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs animate-fadeIn">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+                <History className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-bold text-amber-300">
+                  กำลังดูผลหวยย้อนหลัง ประจำงวดวันที่ {formatThaiDisplayDate(selectedDate)}
+                </span>
+                <span className="text-slate-400 ml-2">
+                  (พบผลรางวัล <strong className="text-emerald-400 font-mono font-bold">{historicalAnnouncedCount}</strong> รายการ จากทั้งหมด {totalCount} รายการ)
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedDate(todayBangkokIso);
+                setSummaryMode('today');
+              }}
+              className="px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-500 text-slate-950 hover:bg-amber-400 transition flex items-center gap-1 cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>กลับสู่งวดวันนี้</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Header Banner & Social Action Buttons */}
+      <div className="bg-slate-900/80 border border-slate-800 p-5 sm:p-6 rounded-3xl flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/40">
-              DAILY RESULTS & SCHEDULE CONTROL
+              {isSelectedDateToday && summaryMode === 'today' ? 'TODAY LIVE SUMMARY' : 'DAILY ARCHIVE SUMMARY'}
             </span>
             <span className="text-xs text-slate-400">
-              ตารางเวลา 4 ช่วง (เช้า, บ่าย, เย็น, ดึก) พร้อมสถานะสด 4 ขั้นตอน
+              {isSelectedDateToday && summaryMode === 'today'
+                ? 'อัปเดตเรียลไทม์ 4 ช่วงเวลา'
+                : `ดูผลย้อนหลังประจำงวด ${formatThaiDisplayDate(selectedDate)} (พบ ${historicalAnnouncedCount} รายการ)`}
             </span>
           </div>
           <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2">
             <Calendar className="w-6 h-6 text-amber-400" />
-            ตารางสรุปผลหวยและตัวควบคุมตารางเวลา ({totalCount} รายการ)
+            <span>
+              {isSelectedDateToday && summaryMode === 'today'
+                ? `ตารางสรุปผลหวยวันนี้ (${totalCount} รายการ)`
+                : `สรุปผลหวยประจำงวดวันที่ ${formatThaiDisplayDate(selectedDate)} (${totalCount} รายการ)`}
+            </span>
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            ติดตามสถานะสด: กำลังเปิดรับ • ใกล้ปิดรับ • ปิดรับแล้วรอลุ้นผล • ออกผลรางวัลแล้ว และปุ่มแก้ไขเวลา
+            พร้อมเครื่องมือส่งออกรูปการสรุป (.PNG), คัดลอกข้อความแชร์, ดูสถิติ 10 งวด และอ่านออกเสียง
           </p>
         </div>
 
-        {/* Action Buttons */}
+        {/* Primary Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* 🖼️ View Summary Image Button */}
+          <button
+            type="button"
+            onClick={() => handleOpenImageModal()}
+            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 cursor-pointer shadow-md transition flex items-center gap-1.5 ring-1 ring-amber-400"
+            title="สร้างรูปภาพสรุปผลหวยความละเอียดสูงเพื่อบันทึกหรือแชร์"
+          >
+            <ImageIcon className="w-4 h-4 text-slate-950" />
+            <span>🖼️ ดูรูปการสรุป (PNG)</span>
+          </button>
+
+          {/* 🚀 Direct Web Share API for Generated Image */}
+          <button
+            type="button"
+            onClick={() => handleOpenImageModal(undefined, true)}
+            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white cursor-pointer shadow-md transition flex items-center gap-1.5"
+            title="แชร์รูปภาพสรุปผลหวยไปยังโซเชียลมีเดียด้วย Web Share API โดยตรง"
+          >
+            <Share2 className="w-4 h-4" />
+            <span>แชร์รูปภาพ (Web Share)</span>
+          </button>
+
+          {/* 📋 Copy Summary Text */}
+          <button
+            type="button"
+            onClick={copyDailySummaryText}
+            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 cursor-pointer shadow-md transition flex items-center gap-1.5"
+            title="คัดลอกข้อความสรุปตามรูปแบบแชต"
+          >
+            {copiedSummary ? (
+              <>
+                <Check className="w-4 h-4 text-emerald-400" />
+                <span className="text-emerald-400">คัดลอกแล้ว!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4 text-amber-400" />
+                <span>คัดลอกข้อความสรุป</span>
+              </>
+            )}
+          </button>
+
+          {/* 📤 Share Summary Text */}
+          <button
+            type="button"
+            onClick={shareDailySummaryText}
+            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 cursor-pointer shadow-md transition flex items-center gap-1.5"
+            title="แชร์ข้อความสรุปผลหวย"
+          >
+            <Share2 className="w-4 h-4 text-emerald-400" />
+            <span>แชร์สรุป</span>
+          </button>
+
+          {/* Export CSV */}
+          <button
+            type="button"
+            onClick={() => void downloadResultsCsv()}
+            className="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition flex items-center gap-1.5"
+            title="ดาวน์โหลดไฟล์ CSV"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-400" />
+            <span>CSV</span>
+          </button>
+
           {/* Add Lottery Button */}
           {onUpdateLotteries && (
             <button
@@ -424,32 +1084,12 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 setEditingLottery(null);
                 setIsEditModalOpen(true);
               }}
-              className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 cursor-pointer shadow-md transition flex items-center gap-1.5"
+              className="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition flex items-center gap-1.5"
             >
-              <Plus className="w-4 h-4 text-amber-400" />
-              เพิ่มหวยใหม่
+              <Plus className="w-3.5 h-3.5 text-amber-400" />
+              <span>เพิ่ม</span>
             </button>
           )}
-
-          {/* Export actual result records */}
-          <button
-            type="button"
-            onClick={() => void downloadResultsCsv()}
-            className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white cursor-pointer shadow-md transition flex items-center gap-1.5"
-          >
-            <Download className="w-4 h-4" />
-            ดาวน์โหลดผลหวย CSV ({results.length})
-          </button>
-
-          {/* Copy Full Summary */}
-          <button
-            type="button"
-            onClick={copyDailySummaryText}
-            className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 cursor-pointer shadow-md transition flex items-center gap-1.5"
-          >
-            <Copy className="w-4 h-4" />
-            {copiedSummary ? 'คัดลอกแล้ว!' : 'คัดลอกสรุปผลทั้งหมด'}
-          </button>
         </div>
       </div>
 
@@ -534,7 +1174,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
 
       {/* Filter & Search Toolbar */}
       <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl space-y-3">
-        {/* Category Filter Pills */}
+        {/* Category & Period Filter Pills */}
         <div className="flex space-x-2 overflow-x-auto pb-1 text-xs">
           <button
             type="button"
@@ -545,7 +1185,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
-            🌟 ทุกหวย ({lotteries.length})
+            🌟 ทุกหวย ({activeLotteryList.length})
           </button>
 
           <button
@@ -557,7 +1197,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 : 'bg-slate-950 text-slate-300 hover:text-white border border-amber-500/30'
             }`}
           >
-            ☀️ หวยเช้า ({lotteries.filter((l) => l.period === 'morning').length})
+            ☀️ รอบเช้า ({activeLotteryList.filter((l) => l.period === 'morning').length})
           </button>
 
           <button
@@ -569,7 +1209,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 : 'bg-slate-950 text-slate-300 hover:text-white border border-orange-500/30'
             }`}
           >
-            🌤️ หวยบ่าย ({lotteries.filter((l) => l.period === 'afternoon').length})
+            🌤️ รอบบ่าย ({activeLotteryList.filter((l) => l.period === 'afternoon').length})
           </button>
 
           <button
@@ -581,7 +1221,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 : 'bg-slate-950 text-slate-300 hover:text-white border border-rose-500/30'
             }`}
           >
-            🌇 หวยเย็น ({lotteries.filter((l) => l.period === 'evening').length})
+            🌆 รอบเย็น ({activeLotteryList.filter((l) => l.period === 'evening').length})
           </button>
 
           <button
@@ -593,69 +1233,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 : 'bg-slate-950 text-slate-300 hover:text-white border border-indigo-500/30'
             }`}
           >
-            🌌 หวยดึก ({lotteries.filter((l) => l.period === 'night').length})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('vip')}
-            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
-              selectedCategory === 'vip'
-                ? 'bg-purple-600 text-white shadow-md'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            👑 หวย VIP &amp; พิเศษ (
-            {lotteries.filter((l) => l.category === 'vip' || l.name.includes('VIP') || l.categoryLabel.includes('VIP')).length}
-            )
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('foreign_stock')}
-            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
-              selectedCategory === 'foreign_stock'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            🌏 หุ้นต่างประเทศ
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('thai_stock')}
-            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
-              selectedCategory === 'thai_stock'
-                ? 'bg-amber-600 text-white shadow-md'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            🇹🇭 หุ้นไทย
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('hanoi')}
-            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
-              selectedCategory === 'hanoi'
-                ? 'bg-red-600 text-white shadow-md'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            🇻🇳 ตระกูลฮานอย
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('lao')}
-            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
-              selectedCategory === 'lao'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            🇱🇦 ตระกูลหวยลาว
+            🌙 รอบดึก ({activeLotteryList.filter((l) => l.period === 'night').length})
           </button>
 
           <button
@@ -667,96 +1245,116 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
-            🏛️ รัฐบาล &amp; ออมสิน &amp; ธ.ก.ส.
+            🏛️ รัฐ/ออมสิน ({activeLotteryList.filter((l) => l.category === 'gov_savings').length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('hanoi')}
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+              selectedCategory === 'hanoi'
+                ? 'bg-red-600 text-white shadow-md'
+                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+            }`}
+          >
+            🇻🇳 ฮานอย ({activeLotteryList.filter((l) => l.category === 'hanoi' || l.name.includes('ฮานอย')).length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('lao')}
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+              selectedCategory === 'lao'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+            }`}
+          >
+            🇱🇦 ลาว ({activeLotteryList.filter((l) => l.category === 'lao' || l.name.includes('ลาว')).length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('foreign_stock')}
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+              selectedCategory === 'foreign_stock'
+                ? 'bg-sky-600 text-white shadow-md'
+                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+            }`}
+          >
+            📈 หุ้นต่างประเทศ ({activeLotteryList.filter((l) => l.category === 'foreign_stock').length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('vip')}
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+              selectedCategory === 'vip'
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+            }`}
+          >
+            ⭐ หวย VIP & หุ้นพิเศษ
           </button>
         </div>
 
-        {/* Search & Status Toggle */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
-          <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
+        {/* Search Bar & Active Stats Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="ค้นหาชื่อหวย หรือตัวเลขผลรางวัล..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-amber-400"
+              placeholder="ค้นหาชื่อหวย, วันออก, หรือตัวเลข (เช่น ลาว EXTRA, 731, 42)..."
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="text-slate-400 font-semibold text-[11px] mr-1">สถานะ:</span>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('all')}
-              className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-[11px] ${
-                statusFilter === 'all' ? 'bg-slate-800 text-white font-bold' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              ทั้งหมด ({chronoSorted.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('open')}
-              className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-[11px] ${
-                statusFilter === 'open' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              🟢 เปิดรับ ({stagesCount.open})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('closing_soon')}
-              className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-[11px] ${
-                statusFilter === 'closing_soon' ? 'bg-amber-500/25 text-amber-300 font-bold border border-amber-500/50' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              🟡 ใกล้ปิด ({stagesCount.closing})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('closed_waiting')}
-              className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-[11px] ${
-                statusFilter === 'closed_waiting' ? 'bg-rose-500/20 text-rose-300 font-bold border border-rose-500/40' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              🔴 ปิดรับแล้ว ({stagesCount.closed})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('announced')}
-              className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-[11px] ${
-                statusFilter === 'announced' ? 'bg-blue-500/20 text-blue-300 font-bold border border-blue-500/40' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              🔵 ออกผลแล้ว ({stagesCount.announced})
-            </button>
+          <div className="flex items-center gap-3 text-xs text-slate-400">
+            <span>แสดง <strong>{filteredLotteries.length}</strong> จาก {totalCount} รายการ</span>
+            {statusFilter !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setStatusFilter('all')}
+                className="text-amber-400 hover:underline cursor-pointer"
+              >
+                ล้างตัวกรองสถานะ
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Main Timeline Table */}
+      {/* Main Results Table */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider text-[11px] font-bold border-b border-slate-800">
+          <table className="w-full text-left text-xs sm:text-sm">
+            <thead className="bg-slate-950/90 text-slate-400 text-[11px] uppercase tracking-wider font-semibold border-b border-slate-800">
               <tr>
-                <th className="py-3.5 px-3 text-center w-12">ลำดับ</th>
+                <th className="py-3.5 px-3 text-center">ลำดับ</th>
                 <th className="py-3.5 px-3">เวลาออกผล</th>
-                <th className="py-3.5 px-4">รายการหวย</th>
+                <th className="py-3.5 px-4">ชื่อหวย / ประเทศ</th>
                 <th className="py-3.5 px-3">เวลาปิดรับ</th>
                 <th className="py-3.5 px-3">หมวดหมู่</th>
                 <th className="py-3.5 px-3 text-center">3 ตัวบน</th>
                 <th className="py-3.5 px-3 text-center">2 ตัวล่าง</th>
-                <th className="py-3.5 px-3">ดัชนี / แหล่งข้อมูล</th>
                 <th className="py-3.5 px-3 text-center">สถานะ</th>
-                <th className="py-3.5 px-4 text-right">เครื่องมือ</th>
+                <th className="py-3.5 px-4 text-right">ปุ่มแชร์ / สถิติ / เครื่องมือ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80 font-mono">
               {filteredLotteries.length > 0 ? (
                 filteredLotteries.map((item, index) => {
-                  const isAnnounced = item.status === 'announced';
+                  const isAnnounced = item.status === 'announced' || (item.top3 && item.bottom2);
 
                   return (
                     <tr
@@ -837,26 +1435,16 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                         )}
                       </td>
 
-                      {/* Index / Source */}
-                      <td className="py-3.5 px-3 text-slate-400 font-sans text-[11px] truncate max-w-[160px]">
-                        {item.setIndex ? (
-                          <span className="text-emerald-400 font-mono">{item.setIndex}</span>
-                        ) : (
-                          <span>{item.source}</span>
-                        )}
-                      </td>
-
                       {/* 4-Stage Live Status Badge */}
                       <td className="py-3.5 px-3 text-center font-sans">
                         {(() => {
                           const stageInfo = getItemStage(item);
                           return (
                             <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${stageInfo.badgeClass}`}
-                              title={stageInfo.detail}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-medium border inline-flex items-center gap-1 ${stageInfo.badgeClass}`}
                             >
                               {stageInfo.stage === 'announced' && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
-                              {stageInfo.stage === 'closed_waiting' && <Clock className="w-3 h-3 text-rose-400 animate-spin" style={{ animationDuration: '6s' }} />}
+                              {stageInfo.stage === 'closed_waiting' && <Clock className="w-3 h-3 text-rose-400" />}
                               {stageInfo.stage === 'closing_soon' && <AlertTriangle className="w-3 h-3 text-amber-400" />}
                               {stageInfo.stage === 'open' && <Hourglass className="w-3 h-3 text-blue-400" />}
                               {stageInfo.label}
@@ -865,10 +1453,90 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                         })()}
                       </td>
 
-                      {/* Tools & Actions */}
+                      {/* Tools & Actions: Copy, Share, 10-draw stats, Image, Speak */}
                       <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* Edit Lottery Button */}
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          {/* Copy button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copySingleLottery(item);
+                            }}
+                            title="คัดลอกผลหวยนี้"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-amber-400 transition cursor-pointer"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Share button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              shareSingleLottery(item);
+                            }}
+                            title="แชร์ผลหวยนี้"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* 10-Draw Statistics button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenStatsModal(item);
+                            }}
+                            title="ดูสถิติ 10 งวด"
+                            className="p-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 transition cursor-pointer flex items-center gap-1 text-[11px] font-semibold"
+                          >
+                            <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+                            <span className="hidden xl:inline">สถิติ 10 งวด</span>
+                          </button>
+
+                          {/* Image card preview button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenImageModal(item, false);
+                            }}
+                            title="สร้างและดูรูปสรุปผลหวยนี้"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-amber-400 transition cursor-pointer"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Direct Web Share Image Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenImageModal(item, true);
+                            }}
+                            title="แชร์รูปภาพผลหวยนี้ไปยังโซเชียลมีเดียด้วย Web Share API โดยตรง"
+                            className="p-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 transition cursor-pointer flex items-center gap-1"
+                          >
+                            <Share2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="hidden xl:inline text-[11px] font-semibold">แชร์รูป</span>
+                          </button>
+
+                          {/* Speech Synthesis (Custom rule: stocks read 3 ตัว 2 ตัว without บน/ล่าง) */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCustomSpeakLottery(item);
+                            }}
+                            title="ฟังเสียงอ่านผล (3 ตัว / 2 ตัว)"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-amber-300 transition cursor-pointer"
+                          >
+                            <Volume2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Edit Lottery */}
                           {onUpdateLotteries && (
                             <button
                               type="button"
@@ -878,36 +1546,11 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                                 setIsEditModalOpen(true);
                               }}
                               title="แก้ไขเวลาและข้อมูลหวยนี้"
-                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-amber-400 transition cursor-pointer"
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
                           )}
-
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSpeakLottery(item);
-                            }}
-                            title="ฟังเสียงประกาศ"
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-amber-300 transition cursor-pointer"
-                          >
-                            <Volume2 className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDetailLottery(item);
-                              onSelectLottery(item);
-                            }}
-                            title="ดูรายละเอียด"
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
-                          >
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -915,8 +1558,8 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 })
               ) : (
                 <tr>
-                  <td colSpan={10} className="py-10 text-center text-slate-500">
-                    ไม่พบรายการหวยที่ตรงกับคำค้นหา
+                  <td colSpan={9} className="py-12 text-center text-slate-500">
+                    <p className="text-sm">ไม่พบรายการหวยที่ตรงกับคำค้นหาหรือตัวกรอง</p>
                   </td>
                 </tr>
               )}
@@ -924,6 +1567,58 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Summary Image Modal (รูปการสรุป PNG) */}
+      <SummaryImageModal
+        isOpen={isImageModalOpen}
+        onClose={() => {
+          setIsImageModalOpen(false);
+          setAutoShareImage(false);
+        }}
+        title={imageModalTitle}
+        dateStr={
+          isSelectedDateToday && summaryMode === 'today'
+            ? new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })
+            : formatThaiDisplayDate(selectedDate)
+        }
+        lotteries={imageModalLotteries}
+        periodLabel={imageModalPeriod}
+        autoShare={autoShareImage}
+      />
+
+      {/* 10-Draw Statistics Modal */}
+      <LotteryStatsModal
+        isOpen={isStatsModalOpen}
+        onClose={() => {
+          setIsStatsModalOpen(false);
+          setStatsModalLottery(null);
+        }}
+        lottery={statsModalLottery}
+        results={results}
+        onSpeak={(text) => {
+          if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'th-TH';
+            u.rate = 0.95;
+            window.speechSynthesis.speak(u);
+          }
+        }}
+        onOpenImageModal={(l) => handleOpenImageModal(l)}
+      />
+
+      {/* Comprehensive Quick Lottery Menu */}
+      <QuickLotteryMenu
+        isOpen={isQuickMenuOpen}
+        onClose={() => setIsQuickMenuOpen(false)}
+        lotteries={activeLotteryList}
+        onSelectLottery={(l) => {
+          setDetailLottery(l);
+          onSelectLottery(l);
+        }}
+        onOpenStats={(l) => handleOpenStatsModal(l)}
+        selectedLotteryId={detailLottery?.id}
+      />
 
       {/* Schedule & Lottery Editor Modal */}
       <EditLotteryModal
@@ -937,6 +1632,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         onDelete={handleDeleteLottery}
       />
 
+      {/* Lottery Detail Modal */}
       {detailLottery && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4"
@@ -947,13 +1643,16 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
             role="dialog"
             aria-modal="true"
             aria-label={`รายละเอียด${detailLottery.name}`}
-            className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl border border-amber-500/40 bg-slate-950 p-4 sm:p-5 shadow-2xl space-y-4"
+            className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-2xl border border-amber-500/40 bg-slate-950 p-4 sm:p-5 shadow-2xl space-y-4"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-xs text-amber-400 font-semibold">รายละเอียดรายการหวย</div>
-                <h3 className="text-lg font-bold text-white mt-1">{detailLottery.flag} {detailLottery.name}</h3>
+                <h3 className="text-lg font-bold text-white mt-1 flex items-center gap-2">
+                  <span>{detailLottery.flag}</span>
+                  <span>{detailLottery.name}</span>
+                </h3>
                 <p className="text-xs text-slate-400 mt-1">{detailLottery.categoryLabel} • {detailLottery.drawDays}</p>
               </div>
               <button
@@ -985,73 +1684,66 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-lg bg-slate-950/80 p-3">
-                    <div className="text-[10px] text-amber-400">รางวัลที่ 1 / เลขบน</div>
+                    <div className="text-[10px] text-amber-400">รางวัลที่ 1 / 3 ตัวบน</div>
                     <div className="mt-1 break-all font-mono text-xl font-black text-amber-300">
                       {selectedResult.รางวัลที่_1 || selectedResult.firstPrize || selectedResult.เลขบน_3_ตัว || selectedResult.top3 || '—'}
                     </div>
                   </div>
                   <div className="rounded-lg bg-slate-950/80 p-3">
-                    <div className="text-[10px] text-emerald-400">เลขท้าย 2 ตัว / เลขล่าง</div>
+                    <div className="text-[10px] text-emerald-400">เลขท้าย 2 ตัว / 2 ตัวล่าง</div>
                     <div className="mt-1 break-all font-mono text-xl font-black text-emerald-300">
                       {selectedResult.เลขท้าย_2_ตัว || selectedResult.เลขล่าง_2_ตัว || selectedResult.bottom2 || selectedResult.last2 || '—'}
                     </div>
                   </div>
                 </div>
-                {(selectedResult.เลขหน้า_3_ตัว?.length > 0 || selectedResult.เลขท้าย_3_ตัว?.length > 0) && (
-                  <div className="space-y-1 text-xs text-slate-300">
-                    {selectedResult.เลขหน้า_3_ตัว?.length > 0 && <div>เลขหน้า 3 ตัว: {selectedResult.เลขหน้า_3_ตัว.join(', ')}</div>}
-                    {selectedResult.เลขท้าย_3_ตัว?.length > 0 && <div>เลขท้าย 3 ตัว: {selectedResult.เลขท้าย_3_ตัว.join(', ')}</div>}
-                  </div>
-                )}
                 <div className="text-[10px] text-slate-500">แหล่งข้อมูล: {selectedResult.แหล่งข้อมูล || selectedResult.source || 'ไม่ระบุ'}</div>
               </div>
             ) : (
               <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3">
                 <div className="text-sm font-semibold text-amber-200">ยังไม่พบผลรางวัลจริงของรายการนี้</div>
                 <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                  ข้อมูลด้านบนเป็นกำหนดการเท่านั้น ระบบจะไม่แสดงเลขตัวอย่างแทนผลจริง กรุณากดรีเฟรชเมื่อแหล่งข้อมูลประกาศผลแล้ว
+                  ข้อมูลด้านบนเป็นกำหนดการเท่านั้น ระบบจะไม่แสดงเลขตัวอย่างแทนผลจริง
                 </p>
               </div>
             )}
 
-            <div className="flex flex-wrap gap-2">
+            {/* Modal Quick Actions */}
+            <div className="flex flex-wrap gap-2 pt-1">
               <button
                 type="button"
-                disabled={!selectedResult || ![
-                  selectedResult.เลขบน_3_ตัว,
-                  selectedResult.top3,
-                  selectedResult.รางวัลที่_1,
-                  selectedResult.firstPrize,
-                  selectedResult.เลขล่าง_2_ตัว,
-                  selectedResult.bottom2,
-                  selectedResult.เลขท้าย_2_ตัว,
-                  selectedResult.last2,
-                ].some((value) => String(value ?? '').trim())}
-                onClick={() => {
-                  if (!detailLottery || !selectedResult) return;
-                  const firstPrize = String(selectedResult.รางวัลที่_1 || selectedResult.firstPrize || '');
-                  const top3 = String(selectedResult.เลขบน_3_ตัว || selectedResult.top3 || firstPrize);
-                  const bottom2 = String(selectedResult.เลขล่าง_2_ตัว || selectedResult.bottom2 || selectedResult.เลขท้าย_2_ตัว || selectedResult.last2 || '');
-                  onSpeakLottery({
-                    ...detailLottery,
-                    top3,
-                    bottom2,
-                    firstPrize,
-                    date: String(selectedResult.งวดวันที่ || selectedResult.วันที่จัดรูปแบบ || selectedResult.date || detailLottery.date),
-                    source: String(selectedResult.แหล่งข้อมูล || selectedResult.source || detailLottery.source),
-                    status: 'announced',
-                  });
-                }}
-                className="flex-1 rounded-xl bg-amber-500 px-3 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => handleOpenStatsModal(detailLottery)}
+                className="flex-1 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 px-3 py-2 text-xs font-bold hover:bg-amber-500/30 transition flex items-center justify-center gap-1.5"
               >
-                <Volume2 className="mr-1 inline h-4 w-4" /> {selectedResult ? 'ฟังประกาศผลจริง' : 'ยังไม่มีผลให้อ่าน'}
+                <BarChart3 className="w-4 h-4 text-amber-400" />
+                <span>สถิติ 10 งวด</span>
               </button>
+
               <button
                 type="button"
-                onClick={() => setDetailLottery(null)}
-                className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 cursor-pointer"
+                onClick={() => handleOpenImageModal(detailLottery)}
+                className="flex-1 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 px-3 py-2 text-xs font-bold hover:bg-slate-700 transition flex items-center justify-center gap-1.5"
               >
-                ปิด
+                <ImageIcon className="w-4 h-4 text-amber-400" />
+                <span>สร้างรูปสรุป</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => copySingleLottery(detailLottery)}
+                className="rounded-xl bg-slate-800 border border-slate-700 text-slate-200 px-3 py-2 text-xs font-bold hover:bg-slate-700 transition flex items-center justify-center gap-1"
+                title="คัดลอกข้อความผลหวย"
+              >
+                <Copy className="w-4 h-4 text-amber-400" />
+                <span>คัดลอก</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCustomSpeakLottery(detailLottery)}
+                className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Volume2 className="w-4 h-4" />
+                <span>อ่านผล</span>
               </button>
             </div>
           </section>

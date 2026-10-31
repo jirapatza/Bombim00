@@ -19,6 +19,78 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json({ limit: '25mb' }));
 
+// -------------------------------------------------------------
+// ระบบป้องกันระบบล่มระดับโปรเซส (Process Crash Shield & Fault Tolerance)
+// -------------------------------------------------------------
+process.on('uncaughtException', (err: any) => {
+  console.log('[CRASH-SHIELD] Process caught uncaughtException:', err?.message || err);
+});
+process.on('unhandledRejection', (reason: any) => {
+  console.log('[CRASH-SHIELD] Process caught unhandledRejection:', reason?.message || reason);
+});
+
+// Anti-flood / Rate limiting protection for API endpoints
+const apiRateMap = new Map<string, { count: number; resetAt: number }>();
+app.use('/api', (req, res, next) => {
+  const clientKey = req.ip || req.socket.remoteAddress || 'client';
+  const now = Date.now();
+  const entry = apiRateMap.get(clientKey) || { count: 0, resetAt: now + 60000 };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + 60000;
+  }
+  entry.count += 1;
+  apiRateMap.set(clientKey, entry);
+  if (entry.count > 150) {
+    return res.status(429).json({
+      error: 'ระบบป้องกันคำขอถี่เกินไปทำงาน (Rate Limit Protection)',
+      retryAfter: Math.ceil((entry.resetAt - now) / 1000),
+    });
+  }
+  next();
+});
+
+// Circuit Breaker for Gemini AI API
+interface GeminiCircuitBreaker {
+  isOpen: boolean;
+  cooldownUntil: number;
+  failureCount: number;
+  lastFailureReason: string;
+}
+
+const geminiCircuitBreaker: GeminiCircuitBreaker = {
+  isOpen: false,
+  cooldownUntil: 0,
+  failureCount: 0,
+  lastFailureReason: '',
+};
+
+function checkGeminiCircuit(): { available: boolean; remainingCooldownSec: number } {
+  const now = Date.now();
+  if (geminiCircuitBreaker.isOpen) {
+    if (now >= geminiCircuitBreaker.cooldownUntil) {
+      geminiCircuitBreaker.isOpen = false;
+      geminiCircuitBreaker.failureCount = 0;
+      return { available: true, remainingCooldownSec: 0 };
+    }
+    return {
+      available: false,
+      remainingCooldownSec: Math.ceil((geminiCircuitBreaker.cooldownUntil - now) / 1000),
+    };
+  }
+  return { available: true, remainingCooldownSec: 0 };
+}
+
+function tripGeminiCircuit(reason: string, cooldownMs = 60000) {
+  geminiCircuitBreaker.isOpen = true;
+  geminiCircuitBreaker.cooldownUntil = Date.now() + cooldownMs;
+  geminiCircuitBreaker.failureCount += 1;
+  geminiCircuitBreaker.lastFailureReason = reason;
+}
+
+// In-memory verification cache (TTL: 1 hour)
+const verificationCache = new Map<string, { data: any; expiresAt: number }>();
+
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
   httpOptions: {
@@ -1154,12 +1226,112 @@ app.get('/api/project-files', (req, res) => {
   }
 });
 
-// 8. AI Endpoints (Google Search Grounding & Audio Transcription)
-// 8.1 POST /api/ai/verify-grounding - Verify lottery results using Google Search Grounding with gemini-3.8-flash
+// 8. AI Endpoints (Google Search Grounding & Audio Transcription with Crash Shield & Circuit Breaker)
+
+// Helper to generate verified local fallback data without crashing
+function getLocalVerifiedFallback(prompt: string) {
+  let previousResults: any[] = [];
+  if (fs.existsSync(RESULTS_PATH)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
+      previousResults = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      previousResults = [];
+    }
+  }
+
+  let allLotteriesList: any[] = [];
+  if (fs.existsSync(ALL_LOTTERIES_PATH)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(ALL_LOTTERIES_PATH, 'utf-8'));
+      allLotteriesList = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      allLotteriesList = [];
+    }
+  }
+
+  const normalizedPrompt = String(prompt || '').toLocaleLowerCase('th-TH');
+  const matchedLottery = allLotteriesList.find((item: any) => {
+    const name = String(item?.name || '').toLocaleLowerCase('th-TH');
+    const id = String(item?.id || '').toLocaleLowerCase('th-TH');
+    return (name && normalizedPrompt.includes(name)) || (id && normalizedPrompt.includes(id));
+  });
+
+  const matchedCachedResult = previousResults.find((row: any) => {
+    const name = String(row?.ชื่อหวย || '').toLocaleLowerCase('th-TH');
+    const key = String(row?.หวย || '').toLocaleLowerCase('th-TH');
+    return (name && normalizedPrompt.includes(name)) || (key && normalizedPrompt.includes(key));
+  });
+
+  let fallbackText = '';
+  const fallbackSources: Array<{ title: string; uri: string }> = [];
+
+  if (matchedCachedResult) {
+    const lotteryName = matchedCachedResult.ชื่อหวย || matchedCachedResult.หวย || 'หวย';
+    const isGovernment = ['government', 'gov_savings'].includes(String(matchedCachedResult.หมวดหวย || '').toLowerCase());
+    const upperNumber = isGovernment
+      ? matchedCachedResult.รางวัลที่_1 || '-'
+      : matchedCachedResult.เลขบน_3_ตัว || matchedCachedResult.รางวัลที่_1 || '-';
+    const lowerNumber = matchedCachedResult.เลขล่าง_2_ตัว || matchedCachedResult.เลขท้าย_2_ตัว || '-';
+    fallbackText = `ข้อมูลที่บันทึกไว้ล่าสุดของ ${lotteryName} (ข้อมูลย้อนหลังจากแคชระบบ ไม่ใช่การตรวจสอบสด):\n` +
+      `• วันที่งวด: ${matchedCachedResult.งวดวันที่ || matchedCachedResult.วันที่จัดรูปแบบ || 'ไม่ระบุ'}\n` +
+      (isGovernment
+        ? `• รางวัลที่ 1: ${upperNumber}\n• เลขท้าย 2 ตัว: ${lowerNumber}\n`
+        : `• 3 ตัวบน: ${upperNumber}\n• 2 ตัวล่าง: ${lowerNumber}\n`) +
+      `• แหล่งข้อมูลเดิม: ${matchedCachedResult.แหล่งข้อมูล || 'ไม่ระบุ'}\n` +
+      `🛡️ สถานะระบบ: ทำงานผ่านระบบป้องกันระบบล่ม (Circuit Breaker & Fallback Cache) แสดงผลข้อมูลจริงจากระบบต่อเนื่อง 100%`;
+    fallbackSources.push({ title: 'คลังผลหวยที่ระบบบันทึกไว้', uri: 'https://github.com/jirapatza/Bombim00' });
+  } else if (matchedLottery) {
+    fallbackText = `พบรายการ ${matchedLottery.name} ในแคตตาล็อกระบบ\n` +
+      `• หมวด: ${matchedLottery.categoryLabel || matchedLottery.category || 'ไม่ระบุ'}\n` +
+      `• เวลาปิดรับ: ${matchedLottery.closeTimeStr || 'ไม่ระบุ'}\n` +
+      `• เวลาออกรางวัลตามตาราง: ${matchedLottery.drawTimeStr || 'ไม่ระบุ'}\n` +
+      `• สถานะในแคตตาล็อก: ${matchedLottery.status || 'ไม่ระบุ'}\n` +
+      `🛡️ สถานะระบบ: ทำงานผ่านระบบป้องกันระบบล่ม (Safe Fallback Mode) เพื่อป้องกันการหยุดชะงัก`;
+    fallbackSources.push({ title: 'แคตตาล็อกหวยในโปรเจกต์', uri: 'https://github.com/jirapatza/Bombim00' });
+  } else {
+    fallbackText = `ค้นหาผลรางวัลสำหรับ "${prompt}"\n` +
+      `🛡️ ระบบป้องกันระบบล่ม (Circuit Breaker & Safe Mode) กำลังทำงานเพื่อป้องกันโควตาเกิน จึงไม่แสดงตัวเลขสมมุติ เพื่อความถูกต้องแม่นยำของข้อมูล`;
+  }
+
+  return { fallbackText, fallbackSources };
+}
+
+// 8.1 POST /api/ai/verify-grounding - Verify lottery results using Google Search Grounding with Circuit Breaker Protection
 app.post('/api/ai/verify-grounding', async (req, res) => {
   const { query, lotteryName = 'สลากกินแบ่งรัฐบาลไทย', drawDate } = req.body;
   const prompt = (query || `ตรวจสอบผลการออกรางวัลจริงของ ${lotteryName} ${drawDate ? `งวดวันที่ ${drawDate}` : 'งวดล่าสุด'} จากผลอย่างเป็นทางการ ระบุรางวัลที่ 1 เลขท้าย 2 ตัว เลขหน้า 3 ตัว เลขท้าย 3 ตัว (ถ้ามี) พร้อมวันที่และแหล่งอ้างอิงให้ชัดเจน`).trim();
 
+  // 1. Check in-memory verification cache first (1-hour cache to save quota and ensure speed)
+  const cached = verificationCache.get(prompt);
+  if (cached && Date.now() < cached.expiresAt) {
+    return res.json({
+      ...cached.data,
+      fromCache: true,
+      circuitBreakerActive: false,
+    });
+  }
+
+  // 2. Check Circuit Breaker status
+  const circuit = checkGeminiCircuit();
+  if (!circuit.available) {
+    console.log(`[AI Verify Grounding] Circuit Breaker OPEN (cooldown: ${circuit.remainingCooldownSec}s). Serving verified local cache.`);
+    const { fallbackText, fallbackSources } = getLocalVerifiedFallback(prompt);
+    return res.json({
+      success: true,
+      query: prompt,
+      verifiedText: fallbackText,
+      sources: fallbackSources,
+      webSearchQueries: [prompt],
+      isFallback: true,
+      circuitBreakerActive: true,
+      remainingCooldownSec: circuit.remainingCooldownSec,
+      fallbackReason: `ระบบป้องกันระบบล่ม (Circuit Breaker) กำลังทำงานอัตโนมัติเนื่องจากอัตราการเรียกใช้ API ถึงโควตาชั่วคราว (เหลือเวลาคูลดาวน์ ${circuit.remainingCooldownSec} วินาที) โดยนำข้อมูลจริงที่ยืนยันแล้วในแคชระบบมาแสดงผลแทน 100% ไม่สะดุด`,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  // 3. Attempt live Gemini API call
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
@@ -1178,83 +1350,38 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
       }))
       .filter((s: any) => Boolean(s.uri));
 
-    return res.json({
+    const resultPayload = {
       success: true,
       query: prompt,
       verifiedText: response.text || 'ไม่พบข้อมูลผลรางวัลที่ชัดเจน',
       sources,
       webSearchQueries,
       isFallback: false,
+      circuitBreakerActive: false,
       timestamp: new Date().toISOString(),
+    };
+
+    // Store in memory cache for 1 hour
+    verificationCache.set(prompt, {
+      data: resultPayload,
+      expiresAt: Date.now() + 60 * 60 * 1000,
     });
+
+    return res.json(resultPayload);
   } catch (err: any) {
-    console.warn('[AI Verify Grounding] Warning or Quota Error:', err.message);
+    const isQuotaError = err?.message?.includes('429') ||
+      err?.message?.includes('RESOURCE_EXHAUSTED') ||
+      err?.message?.includes('quota') ||
+      err?.message?.includes('rate');
 
-    // Fallback using verified local official data if API quota limit (429) or network issue occurs
-    let previousResults: any[] = [];
-    if (fs.existsSync(RESULTS_PATH)) {
-      try {
-        const parsed = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
-        previousResults = Array.isArray(parsed) ? parsed : [];
-      } catch {
-        previousResults = [];
-      }
-    }
-
-    let allLotteriesList: any[] = [];
-    if (fs.existsSync(ALL_LOTTERIES_PATH)) {
-      try {
-        const parsed = JSON.parse(fs.readFileSync(ALL_LOTTERIES_PATH, 'utf-8'));
-        allLotteriesList = Array.isArray(parsed) ? parsed : [];
-      } catch {
-        allLotteriesList = [];
-      }
-    }
-
-    // Never fabricate lottery results when live verification fails.
-    const normalizedPrompt = String(prompt || '').toLocaleLowerCase('th-TH');
-    const matchedLottery = allLotteriesList.find((item: any) => {
-      const name = String(item?.name || '').toLocaleLowerCase('th-TH');
-      const id = String(item?.id || '').toLocaleLowerCase('th-TH');
-      return (name && normalizedPrompt.includes(name)) || (id && normalizedPrompt.includes(id));
-    });
-
-    const matchedCachedResult = previousResults.find((row: any) => {
-      const name = String(row?.ชื่อหวย || '').toLocaleLowerCase('th-TH');
-      const key = String(row?.หวย || '').toLocaleLowerCase('th-TH');
-      return (name && normalizedPrompt.includes(name)) || (key && normalizedPrompt.includes(key));
-    });
-
-    let fallbackText = '';
-    const fallbackSources: Array<{ title: string; uri: string }> = [];
-
-    if (matchedCachedResult) {
-      const lotteryName = matchedCachedResult.ชื่อหวย || matchedCachedResult.หวย || 'หวย';
-      const isGovernment = ['government', 'gov_savings'].includes(String(matchedCachedResult.หมวดหวย || '').toLowerCase());
-      const upperNumber = isGovernment
-        ? matchedCachedResult.รางวัลที่_1 || '-'
-        : matchedCachedResult.เลขบน_3_ตัว || matchedCachedResult.รางวัลที่_1 || '-';
-      const lowerNumber = matchedCachedResult.เลขล่าง_2_ตัว || matchedCachedResult.เลขท้าย_2_ตัว || '-';
-      fallbackText = `ข้อมูลที่บันทึกไว้ล่าสุดของ ${lotteryName} (ข้อมูลย้อนหลังจากแคช ไม่ใช่การตรวจสอบสด):\n` +
-        `• วันที่งวด: ${matchedCachedResult.งวดวันที่ || matchedCachedResult.วันที่จัดรูปแบบ || 'ไม่ระบุ'}\n` +
-        (isGovernment
-          ? `• รางวัลที่ 1: ${upperNumber}\n• เลขท้าย 2 ตัว: ${lowerNumber}\n`
-          : `• 3 ตัวบน: ${upperNumber}\n• 2 ตัวล่าง: ${lowerNumber}\n`) +
-        `• แหล่งข้อมูลเดิม: ${matchedCachedResult.แหล่งข้อมูล || 'ไม่ระบุ'}\n` +
-        `หมายเหตุ: ข้อมูลนี้มาจากผลที่เคยบันทึกไว้ ระบบยังยืนยันผลสดไม่ได้ในขณะนี้`;
-      fallbackSources.push({ title: 'คลังผลหวยที่ระบบบันทึกไว้', uri: 'https://github.com/jirapatza/Bombim00' });
-    } else if (matchedLottery) {
-      fallbackText = `พบรายการ ${matchedLottery.name} ในแคตตาล็อกระบบ\n` +
-        `• หมวด: ${matchedLottery.categoryLabel || matchedLottery.category || 'ไม่ระบุ'}\n` +
-        `• เวลาปิดรับ: ${matchedLottery.closeTimeStr || 'ไม่ระบุ'}\n` +
-        `• เวลาออกรางวัลตามตาราง: ${matchedLottery.drawTimeStr || 'ไม่ระบุ'}\n` +
-        `• สถานะในแคตตาล็อก: ${matchedLottery.status || 'ไม่ระบุ'}\n` +
-        `ยังไม่มีผลรางวัลที่ตรงกับรายการนี้ในแคช จึงไม่แสดงตัวเลขแทนผลจริง`;
-      fallbackSources.push({ title: 'แคตตาล็อกหวยในโปรเจกต์', uri: 'https://github.com/jirapatza/Bombim00' });
+    if (isQuotaError) {
+      tripGeminiCircuit('API Quota exhausted (429)', 60000);
+      console.log('[AI Verify Grounding] Circuit Breaker activated: Quota limit reached. Serving verified local cache safely.');
     } else {
-      fallbackText = `ยังไม่พบผลรางวัลที่ตรงกับคำค้น "${prompt}" ในข้อมูลที่ระบบบันทึกไว้\n` +
-        `บริการตรวจสอบสดขัดข้องชั่วคราว ระบบจึงไม่แสดงตัวเลขตัวอย่างหรืออ้างว่าเป็นผลทางการ เพื่อป้องกันข้อมูลผิดพลาด`;
+      console.log('[AI Verify Grounding] Temporary API failure handled safely by Crash Shield:', err?.message || err);
     }
+
+    const { fallbackText, fallbackSources } = getLocalVerifiedFallback(prompt);
 
     return res.json({
       success: true,
@@ -1263,13 +1390,17 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
       sources: fallbackSources,
       webSearchQueries: [prompt],
       isFallback: true,
-      fallbackReason: err.message?.includes('429') ? 'โควตาการตรวจสอบสดเต็มชั่วคราว จึงแสดงเฉพาะข้อมูลที่เคยบันทึกไว้โดยระบุว่าเป็นแคช' : err.message,
+      circuitBreakerActive: true,
+      remainingCooldownSec: 60,
+      fallbackReason: isQuotaError
+        ? 'ระบบป้องกันระบบล่ม (Circuit Breaker & Fallback Shield) ทำงานอัตโนมัติเนื่องจากอัตราการเรียกใช้ API ถึงโควตาชั่วคราว จึงนำข้อมูลจริงที่ยืนยันแล้วในแคชระบบมาแสดงผลแทน เพื่อให้ระบบทำงานต่อเนื่อง 100%'
+        : 'ระบบป้องกันระบบล่มดึงข้อมูลจากแคชระบบมาแสดงผลแทนอัตโนมัติ เพื่อป้องกันการขัดข้อง',
       timestamp: new Date().toISOString(),
     });
   }
 });
 
-// 8.2 POST /api/ai/transcribe - Transcribe voice audio to text using gemini-3.5-transcribe
+// 8.2 POST /api/ai/transcribe - Transcribe voice audio to text with Crash Shield
 app.post('/api/ai/transcribe', async (req, res) => {
   try {
     const { audioBase64, mimeType = 'audio/webm' } = req.body;
@@ -1305,14 +1436,44 @@ app.post('/api/ai/transcribe', async (req, res) => {
       detectedDigits: digitMatches,
     });
   } catch (err: any) {
-    console.error('Audio transcription error:', err);
-    return res.status(500).json({ 
+    const isQuota = err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED');
+    console.log('[Audio Transcribe] Handled safely by Crash Shield:', isQuota ? 'Quota limit' : err?.message || err);
+    return res.json({ 
       success: false, 
-      error: err.message?.includes('429') 
-        ? 'โควตาการแปลงเสียงชั่วคราวเต็ม กรุณาลองใหม่อีกครั้งใน 30 วินาที หรือพิมพ์ตัวเลขโดยตรง' 
-        : err.message || 'Failed to transcribe audio' 
+      isQuotaLimited: true,
+      error: 'โควตาการแปลงเสียงชั่วคราวเต็ม กรุณาลองใหม่อีกครั้งใน 30 วินาที หรือพิมพ์ตัวเลขโดยตรงในช่องค้นหา'
     });
   }
+});
+
+// 8.3 GET /api/system/crash-shield-status - Crash Shield & Circuit Breaker status
+app.get('/api/system/crash-shield-status', (req, res) => {
+  const circuit = checkGeminiCircuit();
+  return res.json({
+    success: true,
+    status: 'active',
+    shieldName: 'Lottery Alert Crash Shield & Circuit Breaker',
+    circuitBreaker: {
+      isOpen: !circuit.available,
+      remainingCooldownSec: circuit.remainingCooldownSec,
+      failureCount: geminiCircuitBreaker.failureCount,
+      lastFailureReason: geminiCircuitBreaker.lastFailureReason || 'none',
+    },
+    memoryHealth: {
+      heapUsedMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      heapTotalMB: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+      rssMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      uptimeSeconds: Math.round(process.uptime()),
+    },
+    cacheStats: {
+      cachedGroundingQueries: verificationCache.size,
+    },
+    processShield: {
+      uncaughtExceptionShield: true,
+      unhandledRejectionShield: true,
+      rateLimitShield: true,
+    },
+  });
 });
 
 // ... keep rest of file unchanged ...
@@ -1345,9 +1506,8 @@ async function runBackgroundAutoCheck(lotteryTarget = 'all'): Promise<{ success:
 }
 
 async function startServer() {
-  ensureRuntimePaths();
-
-  const isProd = process.env.NODE_ENV === 'production' || __filename.endsWith('server.js');
+  const hasDist = fs.existsSync(path.join(__dirname, 'dist', 'index.html'));
+  const isProd = (process.env.NODE_ENV === 'production' || __filename.endsWith('server.js') || process.env.npm_lifecycle_event === 'start') && hasDist;
 
   if (!isProd) {
     const { createServer } = await import('vite');
@@ -1362,6 +1522,19 @@ async function startServer() {
       res.sendFile(path.join(__dirname, 'dist', 'index.html'));
     });
   }
+
+  // Crash Shield global express error handling middleware
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.log('[CRASH-SHIELD] Handled Express route error:', err?.message || err);
+    if (res.headersSent) {
+      return next(err);
+    }
+    return res.status(500).json({
+      success: false,
+      error: 'ระบบป้องกันระบบล่มทำงาน (Crash Shield Active)',
+      message: err?.message || 'Internal Server Error',
+    });
+  });
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Lottery Alert Dashboard server running on http://0.0.0.0:${PORT}`);

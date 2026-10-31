@@ -86,6 +86,8 @@ import { SettingsCenter } from './components/SettingsCenter';
 import { AppDownloadModal } from './components/AppDownloadModal';
 import { DataAccuracyCenter } from './components/DataAccuracyCenter';
 import { SystemMonitorKiosk } from './components/SystemMonitorKiosk';
+import { CrashShieldErrorBoundary } from './components/CrashShieldErrorBoundary';
+import { ShieldCheck } from 'lucide-react';
 
 interface LotteryResult {
   ชื่อหวย?: string;
@@ -843,12 +845,15 @@ export default function App() {
     }
 
     let text = `ประกาศผล ${item.name} งวดวันที่ ${item.date}. `;
-    if (item.category === 'gov_savings' && item.firstPrize) {
+    const isThaiGov = item.category === 'gov_savings' || item.id === 'thai_gov' || item.name.includes('สลากกินแบ่งรัฐบาล') || item.name.includes('หวยรัฐบาลไทย');
+
+    if (isThaiGov && item.firstPrize) {
       text += `รางวัลที่หนึ่ง ออกเลข ${spellDigits(item.firstPrize)}. `;
       if (bottomResult) text += `เลขท้ายสองตัว ออกเลข ${spellDigits(bottomResult)}. `;
     } else {
-      if (topResult) text += `สามตัวบน ออกเลข ${spellDigits(topResult)}. `;
-      if (bottomResult) text += `สองตัวล่าง ออกเลข ${spellDigits(bottomResult)}. `;
+      // For stock lotteries and foreign lotteries: read 3 ตัว and 2 ตัว without saying บน/ล่าง
+      if (topResult) text += `สามตัว ออกเลข ${spellDigits(topResult)}. `;
+      if (bottomResult) text += `สองตัว ออกเลข ${spellDigits(bottomResult)}. `;
     }
     if (item.setIndex) {
       text += `ดัชนีตลาดปิดที่ ${item.setIndex}. `;
@@ -1641,6 +1646,10 @@ export default function App() {
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   ระบบอัตโนมัติ 24 ชม.
                 </span>
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-teal-500/15 text-teal-300 border border-teal-500/30 flex items-center gap-1.5" title="ระบบป้องกันระบบล่ม (Crash Shield & Circuit Breaker) ทำงานอยู่">
+                  <ShieldCheck className="w-3 h-3 text-teal-400" />
+                  <span>ป้องกันระบบล่ม (Active)</span>
+                </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">
                 ศูนย์กลางผลสลาก 51 หวย • เช็คผลสดเรียลไทม์ • ยืนยันข้อมูลด้วย AI &amp; เสียงประกาศไทย
@@ -1735,37 +1744,41 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
         {/* ==================== TAB 1: LIVE UPCOMING DRAWS (WAITING & ABOUT-TO-DRAW) ==================== */}
         <div className={activeTab === 'live' ? 'block' : 'hidden'}>
-          <LiveUpcomingDraws
-            lotteries={filterLotteriesForDrawDate(allLotteries)}
-            onSelectLottery={(item) => {
-              setSelectedCatalogLottery(item);
-              setActiveTab('summary');
-            }}
-            onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
-            onSpeakText={(text) => speakCustomText(text)}
-            voiceEnabled={voiceEnabled}
-            onToggleVoice={() => {
-              const nextState = !voiceEnabled;
-              setVoiceEnabled(nextState);
-              if (!nextState) stopSpeech();
-              showToast(nextState ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
-            }}
-            onNavigateToSummary={() => setActiveTab('summary')}
-          />
+          <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันการแสดงผลหวยสดขัดข้อง (Live Draws Shield)">
+            <LiveUpcomingDraws
+              lotteries={filterLotteriesForDrawDate(allLotteries)}
+              onSelectLottery={(item) => {
+                setSelectedCatalogLottery(item);
+                setActiveTab('summary');
+              }}
+              onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
+              onSpeakText={(text) => speakCustomText(text)}
+              voiceEnabled={voiceEnabled}
+              onToggleVoice={() => {
+                const nextState = !voiceEnabled;
+                setVoiceEnabled(nextState);
+                if (!nextState) stopSpeech();
+                showToast(nextState ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
+              }}
+              onNavigateToSummary={() => setActiveTab('summary')}
+            />
+          </CrashShieldErrorBoundary>
         </div>
 
         {/* ==================== TAB 2: DAILY SUMMARY TABLE (FULL 51 LOTTERIES MATRIX) ==================== */}
         {activeTab === 'summary' && (
-          <DailySummaryTable
-            lotteries={filterLotteriesForDrawDate(allLotteries)}
-            results={results}
-            onSelectLottery={(item) => {
-              setSelectedCatalogLottery(item);
-            }}
-            onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
-            onUpdateLotteries={handleUpdateAllLotteries}
-            nextClosing={getNextClosingLottery()}
-          />
+          <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันตารางสรุปผลหวยขัดข้อง (Summary Table Shield)">
+            <DailySummaryTable
+              lotteries={allLotteries}
+              results={results}
+              onSelectLottery={(item) => {
+                setSelectedCatalogLottery(item);
+              }}
+              onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
+              onUpdateLotteries={handleUpdateAllLotteries}
+              nextClosing={getNextClosingLottery()}
+            />
+          </CrashShieldErrorBoundary>
         )}
 
         {/* ==================== TAB 4: UNIFIED SETTINGS CENTER ==================== */}
@@ -1898,24 +1911,28 @@ export default function App() {
 
             {/* Subtab 1: AI Search Grounding & Voice Verification */}
             {checkerSubTab === 'accuracy' && (
-              <DataAccuracyCenter
-                allLotteries={allLotteries}
-                latestDraw={latestDraw}
-                onApplyTicketCheck={(numbers) => {
-                  setTicketInput(numbers[0] || '');
-                  setCheckerSubTab('batch');
-                  showToast(`นำหมายเลข [${numbers.join(', ')}] เข้าสู่ระบบตรวจรางวัลเรียบร้อยแล้ว`);
-                }}
-                onSelectLottery={(item) => setSelectedCatalogLottery(item)}
-              />
+              <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันการตรวจสอบข้อมูลขัดข้อง (AI Accuracy Shield)">
+                <DataAccuracyCenter
+                  allLotteries={allLotteries}
+                  latestDraw={latestDraw}
+                  onApplyTicketCheck={(numbers) => {
+                    setTicketInput(numbers[0] || '');
+                    setCheckerSubTab('batch');
+                    showToast(`นำหมายเลข [${numbers.join(', ')}] เข้าสู่ระบบตรวจรางวัลเรียบร้อยแล้ว`);
+                  }}
+                  onSelectLottery={(item) => setSelectedCatalogLottery(item)}
+                />
+              </CrashShieldErrorBoundary>
             )}
 
             {/* Subtab 2: Single & Batch Ticket Checker */}
             {checkerSubTab === 'batch' && (
-              <BatchTicketChecker
-                results={results}
-                latestDraw={latestDraw}
-              />
+              <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันเครื่องตรวจสลากขัดข้อง (Checker Shield)">
+                <BatchTicketChecker
+                  results={results}
+                  latestDraw={latestDraw}
+                />
+              </CrashShieldErrorBoundary>
             )}
 
             {/* Subtab 3: Past Results History with Prize Filter Dropdown */}

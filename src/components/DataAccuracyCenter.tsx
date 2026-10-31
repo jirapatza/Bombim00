@@ -20,7 +20,8 @@ import {
   Volume2,
   Sliders,
   ChevronRight,
-  Database
+  Database,
+  Zap,
 } from 'lucide-react';
 import { LotteryItem } from './DailySummaryTable';
 
@@ -35,6 +36,11 @@ interface VerificationResult {
   sources: GroundingSource[];
   webSearchQueries: string[];
   timestamp: string;
+  isFallback?: boolean;
+  circuitBreakerActive?: boolean;
+  fallbackReason?: string;
+  fromCache?: boolean;
+  remainingCooldownSec?: number;
 }
 
 interface DataAccuracyCenterProps {
@@ -116,6 +122,11 @@ export const DataAccuracyCenter: React.FC<DataAccuracyCenterProps> = ({
         sources: data.sources || [],
         webSearchQueries: data.webSearchQueries || [],
         timestamp: data.timestamp || new Date().toISOString(),
+        isFallback: Boolean(data.isFallback),
+        circuitBreakerActive: Boolean(data.circuitBreakerActive),
+        fallbackReason: data.fallbackReason,
+        fromCache: Boolean(data.fromCache),
+        remainingCooldownSec: data.remainingCooldownSec,
       });
     } catch (err: any) {
       setVerifyError(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
@@ -427,12 +438,59 @@ export const DataAccuracyCenter: React.FC<DataAccuracyCenterProps> = ({
                   </div>
                 ) : verificationResult ? (
                   <div className="space-y-4 pt-3">
+                    {/* Crash Shield / Circuit Breaker Banner when active */}
+                    {(verificationResult.circuitBreakerActive || verificationResult.isFallback) && (
+                      <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs space-y-2 shadow-lg">
+                        <div className="flex items-center justify-between font-bold text-amber-300">
+                          <span className="flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-amber-400" />
+                            🛡️ ระบบป้องกันระบบล่มทำงาน (Circuit Breaker &amp; Safe Fallback)
+                          </span>
+                          {verificationResult.remainingCooldownSec !== undefined && verificationResult.remainingCooldownSec > 0 && (
+                            <span className="px-2 py-0.5 rounded bg-amber-500/20 text-[10px] font-mono border border-amber-500/30">
+                              คูลดาวน์ป้องกัน: {verificationResult.remainingCooldownSec}s
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                          {verificationResult.fallbackReason || 'ระบบตรวจพบขีดจำกัดโควตา API หรืออัตราการเชื่อมต่อหนาแน่น จึงเปิดระบบความปลอดภัยอัตโนมัติ โดยนำข้อมูลจริงที่ยืนยันแล้วในแคชระบบมาแสดงผลแทน เพื่อให้ระบบพร้อมใช้งานต่อเนื่อง 100% ไม่สะดุด'}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* High-speed cache badge */}
+                    {verificationResult.fromCache && (
+                      <div className="px-3 py-1.5 rounded-xl bg-teal-950/40 border border-teal-500/40 text-teal-300 text-xs flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 font-semibold text-[11px]">
+                          <Zap className="w-3.5 h-3.5 text-teal-400" />
+                          ⚡ โหลดผลลัพธ์ด่วนจาก High-Speed Memory Cache (ช่วยประหยัดโควตาและแสดงผลทันที)
+                        </span>
+                      </div>
+                    )}
+
                     {/* Verified Content Card */}
-                    <div className="bg-slate-950/80 border border-emerald-500/30 rounded-2xl p-5 shadow-inner space-y-3">
+                    <div className={`rounded-2xl p-5 shadow-inner space-y-3 ${
+                      verificationResult.circuitBreakerActive || verificationResult.isFallback
+                        ? 'bg-slate-950/90 border border-amber-500/30'
+                        : 'bg-slate-950/80 border border-emerald-500/30'
+                    }`}>
                       <div className="flex items-center justify-between text-xs border-b border-slate-800 pb-2">
-                        <span className="font-bold text-emerald-400 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-4 h-4" />
-                          ข้อมูลยืนยันจาก Google Search Grounding
+                        <span className={`font-bold flex items-center gap-1.5 ${
+                          verificationResult.circuitBreakerActive || verificationResult.isFallback
+                            ? 'text-amber-400'
+                            : 'text-emerald-400'
+                        }`}>
+                          {verificationResult.circuitBreakerActive || verificationResult.isFallback ? (
+                            <>
+                              <ShieldCheck className="w-4 h-4 text-amber-400" />
+                              ข้อมูลที่บันทึกไว้ในระบบ (Safe Fallback Record)
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              ข้อมูลยืนยันสดจาก Google Search Grounding
+                            </>
+                          )}
                         </span>
                         <button
                           type="button"

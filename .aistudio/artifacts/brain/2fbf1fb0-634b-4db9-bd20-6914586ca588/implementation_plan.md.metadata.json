@@ -1,0 +1,6 @@
+{
+  "summary":  "Updated implementation plan with deep emphasis on 'รูปการสรุป' (Summary Image Generator & Social Card Exporter):\n- Full HTML5 Canvas-based / SVG graphic image generator that renders the exact summary card layout as a high-resolution PNG image\n- Includes period header (รอบเช้า, รอบบ่าย, รอบเย็น, รอบดึก, รวมทั้งวัน), date in Thai, total items, country flags, 3 ตัวบน and 2 ตัวล่าง badges, golden divider, and branding footer\n- One-click 'ดาวน์โหลดรูปสรุป (Save Image)' and 'แชร์รูปภาพ (Share Image)'\n- Dual tabs: สรุปวันนี้ (Today) and สรุปรายวัน (Date Picker)\n- 10-draw statistics per lottery\n- Quick lottery menu selector\n- Text copy & share buttons for all items",
+  "updatedAt":  "2026-10-31T08:40:34.782274595Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
