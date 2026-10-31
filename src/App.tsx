@@ -386,7 +386,7 @@ const TEMPLATE_PRESETS = {
 export default function App() {
   const [activeTab, setActiveTab] = useState<
     'live' | 'summary' | 'checker' | 'accuracy' | 'batch' | 'results' | 'settings' | 'diagnostics'
-  >('live');
+  >('summary');
   const [checkerSubTab, setCheckerSubTab] = useState<'accuracy' | 'batch' | 'history'>('accuracy');
   const [historyPrizeFilter, setHistoryPrizeFilter] = useState<'all' | 'first' | 'last2' | '3digits' | 'thai'>('all');
   const [historySearchTerm, setHistorySearchTerm] = useState<string>('');
