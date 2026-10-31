@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import bundledLotteryCatalog from '../data/all_lotteries.json';
+import { apiFetch } from './utils/api';
 import {
   Bell,
   CheckCircle2,
@@ -1184,7 +1185,7 @@ export default function App() {
       }
 
       if (!res || !res.ok) {
-        const localRes = await fetch('/api/trigger', {
+        const localRes = await apiFetch('/api/trigger', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lotteryTarget: 'all' }),
