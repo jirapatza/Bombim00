@@ -395,7 +395,7 @@ const TEMPLATE_PRESETS = {
 export default function App() {
   const [activeTab, setActiveTab] = useState<
     'summary' | 'checker' | 'live' | 'history' | 'accuracy' | 'batch' | 'results' | 'settings' | 'diagnostics'
-  >('summary');
+  >('live');
   const [isAdminBackOfficeOpen, setIsAdminBackOfficeOpen] = useState<boolean>(false);
   const [checkerSubTab, setCheckerSubTab] = useState<'accuracy' | 'batch' | 'history'>('accuracy');
   const [historyPrizeFilter, setHistoryPrizeFilter] = useState<'all' | 'first' | 'last2' | '3digits' | 'thai'>('all');
@@ -1725,6 +1725,7 @@ export default function App() {
               { id: 'checker', label: '🎫 ตรวจสลากรางวัล', icon: Search },
               { id: 'live', label: '⏱️ รอบหวยสด & นับถอยหลัง', icon: Radio },
               { id: 'history', label: '📊 สถิติ & ประวัติย้อนหลัง', icon: History },
+              { id: 'settings', label: '⚙️ ตั้งค่าระบบ', icon: Settings },
             ].map((tab) => {
               const Icon = tab.icon;
               const selected = activeTab === tab.id ||
@@ -1756,9 +1757,6 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
         {/* ==================== TAB 1: LIVE UPCOMING DRAWS (WAITING & ABOUT-TO-DRAW) ==================== */}
         <div className={activeTab === 'live' ? 'block' : 'hidden'}>
-          <div className="mb-5">
-            <LatestThreeResults results={results} lotteries={allLotteries} />
-          </div>
           <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันการแสดงผลหวยสดขัดข้อง (Live Draws Shield)">
             <LiveUpcomingDraws
               lotteries={filterLotteriesForDrawDate(allLotteries)}
@@ -1778,6 +1776,9 @@ export default function App() {
               onNavigateToSummary={() => setActiveTab('summary')}
             />
           </CrashShieldErrorBoundary>
+          <div className="mt-6">
+            <LatestThreeResults results={results} lotteries={allLotteries} />
+          </div>
         </div>
 
         {/* ==================== TAB 2: DAILY SUMMARY TABLE (FULL 51 LOTTERIES MATRIX) ==================== */}
