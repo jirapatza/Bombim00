@@ -232,7 +232,7 @@ def test_ntfy_title_uses_base64_utf8_header_for_thai_and_emoji(monkeypatch):
         "channels": {"ntfy": {"enabled": True, "topic": "test-topic"}},
         "message_template": {"title": "📢 ผล{lottery_name} งวด {draw_date}"}
     })
-    monkeypatch.setattr(lc, "_http_post", lambda url, data, headers, timeout=10: sent.update(headers=headers) or True)
+    monkeypatch.setattr(lc, "_http_post", lambda url, data, headers, timeout=10: sent.update(body=data.decode("utf-8"), headers=headers) or True)
 
     assert lc.send_ntfy_notification({
         "ชื่อหวย": "หวยฮานอยพิเศษ", "หมวดหวย": "hanoi", "งวดวันที่": "31 ตุลาคม 2569",
