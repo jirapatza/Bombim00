@@ -1011,15 +1011,15 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         </div>
 
         {/* Primary Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* 🖼️ View Summary Image Button */}
           <button
             type="button"
             onClick={() => handleOpenImageModal()}
-            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 cursor-pointer shadow-md transition flex items-center gap-1.5 ring-1 ring-amber-400"
+            className="px-4 py-2.5 sm:px-5 sm:py-3 text-sm sm:text-base font-black rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 cursor-pointer shadow-lg shadow-amber-500/20 transition flex items-center gap-2 ring-1 ring-amber-400 active:scale-95"
             title="สร้างรูปภาพสรุปผลหวยความละเอียดสูงเพื่อบันทึกหรือแชร์"
           >
-            <ImageIcon className="w-4 h-4 text-slate-950" />
+            <ImageIcon className="w-5 h-5 text-slate-950" />
             <span>🖼️ ดูรูปการสรุป (PNG)</span>
           </button>
 
@@ -1027,24 +1027,24 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
           <button
             type="button"
             onClick={() => handleOpenImageModal(undefined, true)}
-            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white cursor-pointer shadow-md transition flex items-center gap-1.5"
+            className="px-4 py-2.5 sm:px-5 sm:py-3 text-sm sm:text-base font-black rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white cursor-pointer shadow-lg shadow-emerald-600/20 transition flex items-center gap-2 active:scale-95"
             title="แชร์รูปภาพสรุปผลหวยไปยังโซเชียลมีเดียด้วย Web Share API โดยตรง"
           >
-            <Share2 className="w-4 h-4" />
-            <span>แชร์รูปภาพ (Web Share)</span>
+            <Share2 className="w-5 h-5" />
+            <span>แชร์รูปภาพ</span>
           </button>
 
           {/* 📋 Copy Summary Text */}
           <button
             type="button"
             onClick={copyDailySummaryText}
-            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 cursor-pointer shadow-md transition flex items-center gap-1.5"
+            className="px-4 py-2.5 text-xs sm:text-sm font-bold rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 cursor-pointer shadow-md transition flex items-center gap-2 active:scale-95"
             title="คัดลอกข้อความสรุปตามรูปแบบแชต"
           >
             {copiedSummary ? (
               <>
                 <Check className="w-4 h-4 text-emerald-400" />
-                <span className="text-emerald-400">คัดลอกแล้ว!</span>
+                <span className="text-emerald-400 font-bold">คัดลอกแล้ว!</span>
               </>
             ) : (
               <>
@@ -1058,7 +1058,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
           <button
             type="button"
             onClick={shareDailySummaryText}
-            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 cursor-pointer shadow-md transition flex items-center gap-1.5"
+            className="px-4 py-2.5 text-xs sm:text-sm font-bold rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 cursor-pointer shadow-md transition flex items-center gap-2 active:scale-95"
             title="แชร์ข้อความสรุปผลหวย"
           >
             <Share2 className="w-4 h-4 text-emerald-400" />
@@ -1379,14 +1379,14 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                       </td>
 
                       {/* Name & Flag */}
-                      <td className="py-3.5 px-4 font-sans">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-xl shrink-0">{item.flag}</span>
+                      <td className="py-4 px-4 font-sans">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl shrink-0">{item.flag}</span>
                           <div>
-                            <div className="font-bold text-white text-xs group-hover:text-amber-400 transition flex items-center gap-1.5">
+                            <div className="font-black text-white text-sm sm:text-base group-hover:text-amber-400 transition flex items-center gap-1.5">
                               {item.name}
                             </div>
-                            <span className="text-[10px] text-slate-500 font-mono">
+                            <span className="text-xs text-slate-400 font-mono">
                               {item.drawDays}
                             </span>
                           </div>
@@ -1394,14 +1394,14 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                       </td>
 
                       {/* Closing Time */}
-                      <td className="py-3.5 px-3 text-slate-400">
+                      <td className="py-4 px-3 text-slate-300 text-sm font-semibold">
                         <span>{item.closeTimeStr}</span>
                       </td>
 
                       {/* Category Badge */}
-                      <td className="py-3.5 px-3 font-sans">
+                      <td className="py-4 px-3 font-sans">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getCategoryBadgeClass(
+                          className={`px-2.5 py-1 rounded-full text-xs font-bold border ${getCategoryBadgeClass(
                             item.category
                           )}`}
                         >
@@ -1410,38 +1410,38 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                       </td>
 
                       {/* Top 3 */}
-                      <td className="py-3.5 px-3 text-center">
+                      <td className="py-4 px-3 text-center">
                         {isAnnounced && item.top3 ? (
-                          <span className="px-3 py-1 rounded-xl bg-amber-500/20 text-amber-300 font-black text-sm border border-amber-500/40 shadow-sm inline-block">
+                          <span className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 font-black text-base sm:text-lg border border-amber-500/50 shadow-sm inline-block">
                             {item.top3}
                           </span>
                         ) : (
-                          <span className="px-2.5 py-0.5 rounded-lg bg-slate-950 text-slate-500 font-semibold text-xs border border-slate-800">
+                          <span className="px-3 py-1 rounded-xl bg-slate-950 text-slate-500 font-bold text-xs sm:text-sm border border-slate-800">
                             ⏳ รอผล
                           </span>
                         )}
                       </td>
 
                       {/* Bottom 2 */}
-                      <td className="py-3.5 px-3 text-center">
+                      <td className="py-4 px-3 text-center">
                         {isAnnounced && item.bottom2 ? (
-                          <span className="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-black text-sm border border-emerald-500/40 shadow-sm inline-block">
+                          <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 font-black text-base sm:text-lg border border-emerald-500/50 shadow-sm inline-block">
                             {item.bottom2}
                           </span>
                         ) : (
-                          <span className="px-2.5 py-0.5 rounded-lg bg-slate-950 text-slate-500 font-semibold text-xs border border-slate-800">
+                          <span className="px-3 py-1 rounded-xl bg-slate-950 text-slate-500 font-bold text-xs sm:text-sm border border-slate-800">
                             ⏳ รอผล
                           </span>
                         )}
                       </td>
 
                       {/* 4-Stage Live Status Badge */}
-                      <td className="py-3.5 px-3 text-center font-sans">
+                      <td className="py-4 px-3 text-center font-sans">
                         {(() => {
                           const stageInfo = getItemStage(item);
                           return (
                             <span
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-medium border inline-flex items-center gap-1 ${stageInfo.badgeClass}`}
+                              className={`px-3 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5 ${stageInfo.badgeClass}`}
                             >
                               {stageInfo.stage === 'announced' && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
                               {stageInfo.stage === 'closed_waiting' && <Clock className="w-3 h-3 text-rose-400" />}

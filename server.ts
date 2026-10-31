@@ -241,6 +241,54 @@ app.get('/api/results', (req, res) => {
   }
 });
 
+// 4.0 POST /api/lotteries/cleanup-history - Purge unrequested LIW/pingpong and duplicate entries
+app.post('/api/lotteries/cleanup-history', (req, res) => {
+  try {
+    if (!fs.existsSync(RESULTS_PATH)) {
+      return res.json({ success: true, removedCount: 0, totalAfter: 0 });
+    }
+    const raw = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
+    if (!Array.isArray(raw)) {
+      return res.json({ success: true, removedCount: 0, totalAfter: 0 });
+    }
+    const totalBefore = raw.length;
+    const filtered = raw.filter((d: any) => {
+      const name = String(d?.ชื่อหวย || '').toLowerCase();
+      const code = String(d?.หวย || '').toLowerCase();
+      const cat = String(d?.หมวดหวย || '').toLowerCase();
+      if (name.includes('liw') || code.includes('liw') || cat.includes('liw')) return false;
+      if (name.includes('pingpong') || name.includes('ปิงปอง') || name.includes('ยี่กี')) return false;
+      return name.trim().length > 0;
+    });
+
+    const seen = new Set<string>();
+    const deduped: any[] = [];
+    for (const d of filtered) {
+      const name = String(d?.ชื่อหวย || '').replace(/หวยหุ้น/g, '').replace(/หวย/g, '').trim().toLowerCase();
+      const date = String(d?.งวดวันที่ || d?.วันที่จัดรูปแบบ || '').trim();
+      const top3 = String(d?.เลขบน_3_ตัว || d?.รางวัลที่_1 || '').trim();
+      const bot2 = String(d?.เลขล่าง_2_ตัว || d?.เลขท้าย_2_ตัว || '').trim();
+      const key = `${name}::${date}::${top3.slice(-3)}::${bot2.slice(-2)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduped.push(d);
+      }
+    }
+
+    fs.writeFileSync(RESULTS_PATH, JSON.stringify(deduped, null, 2), 'utf-8');
+    const removedCount = totalBefore - deduped.length;
+    return res.json({
+      success: true,
+      message: `ล้างประวัติหวย LIW และรายการแจ้งซ้ำออกเรียบร้อย (ลบไป ${removedCount} รายการ)`,
+      totalBefore,
+      totalAfter: deduped.length,
+      removedCount,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 4.1 GET /api/all-lotteries - Read full catalog and daily summary of all lotteries
 app.get('/api/all-lotteries', (req, res) => {
   try {

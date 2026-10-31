@@ -62,58 +62,18 @@ def source_enabled(S: Dict[str, Any], source_name: str) -> bool:
     return False
 
 
-def result_fingerprint(row: Dict[str, Any]) -> str:
-    """Stable identity for one lottery draw, including all supported result formats."""
-    identity = {
-        # Prefer provider IDs over display names so harmless label changes do not re-alert.
-        "lottery": str(row.get("หวย") or row.get("lottery_id") or row.get("id") or row.get("ชื่อหวย") or row.get("lottery_name") or "หวยไม่ระบุชื่อ").strip().casefold(),
-        "category": str(row.get("หมวดหวย") or row.get("category") or "").strip().casefold(),
-        "draw_date": str(row.get("งวดวันที่") or row.get("วันที่จัดรูปแบบ") or row.get("date") or "").strip(),
-        "first": str(row.get("รางวัลที่_1") or row.get("เลขบน_3_ตัว") or row.get("top3") or row.get("firstPrize") or row.get("first") or "").strip(),
-        "last2": str(row.get("เลขท้าย_2_ตัว") or row.get("เลขล่าง_2_ตัว") or row.get("bottom2") or row.get("last2") or "").strip(),
-        "top3": str(row.get("เลขบน_3_ตัว") or row.get("top3") or "").strip(),
-        "bottom2": str(row.get("เลขล่าง_2_ตัว") or row.get("bottom2") or "").strip(),
-        "front3": sorted(str(x).strip() for x in (row.get("เลขหน้า_3_ตัว") or row.get("front3") or []) if str(x).strip()),
-        "last3": sorted(str(x).strip() for x in (row.get("เลขท้าย_3_ตัว") or row.get("last3") or []) if str(x).strip()),
-    }
-    return json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
-
-def was_already_notified(row: Dict[str, Any], previous: List[Dict[str, Any]]) -> bool:
-    fingerprint = result_fingerprint(row)
-    return any(old.get("สถานะการแจ้งเตือน") == "sent" and result_fingerprint(old) == fingerprint for old in previous)
-
-
-def should_notify(S: Dict[str, Any], row: Dict[str, Any]) -> bool:
-    """
-    Determine if a lottery draw row should be notified via ntfy.
-    Row contains Thai keys: งวดวันที่, รางวัลที่_1, เลขท้าย_2_ตัว, etc.
-    """
-    notifications = S.get("notifications", {})
-    if not notifications.get("enabled", True):
-        return False
-
-    # Check if notification was already sent
-    if row.get("สถานะการแจ้งเตือน") == "sent":
-        return False
-
-    has_result = any(str(row.get(k, "")).strip() for k in ("รางวัลที่_1", "เลขท้าย_2_ตัว", "top3", "bottom2"))
-    if not has_result:
-        return False
-    if notifications.get("notify_on_new_draw", True):
-        return True
-    watched = [str(w).strip() for w in notifications.get("custom_watched_numbers", []) if str(w).strip()]
-    numbers = []
-    for key in ("รางวัลที่_1", "เลขท้าย_2_ตัว", "top3", "bottom2"):
-        value = row.get(key)
-        if value not in (None, ""):
-            numbers.append(str(value).replace(",", "").strip())
-    for key in ("เลขหน้า_3_ตัว", "เลขท้าย_3_ตัว"):
-        value = row.get(key, [])
-        if isinstance(value, list):
-            numbers.extend(str(x).strip() for x in value)
-    return any(w in number for w in watched for number in numbers) if watched else False
-
+def normalize_lottery_name(name: str) -> str:
+    """Normalize lottery name to ensure consistent matching across different sources."""
+    s = str(name or "").strip().lower()
+    # Normalize synonyms and spelling variations
+    s = s.replace("นิคเคอิ", "นิเคอิ")
+    s = s.replace("สลากกินแบ่งรัฐบาล (ไทย)", "สลากกินแบ่งรัฐบาล")
+    s = s.replace("หวยรัฐบาลไทย", "สลากกินแบ่งรัฐบาล")
+    s = s.replace("หวยรัฐบาล", "สลากกินแบ่งรัฐบาล")
+    s = s.replace("หวยธกส.", "หวย ธ.ก.ส.")
+    s = s.replace("ธ.ก.ส.", "หวย ธ.ก.ส.")
+    s = s.replace("หวยหวย", "หวย")
+    return " ".join(s.split())
 
 
 def _parse_draw_date(row: Dict[str, Any]) -> datetime.date:
@@ -149,6 +109,84 @@ def _parse_draw_date(row: Dict[str, Any]) -> datetime.date:
             except (ValueError, TypeError):
                 pass
     return datetime.date.min
+
+
+def result_fingerprint(row: Dict[str, Any]) -> str:
+    """Stable identity for one lottery draw, invariant to category and provider tags."""
+    raw_name = row.get("ชื่อหวย") or row.get("lottery_name") or row.get("หวย") or row.get("id") or "หวยไม่ระบุชื่อ"
+    lottery_name = normalize_lottery_name(raw_name)
+    
+    parsed_date = _parse_draw_date(row)
+    date_str = parsed_date.isoformat() if parsed_date != datetime.date.min else str(row.get("งวดวันที่") or row.get("วันที่จัดรูปแบบ") or "").strip()
+    
+    top3 = str(row.get("เลขบน_3_ตัว") or row.get("top3") or "").strip()
+    first = str(row.get("รางวัลที่_1") or row.get("firstPrize") or row.get("first") or "").strip()
+    if not top3 and first:
+        top3 = first[-3:] if len(first) >= 3 else first
+        
+    last2 = str(row.get("เลขท้าย_2_ตัว") or row.get("เลขล่าง_2_ตัว") or row.get("bottom2") or row.get("last2") or "").strip()
+
+    identity = {
+        "lottery": lottery_name,
+        "draw_date": date_str,
+        "top3": top3,
+        "last2": last2,
+    }
+    return json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def was_already_notified(row: Dict[str, Any], previous: List[Dict[str, Any]]) -> bool:
+    fingerprint = result_fingerprint(row)
+    for old in previous:
+        if old.get("สถานะการแจ้งเตือน") != "sent":
+            continue
+        if result_fingerprint(old) == fingerprint:
+            return True
+        # Loose match guard: same normalized name + same date + matching winning numbers
+        raw_name = row.get("ชื่อหวย") or row.get("lottery_name") or row.get("หวย") or ""
+        old_name = old.get("ชื่อหวย") or old.get("lottery_name") or old.get("หวย") or ""
+        if normalize_lottery_name(raw_name) == normalize_lottery_name(old_name):
+            d1 = _parse_draw_date(row)
+            d2 = _parse_draw_date(old)
+            if d1 != datetime.date.min and d1 == d2:
+                top_now = str(row.get("เลขบน_3_ตัว") or row.get("top3") or "").strip()
+                top_old = str(old.get("เลขบน_3_ตัว") or old.get("top3") or "").strip()
+                bot_now = str(row.get("เลขท้าย_2_ตัว") or row.get("เลขล่าง_2_ตัว") or row.get("bottom2") or "").strip()
+                bot_old = str(old.get("เลขท้าย_2_ตัว") or old.get("เลขล่าง_2_ตัว") or old.get("bottom2") or "").strip()
+                if (top_now and top_now == top_old) and (bot_now and bot_now == bot_old):
+                    return True
+    return False
+
+
+def should_notify(S: Dict[str, Any], row: Dict[str, Any]) -> bool:
+    """
+    Determine if a lottery draw row should be notified via ntfy.
+    Row contains Thai keys: งวดวันที่, รางวัลที่_1, เลขท้าย_2_ตัว, etc.
+    """
+    notifications = S.get("notifications", {})
+    if not notifications.get("enabled", True):
+        return False
+
+    # Check if notification was already sent
+    if row.get("สถานะการแจ้งเตือน") == "sent":
+        return False
+
+    has_result = any(str(row.get(k, "")).strip() for k in ("รางวัลที่_1", "เลขท้าย_2_ตัว", "top3", "bottom2"))
+    if not has_result:
+        return False
+    if notifications.get("notify_on_new_draw", True):
+        return True
+    watched = [str(w).strip() for w in notifications.get("custom_watched_numbers", []) if str(w).strip()]
+    numbers = []
+    for key in ("รางวัลที่_1", "เลขท้าย_2_ตัว", "top3", "bottom2"):
+        value = row.get(key)
+        if value not in (None, ""):
+            numbers.append(str(value).replace(",", "").strip())
+    for key in ("เลขหน้า_3_ตัว", "เลขท้าย_3_ตัว"):
+        value = row.get(key, [])
+        if isinstance(value, list):
+            numbers.extend(str(x).strip() for x in value)
+    return any(w in number for w in watched for number in numbers) if watched else False
 
 def write_status(
     rows: List[Dict[str, Any]], 

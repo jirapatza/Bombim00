@@ -88,6 +88,7 @@ import { DataAccuracyCenter } from './components/DataAccuracyCenter';
 import { SystemMonitorKiosk } from './components/SystemMonitorKiosk';
 import { CrashShieldErrorBoundary } from './components/CrashShieldErrorBoundary';
 import { ShieldCheck } from 'lucide-react';
+import { AdminBackOfficeModal } from './components/AdminBackOfficeModal';
 
 interface LotteryResult {
   ชื่อหวย?: string;
@@ -392,8 +393,9 @@ const TEMPLATE_PRESETS = {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<
-    'live' | 'summary' | 'checker' | 'accuracy' | 'batch' | 'results' | 'settings' | 'diagnostics'
+    'summary' | 'checker' | 'live' | 'history' | 'accuracy' | 'batch' | 'results' | 'settings' | 'diagnostics'
   >('summary');
+  const [isAdminBackOfficeOpen, setIsAdminBackOfficeOpen] = useState<boolean>(false);
   const [checkerSubTab, setCheckerSubTab] = useState<'accuracy' | 'batch' | 'history'>('accuracy');
   const [historyPrizeFilter, setHistoryPrizeFilter] = useState<'all' | 'first' | 'last2' | '3digits' | 'thai'>('all');
   const [historySearchTerm, setHistorySearchTerm] = useState<string>('');
@@ -1631,33 +1633,52 @@ export default function App() {
       )}
 
       {/* Executive Header & Navigation */}
-      <header className="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur sticky top-0 z-40 shadow-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/25 text-slate-950 font-black">
-              <Trophy className="w-5 h-5" />
+      <header className="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur sticky top-0 z-40 shadow-2xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30 text-slate-950 font-black shrink-0">
+              <Trophy className="w-7 h-7" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-black text-base sm:text-lg text-white tracking-tight">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="font-black text-xl sm:text-2xl text-white tracking-tight">
                   ระบบตรวจและแจ้งเตือนผลหวยสด
                 </h1>
-                <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-xs sm:text-sm px-3 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                   ระบบอัตโนมัติ 24 ชม.
                 </span>
-                <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-teal-500/15 text-teal-300 border border-teal-500/30 flex items-center gap-1.5" title="ระบบป้องกันระบบล่ม (Crash Shield & Circuit Breaker) ทำงานอยู่">
-                  <ShieldCheck className="w-3 h-3 text-teal-400" />
+                <span className="text-xs sm:text-sm px-3 py-1 rounded-full font-bold bg-teal-500/20 text-teal-300 border border-teal-500/40 flex items-center gap-1.5" title="ระบบป้องกันระบบล่ม (Crash Shield & Circuit Breaker) ทำงานอยู่">
+                  <ShieldCheck className="w-4 h-4 text-teal-400" />
                   <span>ป้องกันระบบล่ม (Active)</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-400 hidden sm:block">
-                ศูนย์กลางผลสลาก 51 หวย • เช็คผลสดเรียลไทม์ • ยืนยันข้อมูลด้วย AI &amp; เสียงประกาศไทย
+              <p className="text-sm text-slate-300 mt-1 font-medium hidden sm:block">
+                ศูนย์กลางผลสลาก 54 หวยมาตรฐาน • เช็คผลสดเรียลไทม์ • ทำรูปสรุปแชร์ • ยืนยันข้อมูลด้วย AI
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Primary Back-Office & Settings Button */}
+            <button
+              type="button"
+              onClick={() => setIsAdminBackOfficeOpen(true)}
+              className="px-4 py-2.5 sm:px-5 sm:py-3 text-sm sm:text-base font-black rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 transition flex items-center gap-2 shadow-lg shadow-amber-500/25 cursor-pointer active:scale-95"
+            >
+              <Settings className="w-5 h-5 text-slate-950" />
+              <span>⚙️ ระบบหลังบ้าน &amp; ตั้งค่า</span>
+            </button>
+
+            <button
+              onClick={handleTriggerCheck}
+              disabled={isTriggering}
+              className="px-3.5 py-2.5 text-xs sm:text-sm font-bold rounded-2xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 transition flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer active:scale-95"
+            >
+              <Play className={`w-4 h-4 fill-current ${isTriggering ? 'animate-spin' : ''}`} />
+              <span>{isTriggering ? 'กำลังตรวจ...' : '▶️ ตรวจผลทันที'}</span>
+            </button>
+
             <button
               onClick={() => {
                 const nextState = !voiceEnabled;
@@ -1666,7 +1687,7 @@ export default function App() {
                 showToast(nextState ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
               }}
               title={voiceEnabled ? 'เสียงพูดภาษาไทย: เปิดอยู่' : 'เสียงพูดภาษาไทย: ปิดอยู่'}
-              className={`px-3 py-2 text-xs font-bold rounded-xl border cursor-pointer transition flex items-center gap-1.5 ${
+              className={`px-3 py-2.5 text-xs sm:text-sm font-bold rounded-2xl border cursor-pointer transition flex items-center gap-1.5 ${
                 voiceEnabled
                   ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-sm'
                   : 'bg-slate-800/90 border-slate-700 text-slate-400 hover:text-slate-200'
@@ -1677,42 +1698,32 @@ export default function App() {
             </button>
 
             <button
-              onClick={handleTriggerCheck}
-              disabled={isTriggering}
-              className="px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 transition flex items-center gap-1.5 shadow-md shadow-amber-500/20 disabled:opacity-50 cursor-pointer active:scale-95"
-            >
-              <Play className={`w-3.5 h-3.5 fill-current ${isTriggering ? 'animate-spin' : ''}`} />
-              <span>{isTriggering ? 'กำลังตรวจ...' : 'ตรวจผลทันที'}</span>
-            </button>
-
-            <button
               onClick={() => setIsDownloadModalOpen(true)}
-              className="px-3.5 py-2 text-xs font-bold rounded-xl bg-purple-600/90 hover:bg-purple-600 text-white transition flex items-center gap-1.5 border border-purple-500/40 shadow-sm cursor-pointer active:scale-95"
+              className="px-3.5 py-2.5 text-xs sm:text-sm font-bold rounded-2xl bg-purple-600/90 hover:bg-purple-600 text-white transition flex items-center gap-1.5 border border-purple-500/40 shadow-sm cursor-pointer active:scale-95"
             >
-              <Smartphone className="w-3.5 h-3.5 text-amber-300" />
-              <span className="hidden sm:inline">📲 โหลดแอป / APK</span>
+              <Smartphone className="w-4 h-4 text-amber-300" />
+              <span className="hidden sm:inline">📲 โหลดแอป APK</span>
             </button>
 
             <button
               onClick={fetchData}
               disabled={isLoading}
               title="รีเฟรชข้อมูล"
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700 cursor-pointer"
+              className="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700 cursor-pointer"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
+              <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Main navigation: lottery operations and one combined diagnostics center */}
+        {/* Main User Navigation: Clean, Clear, Large Font for General Users */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <nav className="flex gap-2 border-t border-slate-800/60 overflow-x-auto py-2 text-xs font-bold no-scrollbar">
+          <nav className="flex gap-2 sm:gap-3 border-t border-slate-800/80 overflow-x-auto py-3 text-sm sm:text-base font-black no-scrollbar">
             {[
-              { id: 'live', label: 'หวยสด', icon: Radio },
-              { id: 'summary', label: 'ผลหวยทั้งหมด', icon: TableProperties },
-              { id: 'checker', label: 'ตรวจสลาก / ประวัติ', icon: Search },
-              { id: 'settings', label: 'ตั้งค่าแจ้งเตือน', icon: Settings },
-              { id: 'diagnostics', label: 'ศูนย์ตรวจสอบปัญหา', icon: Activity },
+              { id: 'summary', label: '🏆 ผลหวย & สรุปภาพแชร์', icon: TableProperties },
+              { id: 'checker', label: '🎫 ตรวจสลากรางวัล', icon: Search },
+              { id: 'live', label: '⏱️ รอบหวยสด & นับถอยหลัง', icon: Radio },
+              { id: 'history', label: '📊 สถิติ & ประวัติย้อนหลัง', icon: History },
             ].map((tab) => {
               const Icon = tab.icon;
               const selected = activeTab === tab.id ||
@@ -1723,15 +1734,15 @@ export default function App() {
                   type="button"
                   onClick={() => {
                     setActiveTab(tab.id as any);
-                    if (tab.id === 'checker') setCheckerSubTab('accuracy');
+                    if (tab.id === 'checker') setCheckerSubTab('batch');
                   }}
-                  className={`px-4 py-2 rounded-xl flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+                  className={`px-5 py-3 rounded-2xl flex items-center gap-2.5 whitespace-nowrap transition cursor-pointer text-sm sm:text-base font-black ${
                     selected
-                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                      : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
+                      ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-lg shadow-amber-500/25 scale-[1.02]'
+                      : 'bg-slate-900/80 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800/80'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-5 h-5" />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -1857,53 +1868,62 @@ export default function App() {
         )}
 
         {/* ==================== TAB 3: SMART TICKET CHECKER & AI ACCURACY CENTER ==================== */}
-        {(activeTab === 'checker' || activeTab === 'accuracy' || activeTab === 'batch' || activeTab === 'results') && (
+        {(activeTab === 'checker' || activeTab === 'accuracy' || activeTab === 'batch' || activeTab === 'results' || activeTab === 'history') && (
           <div className="space-y-6">
-            {/* Sub-navigation bar */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 shadow-lg flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2">
+            {/* Sub-navigation bar with larger fonts */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-3 sm:p-4 shadow-xl flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
-                  onClick={() => setCheckerSubTab('accuracy')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
-                    checkerSubTab === 'accuracy'
-                      ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                  onClick={() => {
+                    setCheckerSubTab('batch');
+                    setActiveTab('checker');
+                  }}
+                  className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-sm sm:text-base font-black transition cursor-pointer flex items-center gap-2 ${
+                    checkerSubTab === 'batch' && activeTab !== 'history'
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25 scale-[1.02]'
                       : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
                   }`}
                 >
-                  <Globe className={`w-4 h-4 ${checkerSubTab === 'accuracy' ? 'text-slate-950' : 'text-emerald-400'}`} />
-                  <span>🛡️ ยืนยันข้อมูลสด AI (Google Search &amp; Voice)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCheckerSubTab('batch')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
-                    checkerSubTab === 'batch'
-                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                      : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
-                  }`}
-                >
-                  <Ticket className={`w-4 h-4 ${checkerSubTab === 'batch' ? 'text-slate-950' : 'text-amber-400'}`} />
+                  <Ticket className={`w-5 h-5 ${checkerSubTab === 'batch' && activeTab !== 'history' ? 'text-slate-950' : 'text-amber-400'}`} />
                   <span>🎯 ตรวจรางวัลสลาก (เดี่ยว &amp; ชุดหลายใบ)</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setCheckerSubTab('history')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
-                    checkerSubTab === 'history'
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                  onClick={() => {
+                    setCheckerSubTab('history');
+                    setActiveTab('history');
+                  }}
+                  className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-sm sm:text-base font-black transition cursor-pointer flex items-center gap-2 ${
+                    checkerSubTab === 'history' || activeTab === 'history'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 scale-[1.02]'
                       : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
                   }`}
                 >
-                  <History className="w-4 h-4" />
+                  <History className="w-5 h-5" />
                   <span>📜 ประวัติผลสลากย้อนหลัง ({results.length} งวด)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCheckerSubTab('accuracy');
+                    setActiveTab('checker');
+                  }}
+                  className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-sm sm:text-base font-black transition cursor-pointer flex items-center gap-2 ${
+                    checkerSubTab === 'accuracy' && activeTab !== 'history'
+                      ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25 scale-[1.02]'
+                      : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  <Globe className={`w-5 h-5 ${checkerSubTab === 'accuracy' && activeTab !== 'history' ? 'text-slate-950' : 'text-emerald-400'}`} />
+                  <span>🛡️ ตรวจความแม่นยำ AI</span>
                 </button>
               </div>
 
-              <div className="text-xs text-slate-400 px-2 font-medium hidden lg:flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <div className="text-sm text-slate-300 px-3 py-1.5 rounded-xl bg-slate-950/60 border border-slate-800 font-medium hidden lg:flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
                 <span>งวดล่าสุด:</span>
                 <span className="font-bold text-amber-300">{latestDraw?.งวดวันที่ || 'ยังไม่มีข้อมูล'}</span>
               </div>
@@ -2495,6 +2515,53 @@ export default function App() {
         onClose={() => setIsDownloadModalOpen(false)}
         appUrl={window.location.origin}
         githubRepo={localStorage.getItem('gh_repo') || 'jirapatza/Bombim00'}
+      />
+
+      {/* Admin & Back-Office Control Center Modal */}
+      <AdminBackOfficeModal
+        isOpen={isAdminBackOfficeOpen}
+        onClose={() => setIsAdminBackOfficeOpen(false)}
+        settings={settings}
+        onSaveSettings={handleSaveMultiChannelSettings}
+        status={status}
+        latestDraw={latestDraw}
+        allLotteries={allLotteries}
+        voiceEnabled={voiceEnabled}
+        onToggleVoice={(v) => {
+          setVoiceEnabled(v);
+          if (!v) stopSpeech();
+          showToast(v ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
+        }}
+        onStopSpeech={stopSpeech}
+        isSpeaking={isSpeaking}
+        onTriggerCheck={handleTriggerCheck}
+        isTriggering={isTriggering}
+        onRefreshData={fetchData}
+        templateProps={{
+          templateTitle,
+          setTemplateTitle,
+          templateBody,
+          setTemplateBody,
+          speechScript,
+          setSpeechScript,
+          politeParticle,
+          setPoliteParticle,
+          modalTheme,
+          setModalTheme,
+          fontSize,
+          setFontSize,
+          fontFamily,
+          setFontFamily,
+          speechRate,
+          setSpeechRate,
+          onSaveTemplate: handleSaveTemplate,
+          onApplyPreset: (key: string) => applyPreset(key as any),
+          onTestAnnouncement: testSingleAnnouncement,
+        }}
+        onOpenAppDownload={() => {
+          setIsAdminBackOfficeOpen(false);
+          setIsDownloadModalOpen(true);
+        }}
       />
     </div>
   );

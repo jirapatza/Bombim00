@@ -275,9 +275,11 @@ def fetch_from_thailottoapi_results() -> list:
             return []
 
         rows = []
+        disallowed_categories = {"liw", "maekhong", "pingpong", "yeekee", "lottothaihot"}
+
         for raw_category, category_data in categories.items():
-            # The user previously excluded every Mekong lottery; never reintroduce them from this feed.
-            if str(raw_category).lower() == "maekhong":
+            raw_cat_lower = str(raw_category).strip().lower()
+            if raw_cat_lower in disallowed_categories:
                 continue
             if not isinstance(category_data, dict):
                 continue
@@ -294,6 +296,11 @@ def fetch_from_thailottoapi_results() -> list:
                 label = str(item.get("label") or key or "หวย").strip()
                 key_lower = key.lower()
                 label_lower = label.casefold()
+
+                # Strictly discard LIW, pingpong, yeekee or unrequested draws
+                if any(bad in key_lower or bad in label_lower for bad in ("liw", "ปิงปอง", "ยี่กี", "หวยปิงปอง", "หวยยี่กี")):
+                    continue
+
                 draw_date = str(item.get("drawDateDisplay") or item.get("drawDate") or "").strip()
                 if not key or not draw_date:
                     print(f"[WARN] Skipping ThaiLottoAPI item without key/date: {label or 'unknown'}")
@@ -307,8 +314,6 @@ def fetch_from_thailottoapi_results() -> list:
                     top3 = result_value[-3:] if len(result_value) >= 3 else ""
                 if not bottom2 and len(result_value) >= 2:
                     bottom2 = result_value[-2:]
-                if not first_prize and raw_category == "lottothaihot":
-                    first_prize = result_value
 
                 if not top3 and not first_prize:
                     print(f"[WARN] Skipping incomplete ThaiLottoAPI result: {key}")
@@ -319,14 +324,14 @@ def fetch_from_thailottoapi_results() -> list:
 
                 if key_lower in category_by_key:
                     lottery_category = category_by_key[key_lower]
-                elif raw_category == "stock":
+                elif raw_cat_lower == "stock":
                     if "vip" in label_lower or "พิเศษ" in label_lower or "visa" in label_lower:
                         lottery_category = "vip"
                     elif "ไทย" in label:
                         lottery_category = "thai_stock"
                     else:
                         lottery_category = "foreign_stock"
-                elif raw_category == "lottoforeign":
+                elif raw_cat_lower == "lottoforeign":
                     if "malay" in key_lower or "มาเลย์" in label:
                         lottery_category = "malay"
                     elif "hanoy" in key_lower or "hanoi" in key_lower or "ฮานอย" in label:
@@ -335,12 +340,8 @@ def fetch_from_thailottoapi_results() -> list:
                         lottery_category = "lao"
                     else:
                         lottery_category = "foreign_stock"
-                elif raw_category == "liw":
-                    lottery_category = "liw"
-                elif raw_category == "lottothaihot":
-                    lottery_category = "government"
                 else:
-                    lottery_category = str(raw_category).lower()
+                    lottery_category = raw_cat_lower
 
                 front3 = item.get("front3") or item.get("front3Digits") or []
                 bottom3 = item.get("bottom3") or item.get("last3") or []
@@ -739,14 +740,19 @@ def main():
             sources_used.append("ThaiLottoAPI")
 
     print("[CHECK] Querying separated regular/VIP/special/VISA stock results...")
+    def row_dedup_key(r):
+        name = sl.normalize_lottery_name(r.get("ชื่อหวย") or r.get("หวย") or "")
+        d = sl._parse_draw_date(r)
+        date_str = d.isoformat() if d != datetime.date.min else str(r.get("งวดวันที่") or r.get("วันที่จัดรูปแบบ") or "").strip()
+        top = str(r.get("เลขบน_3_ตัว") or r.get("top3") or r.get("รางวัลที่_1") or "").strip()
+        bot = str(r.get("เลขล่าง_2_ตัว") or r.get("bottom2") or r.get("เลขท้าย_2_ตัว") or "").strip()
+        return (name, date_str, top[-3:] if len(top) >= 3 else top, bot[-2:] if len(bot) >= 2 else bot)
+
     grouped_rows = fetch_from_pholhuay_stock_groups()
     if grouped_rows:
-        known = {
-            (r.get("หวย") or r.get("ชื่อหวย"), r.get("งวดวันที่"), r.get("เลขบน_3_ตัว"), r.get("เลขล่าง_2_ตัว"))
-            for r in rows
-        }
+        known = {row_dedup_key(r) for r in rows}
         for row in grouped_rows:
-            key = (row.get("หวย") or row.get("ชื่อหวย"), row.get("งวดวันที่"), row.get("เลขบน_3_ตัว"), row.get("เลขล่าง_2_ตัว"))
+            key = row_dedup_key(row)
             if key not in known:
                 rows.append(row)
                 known.add(key)
@@ -774,12 +780,7 @@ def main():
     # Remove duplicate provider rows while retaining the first complete result.
     unique_rows, seen_rows = [], set()
     for row in rows:
-        identity = (
-            row.get("หวย") or row.get("ชื่อหวย"),
-            row.get("งวดวันที่"),
-            row.get("เลขบน_3_ตัว") or row.get("รางวัลที่_1"),
-            row.get("เลขล่าง_2_ตัว") or row.get("เลขท้าย_2_ตัว"),
-        )
+        identity = row_dedup_key(row)
         if identity not in seen_rows:
             seen_rows.add(identity)
             unique_rows.append(row)
