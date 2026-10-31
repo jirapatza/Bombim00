@@ -933,7 +933,7 @@ export default function App() {
     try {
       const res = await fetch(`${workerUrl}/api/settings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedSettings),
       });
       const data = await res.json();
@@ -965,7 +965,7 @@ export default function App() {
       try {
         await fetch(`${workerUrl}/api/settings`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(newSettings),
         });
         showToast(`เพิ่มเลข ${num} ลงในรายการเฝ้าระวังแล้ว`);
@@ -980,7 +980,7 @@ export default function App() {
     try {
       const res = await fetch(`${workerUrl}/api/settings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(newSettings),
       });
       const data = await res.json();
@@ -998,7 +998,7 @@ export default function App() {
     try {
       const res = await fetch(`${workerUrl}/api/all-lotteries`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(updated),
       });
       const data = await res.json();
@@ -1405,7 +1405,7 @@ export default function App() {
     try {
       const res = await fetch(`${workerUrl}/api/test-ntfy`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           server: settings?.ntfy?.server || 'https://ntfy.sh',
           topic: testTopic.trim(),
