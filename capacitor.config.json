@@ -1,0 +1,8 @@
+{
+  "appId": "com.jirapatza.bombim00",
+  "appName": "Lottery Alert",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  }
+}
