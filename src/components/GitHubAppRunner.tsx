@@ -24,7 +24,6 @@ import {
   Sparkles,
   Zap,
   Info,
-  Smartphone,
 } from 'lucide-react';
 
 interface GitHubRun {
@@ -332,7 +331,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-black text-white tracking-wide">
-                  GitHub Actions Runner & App Creator
+                  GitHub Actions Runner
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
                   รันบน GitHub โดยตรง
@@ -552,7 +551,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
                   <span>เลือก Workflow การทำงานที่ต้องการรัน (Target Workflow) *</span>
                   <span className="text-[10px] text-amber-400 font-mono">.github/workflows/{workflowFile}</span>
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <button
                     type="button"
                     onClick={() => setWorkflowFile('lottery.yml')}
@@ -567,22 +566,6 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
                       <span className="text-xs font-bold text-slate-100">lottery.yml</span>
                     </div>
                     <span className="text-[10px] text-slate-400">ตรวจหวย & แจ้งเตือนอัตโนมัติ</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setWorkflowFile('android-apk.yml')}
-                    className={`p-3 rounded-xl border text-left cursor-pointer transition flex flex-col gap-1 ${
-                      workflowFile === 'android-apk.yml'
-                        ? 'bg-purple-950/50 border-purple-500 text-white shadow-lg shadow-purple-500/20'
-                        : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <Smartphone className={`w-3.5 h-3.5 ${workflowFile === 'android-apk.yml' ? 'text-emerald-400' : 'text-slate-400'}`} />
-                      <span className="text-xs font-bold text-slate-100">android-apk.yml</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">App Creator: บิลด์ไฟล์ APK</span>
                   </button>
 
                   <button
@@ -665,20 +648,6 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
                     <p className="leading-relaxed">
                       ข้อความเดิม "29 รายการ" เป็นข้อความตัวอย่าง (placeholder) ในร่างแรกเริ่มของโปรเจกต์ ซึ่งตอนนั้นรวบรวมเฉพาะหุ้นหลักบางตัว แต่ปัจจุบันระบบได้เชื่อมต่อกับฐานข้อมูลจริง <code className="text-amber-300 font-mono">data/all_lotteries.json</code> ครบถ้วนแล้ว <strong>54 รายการ</strong> (หุ้น VIP 31 รายการ, หุ้นต่างประเทศ 14 รายการ, ฮานอย 2+ รายการ, ลาว 3+ รายการ, หุ้นไทย, สลากกินแบ่งรัฐบาล/ออมสิน/ธ.ก.ส. 3 รายการ) และเมื่อสั่งรันสคริปต์ตรวจผลสด จะตรวจจับผลการออกรางวัลได้ถึง <strong>56 รายการ</strong> แบบ Real-time!
                     </p>
-                  </div>
-                </div>
-              ) : workflowFile === 'android-apk.yml' ? (
-                <div className="bg-slate-950/70 border border-emerald-500/30 rounded-2xl p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
-                    <Smartphone className="w-4 h-4" />
-                    <span>โหมด App Creator: สั่งคอมไพล์ Android Debug APK</span>
-                  </div>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    เมื่อกดสั่งรัน GitHub Actions จะเตรียม Node.js, Java 21, ติดตั้ง Capacitor Android และสั่งรัน <code className="text-amber-300 font-mono">./gradlew assembleDebug</code> เพื่อสร้างไฟล์ <code className="text-amber-300 font-mono">app-debug.apk</code> ส่งตรงเข้า GitHub Artifacts ให้ดาวน์โหลดทันที
-                  </p>
-                  <div className="pt-1 flex flex-wrap gap-2 text-[11px] text-slate-400">
-                    <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">📦 Package: com.jirapatza.bombim00</span>
-                    <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">⏱️ ใช้เวลาบิลด์ประมาณ: 3-5 นาที</span>
                   </div>
                 </div>
               ) : (
@@ -981,7 +950,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
               </p>
               {/* Workflow switcher pills */}
               <div className="flex items-center gap-1.5 mt-2">
-                {['lottery.yml', 'android-apk.yml', 'runtime-smoke.yml'].map((wf) => (
+                {['lottery.yml', 'runtime-smoke.yml'].map((wf) => (
                   <button
                     key={wf}
                     type="button"
@@ -1087,56 +1056,11 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <FolderGit2 className="w-4 h-4 text-purple-400" />
-                คู่มือการสร้างแอพพลิเคชันและ Deploy ขึ้น GitHub แบบทีละขั้นตอน
+                คู่มือการตั้งค่าเว็บแอปและ Deploy ขึ้น GitHub แบบทีละขั้นตอน
               </h3>
               <p className="text-xs text-slate-400 mt-1">
                 ทำตาม 4 ขั้นตอนสั้นๆ นี้เพื่อเปิดระบบแจ้งเตือนอัตโนมัติบน GitHub ให้ทำงานฟรี 24 ชม. ตลอดชีพ
               </p>
-            </div>
-
-            {/* App Creator Quick Action Banner */}
-            <div className="bg-gradient-to-r from-emerald-950/60 via-slate-900 to-purple-950/60 border border-emerald-500/40 rounded-2xl p-5 shadow-xl">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                    <Smartphone className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-base font-bold text-white">App Creator (บิลด์แอพมือถือ Android APK)</h4>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                        Capacitor + GitHub Actions
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                      สร้างไฟล์ติดตั้ง APK สำหรับมือถือ Android จากโปรเจกต์นี้โดยตรงผ่านเวิร์กโฟลว์ <code className="text-emerald-300 font-mono">android-apk.yml</code> เมื่อสร้างเสร็จสามารถดาวน์โหลดไฟล์ติดตั้งได้ทันที
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setWorkflowFile('android-apk.yml');
-                      setSubTab('runner');
-                    }}
-                    className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl cursor-pointer transition shadow-md shadow-emerald-600/30 flex items-center gap-1.5"
-                  >
-                    <Play className="w-4 h-4" />
-                    สั่งสร้าง APK ตอนนี้
-                  </button>
-                  <a
-                    href={`https://github.com/${repo}/actions/workflows/android-apk.yml`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold text-xs rounded-xl cursor-pointer transition flex items-center gap-1.5"
-                  >
-                    <ExternalLink className="w-4 h-4 text-emerald-400" />
-                    ดูไฟล์ APK ที่สร้างแล้ว
-                  </a>
-                </div>
-              </div>
             </div>
 
             <div className="space-y-4">
