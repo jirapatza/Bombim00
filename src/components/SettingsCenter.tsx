@@ -1,35 +1,14 @@
 import React, { useState } from 'react';
-import {
-  Smartphone,
-  Palette,
-  Github,
-  FileCode2,
-  Share2,
-  Shield,
-  Rocket,
-  Sliders,
-  Settings,
-  SlidersHorizontal,
-  Layers,
-  Sparkles,
-  CheckCircle2,
-  Bell,
-  Zap,
-} from 'lucide-react';
+import { Palette, Settings, Sparkles, Zap } from 'lucide-react';
 
 import { UnifiedNotificationCenter } from './UnifiedNotificationCenter';
 
 interface SettingsCenterProps {
   settings: any;
   onSaveSettings: (newSettings: any) => void;
-  rawSettingsJson: string;
-  setRawSettingsJson: (json: string) => void;
-  onSaveRawSettings: () => void;
-  onRefreshData?: () => void;
   status?: any;
   latestDraw?: any;
   allLotteries?: any[];
-  onSpeak?: (text: string) => void;
   voiceEnabled?: boolean;
   onToggleVoice?: (enabled: boolean) => void;
   onStopSpeech?: () => void;
@@ -63,14 +42,9 @@ interface SettingsCenterProps {
 export function SettingsCenter({
   settings,
   onSaveSettings,
-  rawSettingsJson,
-  setRawSettingsJson,
-  onSaveRawSettings,
-  onRefreshData,
   status,
   latestDraw,
   allLotteries = [],
-  onSpeak,
   voiceEnabled = true,
   onToggleVoice,
   onStopSpeech,
