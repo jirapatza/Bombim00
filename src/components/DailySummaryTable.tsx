@@ -72,7 +72,19 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   const [copiedSummary, setCopiedSummary] = useState(false);
   const [detailLottery, setDetailLottery] = useState<LotteryItem | null>(null);
 
-  const normalizeMatchKey = (value: unknown) => String(value ?? '').toLocaleLowerCase().replace(/[\s._#-]+/g, '');
+  const normalizeMatchKey = (value: unknown) => String(value ?? '').toLocaleLowerCase().replace(/[\\s._#-]+/g, '');
+  const getResultDateSortValue = (row: any): number => {
+    const raw = String(row?.วันที่จัดรูปแบบ || row?.งวดวันที่ || row?.date || row?.draw_date || '').trim();
+    const iso = raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);
+    if (iso) return Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+    const dotted = raw.match(/^(\\d{1,2})[./-](\\d{1,2})[./-](\\d{4})$/);
+    if (dotted) {
+      const year = Number(dotted[3]) >= 2400 ? Number(dotted[3]) - 543 : Number(dotted[3]);
+      return Date.UTC(year, Number(dotted[2]) - 1, Number(dotted[1]));
+    }
+    const parsed = Date.parse(raw);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
   // Explicit aliases keep similarly named draws (normal/VIP, morning/afternoon,
   // special/VISA) from being mixed together in the detail panel.
   const resultAliases: Record<string, string[]> = {
@@ -111,7 +123,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         .map(normalizeMatchKey).filter(Boolean);
       return candidates.some((key) => allowedKeys.includes(key));
     })
-    .sort((a, b) => String(b.วันที่จัดรูปแบบ || b.งวดวันที่ || '').localeCompare(String(a.วันที่จัดรูปแบบ || a.งวดวันที่ || '')))[0]
+    .sort((a, b) => getResultDateSortValue(b) - getResultDateSortValue(a))[0]
     : null;
 
   // Schedule editor state
@@ -1005,10 +1017,34 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => onSpeakLottery(detailLottery)}
-                className="flex-1 rounded-xl bg-amber-500 px-3 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer"
+                disabled={!selectedResult || ![
+                  selectedResult.เลขบน_3_ตัว,
+                  selectedResult.top3,
+                  selectedResult.รางวัลที่_1,
+                  selectedResult.firstPrize,
+                  selectedResult.เลขล่าง_2_ตัว,
+                  selectedResult.bottom2,
+                  selectedResult.เลขท้าย_2_ตัว,
+                  selectedResult.last2,
+                ].some((value) => String(value ?? '').trim())}
+                onClick={() => {
+                  if (!detailLottery || !selectedResult) return;
+                  const firstPrize = String(selectedResult.รางวัลที่_1 || selectedResult.firstPrize || '');
+                  const top3 = String(selectedResult.เลขบน_3_ตัว || selectedResult.top3 || firstPrize);
+                  const bottom2 = String(selectedResult.เลขล่าง_2_ตัว || selectedResult.bottom2 || selectedResult.เลขท้าย_2_ตัว || selectedResult.last2 || '');
+                  onSpeakLottery({
+                    ...detailLottery,
+                    top3,
+                    bottom2,
+                    firstPrize,
+                    date: String(selectedResult.งวดวันที่ || selectedResult.วันที่จัดรูปแบบ || selectedResult.date || detailLottery.date),
+                    source: String(selectedResult.แหล่งข้อมูล || selectedResult.source || detailLottery.source),
+                    status: 'announced',
+                  });
+                }}
+                className="flex-1 rounded-xl bg-amber-500 px-3 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Volume2 className="mr-1 inline h-4 w-4" /> ฟังประกาศ
+                <Volume2 className="mr-1 inline h-4 w-4" /> {selectedResult ? 'ฟังประกาศผลจริง' : 'ยังไม่มีผลให้อ่าน'}
               </button>
               <button
                 type="button"
