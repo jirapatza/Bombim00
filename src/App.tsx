@@ -839,7 +839,7 @@ export default function App() {
     if (item.setIndex) {
       text += `ดัชนีตลาดปิดที่ ${item.setIndex}. `;
     }
-    text += `และหวยรอบถัดไปที่จะปิดรับคือ ${nextClosingNow.name} ปิดเวลา ${nextClosingNow.closeTimeStr} ค่ะ.`;
+    text += `และหวยรอบถัดไปที่จะปิดรับคือ ${nextClosingNow.name} ปิดเวลา ${nextClosingNow.closeTimeStr} ครับ.`;
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'th-TH';
