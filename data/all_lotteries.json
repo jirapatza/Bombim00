@@ -10,12 +10,12 @@
     "drawTimeStr": "08:30 น.",
     "closeTimeStr": "08:20 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "731",
-    "bottom2": "42",
-    "firstPrize": "73142",
-    "date": "วันนี้",
-    "source": "Lao Extra Official"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "nikkei_vip_morning",
@@ -28,12 +28,12 @@
     "drawTimeStr": "09:05 น.",
     "closeTimeStr": "08:55 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "469",
-    "bottom2": "63",
-    "firstPrize": "38,469.63",
-    "date": "วันนี้",
-    "source": "Nikkei VIP Market"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_asean",
@@ -46,12 +46,12 @@
     "drawTimeStr": "09:30 น.",
     "closeTimeStr": "09:05 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "824",
-    "bottom2": "15",
-    "firstPrize": "82415",
-    "date": "วันนี้",
-    "source": "Hanoi ASEAN Official"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "nikkei_morning",
@@ -64,12 +64,12 @@
     "drawTimeStr": "09:30 น.",
     "closeTimeStr": "09:20 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "542",
-    "bottom2": "19",
-    "firstPrize": "38,542.19",
-    "date": "วันนี้",
-    "source": "Nikkei 225 Morning"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "china_vip_morning",
@@ -82,12 +82,12 @@
     "drawTimeStr": "10:05 น.",
     "closeTimeStr": "09:55 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "615",
-    "bottom2": "39",
-    "firstPrize": "3,045.39",
-    "date": "วันนี้",
-    "source": "China VIP Index"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "china_morning",
@@ -100,12 +100,12 @@
     "drawTimeStr": "10:30 น.",
     "closeTimeStr": "10:15 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "328",
-    "bottom2": "74",
-    "firstPrize": "3,028.74",
-    "date": "วันนี้",
-    "source": "SZSE China Morning"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_tv",
@@ -118,12 +118,12 @@
     "drawTimeStr": "10:30 น.",
     "closeTimeStr": "10:20 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "951",
-    "bottom2": "83",
-    "firstPrize": "95183",
-    "date": "วันนี้",
-    "source": "Lao TV Live"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hangseng_vip_morning",
@@ -136,12 +136,12 @@
     "drawTimeStr": "10:35 น.",
     "closeTimeStr": "10:25 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "902",
-    "bottom2": "51",
-    "firstPrize": "20,902.51",
-    "date": "วันนี้",
-    "source": "Hang Seng VIP"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hangseng_morning",
@@ -154,12 +154,12 @@
     "drawTimeStr": "11:00 น.",
     "closeTimeStr": "10:50 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "819",
-    "bottom2": "36",
-    "firstPrize": "20,819.36",
-    "date": "วันนี้",
-    "source": "HKEX Hang Seng Morning"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_hd",
@@ -172,12 +172,12 @@
     "drawTimeStr": "11:30 น.",
     "closeTimeStr": "11:05 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "417",
-    "bottom2": "92",
-    "firstPrize": "41792",
-    "date": "วันนี้",
-    "source": "Hanoi HD Lottery"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "taiwan_vip",
@@ -190,12 +190,12 @@
     "drawTimeStr": "11:35 น.",
     "closeTimeStr": "11:25 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "630",
-    "bottom2": "47",
-    "firstPrize": "22,630.47",
-    "date": "วันนี้",
-    "source": "Taiwan VIP Index"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_star",
@@ -208,12 +208,12 @@
     "drawTimeStr": "12:30 น.",
     "closeTimeStr": "12:05 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "258",
-    "bottom2": "61",
-    "firstPrize": "25861",
-    "date": "วันนี้",
-    "source": "Hanoi Star Live"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "taiwan",
@@ -226,12 +226,12 @@
     "drawTimeStr": "12:35 น.",
     "closeTimeStr": "12:05 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "473",
-    "bottom2": "82",
-    "firstPrize": "22,473.82",
-    "date": "วันนี้",
-    "source": "TWSE Taiwan"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "korea_vip",
@@ -244,12 +244,12 @@
     "drawTimeStr": "12:35 น.",
     "closeTimeStr": "12:25 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "194",
-    "bottom2": "58",
-    "firstPrize": "2,694.58",
-    "date": "วันนี้",
-    "source": "Korea VIP Market"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "korea",
@@ -262,12 +262,12 @@
     "drawTimeStr": "13:40 น.",
     "closeTimeStr": "12:40 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "825",
-    "bottom2": "31",
-    "firstPrize": "2,625.31",
-    "date": "วันนี้",
-    "source": "KRX KOSPI"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "nikkei_afternoon",
@@ -280,12 +280,12 @@
     "drawTimeStr": "13:30 น.",
     "closeTimeStr": "12:50 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "631",
-    "bottom2": "74",
-    "firstPrize": "38,631.74",
-    "date": "วันนี้",
-    "source": "Nikkei 225 Afternoon"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "nikkei_vip_afternoon",
@@ -298,12 +298,12 @@
     "drawTimeStr": "13:25 น.",
     "closeTimeStr": "13:15 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "782",
-    "bottom2": "09",
-    "firstPrize": "38,782.09",
-    "date": "วันนี้",
-    "source": "Nikkei VIP Afternoon"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_hd",
@@ -316,12 +316,12 @@
     "drawTimeStr": "13:45 น.",
     "closeTimeStr": "13:35 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "369",
-    "bottom2": "54",
-    "firstPrize": "36954",
-    "date": "วันนี้",
-    "source": "Lao HD Live"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "china_afternoon",
@@ -334,12 +334,12 @@
     "drawTimeStr": "14:00 น.",
     "closeTimeStr": "13:40 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "914",
-    "bottom2": "26",
-    "firstPrize": "3,014.26",
-    "date": "วันนี้",
-    "source": "SZSE China Afternoon"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_tv",
@@ -352,12 +352,12 @@
     "drawTimeStr": "14:30 น.",
     "closeTimeStr": "14:05 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "508",
-    "bottom2": "73",
-    "firstPrize": "50873",
-    "date": "วันนี้",
-    "source": "Hanoi TV Broadcast"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "china_vip_afternoon",
@@ -370,12 +370,12 @@
     "drawTimeStr": "14:25 น.",
     "closeTimeStr": "14:15 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "847",
-    "bottom2": "62",
-    "firstPrize": "3,047.62",
-    "date": "วันนี้",
-    "source": "China VIP Afternoon"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hangseng_afternoon",
@@ -388,12 +388,12 @@
     "drawTimeStr": "15:10 น.",
     "closeTimeStr": "14:50 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "295",
-    "bottom2": "18",
-    "firstPrize": "20,895.18",
-    "date": "วันนี้",
-    "source": "HKEX Hang Seng Afternoon"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hangseng_vip_afternoon",
@@ -406,12 +406,12 @@
     "drawTimeStr": "15:25 น.",
     "closeTimeStr": "15:15 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "736",
-    "bottom2": "49",
-    "firstPrize": "20,936.49",
-    "date": "วันนี้",
-    "source": "Hang Seng VIP Afternoon"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_star",
@@ -424,12 +424,12 @@
     "drawTimeStr": "15:45 น.",
     "closeTimeStr": "15:35 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "614",
-    "bottom2": "85",
-    "firstPrize": "61485",
-    "date": "วันนี้",
-    "source": "Lao Star Live"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "singapore",
@@ -442,12 +442,12 @@
     "drawTimeStr": "16:25 น.",
     "closeTimeStr": "15:50 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "381",
-    "bottom2": "92",
-    "firstPrize": "3,581.92",
-    "date": "วันนี้",
-    "source": "SGX Straits Times"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "thai_stock_evening",
@@ -460,12 +460,12 @@
     "drawTimeStr": "16:45 น.",
     "closeTimeStr": "16:00 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "784",
-    "bottom2": "95",
-    "firstPrize": "1,452.84",
-    "date": "วันนี้",
-    "source": "SET Market Close"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_redcross",
@@ -478,12 +478,12 @@
     "drawTimeStr": "16:30 น.",
     "closeTimeStr": "16:05 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "923",
-    "bottom2": "41",
-    "firstPrize": "92341",
-    "date": "วันนี้",
-    "source": "Hanoi Red Cross"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "india",
@@ -496,12 +496,12 @@
     "drawTimeStr": "17:05 น.",
     "closeTimeStr": "16:45 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "416",
-    "bottom2": "59",
-    "firstPrize": "81,416.59",
-    "date": "วันนี้",
-    "source": "BSE SENSEX"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "singapore_vip",
@@ -514,12 +514,12 @@
     "drawTimeStr": "17:05 น.",
     "closeTimeStr": "16:55 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "627",
-    "bottom2": "34",
-    "firstPrize": "3,627.34",
-    "date": "วันนี้",
-    "source": "Singapore VIP"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_samakki",
@@ -532,12 +532,12 @@
     "drawTimeStr": "17:30 น.",
     "closeTimeStr": "17:05 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "739",
-    "bottom2": "18",
-    "firstPrize": "73918",
-    "date": "วันนี้",
-    "source": "Hanoi Samakki"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_special",
@@ -550,12 +550,12 @@
     "drawTimeStr": "17:30 น.",
     "closeTimeStr": "17:05 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "512",
-    "bottom2": "64",
-    "firstPrize": "51264",
-    "date": "วันนี้",
-    "source": "Hanoi Special Official"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_regular",
@@ -568,12 +568,12 @@
     "drawTimeStr": "18:30 น.",
     "closeTimeStr": "18:05 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "846",
-    "bottom2": "29",
-    "firstPrize": "84629",
-    "date": "วันนี้",
-    "source": "Hanoi Traditional (XSMB)"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_vip",
@@ -586,12 +586,12 @@
     "drawTimeStr": "19:30 น.",
     "closeTimeStr": "19:05 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "367",
-    "bottom2": "83",
-    "firstPrize": "36783",
-    "date": "วันนี้",
-    "source": "Hanoi VIP Official"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_patthana",
@@ -604,12 +604,12 @@
     "drawTimeStr": "19:30 น.",
     "closeTimeStr": "19:05 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "195",
-    "bottom2": "72",
-    "firstPrize": "19572",
-    "date": "วันนี้",
-    "source": "Hanoi Patthana"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_patthana",
@@ -622,12 +622,12 @@
     "drawTimeStr": "20:30 น.",
     "closeTimeStr": "20:15 น.",
     "drawDays": "จันทร์, พุธ, ศุกร์",
-    "status": "announced",
-    "top3": "482",
-    "bottom2": "59",
-    "firstPrize": "48259",
-    "date": "วันนี้",
-    "source": "หวยพัฒนา สปป.ลาว (laodl.com)"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_samakki",
@@ -640,12 +640,12 @@
     "drawTimeStr": "20:30 น.",
     "closeTimeStr": "20:15 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "629",
-    "bottom2": "14",
-    "firstPrize": "62914",
-    "date": "วันนี้",
-    "source": "Lao Samakki Live"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_asean",
@@ -658,12 +658,12 @@
     "drawTimeStr": "21:00 น.",
     "closeTimeStr": "20:45 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "753",
-    "bottom2": "90",
-    "firstPrize": "75390",
-    "date": "วันนี้",
-    "source": "Lao ASEAN Live"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_vip",
@@ -676,12 +676,12 @@
     "drawTimeStr": "21:30 น.",
     "closeTimeStr": "21:15 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "918",
-    "bottom2": "37",
-    "firstPrize": "91837",
-    "date": "วันนี้",
-    "source": "Lao VIP Official"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_samakki_vip",
@@ -694,12 +694,12 @@
     "drawTimeStr": "21:30 น.",
     "closeTimeStr": "21:15 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "241",
-    "bottom2": "68",
-    "firstPrize": "24168",
-    "date": "วันนี้",
-    "source": "Lao Samakki VIP"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "england_vip",
@@ -712,12 +712,12 @@
     "drawTimeStr": "21:50 น.",
     "closeTimeStr": "21:40 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "593",
-    "bottom2": "46",
-    "firstPrize": "8,293.46",
-    "date": "วันนี้",
-    "source": "FTSE VIP"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_star_vip",
@@ -730,12 +730,12 @@
     "drawTimeStr": "22:00 น.",
     "closeTimeStr": "21:45 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "816",
-    "bottom2": "25",
-    "firstPrize": "81625",
-    "date": "วันนี้",
-    "source": "Lao Star VIP"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_extra",
@@ -748,12 +748,12 @@
     "drawTimeStr": "22:30 น.",
     "closeTimeStr": "22:05 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "437",
-    "bottom2": "89",
-    "firstPrize": "43789",
-    "date": "วันนี้",
-    "source": "Hanoi Extra Live"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "england",
@@ -766,12 +766,12 @@
     "drawTimeStr": "23:10 น.",
     "closeTimeStr": "22:10 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "762",
-    "bottom2": "13",
-    "firstPrize": "8,262.13",
-    "date": "วันนี้",
-    "source": "FTSE 100 London"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "germany",
@@ -784,12 +784,12 @@
     "drawTimeStr": "23:10 น.",
     "closeTimeStr": "22:10 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "945",
-    "bottom2": "71",
-    "firstPrize": "19,445.71",
-    "date": "วันนี้",
-    "source": "DAX Frankfurt"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "russia",
@@ -802,12 +802,12 @@
     "drawTimeStr": "23:10 น.",
     "closeTimeStr": "22:25 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "318",
-    "bottom2": "52",
-    "firstPrize": "2,818.52",
-    "date": "วันนี้",
-    "source": "MOEX Russia"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "germany_vip",
@@ -820,12 +820,12 @@
     "drawTimeStr": "23:05 น.",
     "closeTimeStr": "22:40 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "680",
-    "bottom2": "39",
-    "firstPrize": "19,480.39",
-    "date": "วันนี้",
-    "source": "DAX VIP"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_redcross",
@@ -838,12 +838,12 @@
     "drawTimeStr": "23:30 น.",
     "closeTimeStr": "23:20 น.",
     "drawDays": "ทุกวัน",
-    "status": "announced",
-    "top3": "159",
-    "bottom2": "84",
-    "firstPrize": "15984",
-    "date": "วันนี้",
-    "source": "Lao Red Cross"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "russia_vip",
@@ -856,12 +856,12 @@
     "drawTimeStr": "23:55 น.",
     "closeTimeStr": "23:40 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "announced",
-    "top3": "724",
-    "bottom2": "61",
-    "firstPrize": "2,824.61",
-    "date": "วันนี้",
-    "source": "MOEX VIP"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "dowjones_vip",
@@ -874,12 +874,12 @@
     "drawTimeStr": "00:30 น.",
     "closeTimeStr": "00:05 น.",
     "drawDays": "อังคาร - เสาร์",
-    "status": "announced",
-    "top3": "913",
-    "bottom2": "27",
-    "firstPrize": "42,913.27",
-    "date": "วันนี้",
-    "source": "Dow Jones VIP"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "dowjones_star",
@@ -892,12 +892,12 @@
     "drawTimeStr": "01:30 น.",
     "closeTimeStr": "00:55 น.",
     "drawDays": "อังคาร - เสาร์",
-    "status": "announced",
-    "top3": "485",
-    "bottom2": "60",
-    "firstPrize": "42,485.60",
-    "date": "วันนี้",
-    "source": "Dow Jones Star Index"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "dowjones",
@@ -910,12 +910,12 @@
     "drawTimeStr": "04:00 น.",
     "closeTimeStr": "01:00 น.",
     "drawDays": "อังคาร - เสาร์",
-    "status": "announced",
-    "top3": "627",
-    "bottom2": "19",
-    "firstPrize": "42,627.19",
-    "date": "วันนี้",
-    "source": "DJIA New York (NYSE)"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "thai_gov",
@@ -928,12 +928,12 @@
     "drawTimeStr": "16:00 น.",
     "closeTimeStr": "14:30 น.",
     "drawDays": "วันที่ 1 และ 16",
-    "status": "announced",
-    "top3": "594",
-    "bottom2": "84",
-    "firstPrize": "289594",
-    "date": "วันนี้",
-    "source": "สำนักงานสลากกินแบ่งรัฐบาล (GLO)"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "gsb",
@@ -946,12 +946,12 @@
     "drawTimeStr": "14:00 น.",
     "closeTimeStr": "13:30 น.",
     "drawDays": "วันที่ 1 และ 16",
-    "status": "announced",
-    "top3": "812",
-    "bottom2": "45",
-    "firstPrize": "381245",
-    "date": "วันนี้",
-    "source": "ธนาคารออมสิน (GSB)"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "baac",
@@ -964,11 +964,11 @@
     "drawTimeStr": "11:00 น.",
     "closeTimeStr": "10:30 น.",
     "drawDays": "ทุกวันที่ 16",
-    "status": "announced",
-    "top3": "463",
-    "bottom2": "87",
-    "firstPrize": "946387",
-    "date": "วันนี้",
-    "source": "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร (BAAC)"
+    "status": "waiting",
+    "top3": "",
+    "bottom2": "",
+    "firstPrize": "",
+    "date": "ไม่ระบุ",
+    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
   }
 ]
