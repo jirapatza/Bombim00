@@ -95,7 +95,7 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({
   const cleanRepo = githubRepo || 'jirapatza/Bombim00';
   const githubActionsUrl = `https://github.com/${cleanRepo}/actions/workflows/android-apk.yml`;
   const githubReleasesUrl = `https://github.com/${cleanRepo}/releases`;
-  const githubDirectApkUrl = `https://github.com/${cleanRepo}/releases/download/latest-apk/Bombim00-latest.apk`;
+  const githubDirectApkUrl = `https://github.com/${cleanRepo}/releases/tag/latest-apk`;
   const githubZipDownloadUrl = `https://github.com/${cleanRepo}/archive/refs/heads/main.zip`;
 
   return (
@@ -198,12 +198,12 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({
                   <div className="flex items-center justify-between mb-1">
                     <span className="flex items-center gap-1.5">
                       <Download className="w-4 h-4" />
-                      ดาวน์โหลดไฟล์ APK ล่าสุด
+                      ดาวน์โหลด APK รุ่นล่าสุด
                     </span>
                     <ExternalLink className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100" />
                   </div>
                   <span className="text-[11px] text-emerald-200 font-normal">
-                    Bombim00-latest.apk (Direct Release)
+                    เปิดหน้า Release เพื่อเลือก APK รุ่นล่าสุด (ชื่อไฟล์มีเลขเวอร์ชัน)
                   </span>
                 </button>
 
