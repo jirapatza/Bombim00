@@ -66,6 +66,7 @@ import {
 
 import { BatchTicketChecker } from './components/BatchTicketChecker';
 import { DailySummaryTable, LotteryItem } from './components/DailySummaryTable';
+import { LatestThreeResults } from './components/LatestThreeResults';
 import { filterLotteriesForDrawDate } from './utils/lotterySchedule';
 // Offline schedule fallback for the installed Android APK.
 // The source JSON also contains sample-looking prize fields; never expose those as live results.
@@ -1778,7 +1779,9 @@ export default function App() {
 
         {/* ==================== TAB 2: DAILY SUMMARY TABLE (FULL 51 LOTTERIES MATRIX) ==================== */}
         {activeTab === 'summary' && (
-          <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันตารางสรุปผลหวยขัดข้อง (Summary Table Shield)">
+          <div className="space-y-5">
+            <LatestThreeResults results={results} />
+            <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันตารางสรุปผลหวยขัดข้อง (Summary Table Shield)">
             <DailySummaryTable
               lotteries={allLotteries}
               results={results}
@@ -1789,7 +1792,8 @@ export default function App() {
               onUpdateLotteries={handleUpdateAllLotteries}
               nextClosing={getNextClosingLottery()}
             />
-          </CrashShieldErrorBoundary>
+            </CrashShieldErrorBoundary>
+          </div>
         )}
 
         {/* ==================== TAB 4: UNIFIED SETTINGS CENTER ==================== */}
