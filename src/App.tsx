@@ -1752,7 +1752,6 @@ export default function App() {
               );
             })}
           </nav>
-        </div>    </nav>
         </div>
       </header>
 
