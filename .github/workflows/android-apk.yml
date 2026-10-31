@@ -94,8 +94,6 @@ jobs:
           PY
           grep -E "versionCode|versionName" android/app/build.gradle
           grep -Eq "versionName[[:space:]]+\"${VERSION_NAME}\"" android/app/build.gradle || { echo "Android versionName does not match APK filename version"; exit 1; }
-          grep -E "versionCode|versionName" android/app/build.gradle
-          grep -Eq "versionName[[:space:]]+\"${VERSION_NAME}\"" android/app/build.gradle || { echo "Android versionName does not match APK filename version"; exit 1; }
 
       - name: Build debug APK
         run: |
