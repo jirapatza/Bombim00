@@ -219,31 +219,53 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   };
 
   // Generate plain text summary for copying to LINE / Telegram
-  const copyDailySummaryText = () => {
+  const copyDailySummaryText = async () => {
     const todayStr = new Date().toLocaleDateString('th-TH', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     });
-    let text = `📊 ตารางสรุปผลหวยประจำวัน (${todayStr})\n`;
-    text += `เรียงตามลำดับเวลาออกจริง ทั้งหมด ${totalCount} หวย\n`;
-    text += `(ออกแล้ว ${stagesCount.announced} • รอผล ${stagesCount.closed} • กำลังเปิดรับ ${stagesCount.open + stagesCount.closing})\n`;
-    text += `========================================\n`;
+    let summary = `📊 ตารางสรุปผลหวยประจำวัน (${todayStr})\n`;
+    summary += `เรียงตามลำดับเวลาออกจริง ทั้งหมด ${totalCount} หวย\n`;
+    summary += `(ออกแล้ว ${stagesCount.announced} • รอผล ${stagesCount.closed} • กำลังเปิดรับ ${stagesCount.open + stagesCount.closing})\n`;
+    summary += `========================================\n`;
 
     chronoSorted.forEach((l, idx) => {
       if (l.status === 'announced') {
-        text += `${idx + 1}. [${l.drawTimeStr}] ${l.flag} ${l.name}\n   👉 3 ตัวบน: ${l.top3} | 2 ตัวล่าง: ${l.bottom2}\n`;
-        if (l.setIndex) text += `   📈 ตลาด: ${l.setIndex}\n`;
+        summary += `${idx + 1}. [${l.drawTimeStr}] ${l.flag} ${l.name}\n   👉 3 ตัวบน: ${l.top3} | 2 ตัวล่าง: ${l.bottom2}\n`;
+        if (l.setIndex) summary += `   📈 ตลาด: ${l.setIndex}\n`;
       } else {
-        text += `${idx + 1}. [${l.drawTimeStr}] ${l.flag} ${l.name} ⏳ ยังไม่ออก (ปิดรับ ${l.closeTimeStr})\n`;
+        summary += `${idx + 1}. [${l.drawTimeStr}] ${l.flag} ${l.name} ⏳ ยังไม่ออก (ปิดรับ ${l.closeTimeStr})\n`;
       }
     });
-    text += `========================================\n`;
-    text += `อัปเดตล่าสุด: ${new Date().toLocaleTimeString('th-TH')} น. • Lottery Alert System\n`;
+    summary += `========================================\n`;
+    summary += `อัปเดตล่าสุด: ${new Date().toLocaleTimeString('th-TH')} น. • Lottery Alert System\n`;
 
-    navigator.clipboard.writeText(text);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(summary);
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = summary;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      textarea.style.pointerEvents = 'none';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand('copy');
+      textarea.remove();
+      if (!copied) {
+        window.alert('คัดลอกไม่สำเร็จ กรุณาอนุญาตการเข้าถึงคลิปบอร์ดแล้วลองอีกครั้ง');
+        return;
+      }
+    }
+
     setCopiedSummary(true);
-    setTimeout(() => setCopiedSummary(false), 2000);
+    window.setTimeout(() => setCopiedSummary(false), 2000);
   };
 
   const getCategoryBadgeClass = (category: string) => {
