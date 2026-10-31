@@ -522,56 +522,17 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
               เลือกเมนูขั้นสูงที่ต้องการปรับแต่งเพิ่มเติม (ระบบหลัก 2 ตัวด้านบนทำงานสมบูรณ์แล้ว ไม่จำเป็นต้องปรับตรงนี้หากไม่ต้องการเชื่อมต่อเสริม):
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={() => onOpenAdvanced?.('template')}
                 className="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-left transition cursor-pointer group"
               >
                 <div className="text-xs font-bold text-purple-300 group-hover:text-purple-200">
-                  🎨 ข้อความ &amp; ธีม
+                  🎨 ข้อความ &amp; เสียงอ่านไทย
                 </div>
                 <div className="text-[10px] text-slate-500 mt-0.5">
-                  ปรับฟอนต์ สี และบทประกาศ
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onOpenAdvanced?.('channels')}
-                className="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-left transition cursor-pointer group"
-              >
-                <div className="text-xs font-bold text-blue-300 group-hover:text-blue-200">
-                  🌐 Discord / Telegram
-                </div>
-                <div className="text-[10px] text-slate-500 mt-0.5">
-                  ส่งต่อเข้าบอทภายนอก
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onOpenAdvanced?.('github')}
-                className="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-left transition cursor-pointer group"
-              >
-                <div className="text-xs font-bold text-amber-300 group-hover:text-amber-200">
-                  🐙 GitHub Actions
-                </div>
-                <div className="text-[10px] text-slate-500 mt-0.5">
-                  ตรวจผลบน GitHub Cloud
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onOpenAdvanced?.('raw')}
-                className="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-left transition cursor-pointer group"
-              >
-                <div className="text-xs font-bold text-emerald-300 group-hover:text-emerald-200">
-                  ⚙️ ไฟล์ settings.json
-                </div>
-                <div className="text-[10px] text-slate-500 mt-0.5">
-                  แก้ไขโครงสร้าง JSON ดิบ
+                  ปรับบทประกาศและความเร็วเสียงพูด
                 </div>
               </button>
             </div>
