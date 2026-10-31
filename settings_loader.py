@@ -186,7 +186,16 @@ def write_status(
         "total_checks": total_checks,
         "last_source_used": source_used or existing.get("last_source_used", "glo"),
         "status_message": status_message,
-        "active_sources_count": len([r for r in rows if r]) if rows else existing.get("active_sources_count", 2),
+        # Count distinct providers, not result rows; one provider can return many lotteries.
+        "active_sources_count": len({
+            str(row.get("แหล่งข้อมูล") or "").strip()
+            for row in rows
+            if str(row.get("แหล่งข้อมูล") or "").strip()
+        } | {
+            part.strip()
+            for part in str(source_used or "").split(" + ")
+            if part.strip()
+        }),
         "latest_draw_detected": rows[0].get("งวดวันที่", "") if rows else existing.get("latest_draw_detected", ""),
         "notifications_sent_today": previous_sent + sent_now,
         "recent_logs": recent_logs
