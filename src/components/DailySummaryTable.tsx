@@ -52,6 +52,7 @@ interface DailySummaryProps {
   onSpeakLottery: (lottery: LotteryItem) => void;
   onUpdateLotteries?: (lotteries: LotteryItem[]) => void;
   nextClosing?: { name: string; closeTimeStr: string; remainingText: string } | null;
+  results?: Array<Record<string, any>>;
 }
 
 export const DailySummaryTable: React.FC<DailySummaryProps> = ({
@@ -60,11 +61,25 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   onSpeakLottery,
   onUpdateLotteries,
   nextClosing,
+  results = [],
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'closing_soon' | 'closed_waiting' | 'announced'>('all');
   const [copiedSummary, setCopiedSummary] = useState(false);
+  const [detailLottery, setDetailLottery] = useState<LotteryItem | null>(null);
+
+  const normalizeMatchKey = (value: unknown) => String(value ?? '').toLocaleLowerCase().replace(/[\\s._#-]+/g, '');
+  const selectedResult = detailLottery ? results
+    .filter((row) => {
+      const idKey = normalizeMatchKey(detailLottery.id);
+      const nameKey = normalizeMatchKey(detailLottery.name);
+      const candidates = [row.หวย, row.lottery, row.lottery_code, row.ชื่อหวย, row.lotteryName]
+        .map(normalizeMatchKey).filter(Boolean);
+      return candidates.some((key) => key === idKey || key === nameKey || key.includes(nameKey) || nameKey.includes(key));
+    })
+    .sort((a, b) => String(b.วันที่จัดรูปแบบ || b.งวดวันที่ || '').localeCompare(String(a.วันที่จัดรูปแบบ || a.งวดวันที่ || '')))[0]
+    : null;
 
   // Schedule editor state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -610,7 +625,10 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                     <tr
                       key={item.id}
                       className="hover:bg-slate-800/40 transition group cursor-pointer"
-                      onClick={() => onSelectLottery(item)}
+                      onClick={() => {
+                        setDetailLottery(item);
+                        onSelectLottery(item);
+                      }}
                     >
                       {/* Order */}
                       <td className="py-3.5 px-3 text-center text-slate-500 font-bold">
@@ -743,7 +761,11 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
 
                           <button
                             type="button"
-                            onClick={() => onSelectLottery(item)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDetailLottery(item);
+                              onSelectLottery(item);
+                            }}
                             title="ดูรายละเอียด"
                             className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
                           >
@@ -777,6 +799,103 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         onSave={handleSaveLottery}
         onDelete={handleDeleteLottery}
       />
+
+      {detailLottery && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4"
+          role="presentation"
+          onClick={() => setDetailLottery(null)}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label={`รายละเอียด${detailLottery.name}`}
+            className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl border border-amber-500/40 bg-slate-950 p-4 sm:p-5 shadow-2xl space-y-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs text-amber-400 font-semibold">รายละเอียดรายการหวย</div>
+                <h3 className="text-lg font-bold text-white mt-1">{detailLottery.flag} {detailLottery.name}</h3>
+                <p className="text-xs text-slate-400 mt-1">{detailLottery.categoryLabel} • {detailLottery.drawDays}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailLottery(null)}
+                aria-label="ปิดรายละเอียด"
+                className="shrink-0 rounded-lg border border-slate-700 bg-slate-900 p-2 text-slate-300 hover:bg-slate-800 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
+                <div className="text-[10px] text-slate-400">เวลาออกตามกำหนด</div>
+                <div className="mt-1 text-lg font-bold text-amber-300">{detailLottery.drawTimeStr}</div>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
+                <div className="text-[10px] text-slate-400">เวลาปิดรับตามกำหนด</div>
+                <div className="mt-1 text-lg font-bold text-slate-200">{detailLottery.closeTimeStr}</div>
+              </div>
+            </div>
+
+            {selectedResult ? (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-bold text-emerald-300">ผลที่พบในฐานข้อมูล</span>
+                  <span className="text-[10px] text-slate-400">{selectedResult.งวดวันที่ || selectedResult.วันที่จัดรูปแบบ || ''}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-slate-950/80 p-3">
+                    <div className="text-[10px] text-amber-400">รางวัลที่ 1 / เลขบน</div>
+                    <div className="mt-1 break-all font-mono text-xl font-black text-amber-300">
+                      {selectedResult.รางวัลที่_1 || selectedResult.firstPrize || selectedResult.เลขบน_3_ตัว || selectedResult.top3 || '—'}
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-slate-950/80 p-3">
+                    <div className="text-[10px] text-emerald-400">เลขท้าย 2 ตัว / เลขล่าง</div>
+                    <div className="mt-1 break-all font-mono text-xl font-black text-emerald-300">
+                      {selectedResult.เลขท้าย_2_ตัว || selectedResult.เลขล่าง_2_ตัว || selectedResult.bottom2 || selectedResult.last2 || '—'}
+                    </div>
+                  </div>
+                </div>
+                {(selectedResult.เลขหน้า_3_ตัว?.length > 0 || selectedResult.เลขท้าย_3_ตัว?.length > 0) && (
+                  <div className="space-y-1 text-xs text-slate-300">
+                    {selectedResult.เลขหน้า_3_ตัว?.length > 0 && <div>เลขหน้า 3 ตัว: {selectedResult.เลขหน้า_3_ตัว.join(', ')}</div>}
+                    {selectedResult.เลขท้าย_3_ตัว?.length > 0 && <div>เลขท้าย 3 ตัว: {selectedResult.เลขท้าย_3_ตัว.join(', ')}</div>}
+                  </div>
+                )}
+                <div className="text-[10px] text-slate-500">แหล่งข้อมูล: {selectedResult.แหล่งข้อมูล || selectedResult.source || 'ไม่ระบุ'}</div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3">
+                <div className="text-sm font-semibold text-amber-200">ยังไม่พบผลรางวัลจริงของรายการนี้</div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                  ข้อมูลด้านบนเป็นกำหนดการเท่านั้น ระบบจะไม่แสดงเลขตัวอย่างแทนผลจริง กรุณากดรีเฟรชเมื่อแหล่งข้อมูลประกาศผลแล้ว
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onSpeakLottery(detailLottery)}
+                className="flex-1 rounded-xl bg-amber-500 px-3 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer"
+              >
+                <Volume2 className="mr-1 inline h-4 w-4" /> ฟังประกาศ
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetailLottery(null)}
+                className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 cursor-pointer"
+              >
+                ปิด
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 };
