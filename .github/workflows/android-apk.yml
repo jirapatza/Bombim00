@@ -61,9 +61,13 @@ jobs:
         run: |
           VERSION_CODE=$((GITHUB_RUN_NUMBER + 1000))
           VERSION_NAME="1.0.${GITHUB_RUN_NUMBER}"
+          APK_NAME="Bombim00-v${VERSION_NAME}.apk"
+          echo "VERSION_NAME=${VERSION_NAME}" >> "$GITHUB_ENV"
+          echo "APK_NAME=${APK_NAME}" >> "$GITHUB_ENV"
           sed -i -E "s/versionCode[[:space:]]+[0-9]+/versionCode ${VERSION_CODE}/" android/app/build.gradle
           sed -i -E "s/versionName[[:space:]]+['\"][^'\"]+['\"]/versionName '${VERSION_NAME}'/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle
+          echo "APK file: ${APK_NAME}"
 
       - name: Build debug APK
         run: |
@@ -74,7 +78,7 @@ jobs:
       - name: Upload installable APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Bombim00-Android-debug-APK
+          name: Bombim00-v${{ github.run_number }}-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -82,7 +86,7 @@ jobs:
       - name: Prepare APK for GitHub Release
         run: |
           mkdir -p release-assets
-          cp android/app/build/outputs/apk/debug/app-debug.apk release-assets/Bombim00-latest.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk "release-assets/Bombim00-v${VERSION_NAME}.apk"
 
       - name: Publish GitHub Release with APK
         uses: softprops/action-gh-release@v2
@@ -95,15 +99,19 @@ jobs:
             ไฟล์ติดตั้งแอปพลิเคชัน Android พร้อมเสียงประกาศผลภาษาไทยและแจ้งเตือนอัตโนมัติ
 
             ### 📥 ลิงก์ดาวน์โหลด:
-            - ดาวน์โหลดไฟล์: **[Bombim00-latest.apk](https://github.com/${{ github.repository }}/releases/download/latest-apk/Bombim00-latest.apk)**
+            - ดาวน์โหลดไฟล์รุ่นนี้: **[Bombim00-v${{ env.VERSION_NAME }}.apk](https://github.com/${{ github.repository }}/releases/download/latest-apk/Bombim00-v${{ env.VERSION_NAME }}.apk)**
 
             ### 🚀 วิธีการติดตั้งบนมือถือ Android:
-            1. ดาวน์โหลดไฟล์ `Bombim00-latest.apk` ลงในโทรศัพท์
+            1. ดาวน์โหลดไฟล์ `Bombim00-v${{ env.VERSION_NAME }}.apk` ลงในโทรศัพท์
             2. แตะเปิดไฟล์ APK แล้วเลือก "ติดตั้ง" (Install)
             3. หากระบบถาม ให้เลือก "อนุญาตการติดตั้งจากแหล่งที่ไม่รู้จัก" (Allow from this source)
             4. เปิดแอปและเริ่มใช้งานระบบแจ้งเตือนสลากได้ทันที!
-          files: release-assets/Bombim00-latest.apk
+          files: release-assets/Bombim00-v${{ env.VERSION_NAME }}.apk
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Remove legacy unversioned APK
+        run: gh release delete-asset latest-apk Bombim00-latest.apk --yes || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
