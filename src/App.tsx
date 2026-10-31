@@ -859,9 +859,14 @@ export default function App() {
 
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    utterance.onerror = (event) => {
+      setIsSpeaking(false);
+      console.warn('Specific lottery speech failed:', event);
+      showToast('อ่านเสียงไม่สำเร็จ ตรวจสอบเครื่องมือ Text-to-Speech ภาษาไทยใน Android');
+    };
 
     activeUtteranceRef.current = utterance;
+    window.speechSynthesis.resume();
     window.speechSynthesis.speak(utterance);
     showToast(`กำลังอ่านประกาศผล ${item.name}`);
   };
