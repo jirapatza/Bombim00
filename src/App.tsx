@@ -66,6 +66,7 @@ import {
 
 import { BatchTicketChecker } from './components/BatchTicketChecker';
 import { DailySummaryTable, LotteryItem } from './components/DailySummaryTable';
+import { LatestThreeResults } from './components/LatestThreeResults';
 import { filterLotteriesForDrawDate } from './utils/lotterySchedule';
 // Offline schedule fallback for the installed Android APK.
 // The source JSON also contains sample-looking prize fields; never expose those as live results.
@@ -394,7 +395,7 @@ const TEMPLATE_PRESETS = {
 export default function App() {
   const [activeTab, setActiveTab] = useState<
     'summary' | 'checker' | 'live' | 'history' | 'accuracy' | 'batch' | 'results' | 'settings' | 'diagnostics'
-  >('summary');
+  >('live');
   const [isAdminBackOfficeOpen, setIsAdminBackOfficeOpen] = useState<boolean>(false);
   const [checkerSubTab, setCheckerSubTab] = useState<'accuracy' | 'batch' | 'history'>('accuracy');
   const [historyPrizeFilter, setHistoryPrizeFilter] = useState<'all' | 'first' | 'last2' | '3digits' | 'thai'>('all');
@@ -1724,6 +1725,7 @@ export default function App() {
               { id: 'checker', label: '🎫 ตรวจสลากรางวัล', icon: Search },
               { id: 'live', label: '⏱️ รอบหวยสด & นับถอยหลัง', icon: Radio },
               { id: 'history', label: '📊 สถิติ & ประวัติย้อนหลัง', icon: History },
+              { id: 'settings', label: '⚙️ ตั้งค่าระบบ', icon: Settings },
             ].map((tab) => {
               const Icon = tab.icon;
               const selected = activeTab === tab.id ||
@@ -1774,11 +1776,15 @@ export default function App() {
               onNavigateToSummary={() => setActiveTab('summary')}
             />
           </CrashShieldErrorBoundary>
+          <div className="mt-6">
+            <LatestThreeResults results={results} lotteries={allLotteries} />
+          </div>
         </div>
 
         {/* ==================== TAB 2: DAILY SUMMARY TABLE (FULL 51 LOTTERIES MATRIX) ==================== */}
         {activeTab === 'summary' && (
-          <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันตารางสรุปผลหวยขัดข้อง (Summary Table Shield)">
+          <div className="space-y-5">
+            <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันตารางสรุปผลหวยขัดข้อง (Summary Table Shield)">
             <DailySummaryTable
               lotteries={allLotteries}
               results={results}
@@ -1789,7 +1795,8 @@ export default function App() {
               onUpdateLotteries={handleUpdateAllLotteries}
               nextClosing={getNextClosingLottery()}
             />
-          </CrashShieldErrorBoundary>
+            </CrashShieldErrorBoundary>
+          </div>
         )}
 
         {/* ==================== TAB 4: UNIFIED SETTINGS CENTER ==================== */}
