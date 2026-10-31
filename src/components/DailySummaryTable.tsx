@@ -1,4 +1,7 @@
 import React, { useState, useMemo } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import {
   Calendar,
   Clock,
@@ -298,6 +301,66 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     window.setTimeout(() => setCopiedSummary(false), 2000);
   };
 
+  const downloadResultsCsv = async () => {
+    if (!Array.isArray(results) || results.length === 0) {
+      window.alert('ยังไม่มีข้อมูลผลหวยให้ดาวน์โหลด กรุณากดรีเฟรชข้อมูลก่อน');
+      return;
+    }
+
+    const columns = [
+      ['ชื่อหวย', 'ชื่อหวย'],
+      ['รหัสหวย', 'หวย'],
+      ['หมวดหวย', 'หมวดหวย'],
+      ['งวดวันที่', 'งวดวันที่'],
+      ['รางวัลที่ 1', 'รางวัลที่_1'],
+      ['เลขบน 3 ตัว', 'เลขบน_3_ตัว'],
+      ['เลขท้าย 2 ตัว', 'เลขท้าย_2_ตัว'],
+      ['เลขล่าง 2 ตัว', 'เลขล่าง_2_ตัว'],
+      ['แหล่งข้อมูล', 'แหล่งข้อมูล'],
+      ['เวลาที่ตรวจพบ', 'เวลาที่ตรวจพบ'],
+    ] as const;
+    const csvCell = (value: unknown) => {
+      const cell = Array.isArray(value) ? value.join(', ') : String(value ?? '');
+      return '"' + cell.replace(/"/g, '""') + '"';
+    };
+    const csv = '\\uFEFF' + [
+      columns.map(([label]) => csvCell(label)).join(','),
+      ...results.map((row) => columns.map(([, key]) => csvCell(row?.[key])).join(',')),
+    ].join('\\r\\n');
+    const fileName = `Bombim00-results-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const file = await Filesystem.writeFile({
+          path: fileName,
+          data: csv,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        });
+        await Share.share({
+          title: 'ผลหวย Bombim00',
+          text: `ส่งออกผลหวย ${results.length} รายการ`,
+          url: file.uri,
+          dialogTitle: 'บันทึกหรือแชร์ไฟล์ผลหวย',
+        });
+      } else {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.style.display = 'none';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+      }
+    } catch (error) {
+      console.error('CSV export failed:', error);
+      window.alert('ส่งออกไฟล์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+    }
+  };
+
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
       case 'foreign_stock':
@@ -355,6 +418,16 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
               เพิ่มหวยใหม่
             </button>
           )}
+
+          {/* Export actual result records */}
+          <button
+            type="button"
+            onClick={() => void downloadResultsCsv()}
+            className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white cursor-pointer shadow-md transition flex items-center gap-1.5"
+          >
+            <Download className="w-4 h-4" />
+            ดาวน์โหลดผลหวย CSV ({results.length})
+          </button>
 
           {/* Copy Full Summary */}
           <button
