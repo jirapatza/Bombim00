@@ -114,6 +114,20 @@ def test_write_status_counts_distinct_sources_not_result_rows(tmp_path):
     assert status["active_sources_count"] == 2
 
 
+def test_write_status_selects_latest_draw_across_mixed_date_formats(tmp_path):
+    status_file = tmp_path / "status.json"
+    rows = [
+        {"ชื่อหวย": "รัฐบาล", "งวดวันที่": "16.10.2026", "วันที่จัดรูปแบบ": "2026-10-16", "แหล่งข้อมูล": "ThaiLottoAPI"},
+        {"ชื่อหวย": "หุ้น", "งวดวันที่": "31 ตุลาคม 2569", "วันที่จัดรูปแบบ": "31 ตุลาคม 2569", "แหล่งข้อมูล": "ผลหวย.com"},
+    ]
+
+    status = sl.write_status(rows, status_path=str(status_file), source_used="ThaiLottoAPI + ผลหวย.com")
+
+    assert status["latest_draw_detected"] == "31 ตุลาคม 2569"
+    assert "งวดล่าสุด 31 ตุลาคม 2569" in status["status_message"]
+    assert status["active_sources_count"] == 2
+
+
 def test_write_status_marks_missing_live_results_as_degraded(tmp_path):
     status_file = tmp_path / "status.json"
     status = sl.write_status([], status_path=str(status_file), source_used=None)
