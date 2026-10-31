@@ -318,109 +318,104 @@ export function SystemMonitorKiosk() {
   };
 
   // Subsystem list
+  const settingsFile = monitorData?.filesHealth.find((f) => f.name === 'config/settings.json');
+  const statusFile = monitorData?.filesHealth.find((f) => f.name === 'status/status.json');
+  const gloCheck = monitorData?.sourceChecks.find((s) => s.id === 'glo');
+  const ranlottoCheck = monitorData?.sourceChecks.find((s) => s.id === 'ranlotto');
+  const ntfyCheck = monitorData?.sourceChecks.find((s) => s.id === 'ntfy');
+  const githubCheck = monitorData?.sourceChecks.find((s) => s.id === 'github');
+
   const services = [
     {
       id: 'express_server',
       name: 'Node.js Express API Server',
       category: 'Core Service',
       icon: Server,
-      status: monitorData ? 'healthy' : 'error',
-      statusText: monitorData ? 'ทำงานปกติ (Port 3000 • 0.0.0.0)' : 'ไม่สามารถเชื่อมต่อ Server ได้',
-      latency: 12,
+      status: monitorData?.success ? 'healthy' : monitorData ? 'error' : 'degraded',
+      statusText: monitorData?.success ? `API ตอบกลับแล้ว (Port ${monitorData.system.serverPort})` : 'ยังไม่ได้รับผลตรวจจาก API Server',
+      latency: null,
       details: monitorData
         ? `Node ${monitorData.system.nodeVersion} • Uptime ${monitorData.system.uptimeFormatted} • RAM ${monitorData.system.memoryUsageMB}MB / ${monitorData.system.totalHeapMB}MB`
-        : 'กำลังรอการเชื่อมต่อ...',
-      easyFix: 'หากเซิร์ฟเวอร์ค้าง ให้กดปุ่ม "ซ่อมแซมระบบอัตโนมัติ" เพื่อรีสตาร์ตสถานะและปลดล็อกโพรเซส',
+        : 'รอผลตรวจสุขภาพจาก API Server',
+      easyFix: 'ตรวจสอบ API Server และดูผลตอบกลับล่าสุดก่อนสั่งซ่อมแซม',
     },
     {
       id: 'background_runner',
-      name: 'Background Lottery Runner Daemon',
+      name: 'Local Background Lottery Runner',
       category: 'Automation Engine',
       icon: Cpu,
-      status: monitorData?.system.backgroundRunnerActive ? 'healthy' : 'healthy',
-      statusText: 'พร้อมทำงานสแตนด์บายตรวจผลสลากอัตโนมัติทุก 10 นาที',
-      latency: 45,
-      details: 'สคริปต์ lottery_checker.py พร้อมทำงานควบคู่กับ cron background checker',
-      easyFix: 'หากเกิดปัญหา Lock ค้าง ระบบ Self-Heal จะเคลียร์ตัวแปร mutex lock ให้อัตโนมัติ',
+      status: monitorData?.system.backgroundRunnerActive ? 'healthy' : 'degraded',
+      statusText: monitorData?.system.backgroundRunnerActive
+        ? 'เปิดใช้งานตัวตรวจในเซิร์ฟเวอร์นี้ทุก 10 นาที'
+        : 'ยังยืนยันไม่ได้ว่าตัวตรวจเบื้องหลังเปิดใช้งาน',
+      latency: null,
+      details: 'เป็นตัวตรวจเบื้องหลังของ API Server แยกจาก GitHub Actions ที่ตรวจทุก 5 นาที',
+      easyFix: 'ตรวจสอบ DISABLE_BACKGROUND_CHECK และบันทึกการทำงานของ API Server',
     },
     {
       id: 'settings_file',
       name: 'System Config (config/settings.json)',
       category: 'Filesystem Database',
       icon: FileCheck2,
-      status:
-        monitorData?.filesHealth.find((f) => f.name === 'config/settings.json')?.exists &&
-        monitorData?.filesHealth.find((f) => f.name === 'config/settings.json')?.validJson !== false
-          ? 'healthy'
-          : 'error',
-      statusText:
-        monitorData?.filesHealth.find((f) => f.name === 'config/settings.json')?.exists &&
-        monitorData?.filesHealth.find((f) => f.name === 'config/settings.json')?.validJson !== false
-          ? 'ไฟล์สมบูรณ์และถูกต้อง (Valid JSON)'
-          : 'ไฟล์สูญหายหรือโครงสร้าง JSON ชำรุด',
-      latency: 3,
-      details: 'ไฟล์กำหนดค่าช่องทางแจ้งเตือน แหล่งดึงผล และแม่แบบเสียง',
-      easyFix: 'คลิก "ซ่อมแซมระบบอัตโนมัติ" เพื่อให้ระบบเขียนไฟล์มาตรฐานและกู้คืนโครงสร้างทันที',
+      status: settingsFile?.exists && settingsFile.validJson !== false ? 'healthy' : monitorData ? 'error' : 'degraded',
+      statusText: !monitorData ? 'ยังไม่ได้ตรวจสอบไฟล์' : settingsFile?.exists && settingsFile.validJson !== false
+        ? 'ไฟล์มีอยู่และเป็น JSON ที่อ่านได้'
+        : 'ไม่พบไฟล์หรือ JSON ไม่ถูกต้อง',
+      latency: null,
+      details: 'ไฟล์กำหนดค่าแหล่งข้อมูล ช่องทางแจ้งเตือน และแม่แบบเสียง',
+      easyFix: 'ตรวจสอบไฟล์ config/settings.json ก่อนกู้คืนหรือแก้ไข',
     },
     {
       id: 'status_file',
       name: 'Runtime Status (status/status.json)',
       category: 'Filesystem Database',
       icon: Activity,
-      status:
-        monitorData?.filesHealth.find((f) => f.name === 'status/status.json')?.exists &&
-        monitorData?.filesHealth.find((f) => f.name === 'status/status.json')?.validJson !== false
-          ? 'healthy'
-          : 'error',
-      statusText:
-        monitorData?.filesHealth.find((f) => f.name === 'status/status.json')?.exists &&
-        monitorData?.filesHealth.find((f) => f.name === 'status/status.json')?.validJson !== false
-          ? 'บันทึกสถานะการรันและ Logs เป็นปกติ'
-          : 'ไฟล์สถานะมีปัญหา',
-      latency: 2,
-      details: 'เก็บประวัติการตรวจผลล่าสุด เวลาตอบสนอง และสถานะของ API แหล่งข้อมูล',
-      easyFix: 'ระบบ Self-Heal จะรีเซ็ต status.json ให้กลับสู่ Healthy State ภายใน 1 วินาที',
+      status: statusFile?.exists && statusFile.validJson !== false ? 'healthy' : monitorData ? 'error' : 'degraded',
+      statusText: !monitorData ? 'ยังไม่ได้ตรวจสอบไฟล์' : statusFile?.exists && statusFile.validJson !== false
+        ? 'ไฟล์มีอยู่และเป็น JSON ที่อ่านได้'
+        : 'ไม่พบไฟล์หรือ JSON ไม่ถูกต้อง',
+      latency: null,
+      details: 'เก็บสถานะการตรวจหวยล่าสุดและบันทึกเหตุการณ์',
+      easyFix: 'สำรองไฟล์ก่อนซ่อมแซม status/status.json',
     },
     {
       id: 'glo_feed',
-      name: 'สำนักงานสลากกินแบ่งรัฐบาล (GLO Official)',
+      name: 'GLO Host Reachability',
       category: 'External Data Source',
       icon: Globe,
-      status:
-        monitorData?.sourceChecks.find((s) => s.id === 'glo')?.status === 'healthy' ? 'healthy' : 'degraded',
-      statusText:
-        monitorData?.sourceChecks.find((s) => s.id === 'glo')?.status === 'healthy'
-          ? 'เชื่อมต่อได้ปกติ (HTTP 200 OK)'
-          : 'การตอบสนองช้า หรือมีการจำกัดการเข้าถึงชั่วคราว',
-      latency: monitorData?.sourceChecks.find((s) => s.id === 'glo')?.latencyMs || 350,
-      details: 'ดึงผลสลากกินแบ่งรัฐบาลไทยและรายงานผลการออกรางวัลสด',
-      easyFix: 'หาก GLO ปิดปรับปรุง ระบบจะสลับไปใช้ RANLOTTO และ LotteryChecks เป็นแหล่งสำรองอัตโนมัติ',
+      status: gloCheck?.status || 'degraded',
+      statusText: !gloCheck ? 'ยังไม่ได้ตรวจสอบ' : gloCheck.status === 'healthy'
+        ? `เข้าถึงโดเมนได้ (HTTP ${gloCheck.statusCode})`
+        : `การตรวจเข้าถึงโดเมนไม่ผ่าน (HTTP ${gloCheck.statusCode || 'ไม่มีการตอบกลับ'})`,
+      latency: gloCheck?.latencyMs ?? null,
+      details: 'ตรวจสอบการเข้าถึงโดเมน GLO เท่านั้น ไม่ได้ยืนยันว่า API ส่งผลหวยล่าสุดได้',
+      easyFix: 'หากต้องการยืนยันผลจริง ให้ทดสอบ endpoint ผลหวยและตรวจข้อมูลตอบกลับ',
     },
     {
       id: 'ranlotto_feed',
-      name: 'RANLOTTO Lottery Service Feed',
+      name: 'RANLOTTO Host Reachability',
       category: 'External Data Source',
       icon: Globe,
-      status:
-        monitorData?.sourceChecks.find((s) => s.id === 'ranlotto')?.status === 'healthy'
-          ? 'healthy'
-          : 'healthy',
-      statusText: 'พร้อมใช้งานเป็นแหล่งข้อมูลหวยต่างประเทศและหุ้น',
-      latency: monitorData?.sourceChecks.find((s) => s.id === 'ranlotto')?.latencyMs || 420,
-      details: 'ครอบคลุมหวยฮานอย หวยลาว หวยมาเลย์ และดัชนีหุ้นต่างประเทศ 51 รายการ',
-      easyFix: 'สามารถเปิด-ปิดการใช้งานรายแหล่งได้ในแท็บ "⚙️ ตั้งค่า & ระบบอัตโนมัติ"',
+      status: ranlottoCheck?.status || 'degraded',
+      statusText: !ranlottoCheck ? 'ยังไม่ได้ตรวจสอบ' : ranlottoCheck.status === 'healthy'
+        ? `เข้าถึงโดเมนได้ (HTTP ${ranlottoCheck.statusCode})`
+        : `การตรวจเข้าถึงโดเมนไม่ผ่าน (HTTP ${ranlottoCheck.statusCode || 'ไม่มีการตอบกลับ'})`,
+      latency: ranlottoCheck?.latencyMs ?? null,
+      details: 'ตรวจสอบการเข้าถึง host เท่านั้น ไม่ได้ยืนยันความครบถ้วนของผลหวยแต่ละหมวด',
+      easyFix: 'ทดสอบ API endpoint จริงและตรวจ schema ของผลตอบกลับ',
     },
     {
       id: 'ntfy_push',
-      name: 'ntfy.sh Notification Gateway',
+      name: 'ntfy.sh Gateway Reachability',
       category: 'Push Notification Hub',
       icon: Bell,
-      status:
-        monitorData?.sourceChecks.find((s) => s.id === 'ntfy')?.status === 'healthy' ? 'healthy' : 'healthy',
-      statusText: 'เกตเวย์แจ้งเตือนพร้อมส่งข้อความเข้ามือถือ Android / iOS / Web',
-      latency: monitorData?.sourceChecks.find((s) => s.id === 'ntfy')?.latencyMs || 290,
-      details: 'ส่งแจ้งเตือนแบบเรียลไทม์ไม่ต้องเสียค่าบริการ ไม่ต้องใช้ API Key',
-      easyFix: 'ตรวจสอบว่าชื่อ Topic ในมือถือตรงกับที่ระบุใน Settings Center',
+      status: ntfyCheck?.status || 'degraded',
+      statusText: !ntfyCheck ? 'ยังไม่ได้ตรวจสอบ' : ntfyCheck.status === 'healthy'
+        ? `เข้าถึง ntfy ได้ (HTTP ${ntfyCheck.statusCode})`
+        : `ตรวจการเข้าถึง ntfy ไม่ผ่าน (HTTP ${ntfyCheck.statusCode || 'ไม่มีการตอบกลับ'})`,
+      latency: ntfyCheck?.latencyMs ?? null,
+      details: 'การเข้าถึงเซิร์ฟเวอร์ไม่ได้ยืนยันว่ามือถือสมัคร Topic หรือได้รับการแจ้งเตือนแล้ว',
+      easyFix: 'ตรวจสอบ Topic บน Android และทดสอบ publish พร้อมตรวจ HTTP response',
     },
     {
       id: 'speech_engine',
@@ -428,32 +423,34 @@ export function SystemMonitorKiosk() {
       category: 'Speech Synthesis',
       icon: Volume2,
       status: clientSpeechReady ? 'healthy' : 'error',
-      statusText: clientSpeechReady ? 'ระบบอ่านออกเสียงภาษาไทยพร้อมใช้งาน' : 'เบราว์เซอร์ไม่รองรับ SpeechSynthesis',
-      latency: 8,
-      details: 'อ่านผลรางวัลเป็นเสียงภาษาไทยพร้อมสะกดตัวเลขและแจ้งเตือนรอบถัดไป',
-      easyFix: 'หากไม่มีเสียง ให้กดปุ่มปลดล็อกเสียงบนหัวเว็บ หรือใช้ Chrome/Safari/Edge รุ่นปัจจุบัน',
+      statusText: clientSpeechReady ? 'เบราว์เซอร์รองรับ SpeechSynthesis' : 'เบราว์เซอร์ไม่รองรับ SpeechSynthesis',
+      latency: null,
+      details: 'การรองรับ API ไม่ได้ยืนยันว่ามีเสียงภาษาไทยหรือเสียงผู้ชายบนอุปกรณ์นี้',
+      easyFix: 'ตรวจรายชื่อเสียงที่ติดตั้งบน Android และทดสอบเสียงจริง',
     },
     {
       id: 'firestore_db',
       name: 'Firebase Cloud Firestore Sync',
       category: 'Cloud Persistence',
       icon: Database,
-      status: 'healthy',
-      statusText: 'พร้อมเชื่อมต่อและซิงก์ข้อมูลลง Cloud (asia-east1)',
-      latency: 180,
-      details: 'Project: gen-lang-client-0820377767 • เก็บประวัติผลสลากและบันทึกออฟไลน์',
-      easyFix: 'หากเกิดข้อผิดพลาดเรื่องการยืนยันตัวตน ให้กด Refresh ในแท็บ "🔥 Firebase Cloud"',
+      status: 'degraded',
+      statusText: 'ยังไม่มีการตรวจสอบการเชื่อมต่อ Firestore จาก System Monitor',
+      latency: null,
+      details: 'ไม่แสดงสถานะเขียวจนกว่าจะมีผลตรวจการเชื่อมต่อจริง',
+      easyFix: 'ตรวจ Firebase SDK และอ่านผลการเชื่อมต่อจากแอปก่อนสรุปสถานะ',
     },
     {
       id: 'github_sync',
-      name: 'GitHub CI/CD & Repository Health',
+      name: 'GitHub API Host Reachability',
       category: 'DevOps & Source Code',
       icon: GitBranch,
-      status: 'healthy',
-      statusText: 'คลัง jirapatza/Bombim00 เชื่อมต่อสมบูรณ์',
-      latency: monitorData?.sourceChecks.find((s) => s.id === 'github')?.latencyMs || 250,
-      details: 'รองรับการรัน Workflow อัตโนมัติและการบิลด์ Android APK',
-      easyFix: 'หากพบ Merge Conflict ใน PR ให้เข้าหน้า Pull Request บน GitHub แล้วกด Resolve Conflicts หรือ Merge branch',
+      status: githubCheck?.status || 'degraded',
+      statusText: !githubCheck ? 'ยังไม่ได้ตรวจสอบ' : githubCheck.status === 'healthy'
+        ? `เข้าถึง GitHub API ได้ (HTTP ${githubCheck.statusCode})`
+        : `ตรวจการเข้าถึง GitHub API ไม่ผ่าน (HTTP ${githubCheck.statusCode || 'ไม่มีการตอบกลับ'})`,
+      latency: githubCheck?.latencyMs ?? null,
+      details: 'ตรวจสอบการเข้าถึง GitHub API เท่านั้น ไม่ได้ยืนยันสิทธิ์เขียนไฟล์หรือสั่งรัน Workflow',
+      easyFix: 'ตรวจสอบสิทธิ์ GitHub และผล Workflow แยกจากการเข้าถึง host',
     },
   ];
 
@@ -881,14 +878,16 @@ export function SystemMonitorKiosk() {
                   </span>
                   <span
                     className={`font-mono font-bold ${
-                      service.latency < 200
+                      typeof service.latency !== 'number'
+                        ? 'text-slate-400'
+                        : service.latency < 200
                         ? 'text-emerald-400'
                         : service.latency < 500
                         ? 'text-amber-400'
                         : 'text-red-400'
                     }`}
                   >
-                    {service.latency} ms
+                    {typeof service.latency === 'number' ? `${service.latency} ms` : 'ไม่มีค่าที่วัดจริง'}
                   </span>
                 </div>
 
