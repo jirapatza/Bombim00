@@ -1761,14 +1761,9 @@ export default function App() {
           <SettingsCenter
             settings={settings}
             onSaveSettings={handleSaveMultiChannelSettings}
-            rawSettingsJson={rawSettingsJson}
-            setRawSettingsJson={setRawSettingsJson}
-            onSaveRawSettings={handleSaveRawSettings}
-            onRefreshData={fetchData}
             status={status}
             latestDraw={latestDraw}
             allLotteries={allLotteries}
-            onSpeak={speakCustomText}
             voiceEnabled={voiceEnabled}
             onToggleVoice={(v) => {
               setVoiceEnabled(v);
