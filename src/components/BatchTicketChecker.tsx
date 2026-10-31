@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { apiFetch } from '../utils/api';
 import {
   Ticket,
   Search,
@@ -104,7 +105,7 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
       reader.readAsDataURL(blob);
       reader.onloadend = async () => {
         const base64data = reader.result as string;
-        const res = await fetch('/api/ai/transcribe', {
+        const res = await apiFetch('/api/ai/transcribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ audioBase64: base64data, mimeType: 'audio/webm' }),
@@ -136,7 +137,7 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
   const handleVerifyCurrentDrawGrounding = async () => {
     setIsVerifyingGrounding(true);
     try {
-      const res = await fetch('/api/ai/verify-grounding', {
+      const res = await apiFetch('/api/ai/verify-grounding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
