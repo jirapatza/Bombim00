@@ -275,7 +275,7 @@ def fetch_from_thailottoapi_results() -> list:
             return []
 
         rows = []
-        disallowed_categories = {"liw", "maekhong", "pingpong", "yeekee", "lottothaihot"}
+        disallowed_categories = {"liw", "maekhong", "pingpong", "yeekee"}
 
         for raw_category, category_data in categories.items():
             raw_cat_lower = str(raw_category).strip().lower()
