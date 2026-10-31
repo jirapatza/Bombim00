@@ -27,13 +27,21 @@ concurrency:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    env:
-      APP_VERSION: "2"
-      VERSION_NAME: "2"
     timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Determine next APK version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_JSON=$(curl --fail --silent --show-error -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/tags/latest-apk" || echo '{"assets":[]}')
+          CURRENT_VERSION=$(echo "$RELEASE_JSON" | jq -r '[.assets[]?.name | select(test("^Bombim00-v[0-9]+\\.apk$")) | capture("^Bombim00-v(?<version>[0-9]+)\\.apk$").version | tonumber] | max // 0')
+          NEXT_VERSION=$((CURRENT_VERSION + 1))
+          echo "APP_VERSION=$NEXT_VERSION" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=$NEXT_VERSION" >> "$GITHUB_ENV"
+          echo "Next APK version: v$NEXT_VERSION"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -48,6 +56,10 @@ jobs:
 
       - name: Install web dependencies
         run: npm install
+
+      - name: Type-check web application
+        run: npm run lint
+
 
       - name: Install Capacitor Android tooling
         run: npm install --no-save @capacitor/cli@^8 @capacitor/android@^8
