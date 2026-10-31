@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import {
   Volume2,
   VolumeX,
@@ -109,22 +110,46 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
     const drawDate = sampleLottery?.date || latestDraw?.งวดวันที่ || 'ตัวอย่างสำหรับทดสอบ';
 
     try {
-      const res = await fetch('/api/test-ntfy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          topic: topic.trim(),
-          server: cleanServer,
-          title: `ทดสอบแจ้งเตือน ${lotteryName} งวด ${drawDate}`,
-          message: `ข้อความทดสอบเท่านั้น (ไม่ใช่ผลหวยจริง)\n🎯 หวย: ${lotteryName}\n🔺 3 ตัวบน: ${top3}\n🔻 2 ตัวล่าง: ${last2}\nระบบส่งคำขอไปยัง ntfy server; โปรดตรวจสอบการได้รับบน Android ด้วยตนเอง`,
-        }),
-      });
+      const topicValue = topic.trim();
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(topicValue)) {
+        throw new Error('Topic ต้องใช้ตัวอักษรภาษาอังกฤษ ตัวเลข ขีดกลาง หรือขีดล่าง ไม่เกิน 64 ตัว');
+      }
+      const title = `ทดสอบแจ้งเตือน ${lotteryName} งวด ${drawDate}`;
+      const message = `ข้อความทดสอบเท่านั้น (ไม่ใช่ผลหวยจริง)\n🎯 หวย: ${lotteryName}\n🔺 3 ตัวบน: ${top3}\n🔻 2 ตัวล่าง: ${last2}\nระบบส่งคำขอไปยัง ntfy server; โปรดตรวจสอบการได้รับบน Android ด้วยตนเอง`;
+      const publishDirectlyToNtfy = async () => {
+        const target = new URL(`${cleanServer}/${encodeURIComponent(topicValue)}`);
+        target.searchParams.set('title', title);
+        target.searchParams.set('priority', 'urgent');
+        target.searchParams.set('tags', 'loudspeaker,bell');
+        const response = await fetch(target.toString(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+          body: message,
+        });
+        if (!response.ok) throw new Error(`ntfy ตอบกลับ HTTP ${response.status}`);
+        setTestResult({ success: true, message: `ntfy server ตอบรับคำขอส่งไปยัง topic ${topicValue} แล้ว โปรดตรวจสอบมือถือด้วยตนเอง (ยังยืนยันการรับบนเครื่องไม่ได้)` });
+      };
 
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        setTestResult({ success: true, message: `ntfy server ตอบรับคำขอส่งไปยัง topic ${topic} แล้ว โปรดตรวจสอบมือถือด้วยตนเอง (ยังยืนยันการรับบนเครื่องไม่ได้)` });
+      // APK has no local Express API server; publish directly from the Android WebView.
+      if (Capacitor.isNativePlatform()) {
+        await publishDirectlyToNtfy();
       } else {
-        setTestResult({ success: false, message: data.error || `HTTP ${res.status}: ส่งไม่สำเร็จ` });
+        const res = await fetch('/api/test-ntfy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic: topicValue, server: cleanServer, title, message }),
+        });
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.success) {
+            setTestResult({ success: true, message: `ntfy server ตอบรับคำขอส่งไปยัง topic ${topicValue} แล้ว โปรดตรวจสอบมือถือด้วยตนเอง (ยังยืนยันการรับบนเครื่องไม่ได้)` });
+          } else {
+            throw new Error(data.error || `HTTP ${res.status}: ส่งไม่สำเร็จ`);
+          }
+        } else {
+          await publishDirectlyToNtfy();
+        }
       }
     } catch (err: any) {
       setTestResult({ success: false, message: `เชื่อมต่อไม่สำเร็จ: ${err.message}` });
