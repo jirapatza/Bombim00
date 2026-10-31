@@ -70,13 +70,43 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   const [detailLottery, setDetailLottery] = useState<LotteryItem | null>(null);
 
   const normalizeMatchKey = (value: unknown) => String(value ?? '').toLocaleLowerCase().replace(/[\s._#-]+/g, '');
+  // Explicit aliases keep similarly named draws (normal/VIP, morning/afternoon,
+  // special/VISA) from being mixed together in the detail panel.
+  const resultAliases: Record<string, string[]> = {
+    nikkei_morning: ['หวยหุ้นนิเคอิเช้า', 'หวยหุ้นนิคเคอิเช้า'],
+    nikkei_afternoon: ['หวยหุ้นนิเคอิบ่าย', 'หวยหุ้นนิคเคอิบ่าย'],
+    nikkei_vip_morning: ['หวยหุ้นนิเคอิ VIP เช้า', 'หวยหุ้นนิคเคอิ VIP เช้า'],
+    nikkei_vip_afternoon: ['หวยหุ้นนิเคอิ VIP บ่าย', 'หวยหุ้นนิคเคอิ VIP บ่าย'],
+    china_morning: ['หวยหุ้นจีนเช้า'],
+    china_afternoon: ['หวยหุ้นจีนบ่าย'],
+    china_vip_morning: ['หวยหุ้นจีน VIP เช้า'],
+    china_vip_afternoon: ['หวยหุ้นจีน VIP บ่าย'],
+    hangseng_morning: ['หวยหุ้นฮั่งเส็งเช้า'],
+    hangseng_afternoon: ['หวยหุ้นฮั่งเส็งบ่าย'],
+    hangseng_vip_morning: ['หวยหุ้นฮั่งเส็ง VIP เช้า'],
+    hangseng_vip_afternoon: ['หวยหุ้นฮั่งเส็ง VIP บ่าย'],
+    taiwan: ['หวยหุ้นไต้หวัน'],
+    taiwan_vip: ['หวยหุ้นไต้หวัน VIP'],
+    korea: ['หวยหุ้นเกาหลี'],
+    korea_vip: ['หวยหุ้นเกาหลี VIP'],
+    singapore: ['หวยหุ้นสิงคโปร์'],
+    singapore_vip: ['หวยหุ้นสิงคโปร์ VIP'],
+    thai_stock_evening: ['หวยหุ้นไทยเย็น'],
+    india: ['หวยหุ้นอินเดีย'],
+    russia: ['หวยหุ้นรัสเซีย'],
+    dowjones: ['หวยหุ้นดาวโจนส์'],
+    thai_gov: ['หวยรัฐบาลไทย', 'สลากกินแบ่งรัฐบาล'],
+    gsb: ['หวยออมสิน'],
+    baac: ['หวยธกส.', 'หวย ธ.ก.ส.'],
+  };
   const selectedResult = detailLottery ? results
     .filter((row) => {
       const idKey = normalizeMatchKey(detailLottery.id);
       const nameKey = normalizeMatchKey(detailLottery.name);
+      const allowedKeys = [idKey, nameKey, ...(resultAliases[detailLottery.id] || []).map(normalizeMatchKey)].filter(Boolean);
       const candidates = [row.หวย, row.lottery, row.lottery_code, row.ชื่อหวย, row.lotteryName]
         .map(normalizeMatchKey).filter(Boolean);
-      return candidates.some((key) => key === idKey || key === nameKey || key.includes(nameKey) || nameKey.includes(key));
+      return candidates.some((key) => allowedKeys.includes(key));
     })
     .sort((a, b) => String(b.วันที่จัดรูปแบบ || b.งวดวันที่ || '').localeCompare(String(a.วันที่จัดรูปแบบ || a.งวดวันที่ || '')))[0]
     : null;
