@@ -1757,7 +1757,7 @@ export default function App() {
         {/* ==================== TAB 1: LIVE UPCOMING DRAWS (WAITING & ABOUT-TO-DRAW) ==================== */}
         <div className={activeTab === 'live' ? 'block' : 'hidden'}>
           <div className="mb-5">
-            <LatestThreeResults results={results} />
+            <LatestThreeResults results={results} lotteries={allLotteries} />
           </div>
           <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันการแสดงผลหวยสดขัดข้อง (Live Draws Shield)">
             <LiveUpcomingDraws
