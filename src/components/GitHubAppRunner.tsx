@@ -77,10 +77,10 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
     lastChecked?: string;
   }>({
     checking: false,
-    githubConnected: true,
-    serverConnected: true,
+    githubConnected: false,
+    serverConnected: false,
     repoName: 'jirapatza/Bombim00',
-    totalRuns: 161,
+    totalRuns: 0,
   });
 
   // Dispatch parameters
@@ -109,7 +109,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
     setConnectionStatus((prev) => ({ ...prev, checking: true }));
     try {
       let ghOk = false;
-      let count = 161;
+      let count = 0;
       try {
         const ghRes = await fetch(`https://api.github.com/repos/${repo}`, {
           headers: { 'User-Agent': 'LotteryAlert/1.0' },
@@ -121,7 +121,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
           }).catch(() => null);
           if (runsRes && runsRes.ok) {
             const rData = await runsRes.json();
-            count = rData.total_count || 161;
+            count = Number.isFinite(rData.total_count) ? rData.total_count : 0;
           }
         }
       } catch {
@@ -443,8 +443,8 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
                           ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
                           : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                       }`}>
-                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                        เชื่อมต่อแล้ว (Public Repo)
+                        <CheckCircle2 className={`w-3 h-3 ${connectionStatus.githubConnected ? 'text-emerald-400' : 'text-amber-400'}`} />
+                        {connectionStatus.checking ? 'กำลังตรวจสอบ GitHub...' : connectionStatus.lastChecked ? (connectionStatus.githubConnected ? 'เชื่อมต่อแล้ว (Public Repo)' : 'ยังเชื่อมต่อ GitHub ไม่ได้') : 'ยังไม่ได้ตรวจสอบ GitHub'}
                       </span>
                     </div>
                     <div className="text-[11px] text-slate-400 mt-1 flex flex-wrap items-center gap-2.5">
@@ -452,9 +452,9 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
                       <span>•</span>
                       <span>ประวัติการรันจริงบน GitHub: <strong className="text-amber-300 font-mono">{connectionStatus.totalRuns} ครั้ง</strong></span>
                       <span>•</span>
-                      <span className="text-emerald-400 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        Server Runner: พร้อมทำงาน
+                      <span className={`flex items-center gap-1 ${connectionStatus.serverConnected ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${connectionStatus.serverConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+                        {connectionStatus.checking ? 'กำลังตรวจสอบ API Server...' : connectionStatus.lastChecked ? (connectionStatus.serverConnected ? 'API Server: เชื่อมต่อแล้ว' : 'API Server: ยังไม่เชื่อมต่อ') : 'API Server: ยังไม่ได้ตรวจสอบ'}
                       </span>
                     </div>
                   </div>
