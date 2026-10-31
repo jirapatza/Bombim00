@@ -52,7 +52,7 @@ interface DailySummaryProps {
   onSpeakLottery: (lottery: LotteryItem) => void;
   onUpdateLotteries?: (lotteries: LotteryItem[]) => void;
   nextClosing?: { name: string; closeTimeStr: string; remainingText: string } | null;
-  results?: Array<Record<string, any>>;
+  results?: any[];
 }
 
 export const DailySummaryTable: React.FC<DailySummaryProps> = ({
