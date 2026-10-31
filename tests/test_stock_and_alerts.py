@@ -1,4 +1,3 @@
-import base64
 import datetime
 
 import lottery_checker as lc
@@ -52,10 +51,11 @@ def test_thailottoapi_fetches_all_supported_categories_and_skips_removed_maekhon
     rows = lc.fetch_from_thailottoapi_results()
 
     assert "sync=1" in seen["url"]
-    assert len(rows) == 8
+    assert len(rows) == 7
     assert {row["หมวดหวย"] for row in rows} == {
-        "government", "lao", "hanoi", "malay", "thai_stock", "vip", "liw"
+        "government", "lao", "hanoi", "malay", "thai_stock", "vip"
     }
+    assert not any("LIW" in row["ชื่อหวย"].upper() for row in rows)
     assert not any("แม่โขง" in row["ชื่อหวย"] for row in rows)
     assert not any(row["หวย"] == "NIKKEI" for row in rows)
 
@@ -99,8 +99,10 @@ def test_non_stock_ntfy_body_uses_real_line_breaks(monkeypatch):
     })
 
     assert ok is True
-    assert "\n" in sent["body"]
-    assert "\\n" not in sent["body"]
+    import json
+    payload = json.loads(sent["body"])
+    assert "\n" in payload["message"]
+    assert "\\n" not in payload["message"]
 
 
 
@@ -130,10 +132,12 @@ def test_non_government_ntfy_body_uses_top3_and_bottom2_labels(monkeypatch):
     })
 
     assert ok is True
-    assert "3 ตัวบน: 024" in sent["body"]
-    assert "2 ตัวล่าง: 44" in sent["body"]
-    assert "รางวัลที่ 1:" not in sent["body"]
-    assert base64.b64decode(sent["headers"]["Title"].removeprefix("base64:")).decode("utf-8") == "ผลหวยฮานอยพิเศษ งวด 31 ตุลาคม 2569"
+    import json
+    payload = json.loads(sent["body"])
+    assert "3 ตัวบน: 024" in payload["message"]
+    assert "2 ตัวล่าง: 44" in payload["message"]
+    assert "รางวัลที่ 1:" not in payload["message"]
+    assert payload["title"] == "📢 ผลหวยฮานอยพิเศษ งวด 31 ตุลาคม 2569"
 
 
 def test_ntfy_does_not_publish_when_topic_is_missing(monkeypatch):
@@ -213,10 +217,12 @@ def test_ntfy_template_error_fallback_keeps_non_government_lottery_identity(monk
         "เลขบน_3_ตัว": "024",
         "เลขล่าง_2_ตัว": "44",
     }) is True
-    assert "ผลหวยฮานอยพิเศษ" in sent["body"]
-    assert "3 ตัวบน: 024" in sent["body"]
-    assert "2 ตัวล่าง: 44" in sent["body"]
-    assert "สลากกินแบ่งรัฐบาล" not in sent["body"]
+    import json
+    payload = json.loads(sent["body"])
+    assert "ผลหวยฮานอยพิเศษ" in payload["title"]
+    assert "3 ตัวบน: 024" in payload["message"]
+    assert "2 ตัวล่าง: 44" in payload["message"]
+    assert "สลากกินแบ่งรัฐบาล" not in payload["message"]
 
 
 def test_ntfy_title_uses_base64_utf8_header_for_thai_and_emoji(monkeypatch):
@@ -232,9 +238,8 @@ def test_ntfy_title_uses_base64_utf8_header_for_thai_and_emoji(monkeypatch):
         "ชื่อหวย": "หวยฮานอยพิเศษ", "หมวดหวย": "hanoi", "งวดวันที่": "31 ตุลาคม 2569",
         "เลขบน_3_ตัว": "024", "เลขล่าง_2_ตัว": "44"
     }) is True
-    encoded_title = sent["headers"]["Title"]
-    assert encoded_title.startswith("base64:")
-    assert base64.b64decode(encoded_title.removeprefix("base64:")).decode("utf-8") == "📢 ผลหวยฮานอยพิเศษ งวด 31 ตุลาคม 2569"
+    import json
+    assert json.loads(sent["body"])["title"] == "📢 ผลหวยฮานอยพิเศษ งวด 31 ตุลาคม 2569"
 
 
 def test_stock_group_scraper_ignores_faq_headings(monkeypatch):
