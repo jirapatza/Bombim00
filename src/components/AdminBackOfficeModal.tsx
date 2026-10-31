@@ -443,13 +443,13 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
               </div>
             )}
 
-            {/* ================= SUB-TAB 6: APP INFO & DOWNLOAD ================= */}
+            {/* ================= SUB-TAB 6: WEB APP INFO ================= */}
             {activeAdminSubTab === 'app_info' && (
               <div className="space-y-6 animate-fadeIn">
                 <div className="p-6 rounded-3xl bg-slate-950/70 border border-slate-800 space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-2xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                      <Smartphone className="w-6 h-6" />
+                      <Globe className="w-6 h-6" />
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-white">เว็บแอป &amp; ข้อมูลระบบ</h3>
