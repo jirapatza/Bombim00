@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../utils/api';
 import {
   Activity,
   CheckCircle2,
@@ -174,7 +175,7 @@ export function SystemMonitorKiosk() {
   const fetchMonitorStatus = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/system/monitor');
+      const res = await apiFetch('/api/system/monitor');
       if (res.ok) {
         const data = await res.json();
         setMonitorData(data);
@@ -189,7 +190,7 @@ export function SystemMonitorKiosk() {
   const fetchHealingHistory = async () => {
     setIsHistoryLoading(true);
     try {
-      const res = await fetch('/api/system/self-heal-history');
+      const res = await apiFetch('/api/system/self-heal-history');
       if (res.ok) {
         const data = await res.json();
         if (data.history && Array.isArray(data.history)) {
@@ -225,7 +226,7 @@ export function SystemMonitorKiosk() {
     setHealingTargetDevice(params?.targetDevice || null);
     setHealResult(null);
     try {
-      const res = await fetch('/api/system/self-heal', {
+      const res = await apiFetch('/api/system/self-heal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -258,7 +259,7 @@ export function SystemMonitorKiosk() {
   const handleClearHistory = async () => {
     if (!window.confirm('คุณต้องการล้างประวัติคำสั่งซ่อมแซมตัวเองทั้งหมดใช่หรือไม่?')) return;
     try {
-      const res = await fetch('/api/system/self-heal-history', { method: 'DELETE' });
+      const res = await apiFetch('/api/system/self-heal-history', { method: 'DELETE' });
       if (res.ok) {
         setHealingHistory([]);
         setExpandedSessionId(null);
