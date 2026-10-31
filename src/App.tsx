@@ -66,6 +66,7 @@ import {
 
 import { BatchTicketChecker } from './components/BatchTicketChecker';
 import { DailySummaryTable, LotteryItem } from './components/DailySummaryTable';
+import { filterLotteriesForDrawDate } from './utils/lotterySchedule';
 // Offline schedule fallback for the installed Android APK.
 // The source JSON also contains sample-looking prize fields; never expose those as live results.
 const offlineLotteryCatalog: LotteryItem[] = (bundledLotteryCatalog as LotteryItem[]).map((item) => ({
@@ -275,14 +276,18 @@ function getLotteryResultFingerprint(row: any): string {
 }
 
 function getNextClosingLottery(currentTime = new Date()): { name: string; closeTimeStr: string; remainingText: string } {
-  let currentHour = currentTime.getHours();
+  const bangkokNow = getBangkokClockParts(currentTime);
+  let currentHour = bangkokNow.hour;
   // If midnight to 03:00, count as 24..27
   if (currentHour < 4) {
     currentHour += 24;
   }
-  const currentMinutes = currentHour * 60 + currentTime.getMinutes();
+  const currentMinutes = currentHour * 60 + bangkokNow.minute;
+  const todaysSchedule = LOTTERY_SCHEDULE.filter((item) =>
+    isLotteryScheduledOnDate(item, bangkokNow.weekday, bangkokNow.day)
+  );
 
-  for (const item of LOTTERY_SCHEDULE) {
+  for (const item of todaysSchedule) {
     const itemMinutes = item.closeHour * 60 + item.closeMinute;
     if (itemMinutes > currentMinutes) {
       const diff = itemMinutes - currentMinutes;
@@ -1731,7 +1736,7 @@ export default function App() {
         {/* ==================== TAB 1: LIVE UPCOMING DRAWS (WAITING & ABOUT-TO-DRAW) ==================== */}
         <div className={activeTab === 'live' ? 'block' : 'hidden'}>
           <LiveUpcomingDraws
-            lotteries={allLotteries}
+            lotteries={filterLotteriesForDrawDate(allLotteries)}
             onSelectLottery={(item) => {
               setSelectedCatalogLottery(item);
               setActiveTab('summary');
@@ -1752,7 +1757,7 @@ export default function App() {
         {/* ==================== TAB 2: DAILY SUMMARY TABLE (FULL 51 LOTTERIES MATRIX) ==================== */}
         {activeTab === 'summary' && (
           <DailySummaryTable
-            lotteries={allLotteries}
+            lotteries={filterLotteriesForDrawDate(allLotteries)}
             results={results}
             onSelectLottery={(item) => {
               setSelectedCatalogLottery(item);
