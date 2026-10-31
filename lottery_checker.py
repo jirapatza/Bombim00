@@ -580,8 +580,11 @@ def send_ntfy_notification(row: dict) -> bool:
     configured_click = S.get("channels", {}).get("ntfy", {}).get("click_url") or S.get("ntfy", {}).get("click_url") or ""
     click_url = app_url if (not configured_click or "sanook" in configured_click) else configured_click
 
-    title = f"📢 ผล{canonical_name} งวด {draw_date}"
     category = _lottery_category(row)
+    display_name = canonical_name
+    if category not in {"government", "gov_savings"} and not display_name.startswith("หวย"):
+        display_name = f"หวย{display_name}"
+    title = f"📢 ผล{display_name} งวด {draw_date}"
     if category in {"government", "gov_savings"}:
         body = (
             f"🎯 หวย: {canonical_name}\n"
