@@ -205,7 +205,7 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({
                   <span className="text-[11px] text-emerald-200 font-normal">
                     Bombim00-latest.apk (Direct Release)
                   </span>
-                </a>
+                </button>
 
                 <button
                   type="button"
@@ -222,7 +222,7 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({
                   <span className="text-[11px] text-slate-400 font-normal">
                     ดูทุกเวอร์ชันที่คอมไพล์แล้ว
                   </span>
-                </a>
+                </button>
               </div>
 
               <div className="bg-slate-900/90 rounded-xl p-3.5 border border-slate-800 space-y-2">
