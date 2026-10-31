@@ -7,7 +7,7 @@ import {
   Activity,
   Github,
   Search,
-  Smartphone,
+  Globe,
   Trash2,
   CheckCircle2,
   AlertTriangle,
@@ -29,7 +29,6 @@ import { SettingsCenter } from './SettingsCenter';
 import { SystemMonitorKiosk } from './SystemMonitorKiosk';
 import { GitHubAppRunner } from './GitHubAppRunner';
 import { DataAccuracyCenter } from './DataAccuracyCenter';
-import { AppDownloadModal } from './AppDownloadModal';
 
 interface AdminBackOfficeModalProps {
   isOpen: boolean;
@@ -47,7 +46,6 @@ interface AdminBackOfficeModalProps {
   isTriggering: boolean;
   onRefreshData: () => void;
   templateProps: any;
-  onOpenAppDownload: () => void;
 }
 
 export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
@@ -66,7 +64,6 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
   isTriggering,
   onRefreshData,
   templateProps,
-  onOpenAppDownload,
 }) => {
   const [activeAdminSubTab, setActiveAdminSubTab] = useState<
     'notifications' | 'filter_dedup' | 'monitor' | 'runner' | 'accuracy' | 'app_info'
@@ -132,8 +129,8 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
     },
     {
       id: 'app_info' as const,
-      label: 'ติดตั้งแอป & ข้อมูลระบบ',
-      sublabel: 'Android APK / PWA / เวอร์ชั่นระบบ',
+      label: 'เว็บแอป & ข้อมูลระบบ',
+      sublabel: 'PWA / เวอร์ชั่นระบบ',
       icon: Smartphone,
     },
   ];
@@ -455,22 +452,11 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
                       <Smartphone className="w-6 h-6" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-white">ติดตั้งแอปพลิเคชันมือถือ &amp; ข้อมูลระบบ</h3>
+                      <h3 className="text-xl font-bold text-white">เว็บแอป &amp; ข้อมูลระบบ</h3>
                       <p className="text-sm text-slate-400">
-                        ติดตั้งเป็นแอป Progressive Web App (PWA) บนมือถือ หรือดาวน์โหลด Android APK
+                        ใช้งานผ่านเว็บเบราว์เซอร์ได้ทั้งมือถือและคอมพิวเตอร์ และเพิ่มเว็บไว้ที่หน้าจอหลักได้
                       </p>
                     </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={onOpenAppDownload}
-                      className="px-6 py-3.5 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-base flex items-center gap-2.5 shadow-lg shadow-purple-600/25 transition cursor-pointer active:scale-95"
-                    >
-                      <Smartphone className="w-5 h-5 text-amber-300" />
-                      <span>📲 เปิดหน้าต่างดาวน์โหลดแอป Android &amp; PWA</span>
-                    </button>
                   </div>
 
                   <div className="border-t border-slate-800 pt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
