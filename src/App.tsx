@@ -1739,6 +1739,7 @@ export default function App() {
         {activeTab === 'summary' && (
           <DailySummaryTable
             lotteries={allLotteries}
+            results={results}
             onSelectLottery={(item) => {
               setSelectedCatalogLottery(item);
             }}
