@@ -995,12 +995,28 @@ export default function App() {
     let newResults: LotteryResult[] = [];
     try {
       const apiBase = workerUrl ? workerUrl.replace(/\/+$/, '') : '';
+      const rawBase = 'https://raw.githubusercontent.com/jirapatza/Bombim00/main';
+      const fetchJsonWithFallback = async (primaryUrl: string, fallbackUrl?: string) => {
+        const request = async (url: string) => {
+          try {
+            const response = await fetch(url, { cache: 'no-store' });
+            return response.ok ? await response.json() : null;
+          } catch {
+            return null;
+          }
+        };
+        const primary = await request(primaryUrl);
+        if (primary !== null) return primary;
+        return fallbackUrl ? await request(fallbackUrl) : null;
+      };
       const [resStatus, resSettings, resResults, resFiles, resAllLotteries] = await Promise.all([
-        fetch(`${apiBase}/api/status`).then((r) => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${apiBase}/api/settings`).then((r) => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${apiBase}/api/results`).then((r) => r.ok ? r.json() : null).catch(() => null),
+        fetchJsonWithFallback(`${apiBase}/api/status`, `${rawBase}/status/status.json`),
+        fetchJsonWithFallback(`${apiBase}/api/settings`),
+        // APKs have no bundled API server. Read the same public data file that
+        // GitHub Actions updates, so installed Android builds still show real results.
+        fetchJsonWithFallback(`${apiBase}/api/results`, `${rawBase}/lottery_previous_results.json`),
         fetch(`${apiBase}/api/project-files`).then((r) => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${apiBase}/api/all-lotteries`).then((r) => r.ok ? r.json() : []).catch(() => []),
+        fetchJsonWithFallback(`${apiBase}/api/all-lotteries`, `${rawBase}/data/all_lotteries.json`),
       ]);
 
       if (resStatus) setStatus(resStatus);
