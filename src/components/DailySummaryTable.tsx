@@ -20,11 +20,9 @@ import {
   Edit3,
   Plus,
   Trash2,
-  Share2,
   AlertTriangle
 } from 'lucide-react';
 import { parseLotteryTimelineMinutes } from './LiveUpcomingDraws';
-import { SocialPostModal } from './SocialPostModal';
 import { EditLotteryModal } from './EditLotteryModal';
 
 export interface LotteryItem {
@@ -68,8 +66,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'closing_soon' | 'closed_waiting' | 'announced'>('all');
   const [copiedSummary, setCopiedSummary] = useState(false);
 
-  // Modals state
-  const [isSocialModalOpen, setIsSocialModalOpen] = useState(false);
+  // Schedule editor state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingLottery, setEditingLottery] = useState<LotteryItem | null>(null);
 
@@ -271,22 +268,12 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
             ตารางสรุปผลหวยและตัวควบคุมตารางเวลา ({totalCount} รายการ)
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            ติดตามสถานะสด: กำลังเปิดรับ • ใกล้ปิดรับ • ปิดรับแล้วรอลุ้นผล • ออกผลรางวัลแล้ว พร้อมปุ่มสร้างแคปชั่นส่งกลุ่ม และปุ่มแก้ไขเวลา
+            ติดตามสถานะสด: กำลังเปิดรับ • ใกล้ปิดรับ • ปิดรับแล้วรอลุ้นผล • ออกผลรางวัลแล้ว และปุ่มแก้ไขเวลา
           </p>
         </div>
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Social Caption Broadcaster Button */}
-          <button
-            type="button"
-            onClick={() => setIsSocialModalOpen(true)}
-            className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white cursor-pointer shadow-md transition flex items-center gap-1.5"
-          >
-            <Share2 className="w-4 h-4" />
-            สร้างแคปชั่นส่งเข้ากลุ่ม
-          </button>
-
           {/* Add Lottery Button */}
           {onUpdateLotteries && (
             <button
@@ -778,14 +765,6 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
           </table>
         </div>
       </div>
-
-      {/* Social Caption Broadcaster Modal */}
-      <SocialPostModal
-        isOpen={isSocialModalOpen}
-        onClose={() => setIsSocialModalOpen(false)}
-        lotteries={chronoSorted}
-        nextClosing={nextClosing}
-      />
 
       {/* Schedule & Lottery Editor Modal */}
       <EditLotteryModal
