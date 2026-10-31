@@ -830,12 +830,21 @@ export default function App() {
     stopSpeech();
     playChime();
 
-    const topSpelled = spellDigits(item.top3);
-    const bottomSpelled = spellDigits(item.bottom2);
+    const topResult = String(item.top3 || item.firstPrize || '').trim();
+    const bottomResult = String(item.bottom2 || '').trim();
+    if (!topResult && !bottomResult) {
+      showToast('ยังไม่มีผลรางวัลจริงสำหรับอ่านประกาศ');
+      return;
+    }
 
     let text = `ประกาศผล ${item.name} งวดวันที่ ${item.date}. `;
-    text += `สามตัวบน ออกเลข ${topSpelled}. `;
-    text += `สองตัวล่าง ออกเลข ${bottomSpelled}. `;
+    if (item.category === 'gov_savings' && item.firstPrize) {
+      text += `รางวัลที่หนึ่ง ออกเลข ${spellDigits(item.firstPrize)}. `;
+      if (bottomResult) text += `เลขท้ายสองตัว ออกเลข ${spellDigits(bottomResult)}. `;
+    } else {
+      if (topResult) text += `สามตัวบน ออกเลข ${spellDigits(topResult)}. `;
+      if (bottomResult) text += `สองตัวล่าง ออกเลข ${spellDigits(bottomResult)}. `;
+    }
     if (item.setIndex) {
       text += `ดัชนีตลาดปิดที่ ${item.setIndex}. `;
     }
