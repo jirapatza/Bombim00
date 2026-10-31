@@ -1756,6 +1756,9 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
         {/* ==================== TAB 1: LIVE UPCOMING DRAWS (WAITING & ABOUT-TO-DRAW) ==================== */}
         <div className={activeTab === 'live' ? 'block' : 'hidden'}>
+          <div className="mb-5">
+            <LatestThreeResults results={results} />
+          </div>
           <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันการแสดงผลหวยสดขัดข้อง (Live Draws Shield)">
             <LiveUpcomingDraws
               lotteries={filterLotteriesForDrawDate(allLotteries)}
@@ -1780,7 +1783,6 @@ export default function App() {
         {/* ==================== TAB 2: DAILY SUMMARY TABLE (FULL 51 LOTTERIES MATRIX) ==================== */}
         {activeTab === 'summary' && (
           <div className="space-y-5">
-            <LatestThreeResults results={results} />
             <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันตารางสรุปผลหวยขัดข้อง (Summary Table Shield)">
             <DailySummaryTable
               lotteries={allLotteries}
