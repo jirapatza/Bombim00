@@ -53,6 +53,7 @@ export default {
     }
     // All write/test/dispatch endpoints require a configured dashboard password.
     // A GitHub token in the request body is a GitHub API credential, never dashboard authentication.
+    const requestToken = incomingBody.token || '';
     const isAuthed = Boolean(env.DASH_PASSWORD) && clientPassword === env.DASH_PASSWORD;
     const isWriteMethod = ["POST", "PUT", "DELETE"].includes(request.method);
 
