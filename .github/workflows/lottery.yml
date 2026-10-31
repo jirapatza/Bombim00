@@ -9,9 +9,6 @@ on:
       - "config/settings.json"
       - "tests/**"
       - ".github/workflows/lottery.yml"
-      - "src/**"
-      - "package.json"
-      - "vite.config.ts"
   schedule:
     # Poll every 5 minutes; GitHub may delay scheduled workflows.
     - cron: '*/5 * * * *'
