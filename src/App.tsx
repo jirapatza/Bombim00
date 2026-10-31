@@ -2469,17 +2469,7 @@ export default function App() {
         )}
 
         {/* ==================== TAB 4: UNIFIED SETTINGS CENTER ==================== */}
-        {(activeTab === 'settings' ||
-          activeTab === 'mobile' ||
-          activeTab === 'template' ||
-          activeTab === 'github' ||
-          activeTab === 'files' ||
-          activeTab === 'channels' ||
-          activeTab === 'deployment' ||
-          activeTab === 'schedule' ||
-          activeTab === 'tester' ||
-          activeTab === 'worker' ||
-          activeTab === 'broadcast') && (
+        {activeTab === 'settings' && (
           <SettingsCenter
             settings={settings}
             onSaveSettings={handleSaveMultiChannelSettings}
