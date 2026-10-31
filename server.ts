@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 
@@ -18,6 +19,30 @@ const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json({ limit: '25mb' }));
+
+// Protect every state-changing API request. Production must configure DASH_PASSWORD;
+// development remains usable without a secret, but validates it whenever configured.
+app.use('/api', (req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+
+  const expectedPassword = process.env.DASH_PASSWORD || '';
+  if (!expectedPassword) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(503).json({ error: 'Dashboard API is locked: configure DASH_PASSWORD on the server.' });
+    }
+    return next();
+  }
+
+  const authorization = req.get('Authorization') || '';
+  const bearerPassword = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+  const suppliedPassword = bearerPassword || req.get('X-Dashboard-Password') || '';
+  const expected = Buffer.from(expectedPassword);
+  const supplied = Buffer.from(suppliedPassword);
+  const valid = supplied.length === expected.length && timingSafeEqual(supplied, expected);
+
+  if (!valid) return res.status(401).json({ error: 'Unauthorized: valid dashboard password required.' });
+  return next();
+});
 
 // -------------------------------------------------------------
 // ระบบป้องกันระบบล่มระดับโปรเซส (Process Crash Shield & Fault Tolerance)
