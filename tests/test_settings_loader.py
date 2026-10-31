@@ -98,6 +98,22 @@ def test_should_notify_rejects_empty_rows():
     assert sl.should_notify({"notifications": {"enabled": True, "notify_on_new_draw": True}}, {}) is False
 
 
+def test_write_status_counts_distinct_sources_not_result_rows(tmp_path):
+    status_file = tmp_path / "status.json"
+    sample_rows = [
+        {"ชื่อหวย": "หุ้น A", "แหล่งข้อมูล": "ThaiLottoAPI"},
+        {"ชื่อหวย": "หุ้น B", "แหล่งข้อมูล": "ThaiLottoAPI"},
+        {"ชื่อหวย": "หุ้น C", "แหล่งข้อมูล": "ผลหวย.com"},
+    ]
+
+    status = sl.write_status(
+        sample_rows,
+        status_path=str(status_file),
+        source_used="ThaiLottoAPI + ผลหวย.com",
+    )
+    assert status["active_sources_count"] == 2
+
+
 def test_write_status_marks_missing_live_results_as_degraded(tmp_path):
     status_file = tmp_path / "status.json"
     status = sl.write_status([], status_path=str(status_file), source_used=None)
