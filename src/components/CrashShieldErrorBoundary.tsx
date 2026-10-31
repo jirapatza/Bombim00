@@ -150,7 +150,7 @@ export class CrashShieldErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 {this.state.autoRecoverCountdown !== null
@@ -206,7 +206,7 @@ export class CrashShieldErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-sky-500 via-teal-500 to-emerald-400 hover:from-sky-400 hover:to-cyan-300 text-slate-950 font-black text-sm shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition cursor-pointer active:scale-98"
+                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-sky-500 via-blue-500 to-cyan-400 hover:from-sky-400 hover:to-cyan-300 text-slate-950 font-black text-sm shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 active:scale-98"
               >
                 <RotateCcw className="w-4 h-4" />
                 กู้คืนระบบและเริ่มทำงานต่อทันที (Auto-Recover)
@@ -216,7 +216,7 @@ export class CrashShieldErrorBoundary extends Component<Props, State> {
                 <button
                   type="button"
                   onClick={this.handleHardReload}
-                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer border border-slate-700"
+                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 border border-slate-700"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   รีโหลดหน้านี้ใหม่
@@ -224,7 +224,7 @@ export class CrashShieldErrorBoundary extends Component<Props, State> {
                 <button
                   type="button"
                   onClick={this.handleClearCacheAndReload}
-                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer border border-slate-700"
+                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 border border-slate-700"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   ล้างแคชและเริ่มใหม่
