@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import lotteryCatalogData from '../data/all_lotteries.json';
 import bundledLotteryCatalog from '../data/all_lotteries.json';
 import {
   Bell,
@@ -74,14 +73,14 @@ import { DeploymentPlaybook } from './components/DeploymentPlaybook';
 import { DailySummaryTable, LotteryItem } from './components/DailySummaryTable';
 // Offline schedule fallback for the installed Android APK.
 // The source JSON also contains sample-looking prize fields; never expose those as live results.
-const offlineLotteryCatalog: LotteryItem[] = (lotteryCatalogData as LotteryItem[]).map((item) => ({
+const offlineLotteryCatalog: LotteryItem[] = (bundledLotteryCatalog as LotteryItem[]).map((item) => ({
   ...item,
   top3: '',
   bottom2: '',
   firstPrize: '',
   status: 'waiting',
-  date: '',
-  source: 'ตารางกำหนดการในแอป (ออฟไลน์)',
+  date: 'ไม่ระบุ',
+  source: 'ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล',
 }));
 
 
@@ -1093,17 +1092,7 @@ export default function App() {
       }
       if (Array.isArray(resFiles)) setProjectFiles(resFiles);
       const apiLotteryCatalog = Array.isArray(resAllLotteries) ? resAllLotteries : [];
-      const bundledCatalog = (bundledLotteryCatalog as LotteryItem[]).map((item) => ({
-        ...item,
-        // The bundled file is a schedule/catalog fallback only. Never present
-        // its former sample numbers as verified lottery results.
-        top3: '',
-        bottom2: '',
-        firstPrize: '',
-        status: 'waiting' as const,
-        date: 'ไม่ระบุ',
-        source: 'ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล',
-      }));
+      const bundledCatalog = offlineLotteryCatalog;
       const availableCatalog = apiLotteryCatalog.length > 0 ? apiLotteryCatalog : bundledCatalog;
       setAllLotteries(availableCatalog);
       if (!selectedCatalogLottery && availableCatalog.length > 0) {
