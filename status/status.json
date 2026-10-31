@@ -1,14 +1,19 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-01T03:30:32.140908+07:00",
-  "last_run_date_thai": "01/11/2026 03:30:32 น.",
-  "total_checks": 353,
+  "last_run_timestamp": "2026-11-01T04:08:00.300997+07:00",
+  "last_run_date_thai": "01/11/2026 04:08:00 น.",
+  "total_checks": 354,
   "last_source_used": "ThaiLottoAPI + ผลหวย.com stock groups",
   "status_message": "ตรวจพบผลสดงวดล่าสุด 31 ตุลาคม 2569 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups",
   "active_sources_count": 2,
   "latest_draw_detected": "31 ตุลาคม 2569",
   "notifications_sent_today": 8,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-01T04:08:00.300997+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวดล่าสุด 31 ตุลาคม 2569 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
+    },
     {
       "timestamp": "2026-11-01T03:30:32.140908+07:00",
       "level": "INFO",
@@ -101,11 +106,6 @@
     },
     {
       "timestamp": "2026-10-31T12:29:06.664184+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวดล่าสุด 31.10.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
-    },
-    {
-      "timestamp": "2026-10-31T12:02:06.133043+07:00",
       "level": "INFO",
       "message": "ตรวจพบผลสดงวดล่าสุด 31.10.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
     }
