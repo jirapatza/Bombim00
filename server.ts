@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createLotteryRunner, lotteryTargets } from './server/lotteryRunner.ts';
+import { getOverallHealth, preserveCorruptFile } from './server/selfHeal.ts';
 import { timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
@@ -741,30 +742,25 @@ app.post('/api/system/self-heal', async (req, res) => {
         shellCommand: `node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("config/settings.json","utf-8")); console.log("Config OK:", c.app_name, "Sources:", Object.keys(c.sources || {}).length)'`,
       });
     } catch (err: any) {
-      fs.writeFileSync(SETTINGS_PATH, JSON.stringify({
-        version: '1.2.0',
-        app_name: 'Lottery Alert System Pro',
-        sources: {
-          glo: { enabled: true, name: 'GLO Official', priority: 5 },
-          ranlotto: { enabled: true, name: 'RANLOTTO', priority: 7 },
-          lotterychecks: { enabled: true, name: 'LotteryChecks', priority: 6 },
-          thailottoapi: { enabled: true, name: 'ThaiLottoAPI', priority: 1 },
-        },
-        notifications: { enabled: true, notify_on_new_draw: true, custom_watched_numbers: [] },
-        channels: { ntfy: { enabled: true, server: 'https://ntfy.sh', topic: '', priority: 'high' } },
-      }, null, 2));
+      let backupPath: string | null = null;
+      let backupError = '';
+      try {
+        backupPath = preserveCorruptFile(SETTINGS_PATH);
+      } catch (backupErr: any) {
+        backupError = backupErr?.message || String(backupErr);
+      }
       executedActions.push({
         id: `act-${Date.now()}-2`,
         commandCode: 'RESTORE_CONFIG_SCHEMA',
         targetDevice: 'System Config (config/settings.json)',
-        description: 'ซ่อมแซมและกู้คืนไฟล์ config/settings.json ที่ชำรุด',
+        description: 'ตรวจสอบไฟล์ตั้งค่าโดยไม่เขียนทับข้อมูลเดิมที่เสียหาย',
         triggerReason: 'ตรวจพบ JSON Syntax Error หรือโครงสร้างข้อมูลเสียหาย',
         timestamp: new Date().toISOString(),
         timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-        status: 'success',
+        status: 'failed',
         executionTimeMs: Math.max(1, Date.now() - t1),
-        details: 'เขียนทับด้วยโครงสร้างมาตรฐานและเปิดใช้งาน 4 แหล่งข้อมูลหลัก',
-        shellCommand: `cat << 'EOF' > config/settings.json\n{\n  "version": "1.2.0",\n  "app_name": "Lottery Alert System Pro",\n  "sources": { "glo": { "enabled": true } }\n}\nEOF`,
+        details: `อ่านไฟล์ตั้งค่าไม่สำเร็จและไม่ได้เขียนทับข้อมูลเดิม${backupPath ? `; สำรองไฟล์ไว้ที่ ${path.basename(backupPath)}` : ''}${backupError ? `; สำรองไฟล์ไม่สำเร็จ: ${backupError}` : ''}`,
+        shellCommand: '',
       });
     }
 
@@ -800,67 +796,127 @@ app.post('/api/system/self-heal', async (req, res) => {
         timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
         status: 'warning',
         executionTimeMs: Math.max(1, Date.now() - t3),
-        details: 'รีเซ็ตแคชผลสลากเป็นอาเรย์ว่างเปล่าเพื่อป้องกันระบบหยุดชะงัก',
-        shellCommand: 'echo "[]" > lottery_previous_results.json',
+        details: 'ตรวจสอบแคชไม่สำเร็จ จึงคงไฟล์เดิมไว้โดยไม่ลบหรือรีเซ็ตข้อมูล',
+        shellCommand: '',
       });
     }
 
-    // Action 5: RESET_SYSTEM_HEALTH_METRICS
-    const t4 = Date.now();
+    // Action 5: VERIFY_GATEWAYS_REACHABILITY using real bounded requests.
+    const t5 = Date.now();
+    const gatewayTargets = [
+      { id: 'glo', name: 'GLO Official', url: 'https://www.glo.or.th' },
+      { id: 'ntfy', name: 'ntfy.sh', url: 'https://ntfy.sh' },
+      { id: 'github', name: 'GitHub API', url: 'https://api.github.com' },
+    ];
+    const gatewayChecks = await Promise.all(gatewayTargets.map(async (gateway) => {
+      const startedAt = Date.now();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+      try {
+        const response = await fetch(gateway.url, {
+          method: 'HEAD',
+          redirect: 'error',
+          signal: controller.signal,
+        });
+        return {
+          id: gateway.id,
+          name: gateway.name,
+          status: response.ok ? 'success' as const : 'warning' as const,
+          statusCode: response.status,
+          latencyMs: Date.now() - startedAt,
+        };
+      } catch (err: any) {
+        return {
+          id: gateway.id,
+          name: gateway.name,
+          status: 'warning' as const,
+          statusCode: 0,
+          latencyMs: Date.now() - startedAt,
+          error: err?.name === 'AbortError' ? 'Request timed out' : (err?.message || 'Request failed'),
+        };
+      } finally {
+        clearTimeout(timeout);
+      }
+    }));
+    executedActions.push({
+      id: `act-${Date.now()}-5`,
+      commandCode: 'VERIFY_GATEWAYS_REACHABILITY',
+      targetDevice: 'External Feeds & Push Gateways',
+      description: 'ตรวจสอบการตอบสนองของ GLO, ntfy.sh และ GitHub API ด้วยคำขอจริง',
+      triggerReason: triggerReason || 'ตรวจสอบการเชื่อมต่อไปยังบริการภายนอก',
+      timestamp: new Date().toISOString(),
+      timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+      status: gatewayChecks.every((check) => check.status === 'success') ? 'success' : 'warning',
+      executionTimeMs: Math.max(1, Date.now() - t5),
+      details: JSON.stringify(gatewayChecks),
+      shellCommand: '',
+    });
+
+    // Action 6: Write a health state derived from verified action outcomes.
+    const t6 = Date.now();
     let currentStatus: any = {};
     try {
       if (fs.existsSync(STATUS_PATH)) {
         currentStatus = JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8'));
       }
-    } catch {}
+    } catch {
+      try {
+        preserveCorruptFile(STATUS_PATH);
+      } catch {
+        // Preserve the original status file if possible; the health result below remains degraded.
+      }
+      executedActions.push({
+        id: `act-${Date.now()}-6a`,
+        commandCode: 'PRESERVE_INVALID_RUNTIME_STATUS',
+        targetDevice: 'Runtime Status (status/status.json)',
+        description: 'สำรองไฟล์สถานะที่อ่านไม่ได้และไม่ใช้ข้อมูลที่เสียหาย',
+        triggerReason: 'พบไฟล์สถานะ JSON เสียหาย',
+        timestamp: new Date().toISOString(),
+        timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+        status: 'warning',
+        executionTimeMs: Math.max(1, Date.now() - t6),
+        details: 'ไม่สามารถอ่านไฟล์สถานะเดิมได้ จึงไม่ถือว่าระบบ Healthy',
+        shellCommand: '',
+      });
+    }
 
-    const fixedActionSummaries = executedActions.map((a) => `[${a.commandCode}] ${a.description}`);
+    const overallHealth = getOverallHealth(executedActions);
+    const healthMessage = overallHealth === 'healthy'
+      ? 'ตรวจสอบระบบแล้ว ทุกขั้นตอนและ gateway ที่ทดสอบผ่าน'
+      : overallHealth === 'degraded'
+        ? 'ตรวจสอบเสร็จ แต่มีบางขั้นตอนหรือ gateway ที่ยังต้องตรวจสอบ'
+        : 'พบความผิดพลาดระหว่างตรวจสอบ ระบบยังไม่พร้อมและต้องแก้ไขเพิ่มเติม';
     const healedStatus = {
       ...currentStatus,
-      system_status: 'healthy',
-      last_run_timestamp: nowIso,
-      last_run_date_thai: thaiNow,
-      status_message: 'ระบบได้รับการซ่อมแซมและตรวจสอบตัวเองอัตโนมัติ (Self-Healed Successfully)',
+      system_status: overallHealth,
+      last_health_check_timestamp: nowIso,
+      status_message: healthMessage,
       recent_logs: [
         {
           timestamp: nowIso,
-          level: 'INFO',
-          message: `[SELF-HEAL] ดำเนินการสำเร็จ ${executedActions.length} คำสั่ง: ${executedActions.map(a => a.commandCode).join(', ')}`,
+          level: overallHealth === 'healthy' ? 'INFO' : 'WARN',
+          message: `[SELF-HEAL] ผลตรวจสอบ: ${overallHealth}; ${executedActions.length} ขั้นตอน`,
         },
-        ...(currentStatus.recent_logs || []),
+        ...(Array.isArray(currentStatus.recent_logs) ? currentStatus.recent_logs : []),
       ].slice(0, 30),
     };
 
     fs.writeFileSync(STATUS_PATH, JSON.stringify(healedStatus, null, 2), 'utf-8');
     executedActions.push({
-      id: `act-${Date.now()}-5`,
-      commandCode: 'RESET_SYSTEM_HEALTH_METRICS',
+      id: `act-${Date.now()}-6`,
+      commandCode: 'WRITE_VERIFIED_HEALTH_STATUS',
       targetDevice: 'Runtime Status (status/status.json)',
-      description: 'ปรับสถานะระบบโดยรวมเป็น Healthy State และบันทึก Audit Log',
-      triggerReason: 'กู้คืนสถานะการทำงานหลังการซ่อมแซมเสร็จสิ้น',
+      description: 'บันทึกสถานะตามผลตรวจสอบจริง',
+      triggerReason: 'สรุปผลตรวจสอบระบบ',
       timestamp: new Date().toISOString(),
       timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
       status: 'success',
-      executionTimeMs: Math.max(1, Date.now() - t4),
-      details: 'เขียนสถานะ Healthy State และบันทึกประวัติล่าสุดลง status/status.json',
-      shellCommand: `node -e 'const fs=require("fs"); const s=JSON.parse(fs.readFileSync("status/status.json")); s.system_status="healthy"; fs.writeFileSync("status/status.json", JSON.stringify(s,null,2)); console.log("status ok")'`,
+      executionTimeMs: Math.max(1, Date.now() - t6),
+      details: `บันทึกสถานะ ${overallHealth}`,
+      shellCommand: '',
     });
 
-    // Action 6: VERIFY_GATEWAYS_REACHABILITY
-    const t5 = Date.now();
-    executedActions.push({
-      id: `act-${Date.now()}-6`,
-      commandCode: 'VERIFY_GATEWAYS_REACHABILITY',
-      targetDevice: 'External Feeds & Push Gateways',
-      description: 'ทดสอบสัญญาณการตอบสนองไปยัง GLO, ntfy.sh และ GitHub API',
-      triggerReason: triggerReason || 'ตรวจสอบการเชื่อมต่อไปยังบริการภายนอก',
-      timestamp: new Date().toISOString(),
-      timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-      status: 'success',
-      executionTimeMs: Math.max(1, Date.now() - t5 + 8),
-      details: 'ช่องทางส่งข้อมูลและแจ้งเตือนพร้อมใช้งานปกติ (Latency < 350ms)',
-      shellCommand: 'curl -s -m 5 -I https://glo.or.th https://ntfy.sh https://api.github.com/repos/jirapatza/Bombim00',
-    });
+    const fixedActionSummaries = executedActions.map((a) => `[${a.commandCode}] ${a.description}`);
 
     // Save session in self_healing_history.json
     let history: any[] = [];
@@ -880,9 +936,10 @@ app.post('/api/system/self-heal', async (req, res) => {
       triggerType: triggerType || (targetDevice ? 'device_error_repair' : 'manual_user_click'),
       triggeredByDevice: targetDevice || 'All Devices & Services (Full Suite)',
       triggerReason: triggerReason || (targetDevice ? `พบปัญหาหรือข้อผิดพลาดที่อุปกรณ์: ${targetDevice}` : 'ผู้ใช้กดปุ่มระบบซ่อมแซม'),
-      overallResult: executedActions.every(a => a.status === 'success') ? 'success' : 'partial',
+      overallResult: getOverallHealth(executedActions) === 'healthy' ? 'success' : getOverallHealth(executedActions) === 'error' ? 'failed' : 'partial',
       totalActionsCount: executedActions.length,
       successCount: executedActions.filter(a => a.status === 'success').length,
+      warningCount: executedActions.filter(a => a.status === 'warning').length,
       failedCount: executedActions.filter(a => a.status === 'failed').length,
       executionDurationTotalMs: Date.now() - startTime,
       actions: executedActions,
@@ -893,7 +950,7 @@ app.post('/api/system/self-heal', async (req, res) => {
 
     return res.json({
       success: true,
-      message: 'ระบบดำเนินการตรวจสอบและแก้ไขปัญหาตัวเองอัตโนมัติเรียบร้อยแล้ว',
+      message: sessionRecord.overallResult === 'success' ? 'ตรวจสอบระบบแล้ว ทุกขั้นตอนผ่าน' : 'ตรวจสอบเสร็จแล้ว แต่ยังมีรายการที่ต้องแก้ไขหรือตรวจสอบเพิ่มเติม',
       timestamp: nowIso,
       session: sessionRecord,
       fixedActions: fixedActionSummaries,
