@@ -65,3 +65,16 @@ test('rejects secret-like settings fields before they can be committed publicly'
   );
   assert.doesNotThrow(() => assertNoSecretFields({ channels: { ntfy: { topic: 'public-topic' }, line: { token: '' } } }));
 });
+
+test('allows durable system audit history but rejects arbitrary paths', async () => {
+  const result = await readGitHubJson('status/self_healing_history.json', {
+    repo: 'jirapatza/Bombim00',
+    branch: 'main',
+    fetchImpl: async () => new Response('[]', { status: 200 }),
+  });
+  assert.deepEqual(result, []);
+  await assert.rejects(
+    readGitHubJson('status/other.json', { fetchImpl: async () => { throw new Error('must not fetch'); } }),
+    (error) => error instanceof GitHubStorageError && error.code === 'INVALID_DATA_PATH',
+  );
+});
