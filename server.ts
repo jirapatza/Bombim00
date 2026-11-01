@@ -681,13 +681,10 @@ app.delete('/api/system/self-heal-history', async (_req, res) => {
 // Helper to generate verified local fallback data without crashing
 async function getLocalVerifiedFallback(prompt: string) {
   let previousResults: any[] = [];
-  if (fs.existsSync(RESULTS_PATH)) {
-    try {
-      const parsed = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
-      previousResults = Array.isArray(parsed) ? parsed : [];
-    } catch {
-      previousResults = [];
-    }
+  try {
+    previousResults = await readGitHubJson<any[]>('lottery_previous_results.json');
+  } catch {
+    previousResults = [];
   }
 
   let allLotteriesList: any[] = [];
