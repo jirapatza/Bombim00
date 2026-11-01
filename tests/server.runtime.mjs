@@ -67,6 +67,8 @@ test('production API protects writes and exposes only the single GitHub Actions 
     const health = await (await fetch(`${base}/api/health`)).json();
     assert.equal(health.ok, true);
     assert.equal(health.writesEnabled, false);
+    assert.equal(health.githubTokenConfigured, false);
+    assert.equal(health.dashboardAuthConfigured, true);
     assert.match(await (await fetch(base)).text(), /<div id="root">/);
   } finally {
     if (server.exitCode === null) {
