@@ -1,6 +1,5 @@
 /**
- * Authenticated same-origin API helper.
- * The dashboard password is kept for the current browser session only.
+ * Same-origin API helper. Dashboard credentials live only in this browser tab's session.
  */
 export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
