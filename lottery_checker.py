@@ -632,9 +632,10 @@ def send_ntfy_notification(row: dict) -> bool:
 
 
 def send_line_notification(row: dict) -> bool:
-    """Send formatted alert to LINE Notify personal/group token."""
-    token = os.environ.get("LINE_NOTIFY_TOKEN") or S.get("channels", {}).get("line", {}).get("token", "")
-    if not token or not S.get("channels", {}).get("line", {}).get("enabled", True):
+    """Send alerts through LINE Messaging API using server-side channel secrets."""
+    token = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
+    target_id = os.environ.get("LINE_TARGET_ID", "").strip()
+    if not token or not target_id or not S.get("channels", {}).get("line", {}).get("enabled", False):
         return False
 
     raw_lottery_name = row.get("ชื่อหวย") or row.get("หวย") or "หวยไม่ระบุชื่อ"
@@ -642,7 +643,7 @@ def send_line_notification(row: dict) -> bool:
         return False
 
     canonical_name = sl.map_canonical_lottery_name(raw_lottery_name)
-    app_url = os.environ.get("APP_URL") or "https://ais-pre-qiphuob5ntzos2dco2lbsq-675247792549.asia-southeast1.run.app"
+    app_url = os.environ.get("APP_URL") or "https://bombim00.onrender.com"
     category = _lottery_category(row)
 
     if category in {"government", "gov_savings"}:
@@ -651,7 +652,7 @@ def send_line_notification(row: dict) -> bool:
         front_3 = ", ".join(row.get("เลขหน้า_3_ตัว", [])) or "-"
         last_3 = ", ".join(row.get("เลขท้าย_3_ตัว", [])) or "-"
         msg = (
-            f"\n📢 ผล{canonical_name} งวด {row.get('งวดวันที่', '')}\n"
+            f"📢 ผล{canonical_name} งวด {row.get('งวดวันที่', '')}\n"
             f"━━━━━━━━━━━━━━━━\n"
             f"🏆 รางวัลที่ 1: {first_prize}\n"
             f"🔢 เลขท้าย 2 ตัว: {last_2}\n"
@@ -664,7 +665,7 @@ def send_line_notification(row: dict) -> bool:
         top3 = row.get("เลขบน_3_ตัว") or row.get("top3") or row.get("รางวัลที่_1", "-")
         bottom2 = row.get("เลขล่าง_2_ตัว") or row.get("เลขท้าย_2_ตัว") or "-"
         msg = (
-            f"\n📢 ผล{canonical_name} งวด {row.get('งวดวันที่', '')}\n"
+            f"📢 ผล{canonical_name} งวด {row.get('งวดวันที่', '')}\n"
             f"━━━━━━━━━━━━━━━━\n"
             f"🔺 3 ตัวบน: {top3}\n"
             f"🔻 2 ตัวล่าง: {bottom2}\n"
@@ -673,21 +674,22 @@ def send_line_notification(row: dict) -> bool:
         )
 
     try:
-        url = "https://notify-api.line.me/api/notify"
-        import urllib.parse
-        data = urllib.parse.urlencode({"message": msg}).encode("utf-8")
+        url = "https://api.line.me/v2/bot/message/push"
+        payload = json.dumps({
+            "to": target_id,
+            "messages": [{"type": "text", "text": msg[:5000]}],
+        }, ensure_ascii=False).encode("utf-8")
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/json",
         }
-        success = _http_post(url, data=data, headers=headers, timeout=10)
+        success = _http_post(url, data=payload, headers=headers, timeout=10)
         if success:
-            print("[SUCCESS] Sent notification to LINE Notify.")
+            print("[SUCCESS] LINE Messaging API accepted the push message.")
             return True
     except Exception as e:
-        print(f"[WARN] Failed posting to LINE Notify: {e}")
+        print(f"[WARN] Failed posting to LINE Messaging API: {e}")
     return False
-
 
 def send_all_notifications(row: dict) -> bool:
     """Dispatch alert across active channels (LINE & ntfy strictly)."""

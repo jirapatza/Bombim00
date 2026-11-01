@@ -1,20 +1,18 @@
-version: '3.8'
-
 services:
   lottery-alert:
     build: .
-    container_name: lottery-alert-dashboard
+    container_name: bombim00-dashboard
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - DASH_PASSWORD=${DASH_PASSWORD:?Set DASH_PASSWORD before starting}
-      - DISABLE_BACKGROUND_CHECK=${DISABLE_BACKGROUND_CHECK:-false}
-      - NTFY_TOPIC=lottery-alert-thai-2026
-    volumes:
-      - ./config:/app/config
-      - ./status:/app/status
-      - ./lottery_previous_results.json:/app/lottery_previous_results.json
-
+      NODE_ENV: production
+      PORT: 3000
+      DASH_PASSWORD: ${DASH_PASSWORD:?Set DASH_PASSWORD before starting}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:?Set GITHUB_TOKEN with Contents read/write and Actions write}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      LINE_CHANNEL_ACCESS_TOKEN: ${LINE_CHANNEL_ACCESS_TOKEN:-}
+      LINE_TARGET_ID: ${LINE_TARGET_ID:-}
+      NTFY_TOPIC: ${NTFY_TOPIC:-}
+      NTFY_SERVER: ${NTFY_SERVER:-https://ntfy.sh}
+      APP_URL: ${APP_URL:-http://localhost:3000}

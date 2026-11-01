@@ -20,7 +20,6 @@
     "canvas-confetti": "^1.9.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
-    "firebase": "^13.1.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "qrcode": "^1.5.4",
@@ -28,7 +27,8 @@
     "react-dom": "^19.0.1",
     "recharts": "^3.10.1",
     "vite": "^8.3.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "react-is": "^19.3.1"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",

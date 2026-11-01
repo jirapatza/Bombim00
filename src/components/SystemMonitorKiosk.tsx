@@ -95,6 +95,7 @@ export interface SelfHealingSession {
   failedCount: number;
   executionDurationTotalMs: number;
   actions: SelfHealingActionItem[];
+  legacyRecord?: boolean;
 }
 
 export function SystemMonitorKiosk() {
@@ -114,27 +115,11 @@ export function SystemMonitorKiosk() {
   const [clientOnline, setClientOnline] = useState<boolean>(navigator.onLine);
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
 
-  // Helper to provide realistic shell command if older history record lacks it
+  // No remote shell commands are executed by this dashboard.
   const getDefaultShellCommand = (code: string): string => {
     switch (code) {
-      case 'REPAIR_FILESYSTEM_DIRS':
-        return 'mkdir -p config status data && chmod 755 config status data && ls -ld config status data';
-      case 'RESTORE_CONFIG_SCHEMA':
-        return 'node -e \'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("config/settings.json","utf-8")); console.log("Config OK:", c.app_name);\'';
-      case 'CLEAR_MUTEX_LOCK':
-        return 'export RUNNER_LOCK=0 && pkill -f "lottery_checker.py" 2>/dev/null || true';
-      case 'SYNC_OFFLINE_CACHE':
-        return 'python3 -c "import json; r=json.load(open(\'lottery_previous_results.json\')); print(f\'Validated {len(r)} historical draws\')"';
-      case 'RESET_SYSTEM_HEALTH_METRICS':
-        return '# Legacy action only: do not force Healthy; use verified system checks instead.';
-      case 'VERIFY_GATEWAYS_REACHABILITY':
-        return 'curl -I --max-time 3 https://www.glo.or.th && curl -I --max-time 3 https://ntfy.sh && curl -I --max-time 3 https://api.github.com';
-      case 'PRESERVE_INVALID_RUNTIME_STATUS':
-        return '# The API preserves the unreadable status file and records a warning; no destructive command is available.';
-      case 'WRITE_VERIFIED_HEALTH_STATUS':
-        return '# The API writes the status derived from verified checks; do not set Healthy manually.';
       default:
-        return `# Executing auto-repair for ${code}\nsystemctl restart lotto-daemon.service || true`;
+        return `# ไม่มีการรันคำสั่ง Shell จากหน้า Dashboard เป็นการตรวจสอบ:  ${code}`;
     }
   };
 
@@ -225,7 +210,7 @@ export function SystemMonitorKiosk() {
     return () => clearInterval(interval);
   }, [autoRefresh]);
 
-  // Automated Self-Healing Routine (supports either All or specific device target)
+  // Automated System Audit Routine (supports either All or specific device target)
   const handleAutoSelfHeal = async (params?: { targetDevice?: string; triggerReason?: string }) => {
     setIsSelfHealing(true);
     setHealingTargetDevice(params?.targetDevice || null);
@@ -237,7 +222,7 @@ export function SystemMonitorKiosk() {
         body: JSON.stringify({
           targetDevice: params?.targetDevice,
           triggerReason: params?.triggerReason,
-          triggerType: params?.targetDevice ? 'device_error_repair' : 'manual_user_click',
+          triggerType: params?.targetDevice ? 'device_error_diagnostic' : 'manual_user_click',
         }),
       });
       const data = await res.json();
@@ -250,9 +235,9 @@ export function SystemMonitorKiosk() {
     } catch (err: any) {
       setHealResult({
         success: false,
-        message: 'เกิดข้อผิดพลาดขณะเรียกใช้งานระบบซ่อมแซม: ' + (err.message || 'Network error'),
+        message: 'เกิดข้อผิดพลาดขณะเรียกใช้งานระบบตรวจสอบ: ' + (err.message || 'Network error'),
         timestamp: new Date().toISOString(),
-        fixedActions: ['พบปัญหาการเชื่อมต่อไปยัง API Endpoint ซ่อมแซม'],
+        fixedActions: ['พบปัญหาการเชื่อมต่อไปยัง API Endpoint ตรวจสอบ'],
       });
     } finally {
       setIsSelfHealing(false);
@@ -260,9 +245,9 @@ export function SystemMonitorKiosk() {
     }
   };
 
-  // Clear Self-Healing History
+  // Clear System Audit History
   const handleClearHistory = async () => {
-    if (!window.confirm('คุณต้องการล้างประวัติคำสั่งซ่อมแซมตัวเองทั้งหมดใช่หรือไม่?')) return;
+    if (!window.confirm('คุณต้องการล้างประวัติคำสั่งตรวจสอบระบบทั้งหมดใช่หรือไม่?')) return;
     try {
       const res = await apiFetch('/api/system/self-heal-history', { method: 'DELETE' });
       if (res.ok) {
@@ -274,7 +259,7 @@ export function SystemMonitorKiosk() {
     }
   };
 
-  // Export Self-Healing Logs as JSON
+  // Export System Audit Logs as JSON
   const handleExportHealingLogsJson = () => {
     const blob = new Blob([JSON.stringify(healingHistory, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -306,7 +291,7 @@ export function SystemMonitorKiosk() {
       selfHealingHistory: healingHistory,
       lastSelfHealLog: healResult,
       quickResolutionGuide: [
-        'หากไฟล์ JSON เสียหาย: กดปุ่ม "⚡ ซ่อมแซมระบบอัตโนมัติ" หรือกดซ่อมเฉพาะจุดที่การ์ดไฟล์นั้นๆ',
+        'หากอ่านไฟล์ JSON ไม่ได้: ตรวจสอบสถานะและแก้ไขไฟล์บน GitHub โดยระบบจะไม่เขียนทับข้อมูลเดิมอัตโนมัติ',
         'หากติด Merge Conflict ใน GitHub: ให้เปิดเมนู GitHub CI/CD แล้วกดแก้ไขข้อขัดแย้งในหน้า Pull Request',
         'หาก ntfy ส่งไม่ผ่าน: ตรวจสอบ Topic ว่าตรงกับแอปบนมือถือหรือไม่',
       ],
@@ -343,46 +328,44 @@ export function SystemMonitorKiosk() {
       details: monitorData
         ? `Node ${monitorData.system.nodeVersion} • Uptime ${monitorData.system.uptimeFormatted} • RAM ${monitorData.system.memoryUsageMB}MB / ${monitorData.system.totalHeapMB}MB`
         : 'รอผลตรวจสุขภาพจาก API Server',
-      easyFix: 'ตรวจสอบ API Server และดูผลตอบกลับล่าสุดก่อนสั่งซ่อมแซม',
+      easyFix: 'ตรวจสอบ API Server และดูผลตอบกลับล่าสุดก่อนสั่งตรวจสอบ',
     },
     {
-      id: 'background_runner',
-      name: 'Local Background Lottery Runner',
+      id: 'github_actions_runner',
+      name: 'GitHub Actions Lottery Runner',
       category: 'Automation Engine',
-      icon: Cpu,
-      status: monitorData?.system.backgroundRunnerActive ? 'healthy' : 'degraded',
-      statusText: monitorData?.system.backgroundRunnerActive
-        ? 'เปิดใช้งานตัวตรวจในเซิร์ฟเวอร์นี้ทุก 10 นาที'
-        : 'ยังยืนยันไม่ได้ว่าตัวตรวจเบื้องหลังเปิดใช้งาน',
+      icon: GitBranch,
+      status: 'degraded',
+      statusText: 'กำหนดให้ GitHub Actions เป็นตัวตรวจเพียงจุดเดียว แต่ยังไม่ได้ตรวจสถานะ Workflow ล่าสุดในแผงนี้',
       latency: null,
-      details: 'เป็นตัวตรวจเบื้องหลังของ API Server แยกจาก GitHub Actions ที่ตรวจทุก 5 นาที',
-      easyFix: 'ตรวจสอบ DISABLE_BACKGROUND_CHECK และบันทึกการทำงานของ API Server',
+      details: 'Render ทำหน้าที่เว็บ/API เท่านั้น ไม่มี Python checker หรือ scheduler ซ้ำในเว็บเซิร์ฟเวอร์',
+      easyFix: 'ตรวจสอบประวัติ Workflow ในหน้า GitHub Actions',
     },
     {
       id: 'settings_file',
       name: 'System Config (config/settings.json)',
-      category: 'Filesystem Database',
+      category: 'GitHub Repository Storage',
       icon: FileCheck2,
       status: settingsFile?.exists && settingsFile.validJson !== false ? 'healthy' : monitorData ? 'error' : 'degraded',
       statusText: !monitorData ? 'ยังไม่ได้ตรวจสอบไฟล์' : settingsFile?.exists && settingsFile.validJson !== false
-        ? 'ไฟล์มีอยู่และเป็น JSON ที่อ่านได้'
-        : 'ไม่พบไฟล์หรือ JSON ไม่ถูกต้อง',
+        ? 'ข้อมูลบน GitHub มีอยู่และเป็น JSON ที่อ่านได้'
+        : 'ไม่พบข้อมูลบน GitHub หรือ JSON ไม่ถูกต้อง',
       latency: null,
-      details: 'ไฟล์กำหนดค่าแหล่งข้อมูล ช่องทางแจ้งเตือน และแม่แบบเสียง',
+      details: 'ข้อมูลกำหนดค่าแหล่งข้อมูล ช่องทางแจ้งเตือน และแม่แบบเสียง',
       easyFix: 'ตรวจสอบไฟล์ config/settings.json ก่อนกู้คืนหรือแก้ไข',
     },
     {
       id: 'status_file',
       name: 'Runtime Status (status/status.json)',
-      category: 'Filesystem Database',
+      category: 'GitHub Repository Storage',
       icon: Activity,
       status: statusFile?.exists && statusFile.validJson !== false ? 'healthy' : monitorData ? 'error' : 'degraded',
       statusText: !monitorData ? 'ยังไม่ได้ตรวจสอบไฟล์' : statusFile?.exists && statusFile.validJson !== false
         ? 'ไฟล์มีอยู่และเป็น JSON ที่อ่านได้'
         : 'ไม่พบไฟล์หรือ JSON ไม่ถูกต้อง',
       latency: null,
-      details: 'เก็บสถานะการตรวจหวยล่าสุดและบันทึกเหตุการณ์',
-      easyFix: 'สำรองไฟล์ก่อนซ่อมแซม status/status.json',
+      details: 'ข้อมูลสถานะที่ GitHub Actions เขียนล่าสุด',
+      easyFix: 'ตรวจสอบ Workflow และสิทธิ์เขียน status/status.json',
     },
     {
       id: 'glo_feed',
@@ -435,15 +418,15 @@ export function SystemMonitorKiosk() {
       easyFix: 'ตรวจรายชื่อเสียงที่ติดตั้งบน Android และทดสอบเสียงจริง',
     },
     {
-      id: 'firestore_db',
-      name: 'Firebase Cloud Firestore Sync',
-      category: 'Cloud Persistence',
+      id: 'github_storage',
+      name: 'GitHub Repository Durable Storage',
+      category: 'Persistent Storage',
       icon: Database,
-      status: 'degraded',
-      statusText: 'ยังไม่มีการตรวจสอบการเชื่อมต่อ Firestore จาก System Monitor',
+      status: settingsFile?.exists && settingsFile.validJson !== false && statusFile?.exists && statusFile.validJson !== false ? 'healthy' : monitorData ? 'error' : 'degraded',
+      statusText: !monitorData ? 'ยังไม่ได้ตรวจสอบข้อมูลถาวร' : settingsFile?.exists && statusFile?.exists ? 'อ่านไฟล์ข้อมูลหลักจาก GitHub repository ได้' : 'อ่านไฟล์ข้อมูลถาวรไม่ครบ',
       latency: null,
-      details: 'ไม่แสดงสถานะเขียวจนกว่าจะมีผลตรวจการเชื่อมต่อจริง',
-      easyFix: 'ตรวจ Firebase SDK และอ่านผลการเชื่อมต่อจากแอปก่อนสรุปสถานะ',
+      details: 'การตั้งค่า ผลหวย และประวัติการตรวจสอบอ่านจาก GitHub ไม่พึ่ง filesystem ชั่วคราวของ Render',
+      easyFix: 'ตรวจสอบ GITHUB_TOKEN และสิทธิ์ Contents Read/Write ของ repository',
     },
     {
       id: 'github_sync',
@@ -541,17 +524,17 @@ export function SystemMonitorKiosk() {
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-              🖥️ มอนิเตอร์ตรวจสอบอุปกรณ์ &amp; ระบบซ่อมแซมตัวเองอัตโนมัติ
+              🖥️ มอนิเตอร์ตรวจสอบอุปกรณ์ &amp; ระบบตรวจสอบระบบอัตโนมัติ
             </h1>
             <p className="text-sm text-slate-400 mt-1 max-w-3xl leading-relaxed">
               จอแสดงผลสถานะการทำงานของอุปกรณ์ เซิร์ฟเวอร์ ฐานข้อมูล และช่องทางแจ้งเตือนทั้งหมด
               หากจุดใดทำงานปกติจะขึ้น <strong className="text-emerald-400 font-semibold">สีเขียว 🟢</strong>{' '}
               หากจุดใดขัดข้องหรือพังจะขึ้น <strong className="text-red-400 font-semibold">สีแดง 🔴</strong>{' '}
-              พร้อมระบบ <strong className="text-amber-300 font-semibold">Self-Healing Actions Log</strong> ที่บันทึกคำสั่งซ่อมแซมที่ถูกรันโดยละเอียดเมื่ออุปกรณ์แจ้งข้อผิดพลาด
+              พร้อมระบบ <strong className="text-amber-300 font-semibold">System Audit Actions Log</strong> ที่บันทึกคำสั่งตรวจสอบที่ถูกรันโดยละเอียดเมื่ออุปกรณ์แจ้งข้อผิดพลาด
             </p>
           </div>
 
-          {/* Action Buttons: Auto Self-Heal & Download Diagnostics */}
+          {/* Action Buttons: System Audit & Download Diagnostics */}
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
@@ -560,7 +543,7 @@ export function SystemMonitorKiosk() {
               className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 flex items-center gap-2 cursor-pointer transition active:scale-95 disabled:opacity-50"
             >
               <Zap className={`w-4 h-4 ${isSelfHealing ? 'animate-spin' : ''}`} />
-              <span>{isSelfHealing ? 'กำลังซ่อมแซมระบบอัตโนมัติ...' : '⚡ ซ่อมแซมระบบอัตโนมัติ (Self-Heal All)'}</span>
+              <span>{isSelfHealing ? 'กำลังตรวจสอบระบบ...' : 'ตรวจสอบระบบทั้งหมด'}</span>
             </button>
 
             <button
@@ -635,7 +618,7 @@ export function SystemMonitorKiosk() {
         </div>
       </div>
 
-      {/* Self-Healing Feedback Banner (if executed) */}
+      {/* System Audit Feedback Banner (if executed) */}
       {healResult && (
         <div
           className={`p-5 rounded-3xl border transition-all animate-in fade-in slide-in-from-top-3 ${
@@ -656,8 +639,8 @@ export function SystemMonitorKiosk() {
               <div>
                 <h3 className="font-bold text-base text-white flex items-center gap-2">
                   {healResult.success
-                    ? '🎉 ซ่อมแซมและฟื้นฟูระบบสำเร็จเรียบร้อย! (Self-Healing Success)'
-                    : '⚠️ การซ่อมแซมระบบพบข้อผิดพลาดบางส่วน'}
+                    ? '🎉 ตรวจสอบและตรวจสอบระบบเสร็จเรียบร้อย! (System Audit Success)'
+                    : '⚠️ การตรวจสอบระบบพบข้อผิดพลาดบางส่วน'}
                 </h3>
                 <p className="text-xs text-slate-300 mt-1">{healResult.message}</p>
 
@@ -665,7 +648,7 @@ export function SystemMonitorKiosk() {
                   <div className="mt-3 space-y-1.5">
                     <div className="text-[11px] font-bold text-slate-300 flex items-center gap-2">
                       <Terminal className="w-3.5 h-3.5 text-amber-400" />
-                      <span>คำสั่งที่ระบบสั่งรันเพื่อแก้ไขข้อผิดพลาด (Executed Auto-Repair Commands):</span>
+                      <span>รายการตรวจสอบที่ระบบทำจริง (Diagnostic Checks):</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {healResult.executedActions.map((action: SelfHealingActionItem, idx: number) => {
@@ -702,7 +685,7 @@ export function SystemMonitorKiosk() {
                                 type="button"
                                 onClick={() => handleCopyCommand(cmdText, cmdId)}
                                 className="shrink-0 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 hover:text-white flex items-center gap-1 cursor-pointer transition"
-                                title="คัดลอกคำสั่ง Shell"
+                                title="คัดลอกรายละเอียดตรวจสอบ"
                               >
                                 {copiedCommandId === cmdId ? (
                                   <>
@@ -875,7 +858,7 @@ export function SystemMonitorKiosk() {
                 <p className="text-xs text-slate-400 mb-3 leading-relaxed">{service.details}</p>
               </div>
 
-              {/* Bottom: Latency, Easy Fix Advice, and Device Quick-Repair Button */}
+              {/* Bottom: Latency, Easy Fix Advice, and Device Quick-Diagnostic Button */}
               <div className="pt-3 border-t border-slate-800/80 space-y-2">
                 <div className="flex items-center justify-between text-[11px] text-slate-400">
                   <span className="flex items-center gap-1">
@@ -906,13 +889,13 @@ export function SystemMonitorKiosk() {
                   </div>
                 </div>
 
-                {/* Per-device Quick Repair Action */}
+                {/* Per-device Quick Diagnostic Action */}
                 <button
                   type="button"
                   onClick={() =>
                     handleAutoSelfHeal({
                       targetDevice: service.name,
-                      triggerReason: `สั่งซ่อมแซมและตรวจสอบเฉพาะอุปกรณ์: ${service.name} (สถานะ: ${service.statusText})`,
+                      triggerReason: `สั่งตรวจสอบและตรวจสอบเฉพาะอุปกรณ์: ${service.name} (สถานะ: ${service.statusText})`,
                     })
                   }
                   disabled={isSelfHealing}
@@ -927,10 +910,10 @@ export function SystemMonitorKiosk() {
                   <Zap className={`w-3.5 h-3.5 ${isTargetBeingHealed ? 'animate-spin' : ''}`} />
                   <span>
                     {isTargetBeingHealed
-                      ? 'กำลังซ่อมแซมอุปกรณ์นี้...'
+                      ? 'กำลังตรวจสอบอุปกรณ์นี้...'
                       : isError
-                      ? '⚡ สั่งแก้ปัญหาจุดนี้ทันที (Auto-Repair This Error)'
-                      : '🔧 ทดสอบซ่อมแซม & ตรวจสอบจุดนี้'}
+                      ? '⚡ ตรวจสอบจุดนี้ทันที'
+                      : '🔧 ทดสอบตรวจสอบ & ตรวจสอบจุดนี้'}
                   </span>
                 </button>
               </div>
@@ -951,11 +934,11 @@ export function SystemMonitorKiosk() {
                 <History className="w-5 h-5" />
               </span>
               <h2 className="text-xl font-black text-white flex items-center gap-2">
-                📋 บันทึกประวัติคำสั่งซ่อมแซมระบบอัตโนมัติ (Self-Healing Actions Log)
+                📋 บันทึกประวัติคำสั่งตรวจสอบระบบ (System Audit Actions Log)
               </h2>
             </div>
             <p className="text-xs text-slate-400">
-              ติดตามบันทึกคำสั่ง Auto-Repair ทั้งหมดที่ถูกเรียกใช้งานเมื่ออุปกรณ์รายงานข้อผิดพลาด พร้อมระบุเวลา สาเหตุ และสถานะความสำเร็จ
+              ติดตามประวัติการตรวจสอบระบบ พร้อมระบุเวลา สาเหตุ รายการตรวจ และสถานะผลตรวจ
             </p>
           </div>
 
@@ -992,10 +975,10 @@ export function SystemMonitorKiosk() {
           </div>
         </div>
 
-        {/* Top Mini-Stats Strip for Self-Healing */}
+        {/* Top Mini-Stats Strip for System Audit */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800/80">
-            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">รอบการซ่อมแซมทั้งหมด</span>
+            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">รอบการตรวจสอบทั้งหมด</span>
             <div className="text-xl font-black text-white mt-0.5">{totalSessionsCount} ครั้ง</div>
           </div>
           <div className="bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800/80">
@@ -1062,9 +1045,9 @@ export function SystemMonitorKiosk() {
         {filteredHistory.length === 0 ? (
           <div className="bg-slate-950/60 rounded-2xl border border-dashed border-slate-800 p-8 text-center space-y-2">
             <ShieldCheck className="w-8 h-8 text-slate-600 mx-auto" />
-            <h4 className="text-sm font-bold text-slate-300">ยังไม่มีบันทึกคำสั่งซ่อมแซมตัวเอง</h4>
+            <h4 className="text-sm font-bold text-slate-300">ยังไม่มีบันทึกคำสั่งตรวจสอบระบบ</h4>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
-              ระบบจะบันทึกประวัติทันทีเมื่อมีการตรวจพบข้อผิดพลาด หรือเมื่อกดปุ่ม "ซ่อมแซมระบบอัตโนมัติ"
+              ระบบจะบันทึกประวัติทันทีเมื่อมีการตรวจพบข้อผิดพลาด หรือเมื่อกดปุ่ม "ตรวจสอบระบบ"
             </p>
             <button
               type="button"
@@ -1072,7 +1055,7 @@ export function SystemMonitorKiosk() {
               className="mt-2 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-md"
             >
               <Zap className="w-3.5 h-3.5" />
-              <span>รันการตรวจสอบ &amp; ซ่อมแซมระบบรอบแรกเดี๋ยวนี้</span>
+              <span>รันการตรวจสอบ &amp; ตรวจสอบระบบรอบแรกเดี๋ยวนี้</span>
             </button>
           </div>
         ) : (
@@ -1119,6 +1102,11 @@ export function SystemMonitorKiosk() {
                           <span className="text-[10px] font-mono text-slate-400">
                             ID: {session.sessionId.slice(-8)}
                           </span>
+                          {session.legacyRecord && (
+                            <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
+                              ประวัติเดิม · ไม่ยืนยันการทำงานจริง
+                            </span>
+                          )}
                         </div>
 
                         <div className="text-xs text-slate-300 mt-1 flex flex-wrap items-center gap-2">
@@ -1151,7 +1139,7 @@ export function SystemMonitorKiosk() {
                       <div className="text-xs font-bold text-slate-300 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                           <Terminal className="w-3.5 h-3.5 text-amber-400" />
-                          รายการคำสั่ง Auto-Repair ที่ถูกกระตุ้นตามลำดับ (Sequential Actions Execution):
+                          รายการตรวจสอบที่ทำตามลำดับ (Sequential Diagnostic Checks):
                         </span>
                         <span className="text-[11px] text-slate-500">
                           สถานะ: {session.successCount}/{session.totalActionsCount} สำเร็จ
@@ -1225,20 +1213,20 @@ export function SystemMonitorKiosk() {
                                 </div>
                               )}
 
-                              {/* Executed Shell Command / Script Block */}
+                              {/* Diagnostic Detail Block */}
                               <div className="rounded-xl bg-slate-950 border border-slate-800 overflow-hidden shadow-inner">
                                 <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900/90 border-b border-slate-800/80 text-[11px] text-slate-400 font-mono">
                                   <div className="flex items-center gap-1.5">
                                     <Code2 className="w-3.5 h-3.5 text-amber-400" />
                                     <span className="font-bold text-slate-300">
-                                      คำสั่ง Shell / สคริปต์ที่รัน (Executed Shell Command):
+                                      รายละเอียดขั้นตอนตรวจสอบ (Diagnostic Detail):
                                     </span>
                                   </div>
                                   <button
                                     type="button"
                                     onClick={() => handleCopyCommand(commandToDisplay, actionCmdId)}
                                     className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"
-                                    title="คัดลอกคำสั่ง Shell ไปยังคลิปบอร์ด"
+                                    title="คัดลอกรายละเอียดการตรวจสอบ"
                                   >
                                     {copiedCommandId === actionCmdId ? (
                                       <>
@@ -1254,7 +1242,7 @@ export function SystemMonitorKiosk() {
                                   </button>
                                 </div>
                                 <div className="p-3 font-mono text-xs overflow-x-auto text-emerald-300 bg-slate-950 flex items-start gap-2.5">
-                                  <span className="text-amber-400 select-none font-bold text-sm leading-none pt-0.5">$</span>
+                                  <span className="text-sky-400 select-none font-bold text-sm leading-none pt-0.5">ℹ</span>
                                   <code className="font-mono text-xs leading-relaxed whitespace-pre-wrap break-all text-slate-200 select-all flex-1">
                                     {commandToDisplay}
                                   </code>
@@ -1285,7 +1273,7 @@ export function SystemMonitorKiosk() {
             </h4>
             <p className="text-xs text-slate-400 mt-0.5">
               เกิดจาก branch มีโค้ดที่ขัดแย้งกับ main branch หรือ workflow เก่าล้มเหลว
-              คุณสามารถกดปุ่ม "ซ่อมแซมระบบอัตโนมัติ" ในหน้านี้เพื่ออัปเดต workflow ไฟล์ และรันจำลองทดสอบผ่านระบบทันที
+              คุณสามารถกดปุ่ม "ตรวจสอบระบบ" ในหน้านี้เพื่ออัปเดต workflow ไฟล์ และรันจำลองทดสอบผ่านระบบทันที
             </p>
           </div>
         </div>
