@@ -9,5 +9,5 @@ test('health is healthy only when every verified action passes', () => {
 });
 
 test('empty diagnostic runs are not treated as a successful repair', () => {
-  assert.equal(getOverallHealth([]), 'healthy');
+  assert.equal(getOverallHealth([]), 'degraded');
 });
