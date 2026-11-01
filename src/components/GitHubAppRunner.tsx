@@ -49,6 +49,7 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
   const [isDispatching, setIsDispatching] = useState(false);
   const [isLoadingRuns, setIsLoadingRuns] = useState(false);
   const [apiReady, setApiReady] = useState<boolean | null>(null);
+  const [configurationWarning, setConfigurationWarning] = useState<string | null>(null);
   const [runs, setRuns] = useState<GitHubRun[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -82,7 +83,19 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
       const response = await apiFetch('/api/health', { cache: 'no-store' });
       const data = await response.json().catch(() => ({}));
       setApiReady(Boolean(response.ok && data.ok));
-      if (!response.ok || !data.ok) setError('API Server ยังไม่พร้อมใช้งาน');
+      if (!response.ok || !data.ok) {
+        setError('API Server ยังไม่พร้อมใช้งาน');
+        setConfigurationWarning(null);
+        return;
+      }
+      const missing = [];
+      if (!data.dashboardAuthConfigured) missing.push('DASH_PASSWORD');
+      if (!data.githubTokenConfigured) missing.push('GITHUB_TOKEN');
+      setConfigurationWarning(
+        missing.length
+          ? 'ยังไม่ได้ตั้งค่า Render Environment: ' + missing.join(', ') + ' — การบันทึก/สั่งงานจะยังใช้ไม่ได้'
+          : null,
+      );
     } catch {
       setApiReady(false);
       setError('ไม่สามารถเชื่อมต่อ API Server ได้');
@@ -186,6 +199,11 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
           <span className="rounded-full border border-slate-700 bg-slate-800 px-3 py-1.5 text-slate-300">Branch: main</span>
           <span className="rounded-full border border-slate-700 bg-slate-800 px-3 py-1.5 text-slate-300">รายการในแคตตาล็อก: {allLotteriesCount}</span>
         </div>
+        {configurationWarning && (
+          <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+            {configurationWarning}
+          </p>
+        )}
       </section>
 
       <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 space-y-4">
