@@ -1044,17 +1044,19 @@ export default function App() {
   };
 
   const handleSaveMultiChannelSettings = async (newSettings: any) => {
-    setSettings(newSettings);
     try {
       const res = await fetch(`${workerUrl}/api/settings`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(newSettings),
       });
-      const data = await res.json();
-      if (data.success) {
-        showToast('บันทึกการตั้งค่าช่องทางแจ้งเตือนสำเร็จ!');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        showToast(data.error || `บันทึกการตั้งค่าไม่สำเร็จ (HTTP ${res.status})`);
+        return;
       }
+      setSettings(newSettings);
+      showToast('บันทึกการตั้งค่าช่องทางแจ้งเตือนสำเร็จ!');
     } catch {
       showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อบันทึกได้');
     }
@@ -1062,19 +1064,19 @@ export default function App() {
 
   // Update all lotteries (for schedule and result edits in modal)
   const handleUpdateAllLotteries = async (updated: LotteryItem[]) => {
-    setAllLotteries(updated);
     try {
       const res = await fetch(`${workerUrl}/api/all-lotteries`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(updated),
       });
-      const data = await res.json();
-      if (data.success) {
-        showToast('💾 บันทึกและอัปเดตตารางหวยเรียบร้อยแล้ว');
-      } else {
-        showToast('บันทึกลงเซิร์ฟเวอร์ไม่สำเร็จ');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        showToast(data.error || `บันทึกตารางหวยไม่สำเร็จ (HTTP ${res.status})`);
+        return;
       }
+      setAllLotteries(updated);
+      showToast('💾 บันทึกและอัปเดตตารางหวยเรียบร้อยแล้ว');
     } catch {
       showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อบันทึกตารางหวยได้');
     }
