@@ -70,5 +70,7 @@ use a verified snapshot and compare fingerprints first.
 
 ## Backup destination
 
-Use a separate **private** GitHub repository for encrypted or access-controlled
-database dumps. Do not place raw production dumps in the public application repo.
+Use a separate **private** GitHub repository for GPG AES-256 encrypted database dumps.
+The workflow removes the plaintext dump before uploading. Keep the decryption passphrase
+in a password manager separate from GitHub. Never place raw production dumps in the
+public application repository.
