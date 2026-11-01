@@ -15,7 +15,6 @@ import {
   Check,
   MessageCircle,
   Cpu,
-  Key,
 } from 'lucide-react';
 
 export interface UnifiedNotificationCenterProps {
@@ -62,7 +61,6 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
 
   // LINE config
   const lineConfig = settings?.channels?.line || {};
-  const [lineToken, setLineToken] = useState<string>(lineConfig.token || '');
   const [isLineEnabled, setIsLineEnabled] = useState<boolean>(lineConfig.enabled === true);
   const [isTestingLine, setIsTestingLine] = useState<boolean>(false);
   const [lineTestResult, setLineTestResult] = useState<{ success?: boolean; message?: string } | null>(null);
@@ -97,7 +95,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
   };
 
   // Save changes to settings for LINE
-  const handleSaveLineConfig = (newToken: string, enabled: boolean) => {
+  const handleSaveLineConfig = (enabled: boolean) => {
     const updated = {
       ...settings,
       channels: {
@@ -105,8 +103,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
         line: {
           ...(settings?.channels?.line || {}),
           enabled,
-          token: newToken.trim(),
-          mode: 'notify',
+          mode: 'messaging_api',
         },
       },
     };
@@ -151,36 +148,28 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
     }
   };
 
-  // Test send to LINE Notify
+  // Test send through the LINE Messaging API configured on the server.
   const handleTestLineNotify = async () => {
     setIsTestingLine(true);
     setLineTestResult(null);
-
-    const cleanToken = lineToken.trim();
-    if (!cleanToken) {
-      setLineTestResult({ success: false, message: 'กรุณากรอก LINE Notify Token ก่อนทดสอบ' });
-      setIsTestingLine(false);
-      return;
-    }
 
     const sampleLottery = allLotteries.find((item) => item.category !== 'gov_savings') || allLotteries[0];
     const lotteryName = sampleLottery?.name || latestDraw?.ชื่อหวย || 'ตัวอย่างหวยหุ้น';
     const top3 = sampleLottery?.top3 || (sampleLottery?.firstPrize ? String(sampleLottery.firstPrize).slice(-3) : '') ||
       (latestDraw?.รางวัลที่_1 ? String(latestDraw.รางวัลที่_1).slice(-3) : '-') || '469';
     const last2 = sampleLottery?.bottom2 || latestDraw?.เลขท้าย_2_ตัว || '63';
-    const drawDate = sampleLottery?.date || latestDraw?.งวดวันที่ || '1 พ.ย. 2569';
-
-    const message = `\n📢 ทดสอบผล${lotteryName} งวด ${drawDate}\n━━━━━━━━━━━━━━━━\n🔺 3 ตัวบน: ${top3}\n🔻 2 ตัวล่าง: ${last2}\n━━━━━━━━━━━━━━━━\n🟢 เชื่อมต่อ LINE Notify สำเร็จ 100%`;
+    const drawDate = sampleLottery?.date || latestDraw?.งวดวันที่ || 'ตัวอย่างสำหรับทดสอบ';
+    const message = `ข้อความทดสอบเท่านั้น (ไม่ใช่ผลหวยจริง)\n📢 ผล${lotteryName} งวด ${drawDate}\n🔺 3 ตัวบน: ${top3}\n🔻 2 ตัวล่าง: ${last2}\nระบบทดสอบผ่าน LINE Messaging API`;
 
     try {
       const res = await apiFetch('/api/test-line', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: cleanToken, message }),
+        body: JSON.stringify({ message }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
-        setLineTestResult({ success: true, message: 'ส่งข้อความทดสอบเข้า LINE เรียบร้อยแล้ว! ตรวจสอบที่แชต LINE ได้ทันที 🟢' });
+        setLineTestResult({ success: true, message: 'เซิร์ฟเวอร์ส่งคำขอทดสอบผ่าน LINE Messaging API แล้ว' });
       } else {
         throw new Error(data.error || `HTTP ${res.status}: ส่ง LINE ไม่สำเร็จ`);
       }
@@ -216,7 +205,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                ระบบถูกปรับให้ส่งแจ้งเตือนผ่าน <strong>LINE ส่วนตัว</strong> และ <strong>แอป ntfy บนมือถือ</strong> พร้อมระบบอ่านเสียงภาษาไทย
+                ระบบถูกปรับให้ส่งแจ้งเตือนผ่าน <strong>LINE OA / กลุ่ม</strong> และ <strong>แอป ntfy บนมือถือ</strong> พร้อมระบบอ่านเสียงภาษาไทย
               </p>
             </div>
           </div>
@@ -224,7 +213,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400 flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              ตรวจผลอัตโนมัติ: <strong>ทุก 10 นาที</strong>
+              ตรวจผลอัตโนมัติ: <strong>ทุก 5 นาทีโดยประมาณ</strong>
             </span>
           </div>
         </div>
@@ -251,7 +240,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
                     1. LINE ส่วนตัว / กลุ่ม
                   </h3>
                   <p className="text-[11px] text-slate-400">
-                    แจ้งเตือนผ่าน LINE Notify
+                    แจ้งเตือนผ่าน LINE Messaging API
                   </p>
                 </div>
               </div>
@@ -261,7 +250,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
                 onClick={() => {
                   const nextState = !isLineEnabled;
                   setIsLineEnabled(nextState);
-                  handleSaveLineConfig(lineToken, nextState);
+                  handleSaveLineConfig(nextState);
                 }}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
                   isLineEnabled ? 'bg-emerald-500' : 'bg-slate-800'
@@ -276,27 +265,17 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
             </div>
 
             <div className="space-y-3">
-              <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 space-y-2">
-                <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                  <Key className="w-3.5 h-3.5 text-emerald-400" />
-                  LINE Notify Access Token:
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="password"
-                    value={lineToken}
-                    onChange={(e) => setLineToken(e.target.value)}
-                    placeholder="วาง Token จาก notify-bot.line.me"
-                    className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-emerald-300 focus:outline-none focus:border-emerald-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleSaveLineConfig(lineToken, isLineEnabled)}
-                    className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs transition cursor-pointer active:scale-95"
-                  >
-                    บันทึก
-                  </button>
-                </div>
+              <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                <p className="font-bold text-emerald-300 mb-1">เชื่อมต่อ LINE Official Account</p>
+                <p>ระบบนี้ใช้ LINE Messaging API (ไม่ใช่ LINE Messaging API ซึ่งยุติบริการแล้ว)</p>
+                <p className="mt-2">ตั้งค่า Secret ต่อไปนี้ใน GitHub Actions และ Render Environment:</p>
+                <ul className="list-disc pl-5 mt-1 space-y-1">
+                  <li><code>LINE_CHANNEL_ACCESS_TOKEN</code></li>
+                  <li><code>LINE_TARGET_ID</code> (User ID หรือ Group ID)</li>
+                </ul>
+                <a href="https://developers.line.biz/console/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 mt-2 text-emerald-400 underline">
+                  เปิด LINE Developers Console <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
 
               {lineTestResult && (
@@ -309,10 +288,6 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
                   <span>{lineTestResult.message}</span>
                 </div>
               )}
-
-              <div className="text-[11px] text-slate-400 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80">
-                💬 <em>รับ Token ฟรีได้ที่ <a href="https://notify-bot.line.me/" target="_blank" rel="noreferrer" className="text-emerald-400 underline">notify-bot.line.me</a> เลือกว่าจะให้ส่งเข้าแชตส่วนตัวหรือกลุ่ม LINE</em>
-              </div>
             </div>
           </div>
 
@@ -320,7 +295,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
             <button
               type="button"
               onClick={handleTestLineNotify}
-              disabled={isTestingLine || !lineToken.trim()}
+              disabled={isTestingLine}
               className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-40 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
             >
               <Send className={`w-3.5 h-3.5 ${isTestingLine ? 'animate-spin' : ''}`} />
