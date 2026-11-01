@@ -55,10 +55,12 @@ app.use('/api', (req, res, next) => {
 // ระบบป้องกันระบบล่มระดับโปรเซส (Process Crash Shield & Fault Tolerance)
 // -------------------------------------------------------------
 process.on('uncaughtException', (err: any) => {
-  console.log('[CRASH-SHIELD] Process caught uncaughtException:', err?.message || err);
+  console.error('[PROCESS] Uncaught exception; exiting so Render can restart a clean process:', err?.message || err);
+  process.exit(1);
 });
 process.on('unhandledRejection', (reason: any) => {
-  console.log('[CRASH-SHIELD] Process caught unhandledRejection:', reason?.message || reason);
+  console.error('[PROCESS] Unhandled rejection; exiting so Render can restart a clean process:', reason?.message || reason);
+  process.exit(1);
 });
 
 // Anti-flood / Rate limiting protection for API endpoints
