@@ -1,65 +1,39 @@
-# คู่มือการติดตั้งและใช้งานระบบ Lottery Alert (ระบบแจ้งเตือนผลหวย)
+# คู่มือการติดตั้ง Bombim00
 
-ระบบนี้แยกการทำงานออกเป็น 3 ส่วนหลัก:
-1. **GitHub Actions Workflow + Python Checker**: ทำหน้าที่ตรวจผลหวยตามเวลาที่กำหนด และแจ้งเตือนผ่าน ntfy
-2. **Cloudflare Worker API**: ทำหน้าที่เป็นตัวกลาง (Proxy) ปลอดภัย ถือ GitHub Token สำหรับหน้าเว็บควบคุม
-3. **Web Dashboard**: หน้าเว็บควบคุมตั้งค่า อ่านสถานะ ตรวจสอบผลย้อนหลัง และสั่งการทำงาน
+## โครงสร้างปัจจุบัน
 
----
+1. **Render Web Service** ให้บริการหน้าเว็บ React และ Express API
+2. **GitHub Actions** เป็นตัวตรวจผลหวยเพียงระบบเดียว ทำงานตาม Schedule ใน `.github/workflows/lottery.yml`
+3. **GitHub repository JSON** เป็นแหล่งเก็บถาวรของการตั้งค่า แคตตาล็อก ผลหวย สถานะล่าสุด และประวัติการตรวจระบบ
+4. **ntfy** ใช้แจ้งเตือนมือถือ และ **LINE Messaging API** ใช้แจ้งเตือน LINE OA/กลุ่ม
 
-## 1. การเตรียม Secret ใน GitHub Repository
+ไม่มี Cloudflare Worker, Firebase หรือ Python runner ซ้ำใน Render อีกต่อไป
 
-เข้าไปที่ **GitHub Repo > Settings > Secrets and variables > Actions > New repository secret**:
+## ตั้งค่า GitHub Actions
 
-1. **`NTFY_TOPIC`** (สำคัญมาก)
-   - ระบุชื่อ Topic ของ ntfy ที่คุณต้องการรับแจ้งเตือน (ควรตั้งชื่อที่ยาวและคาดเดายาก เช่น `th-lottery-alert-x9k2p8`)
-   - **ข้อควรระวัง**: อย่าใส่ชื่อ topic ในโค้ดหรือไฟล์เอกสารสาธารณะ เพราะใครๆ ก็สามารถ Subscribe หรือส่งข้อความเข้า topic ได้
+เปิด Repository > Settings > Secrets and variables > Actions แล้วกำหนด:
 
-2. **เปิดสิทธิ์ Contents: Read and write ให้กับ GitHub Actions**
-   - ไปที่ **Settings > Actions > General > Workflow permissions**
-   - เลือก **Read and write permissions**
-   - ติ๊กถูก **Allow GitHub Actions to create and approve pull requests**
-   - กด Save
+- `NTFY_TOPIC`: Topic ที่แอป ntfy สมัครรับอยู่
+- `LINE_CHANNEL_ACCESS_TOKEN`: Channel access token จาก LINE Developers (ถ้าเปิดใช้ LINE)
+- `LINE_TARGET_ID`: User ID หรือ Group ID ปลายทาง (ถ้าเปิดใช้ LINE)
 
----
+ใน Settings > Actions > General > Workflow permissions ให้เปิด **Read and write permissions** เพื่อให้ workflow บันทึกไฟล์สถานะและผลหวยได้
 
-## 2. การ Deploy Cloudflare Worker (`api/worker.js`)
+## ตั้งค่า Render
 
-1. สร้าง Worker ใหม่ใน Cloudflare Dashboard หรือผ่าน Wrangler CLI:
-   ```bash
-   cd api
-   npx wrangler deploy worker.js --name lottery-alert-proxy
-   ```
+ใน Render > Bombim00 > Environment ให้ตั้งค่า:
 
-2. ตั้งค่า Secrets ใน Cloudflare Worker:
-   - **`GITHUB_TOKEN`**: Personal Access Token (PAT) จาก GitHub (สิทธิ์: `repo` หรือ Fine-grained: Contents R/W, Actions R/W)
-   - **`DASH_PASSWORD`**: รหัสผ่านยาวๆ สำหรับปลดล็อกหน้า Dashboard เมื่อต้องการบันทึกค่า
+- `DASH_PASSWORD`: รหัสผ่านสำหรับ API ที่เปลี่ยนแปลงข้อมูล
+- `GITHUB_TOKEN`: GitHub token ที่มี Contents Read/Write และ Actions Read/Write สำหรับ repository นี้
+- `APP_URL`: `https://bombim00.onrender.com`
+- `LINE_CHANNEL_ACCESS_TOKEN` และ `LINE_TARGET_ID`: ใช้เฉพาะเมื่อต้องการทดสอบส่ง LINE จากหน้าเว็บ
 
-3. ตั้งค่า Variables (Environment Variables):
-   - **`REPO`**: `owner/repo-name` (เช่น `myuser/lottery-alert`)
-   - **`BRANCH`**: `main`
-   - **`WORKFLOW`**: `lottery.yml`
-   - **`ALLOW_ORIGIN`**: `*` หรือโดเมนที่โฮสต์หน้าเว็บ Dashboard
+ห้ามส่ง Token หรือ Password ลงในแชตหรือ commit ลง repository
 
----
+## ตรวจสอบระบบ
 
-4. **ตั้งค่า Cloud Run Server Secret ด้วย**
-   - ไปที่ Cloud Run > เลือกบริการ Dashboard > Edit & Deploy New Revision > Variables & Secrets
-   - เพิ่ม Secret/Environment Variable ชื่อ `DASH_PASSWORD` โดยใช้รหัสผ่านเดียวกับ Cloudflare Worker
-   - ห้ามใส่รหัสผ่านในไฟล์โค้ดหรือ GitHub Repository
-   - Server จะปฏิเสธคำขอ POST/PUT/PATCH/DELETE หากไม่มีรหัสผ่านที่ถูกต้อง และจะปิดการเขียนทั้งหมดเมื่อเป็น Production แต่ยังไม่ได้ตั้ง Secret
-   - หน้าเว็บจะส่งรหัสผ่านที่บันทึกไว้จากการเชื่อมต่อ Dashboard ไปยัง API โดยอัตโนมัติ
-
-## 3. การใช้งานหน้าเว็บ Dashboard
-
-หน้าเว็บ Dashboard สามารถเปิดใช้งานได้ 2 รูปแบบ:
-1. **โหมดอ่านอย่างเดียว (Read-only)**:
-   - กรอก GitHub Raw Base URL เพื่อดู `status/status.json` และผลหวยย้อนหลัง
-2. **โหมดควบคุมเต็มรูปแบบ (Full Control)**:
-   - กรอก **Worker API URL** (เช่น `https://lottery-alert-proxy.yourname.workers.dev`)
-   - กรอก **Dashboard Password** (`DASH_PASSWORD`)
-   - สามารถ:
-     - แก้ไขเปิด/ปิด แหล่งข้อมูล (`pholhuay`, `glo`, `sanook`)
-     - แก้ไขตัวกรองรางวัลที่ต้องการแจ้งเตือน
-     - สั่งตรวจสอบผลเดี๋ยวนี้ (Trigger Workflow Dispatch)
-     - ทดสอบส่ง Notification ไปยัง ntfy
+- เปิดหน้าเว็บ: https://bombim00.onrender.com
+- ตรวจสอบ Workflow: https://github.com/jirapatza/Bombim00/actions/workflows/lottery.yml
+- ตรวจสอบ API health: `/api/health`
+- การกดสั่งตรวจผลหมายถึงส่งคำสั่งให้ GitHub Actions เท่านั้น ไม่ใช่การยืนยันว่าตรวจเสร็จแล้ว
+- LINE Notify ยุติบริการแล้ว ระบบใช้ LINE Messaging API แทน
