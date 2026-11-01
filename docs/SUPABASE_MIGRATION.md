@@ -74,3 +74,33 @@ Use a separate **private** GitHub repository for GPG AES-256 encrypted database 
 The workflow removes the plaintext dump before uploading. Keep the decryption passphrase
 in a password manager separate from GitHub. Never place raw production dumps in the
 public application repository.
+
+
+## Restore a backup safely
+
+1. Download a `.dump.gpg` file and its matching `.dump.gpg.sha256` file from the private backup repository.
+2. Verify the encrypted file before decrypting:
+
+```bash
+sha256sum --check bombim00-YYYYMMDDTHHMMSSZ.dump.gpg.sha256
+```
+
+3. Decrypt into a protected local directory. GPG prompts for the passphrase:
+
+```bash
+gpg --output restore.dump --decrypt bombim00-YYYYMMDDTHHMMSSZ.dump.gpg
+```
+
+4. Restore to a separate test Supabase project first, never directly over production:
+
+```bash
+PGSSLMODE=require pg_restore --no-owner --no-acl --clean --if-exists --dbname "$TEST_SUPABASE_DB_URL" restore.dump
+```
+
+5. Verify table counts, latest result timestamps, settings, and notification idempotency.
+   Only consider production recovery after an explicit review of the test restore.
+6. Securely delete the plaintext dump after validation.
+
+The checksum detects accidental corruption; GPG protects confidentiality. Keep the
+GPG passphrase in a password manager separate from GitHub secrets and the backup
+repository.
