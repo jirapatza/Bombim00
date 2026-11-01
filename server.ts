@@ -557,6 +557,12 @@ app.get('/api/system/monitor', async (_req, res) => {
 
 // Self-heal is deliberately diagnostic-only: it must not rewrite bot-owned results or claim to repair Render.
 app.post('/api/system/self-heal', async (req, res) => {
+  if (!process.env.GITHUB_TOKEN?.trim()) {
+    return res.status(503).json({
+      success: false,
+      error: 'ยังไม่ได้ตั้งค่า GITHUB_TOKEN ใน Render Environment จึงไม่สามารถบันทึกประวัติการตรวจสอบได้',
+    });
+  }
   const startedAt = Date.now();
   const now = new Date();
   const nowIso = now.toISOString();
