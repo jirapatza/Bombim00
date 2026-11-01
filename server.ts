@@ -820,7 +820,7 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
       console.log('[AI Verify Grounding] Temporary API failure handled safely by Crash Shield:', err?.message || err);
     }
 
-    const { fallbackText, fallbackSources } = getLocalVerifiedFallback(prompt);
+    const { fallbackText, fallbackSources } = await getLocalVerifiedFallback(prompt);
 
     return res.json({
       success: true,
