@@ -840,7 +840,7 @@ export default function App() {
     }
   };
 
-  const handleSaveMultiChannelSettings = async (newSettings: any) => {
+  const handleSaveMultiChannelSettings = async (newSettings: any): Promise<boolean> => {
     try {
       const res = await apiFetch('/api/settings', {
         method: 'POST',
@@ -850,12 +850,14 @@ export default function App() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
         showToast(data.error || `บันทึกการตั้งค่าไม่สำเร็จ (HTTP ${res.status})`);
-        return;
+        return false;
       }
       setSettings(newSettings);
       showToast('บันทึกการตั้งค่าช่องทางแจ้งเตือนสำเร็จ!');
+      return true;
     } catch {
       showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อบันทึกได้');
+      return false;
     }
   };
 
