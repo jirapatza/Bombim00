@@ -314,44 +314,51 @@ app.post('/api/test-line', async (req, res) => {
   }
 });
 
-// 4.4 POST /api/test-ntfy - Test ntfy.sh notification
+// Test ntfy push. Destination host is server-configured to prevent arbitrary URL/SSRF requests.
 app.post('/api/test-ntfy', async (req, res) => {
   try {
-    const { topic, server = 'https://ntfy.sh', message, title } = req.body;
-    const cleanTopic = (topic || process.env.NTFY_TOPIC || '').trim();
-    if (!cleanTopic) {
-      return res.status(400).json({ success: false, error: 'กรุณาระบุ ntfy topic' });
+    const cleanTopic = String(req.body?.topic || process.env.NTFY_TOPIC || '').trim();
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(cleanTopic)) {
+      return res.status(400).json({ success: false, error: 'ntfy topic ต้องเป็น a-z, A-Z, 0-9, _ หรือ - ไม่เกิน 64 ตัว' });
     }
 
-    const cleanServer = (server || 'https://ntfy.sh').replace(/\/+$/, '');
-    const origin = req.get('origin') || req.get('referer') || '';
-    const cleanOrigin = origin ? origin.replace(/\/+$/, '') : '';
-    const appUrl = process.env.APP_URL || cleanOrigin || 'https://ais-pre-qiphuob5ntzos2dco2lbsq-675247792549.asia-southeast1.run.app';
-    const ntfyRes = await fetch(`${cleanServer}/${cleanTopic}`, {
+    const serverValue = (process.env.NTFY_SERVER || 'https://ntfy.sh').trim();
+    let serverUrl: URL;
+    try {
+      serverUrl = new URL(serverValue);
+    } catch {
+      return res.status(503).json({ success: false, error: 'ตั้งค่า NTFY_SERVER ไม่ถูกต้อง' });
+    }
+    if (serverUrl.protocol !== 'https:' || serverUrl.username || serverUrl.password || serverUrl.pathname !== '/' || serverUrl.search || serverUrl.hash) {
+      return res.status(503).json({ success: false, error: 'NTFY_SERVER ต้องเป็น HTTPS origin ที่ถูกต้อง' });
+    }
+
+    const title = String(req.body?.title || '📢 แจ้งเตือนผลสลากและหวยสด').trim();
+    const message = String(req.body?.message || 'ทดสอบแจ้งเตือน Bombim00').trim();
+    if (!title || title.length > 100 || !message || message.length > 4000) {
+      return res.status(400).json({ success: false, error: 'หัวข้อต้องไม่เกิน 100 และข้อความต้องไม่เกิน 4,000 ตัวอักษร' });
+    }
+
+    const ntfyRes = await fetch(serverUrl.origin + '/' + encodeURIComponent(cleanTopic), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-      },
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({
-        title: title || '📢 แจ้งเตือนผลสลากและหวยสด',
-        message: message || '📢 แจ้งเตือนผลสลากและหวยสด\n📡 แหล่งข้อมูล: 👑เฮียฮวด พารวย',
+        title,
+        message,
         priority: 4,
         tags: ['loudspeaker', 'dart'],
-        click: appUrl,
+        click: process.env.APP_URL || 'https://bombim00.onrender.com',
       }),
+      signal: AbortSignal.timeout(10000),
+      redirect: 'error',
     });
-
     if (ntfyRes.ok) {
-      return res.json({
-        success: true,
-        message: `ส่งข้อความแจ้งเตือนผลหวยไปยัง ntfy topic '${cleanTopic}' สำเร็จเรียบร้อย! 🎉`,
-      });
-    } else {
-      const errText = await ntfyRes.text();
-      return res.status(ntfyRes.status).json({ success: false, error: `ntfy ตอบกลับ HTTP ${ntfyRes.status}: ${errText}` });
+      return res.json({ success: true, message: 'ส่งคำขอแจ้งเตือนไปยัง ntfy server แล้ว' });
     }
+    const detail = (await ntfyRes.text().catch(() => '')).slice(0, 300);
+    return res.status(502).json({ success: false, error: 'ntfy ตอบกลับ HTTP ' + ntfyRes.status + ': ' + detail });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(502).json({ success: false, error: err?.name === 'TimeoutError' ? 'ntfy ตอบกลับช้าเกินกำหนด' : (err?.message || 'ส่ง ntfy ไม่สำเร็จ') });
   }
 });
 
