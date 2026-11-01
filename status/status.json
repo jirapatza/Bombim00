@@ -1,14 +1,19 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-01T22:56:53.107526+07:00",
-  "last_run_date_thai": "01/11/2026 22:56:53 น.",
-  "total_checks": 384,
+  "last_run_timestamp": "2026-11-01T23:23:21.634651+07:00",
+  "last_run_date_thai": "01/11/2026 23:23:21 น.",
+  "total_checks": 385,
   "last_source_used": "ThaiLottoAPI + ผลหวย.com stock groups",
   "status_message": "ตรวจพบผลสดงวดล่าสุด 01.11.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups",
   "active_sources_count": 2,
   "latest_draw_detected": "01.11.2026",
-  "notifications_sent_today": 42,
+  "notifications_sent_today": 45,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-01T23:23:21.634651+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลสดงวดล่าสุด 01.11.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
+    },
     {
       "timestamp": "2026-11-01T22:56:53.107526+07:00",
       "level": "INFO",
@@ -101,11 +106,6 @@
     },
     {
       "timestamp": "2026-11-01T12:50:22.771429+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวดล่าสุด 01.11.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
-    },
-    {
-      "timestamp": "2026-11-01T12:07:34.335467+07:00",
       "level": "INFO",
       "message": "ตรวจพบผลสดงวดล่าสุด 01.11.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
     }
