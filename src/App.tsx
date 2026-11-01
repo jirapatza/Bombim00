@@ -821,9 +821,9 @@ export default function App() {
       };
       setSettings(newSettings);
       try {
-        await fetch(`${workerUrl}/api/settings`, {
+        await apiFetch('/api/settings', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newSettings),
         });
         showToast(`เพิ่มเลข ${num} ลงในรายการเฝ้าระวังแล้ว`);
@@ -836,9 +836,9 @@ export default function App() {
   const handleSaveMultiChannelSettings = async (newSettings: any) => {
     setSettings(newSettings);
     try {
-      const res = await fetch(`${workerUrl}/api/settings`, {
+      const res = await apiFetch('/api/settings', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newSettings),
       });
       const data = await res.json();
@@ -856,7 +856,7 @@ export default function App() {
     try {
       const res = await apiFetch('/api/all-lotteries', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated),
       });
       const data = await res.json();
@@ -1020,7 +1020,7 @@ export default function App() {
       // Choose one backend; retrying on another can run and notify twice.
       const res = await apiFetch('/api/github/dispatch', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workflow: 'lottery.yml', inputs: { lottery_target: 'all', force_notify: 'false' } }),
       });
       const data = await res.json().catch(() => ({}));
@@ -1240,7 +1240,7 @@ export default function App() {
     try {
       const res = await apiFetch('/api/test-ntfy', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           server: settings?.ntfy?.server || 'https://ntfy.sh',
           topic: testTopic.trim(),
