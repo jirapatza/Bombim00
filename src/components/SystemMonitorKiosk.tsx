@@ -95,6 +95,7 @@ export interface SelfHealingSession {
   failedCount: number;
   executionDurationTotalMs: number;
   actions: SelfHealingActionItem[];
+  legacyRecord?: boolean;
 }
 
 export function SystemMonitorKiosk() {
