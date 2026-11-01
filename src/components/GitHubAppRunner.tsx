@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { apiFetch } from '../utils/api';
+import { apiFetch, setDashboardPassword as setApiDashboardPassword } from '../utils/api';
 import {
   Activity,
   AlertTriangle,
@@ -43,13 +43,7 @@ const TARGET_OPTIONS = [
 ];
 
 export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: GitHubAppRunnerProps) {
-  const [dashboardPassword, setDashboardPassword] = useState(() => {
-    try {
-      return sessionStorage.getItem('bombim00_dashboard_password') || '';
-    } catch {
-      return '';
-    }
-  });
+  const [dashboardPassword, setDashboardPassword] = useState('');
   const [target, setTarget] = useState('all');
   const [forceNotify, setForceNotify] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
@@ -60,15 +54,10 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
   const [message, setMessage] = useState<string | null>(null);
 
   const saveDashboardPassword = () => {
-    try {
-      const value = dashboardPassword.trim();
-      if (value) sessionStorage.setItem('bombim00_dashboard_password', value);
-      else sessionStorage.removeItem('bombim00_dashboard_password');
-      setDashboardPassword(value);
-      setMessage(value ? 'บันทึกรหัสผ่านไว้เฉพาะแท็บนี้แล้ว' : 'ลบรหัสผ่านออกจากเซสชันแล้ว');
-    } catch {
-      setError('เบราว์เซอร์ไม่อนุญาตให้เก็บรหัสผ่านใน Session Storage');
-    }
+    const value = dashboardPassword.trim();
+    setDashboardPassword(value);
+    setApiDashboardPassword(value);
+    setMessage(value ? 'ใช้รหัสผ่านในหน่วยความจำของหน้านี้แล้ว (ไม่บันทึกลงอุปกรณ์)' : 'ลบรหัสผ่านออกจากหน่วยความจำแล้ว');
   };
 
   const fetchRuns = async () => {
@@ -185,7 +174,7 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
               บันทึกในแท็บนี้
             </button>
           </div>
-          <p className="text-[11px] text-slate-500">รหัสผ่านเก็บใน Session Storage ของแท็บนี้เท่านั้น ไม่ส่งไป GitHub และจะหายเมื่อปิดเซสชัน</p>
+          <p className="text-[11px] text-slate-500">รหัสผ่านอยู่ในหน่วยความจำของหน้านี้เท่านั้น ไม่บันทึกลงอุปกรณ์หรือ GitHub และต้องกรอกใหม่เมื่อรีเฟรชหน้า</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
