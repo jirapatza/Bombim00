@@ -44,7 +44,7 @@ const protectedApiRoutes = new Set([
 
 // Production must configure DASH_PASSWORD; development remains usable without it.
 app.use('/api', (req, res, next) => {
-  if (!protectedApiRoutes.has(`${req.method} ${req.path}`)) return next();
+  if (!protectedApiRoutes.has(`${req.method} ${req.baseUrl}${req.path}`)) return next();
 
   const expectedPassword = process.env.DASH_PASSWORD || '';
   if (!expectedPassword) {
