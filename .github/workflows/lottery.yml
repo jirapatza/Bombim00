@@ -31,7 +31,6 @@ on:
           - thai_stock
           - government
           - malay
-          - liw
         default: all
       test_notification:
         description: 'Send one test message to ntfy (does not claim phone receipt)'
