@@ -54,5 +54,5 @@ test('rejects secret-like settings fields before they can be committed publicly'
     () => assertNoSecretFields({ channels: { ntfy: { topic: 'public-topic' } }, apiKey: 'do-not-commit' }),
     (error) => error instanceof GitHubStorageError && error.code === 'SECRET_FIELD_NOT_ALLOWED',
   );
-  assert.doesNotThrow(() => assertNoSecretFields({ channels: { ntfy: { topic: 'public-topic' } } }));
+  assert.doesNotThrow(() => assertNoSecretFields({ channels: { ntfy: { topic: 'public-topic' }, line: { token: '' } } }));
 });
