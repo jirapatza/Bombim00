@@ -6,7 +6,6 @@ on:
     paths:
       - "lottery_checker.py"
       - "settings_loader.py"
-      - "config/settings.json"
       - "tests/**"
       - ".github/workflows/lottery.yml"
   schedule:
