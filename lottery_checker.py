@@ -576,7 +576,7 @@ def send_ntfy_notification(row: dict) -> bool:
     front_3 = ", ".join(row.get("เลขหน้า_3_ตัว", [])) or "-"
     last_3 = ", ".join(row.get("เลขท้าย_3_ตัว", [])) or "-"
 
-    app_url = "https://ais-pre-tmu6ka6jf2ftxjs55cuads-13488795999.asia-east1.run.app"
+    app_url = os.environ.get("APP_URL") or "https://ais-pre-qiphuob5ntzos2dco2lbsq-675247792549.asia-southeast1.run.app"
     configured_click = S.get("channels", {}).get("ntfy", {}).get("click_url") or S.get("ntfy", {}).get("click_url") or ""
     click_url = app_url if (not configured_click or "sanook" in configured_click) else configured_click
 
@@ -642,7 +642,7 @@ def send_discord_notification(row: dict) -> bool:
         return False
 
     canonical_name = sl.map_canonical_lottery_name(raw_lottery_name)
-    app_url = "https://ais-pre-tmu6ka6jf2ftxjs55cuads-13488795999.asia-east1.run.app"
+    app_url = os.environ.get("APP_URL") or "https://ais-pre-qiphuob5ntzos2dco2lbsq-675247792549.asia-southeast1.run.app"
     category = _lottery_category(row)
     if category in {"government", "gov_savings"}:
         description = (
@@ -692,7 +692,7 @@ def send_telegram_notification(row: dict) -> bool:
         return False
 
     canonical_name = sl.map_canonical_lottery_name(raw_lottery_name)
-    app_url = "https://ais-pre-tmu6ka6jf2ftxjs55cuads-13488795999.asia-east1.run.app"
+    app_url = os.environ.get("APP_URL") or "https://ais-pre-qiphuob5ntzos2dco2lbsq-675247792549.asia-southeast1.run.app"
     category = _lottery_category(row)
     if category in {"government", "gov_savings"}:
         result_text = (

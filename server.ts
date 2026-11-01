@@ -444,7 +444,9 @@ app.post('/api/test-ntfy', async (req, res) => {
     }
 
     const cleanServer = (server || 'https://ntfy.sh').replace(/\/+$/, '');
-    const appUrl = 'https://ais-pre-tmu6ka6jf2ftxjs55cuads-13488795999.asia-east1.run.app';
+    const origin = req.get('origin') || req.get('referer') || '';
+    const cleanOrigin = origin ? origin.replace(/\/+$/, '') : '';
+    const appUrl = process.env.APP_URL || cleanOrigin || 'https://ais-pre-qiphuob5ntzos2dco2lbsq-675247792549.asia-southeast1.run.app';
     const ntfyRes = await fetch(`${cleanServer}/${cleanTopic}`, {
       method: 'POST',
       headers: {

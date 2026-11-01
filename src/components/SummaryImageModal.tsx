@@ -238,6 +238,23 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
       drawCorner(24, totalHeight - 24, 1, -1);
       drawCorner(width - 24, totalHeight - 24, -1, -1);
 
+      // Safe cross-browser rounded rectangle helper
+      const safeRoundRect = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+        if (typeof (c as any).roundRect === 'function') {
+          (c as any).roundRect(x, y, w, h, r);
+        } else {
+          c.moveTo(x + r, y);
+          c.lineTo(x + w - r, y);
+          c.quadraticCurveTo(x + w, y, x + w, y + r);
+          c.lineTo(x + w, y + h - r);
+          c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+          c.lineTo(x + r, y + h);
+          c.quadraticCurveTo(x, y + h, x, y + h - r);
+          c.lineTo(x, y + r);
+          c.quadraticCurveTo(x, y, x + r, y);
+        }
+      };
+
       // HEADER SECTION
       // Badge / Tag
       ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
@@ -248,7 +265,7 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
       const tagWidth = ctx.measureText(tagText).width + 24;
       const tagX = (width - tagWidth) / 2;
       ctx.beginPath();
-      ctx.roundRect(tagX, 36, tagWidth, 26, 6);
+      safeRoundRect(ctx, tagX, 36, tagWidth, 26, 6);
       ctx.fill();
       ctx.stroke();
 
@@ -327,7 +344,7 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
           ctx.strokeStyle = 'rgba(245, 158, 11, 0.6)';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.roundRect(top3BoxX, currentY + 12, 135, 38, 8);
+          safeRoundRect(ctx, top3BoxX, currentY + 12, 135, 38, 8);
           ctx.fill();
           ctx.stroke();
 
@@ -346,7 +363,7 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
           ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.roundRect(bot2BoxX, currentY + 12, 130, 38, 8);
+          safeRoundRect(ctx, bot2BoxX, currentY + 12, 130, 38, 8);
           ctx.fill();
           ctx.stroke();
 

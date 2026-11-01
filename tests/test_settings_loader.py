@@ -5,7 +5,10 @@ Run with: pytest tests/test_settings_loader.py
 
 import os
 import json
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
 import settings_loader as sl
 
 
