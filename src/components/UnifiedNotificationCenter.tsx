@@ -237,7 +237,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-white">
-                    1. LINE ส่วนตัว / กลุ่ม
+                    1. LINE Official Account / กลุ่ม
                   </h3>
                   <p className="text-[11px] text-slate-400">
                     แจ้งเตือนผ่าน LINE Messaging API
@@ -267,7 +267,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
             <div className="space-y-3">
               <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 text-xs text-slate-300 leading-relaxed">
                 <p className="font-bold text-emerald-300 mb-1">เชื่อมต่อ LINE Official Account</p>
-                <p>ระบบนี้ใช้ LINE Messaging API (ไม่ใช่ LINE Messaging API ซึ่งยุติบริการแล้ว)</p>
+                <p>ระบบนี้ใช้ LINE Messaging API (ไม่ใช่ LINE Notify ซึ่งยุติบริการแล้ว)</p>
                 <p className="mt-2">ตั้งค่า Secret ต่อไปนี้ใน GitHub Actions และ Render Environment:</p>
                 <ul className="list-disc pl-5 mt-1 space-y-1">
                   <li><code>LINE_CHANNEL_ACCESS_TOKEN</code></li>
