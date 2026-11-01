@@ -1101,6 +1101,11 @@ export function SystemMonitorKiosk() {
                           <span className="text-[10px] font-mono text-slate-400">
                             ID: {session.sessionId.slice(-8)}
                           </span>
+                          {session.legacyRecord && (
+                            <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
+                              ประวัติเดิม · ไม่ยืนยันการทำงานจริง
+                            </span>
+                          )}
                         </div>
 
                         <div className="text-xs text-slate-300 mt-1 flex flex-wrap items-center gap-2">
