@@ -59,7 +59,6 @@ jobs:
       - name: Verify Node server endpoints
         env:
           PORT: "3001"
-          DISABLE_BACKGROUND_CHECK: "true"
         run: |
           node server.js > /tmp/lottery-server.log 2>&1 &
           SERVER_PID=$!
@@ -86,10 +85,8 @@ jobs:
         run: docker build -t lottery-alert:smoke .
 
       - name: Verify Docker endpoints
-        env:
-          DISABLE_BACKGROUND_CHECK: "true"
         run: |
-          docker run -d --name lottery-alert-smoke -p 3002:3000 -e DISABLE_BACKGROUND_CHECK="$DISABLE_BACKGROUND_CHECK" lottery-alert:smoke
+          docker run -d --name lottery-alert-smoke -p 3002:3000 lottery-alert:smoke
           trap 'docker rm -f lottery-alert-smoke >/dev/null 2>&1 || true' EXIT
           for attempt in $(seq 1 40); do
             if curl --fail --silent http://127.0.0.1:3002/api/health > /tmp/docker-health.json; then
