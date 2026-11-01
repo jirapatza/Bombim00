@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { assertNoSecretFields, commitGitHubJson, GitHubStorageError, readGitHubJson } from './server/githubStorage.ts';
-import { getOverallHealth, preserveCorruptFile } from './server/selfHeal.ts';
+import { getOverallHealth } from './server/selfHeal.ts';
 import { timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
@@ -756,7 +756,7 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
   const circuit = checkGeminiCircuit();
   if (!circuit.available) {
     console.log(`[AI Verify Grounding] Circuit Breaker OPEN (cooldown: ${circuit.remainingCooldownSec}s). Serving verified local cache.`);
-    const { fallbackText, fallbackSources } = getLocalVerifiedFallback(prompt);
+    const { fallbackText, fallbackSources } = await getLocalVerifiedFallback(prompt);
     return res.json({
       success: true,
       query: prompt,
