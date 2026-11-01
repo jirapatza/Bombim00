@@ -22,6 +22,15 @@ test('reads the latest JSON from the configured public repository', async () => 
   assert.match(requestedUrl, /raw\.githubusercontent\.com\/jirapatza\/Bombim00/);
 });
 
+test('allows the latest GitHub Actions runtime status file to be read', async () => {
+  const result = await readGitHubJson('status/status.json', {
+    repo: 'jirapatza/Bombim00',
+    branch: 'main',
+    fetchImpl: async () => new Response(JSON.stringify({ system_status: 'healthy' }), { status: 200 }),
+  });
+  assert.deepEqual(result, { system_status: 'healthy' });
+});
+
 test('commits JSON with the current blob SHA and keeps the token out of the payload', async () => {
   const calls = [];
   const sha = await commitGitHubJson('config/settings.json', { app_name: 'Bombim00' }, 'test settings update', {
