@@ -91,6 +91,7 @@ export interface SelfHealingSession {
   overallResult: string;
   totalActionsCount: number;
   successCount: number;
+  warningCount?: number;
   failedCount: number;
   executionDurationTotalMs: number;
   actions: SelfHealingActionItem[];
@@ -125,9 +126,13 @@ export function SystemMonitorKiosk() {
       case 'SYNC_OFFLINE_CACHE':
         return 'python3 -c "import json; r=json.load(open(\'lottery_previous_results.json\')); print(f\'Validated {len(r)} historical draws\')"';
       case 'RESET_SYSTEM_HEALTH_METRICS':
-        return 'node -e \'const fs=require("fs"); const s=JSON.parse(fs.readFileSync("status/status.json")); s.system_status="healthy"; fs.writeFileSync("status/status.json", JSON.stringify(s, null, 2));\'';
+        return '# Legacy action only: do not force Healthy; use verified system checks instead.';
       case 'VERIFY_GATEWAYS_REACHABILITY':
-        return 'curl -s -m 5 -I https://glo.or.th https://ntfy.sh https://api.github.com/repos/jirapatza/Bombim00';
+        return 'curl -I --max-time 3 https://www.glo.or.th && curl -I --max-time 3 https://ntfy.sh && curl -I --max-time 3 https://api.github.com';
+      case 'PRESERVE_INVALID_RUNTIME_STATUS':
+        return '# The API preserves the unreadable status file and records a warning; no destructive command is available.';
+      case 'WRITE_VERIFIED_HEALTH_STATUS':
+        return '# The API writes the status derived from verified checks; do not set Healthy manually.';
       default:
         return `# Executing auto-repair for ${code}\nsystemctl restart lotto-daemon.service || true`;
     }
