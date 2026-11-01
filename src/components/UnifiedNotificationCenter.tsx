@@ -221,7 +221,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
 
       {/* 2. THE 3 CHANNELS (LINE, NTFY, VOICE) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* ==================== CHANNEL 1: LINE NOTIFY ==================== */}
+        {/* ==================== CHANNEL 1: LINE MESSAGING API ==================== */}
         <div className={`rounded-3xl border transition-all duration-300 p-5 flex flex-col justify-between shadow-xl ${
           isLineEnabled
             ? 'bg-gradient-to-br from-emerald-500/10 via-slate-900 to-slate-900 border-emerald-500/40 shadow-emerald-500/5'
