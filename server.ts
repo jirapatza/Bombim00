@@ -133,65 +133,6 @@ const ai = new GoogleGenAI({
   },
 });
 
-function ensureRuntimePaths() {
-  const requiredDirs = [
-    path.join(__dirname, 'config'),
-    path.join(__dirname, 'status'),
-    path.join(__dirname, 'data'),
-  ];
-
-  for (const dir of requiredDirs) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  const defaultFiles = [
-    path.join(__dirname, 'config', 'settings.json'),
-    path.join(__dirname, 'status', 'status.json'),
-    path.join(__dirname, 'lottery_previous_results.json'),
-    path.join(__dirname, 'status', 'self_healing_history.json'),
-  ];
-
-  for (const filePath of defaultFiles) {
-    if (!fs.existsSync(filePath)) {
-      if (filePath.endsWith('settings.json')) {
-        fs.writeFileSync(filePath, JSON.stringify({
-          version: '1.2.0',
-          app_name: 'Lottery Alert System Pro',
-          sources: {
-            pholhuay: { enabled: false, name: 'Pholhuay', priority: 1 },
-            glo: { enabled: true, name: 'GLO Official', priority: 5 },
-            ranlotto: { enabled: true, name: 'RANLOTTO', priority: 7 },
-            lotterychecks: { enabled: true, name: 'LotteryChecks', priority: 6 },
-            thailottoapi: { enabled: true, name: 'ThaiLottoAPI', priority: 1 },
-          },
-          notifications: {
-            enabled: true,
-            notify_on_new_draw: true,
-            custom_watched_numbers: [],
-          },
-          channels: {
-            ntfy: { enabled: true, server: 'https://ntfy.sh', topic: '', priority: 'high', tags: ['moneybag', 'dart'] },
-          },
-        }, null, 2));
-      } else if (filePath.endsWith('status.json')) {
-        fs.writeFileSync(filePath, JSON.stringify({
-          system_status: 'healthy',
-          last_run_timestamp: new Date().toISOString(),
-          last_run_date_thai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-          total_checks: 0,
-          last_source_used: 'n/a',
-          status_message: 'Initial state',
-          active_sources_count: 0,
-          latest_draw_detected: '',
-          notifications_sent_today: 0,
-          recent_logs: [],
-        }, null, 2));
-      } else {
-        fs.writeFileSync(filePath, JSON.stringify([], null, 2));
-      }
-    }
-  }
-}
 
 app.get('/api/health', (req, res) => {
   try {
@@ -199,6 +140,7 @@ app.get('/api/health', (req, res) => {
       ok: true,
       status: 'healthy',
       storage: process.env.GITHUB_TOKEN ? 'configured' : 'not_configured',
+    writesEnabled: Boolean(process.env.GITHUB_TOKEN),
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
@@ -207,12 +149,6 @@ app.get('/api/health', (req, res) => {
 });
 
 // Helper paths
-const SETTINGS_PATH = path.join(__dirname, 'config', 'settings.json');
-const STATUS_PATH = path.join(__dirname, 'status', 'status.json');
-const RESULTS_PATH = path.join(__dirname, 'lottery_previous_results.json');
-const ALL_LOTTERIES_PATH = path.join(__dirname, 'data', 'all_lotteries.json');
-const WORKFLOW_PATH = path.join(__dirname, '.github', 'workflows', 'lottery.yml');
-const HEALING_HISTORY_PATH = path.join(__dirname, 'status', 'self_healing_history.json');
 
 // 1. GET /api/status - Read the latest status written by GitHub Actions.
 app.get('/api/status', async (req, res) => {
@@ -485,72 +421,90 @@ app.post('/api/github/runs', async (_req, res) => {
 
 // Lottery checks run only in GitHub Actions; this service never starts a second checker.
 
-// 6.1 GET /api/system/monitor - Comprehensive system & devices health monitor
-app.get('/api/system/monitor', async (req, res) => {
+// 6.1 System monitor reads the canonical repository data, never the ephemeral container disk.
+const monitoredFiles = [
+  { name: 'config/settings.json', path: 'config/settings.json', critical: true },
+  { name: 'status/status.json', path: 'status/status.json', critical: true },
+  { name: 'data/all_lotteries.json', path: 'data/all_lotteries.json', critical: false },
+  { name: 'lottery_previous_results.json', path: 'lottery_previous_results.json', critical: false },
+  { name: 'status/self_healing_history.json', path: 'status/self_healing_history.json', critical: false },
+];
+
+const monitoredSources = [
+  { id: 'glo', name: 'สำนักงานสลากกินแบ่งรัฐบาล (GLO Official)', url: 'https://www.glo.or.th' },
+  { id: 'ranlotto', name: 'RANLOTTO Lottery Service', url: 'https://api.ranlotto.com' },
+  { id: 'ntfy', name: 'ntfy.sh Push Notification Server', url: 'https://ntfy.sh' },
+  { id: 'github', name: 'GitHub API', url: 'https://api.github.com' },
+];
+
+async function checkExternalSource(source: { id: string; name: string; url: string }) {
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3500);
+  try {
+    const response = await fetch(source.url, {
+      method: 'HEAD',
+      redirect: 'error',
+      signal: controller.signal,
+    });
+    return {
+      id: source.id,
+      name: source.name,
+      status: response.ok ? 'healthy' : 'degraded',
+      latencyMs: Date.now() - startedAt,
+      statusCode: response.status,
+      lastChecked: new Date().toISOString(),
+    };
+  } catch (err: any) {
+    return {
+      id: source.id,
+      name: source.name,
+      status: 'degraded',
+      latencyMs: Date.now() - startedAt,
+      statusCode: 0,
+      lastChecked: new Date().toISOString(),
+      error: err?.name === 'AbortError' ? 'Request timed out' : (err?.message || 'Request failed'),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+app.get('/api/system/monitor', async (_req, res) => {
   try {
     const memory = process.memoryUsage();
     const uptimeSec = Math.floor(process.uptime());
-    const uptimeStr = `${Math.floor(uptimeSec / 3600)}h ${Math.floor((uptimeSec % 3600) / 60)}m ${uptimeSec % 60}s`;
+    const uptimeStr = Math.floor(uptimeSec / 3600) + 'h ' +
+      Math.floor((uptimeSec % 3600) / 60) + 'm ' + (uptimeSec % 60) + 's';
 
-    const filesHealth = [
-      { name: 'config/settings.json', path: SETTINGS_PATH, exists: fs.existsSync(SETTINGS_PATH), critical: true },
-      { name: 'status/status.json', path: STATUS_PATH, exists: fs.existsSync(STATUS_PATH), critical: true },
-      { name: 'data/all_lotteries.json', path: ALL_LOTTERIES_PATH, exists: fs.existsSync(ALL_LOTTERIES_PATH), critical: false },
-      { name: 'lottery_previous_results.json', path: RESULTS_PATH, exists: fs.existsSync(RESULTS_PATH), critical: false },
-      { name: '.github/workflows/lottery.yml', path: WORKFLOW_PATH, exists: fs.existsSync(WORKFLOW_PATH), critical: false },
-    ];
-
-    for (const f of filesHealth) {
-      if (f.exists && f.name.endsWith('.json')) {
-        try {
-          JSON.parse(fs.readFileSync(f.path, 'utf-8'));
-          (f as any).validJson = true;
-        } catch {
-          (f as any).validJson = false;
-        }
+    const filesHealth = await Promise.all(monitoredFiles.map(async (file) => {
+      try {
+        const value = await readGitHubJson<unknown>(file.path);
+        return {
+          name: file.name,
+          path: file.path,
+          exists: true,
+          critical: file.critical,
+          validJson: true,
+          itemCount: Array.isArray(value) ? value.length : undefined,
+        };
+      } catch (err: any) {
+        return {
+          name: file.name,
+          path: file.path,
+          exists: false,
+          critical: file.critical,
+          validJson: false,
+          error: err?.message || 'Unable to read repository data',
+        };
       }
-    }
+    }));
 
-    const sources = [
-      { id: 'glo', name: 'สำนักงานสลากกินแบ่งรัฐบาล (GLO Official)', url: 'https://www.glo.or.th' },
-      { id: 'ranlotto', name: 'RANLOTTO Lottery Service', url: 'https://api.ranlotto.com' },
-      { id: 'ntfy', name: 'ntfy.sh Push Notification Server', url: 'https://ntfy.sh' },
-      { id: 'github', name: 'GitHub Actions & Repository Endpoint', url: 'https://api.github.com' },
-    ];
-
-    const sourceChecks = await Promise.all(
-      sources.map(async (s) => {
-        const start = Date.now();
-        try {
-          const controller = new AbortController();
-          const tId = setTimeout(() => controller.abort(), 3500);
-          const r = await fetch(s.url, { method: 'HEAD', signal: controller.signal }).catch(() => null);
-          clearTimeout(tId);
-          const ms = Date.now() - start;
-          const ok = r ? r.ok : false;
-          return {
-            id: s.id,
-            name: s.name,
-            status: ok ? 'healthy' : 'degraded',
-            latencyMs: ms,
-            statusCode: r ? r.status : 0,
-            lastChecked: new Date().toISOString(),
-          };
-        } catch {
-          return {
-            id: s.id,
-            name: s.name,
-            status: 'degraded',
-            latencyMs: Date.now() - start,
-            statusCode: 0,
-            lastChecked: new Date().toISOString(),
-          };
-        }
-      })
-    );
-
-    const hasMissingCriticalFiles = filesHealth.some((f) => f.critical && (!f.exists || (f as any).validJson === false));
-    const overallStatus = hasMissingCriticalFiles ? 'error' : sourceChecks.some((s) => s.status !== 'healthy') ? 'degraded' : 'healthy';
+    const sourceChecks = await Promise.all(monitoredSources.map(checkExternalSource));
+    const hasMissingCriticalFiles = filesHealth.some((file) => file.critical && (!file.exists || !file.validJson));
+    const overallStatus = hasMissingCriticalFiles
+      ? 'error'
+      : sourceChecks.some((source) => source.status !== 'healthy') ? 'degraded' : 'healthy';
 
     return res.json({
       success: true,
@@ -564,25 +518,27 @@ app.get('/api/system/monitor', async (req, res) => {
         uptimeFormatted: uptimeStr,
         memoryUsageMB: Math.round(memory.heapUsed / 1024 / 1024),
         totalHeapMB: Math.round(memory.heapTotal / 1024 / 1024),
-        backgroundRunnerActive: process.env.DISABLE_BACKGROUND_CHECK !== 'true',
+        backgroundRunnerActive: false,
+        lotteryRunner: 'GitHub Actions only',
+        durableStorage: 'GitHub repository JSON',
       },
       filesHealth,
       sourceChecks,
     });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(502).json({ success: false, error: err?.message || 'System monitor failed' });
   }
 });
 
-// 6.2 POST /api/system/self-heal - Detailed auto-repair & self-healing engine
+// Self-heal is deliberately diagnostic-only: it must not rewrite bot-owned results or claim to repair Render.
 app.post('/api/system/self-heal', async (req, res) => {
+  const startedAt = Date.now();
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const nowThai = now.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+  const { targetDevice, triggerReason, triggerType } = req.body || {};
   try {
-    const { targetDevice, triggerReason, triggerType } = req.body || {};
-    const startTime = Date.now();
-    const nowIso = new Date().toISOString();
-    const thaiNow = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
-
-    const executedActions: Array<{
+    const actions: Array<{
       id: string;
       commandCode: string;
       targetDevice: string;
@@ -596,309 +552,125 @@ app.post('/api/system/self-heal', async (req, res) => {
       shellCommand: string;
     }> = [];
 
-    // Action 1: REPAIR_FILESYSTEM_DIRS
-    const t0 = Date.now();
-    try {
-      ensureRuntimePaths();
-      executedActions.push({
-        id: `act-${Date.now()}-1`,
-        commandCode: 'REPAIR_FILESYSTEM_DIRS',
-        targetDevice: 'Filesystem Storage (/config, /status, /data)',
-        description: 'ตรวจสอบโครงสร้างไดเรกทอรีและสร้างโฟลเดอร์หลักของระบบ',
-        triggerReason: triggerReason || 'ตรวจสอบความสมบูรณ์ของระบบจัดเก็บข้อมูล (Filesystem Integrity)',
-        timestamp: new Date().toISOString(),
-        timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-        status: 'success',
-        executionTimeMs: Math.max(1, Date.now() - t0),
-        details: 'ตรวจสอบและยืนยันพาธ /config, /status, /data สมบูรณ์พร้อมสิทธิ์ Read/Write',
-        shellCommand: 'mkdir -p config status data && chmod 755 config status data && ls -ld config status data',
-      });
-    } catch (err: any) {
-      executedActions.push({
-        id: `act-${Date.now()}-1`,
-        commandCode: 'REPAIR_FILESYSTEM_DIRS',
-        targetDevice: 'Filesystem Storage',
-        description: 'ตรวจสอบโครงสร้างไดเรกทอรี',
-        triggerReason: triggerReason || 'Filesystem Health Check',
-        timestamp: new Date().toISOString(),
-        timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-        status: 'warning',
-        executionTimeMs: Math.max(1, Date.now() - t0),
-        details: `คำเตือนไดเรกทอรี: ${err.message}`,
-        shellCommand: 'mkdir -p config status data',
-      });
-    }
-
-    // Action 2: RESTORE_CONFIG_SCHEMA
-    const t1 = Date.now();
-    try {
-      let restored = false;
-      if (!fs.existsSync(SETTINGS_PATH)) {
-        ensureRuntimePaths();
-        restored = true;
-      } else {
-        const raw = fs.readFileSync(SETTINGS_PATH, 'utf-8');
-        JSON.parse(raw);
-      }
-      executedActions.push({
-        id: `act-${Date.now()}-2`,
-        commandCode: 'RESTORE_CONFIG_SCHEMA',
-        targetDevice: 'System Config (config/settings.json)',
-        description: 'ตรวจสอบความถูกต้องของ JSON Schema และค่าเริ่มต้นระบบแจ้งเตือน',
-        triggerReason: targetDevice?.includes('Config') || targetDevice?.includes('settings')
-          ? 'ตรวจพบอุปกรณ์/ไฟล์ config มีปัญหาหรือโครงสร้างเสียหาย'
-          : (triggerReason || 'ยืนยันความถูกต้องของไฟล์การตั้งค่าและ API Sources'),
-        timestamp: new Date().toISOString(),
-        timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-        status: 'success',
-        executionTimeMs: Math.max(1, Date.now() - t1),
-        details: restored
-          ? 'สร้างไฟล์ config/settings.json ใหม่สำเร็จด้วยโครงสร้างมาตรฐาน v1.2.0'
-          : 'ตรวจสอบไฟล์ config/settings.json สำเร็จ โครงสร้าง JSON ถูกต้อง 100%',
-        shellCommand: `node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("config/settings.json","utf-8")); console.log("Config OK:", c.app_name, "Sources:", Object.keys(c.sources || {}).length)'`,
-      });
-    } catch (err: any) {
-      let backupPath: string | null = null;
-      let backupError = '';
+    const dataChecks = await Promise.all(monitoredFiles.slice(0, 4).map(async (file) => {
+      const actionStarted = Date.now();
       try {
-        backupPath = preserveCorruptFile(SETTINGS_PATH);
-      } catch (backupErr: any) {
-        backupError = backupErr?.message || String(backupErr);
-      }
-      executedActions.push({
-        id: `act-${Date.now()}-2`,
-        commandCode: 'RESTORE_CONFIG_SCHEMA',
-        targetDevice: 'System Config (config/settings.json)',
-        description: 'ตรวจสอบไฟล์ตั้งค่าโดยไม่เขียนทับข้อมูลเดิมที่เสียหาย',
-        triggerReason: 'ตรวจพบ JSON Syntax Error หรือโครงสร้างข้อมูลเสียหาย',
-        timestamp: new Date().toISOString(),
-        timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-        status: 'failed',
-        executionTimeMs: Math.max(1, Date.now() - t1),
-        details: `อ่านไฟล์ตั้งค่าไม่สำเร็จและไม่ได้เขียนทับข้อมูลเดิม${backupPath ? `; สำรองไฟล์ไว้ที่ ${path.basename(backupPath)}` : ''}${backupError ? `; สำรองไฟล์ไม่สำเร็จ: ${backupError}` : ''}`,
-        shellCommand: '',
-      });
-    }
-
-    // Action 4: SYNC_OFFLINE_CACHE
-    const t3 = Date.now();
-    let resultsCount = 0;
-    try {
-      if (fs.existsSync(RESULTS_PATH)) {
-        const rawResults = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
-        resultsCount = Array.isArray(rawResults) ? rawResults.length : 0;
-      }
-      executedActions.push({
-        id: `act-${Date.now()}-4`,
-        commandCode: 'SYNC_OFFLINE_CACHE',
-        targetDevice: 'Lottery Results Cache & 51 Catalog Feeds',
-        description: 'ตรวจสอบและจัดระเบียบแคชผลสลากกินแบ่งย้อนหลังเพื่อพร้อมอ่า',
-        triggerReason: triggerReason || 'ยืนยันความพร้อมของฐานข้อมูลแคชในตัวเครื่อง',
-        timestamp: new Date().toISOString(),
-        timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-        status: 'success',
-        executionTimeMs: Math.max(1, Date.now() - t3),
-        details: `ตรวจสอบแคชสมบูรณ์ พบประวัติผลสลาก ${resultsCount} งวดล่าสุด`,
-        shellCommand: `python3 -c "import json; r=json.load(open('lottery_previous_results.json')); print(f'Validated {len(r)} historical draws')"`,
-      });
-    } catch {
-      executedActions.push({
-        id: `act-${Date.now()}-4`,
-        commandCode: 'SYNC_OFFLINE_CACHE',
-        targetDevice: 'Lottery Results Cache',
-        description: 'จัดระเบียบแคชผลสลาก',
-        triggerReason: 'ฟื้นฟูแคช',
-        timestamp: new Date().toISOString(),
-        timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-        status: 'warning',
-        executionTimeMs: Math.max(1, Date.now() - t3),
-        details: 'ตรวจสอบแคชไม่สำเร็จ จึงคงไฟล์เดิมไว้โดยไม่ลบหรือรีเซ็ตข้อมูล',
-        shellCommand: '',
-      });
-    }
-
-    // Action 5: VERIFY_GATEWAYS_REACHABILITY using real bounded requests.
-    const t5 = Date.now();
-    const gatewayTargets = [
-      { id: 'glo', name: 'GLO Official', url: 'https://www.glo.or.th' },
-      { id: 'ntfy', name: 'ntfy.sh', url: 'https://ntfy.sh' },
-      { id: 'github', name: 'GitHub API', url: 'https://api.github.com' },
-    ];
-    const gatewayChecks = await Promise.all(gatewayTargets.map(async (gateway) => {
-      const startedAt = Date.now();
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3500);
-      try {
-        const response = await fetch(gateway.url, {
-          method: 'HEAD',
-          redirect: 'error',
-          signal: controller.signal,
-        });
+        const value = await readGitHubJson<unknown>(file.path);
         return {
-          id: gateway.id,
-          name: gateway.name,
-          status: response.ok ? 'success' as const : 'warning' as const,
-          statusCode: response.status,
-          latencyMs: Date.now() - startedAt,
+          id: 'act-' + Date.now() + '-' + file.name,
+          commandCode: 'VERIFY_REPOSITORY_DATA',
+          targetDevice: file.name,
+          description: 'ตรวจสอบไฟล์ข้อมูลหลักจาก GitHub repository',
+          triggerReason: triggerReason || 'ตรวจสอบความสมบูรณ์ของข้อมูลที่จัดเก็บถาวร',
+          timestamp: new Date().toISOString(),
+          timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+          status: 'success' as const,
+          executionTimeMs: Math.max(1, Date.now() - actionStarted),
+          details: 'อ่านข้อมูลสำเร็จ' + (Array.isArray(value) ? '; จำนวน ' + value.length + ' รายการ' : ''),
+          shellCommand: '',
         };
       } catch (err: any) {
         return {
-          id: gateway.id,
-          name: gateway.name,
-          status: 'warning' as const,
-          statusCode: 0,
-          latencyMs: Date.now() - startedAt,
-          error: err?.name === 'AbortError' ? 'Request timed out' : (err?.message || 'Request failed'),
+          id: 'act-' + Date.now() + '-' + file.name,
+          commandCode: 'VERIFY_REPOSITORY_DATA',
+          targetDevice: file.name,
+          description: 'ตรวจสอบไฟล์ข้อมูลหลักจาก GitHub repository',
+          triggerReason: triggerReason || 'ตรวจสอบความสมบูรณ์ของข้อมูลที่จัดเก็บถาวร',
+          timestamp: new Date().toISOString(),
+          timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+          status: file.critical ? 'failed' as const : 'warning' as const,
+          executionTimeMs: Math.max(1, Date.now() - actionStarted),
+          details: err?.message || 'อ่านข้อมูลไม่สำเร็จ',
+          shellCommand: '',
         };
-      } finally {
-        clearTimeout(timeout);
       }
     }));
-    executedActions.push({
-      id: `act-${Date.now()}-5`,
+    actions.push(...dataChecks);
+
+    const gatewayStarted = Date.now();
+    const gatewayChecks = await Promise.all(monitoredSources.map(checkExternalSource));
+    actions.push({
+      id: 'act-' + Date.now() + '-gateways',
       commandCode: 'VERIFY_GATEWAYS_REACHABILITY',
-      targetDevice: 'External Feeds & Push Gateways',
-      description: 'ตรวจสอบการตอบสนองของ GLO, ntfy.sh และ GitHub API ด้วยคำขอจริง',
+      targetDevice: 'External Feeds & Notification Gateways',
+      description: 'ตรวจสอบการตอบสนองของบริการภายนอกด้วยคำขอจริง',
       triggerReason: triggerReason || 'ตรวจสอบการเชื่อมต่อไปยังบริการภายนอก',
       timestamp: new Date().toISOString(),
       timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-      status: gatewayChecks.every((check) => check.status === 'success') ? 'success' : 'warning',
-      executionTimeMs: Math.max(1, Date.now() - t5),
+      status: gatewayChecks.every((item) => item.status === 'healthy') ? 'success' : 'warning',
+      executionTimeMs: Math.max(1, Date.now() - gatewayStarted),
       details: JSON.stringify(gatewayChecks),
       shellCommand: '',
     });
 
-    // Action 6: Write a health state derived from verified action outcomes.
-    const t6 = Date.now();
-    let currentStatus: any = {};
-    try {
-      if (fs.existsSync(STATUS_PATH)) {
-        currentStatus = JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8'));
-      }
-    } catch {
-      try {
-        preserveCorruptFile(STATUS_PATH);
-      } catch {
-        // Preserve the original status file if possible; the health result below remains degraded.
-      }
-      executedActions.push({
-        id: `act-${Date.now()}-6a`,
-        commandCode: 'PRESERVE_INVALID_RUNTIME_STATUS',
-        targetDevice: 'Runtime Status (status/status.json)',
-        description: 'สำรองไฟล์สถานะที่อ่านไม่ได้และไม่ใช้ข้อมูลที่เสียหาย',
-        triggerReason: 'พบไฟล์สถานะ JSON เสียหาย',
-        timestamp: new Date().toISOString(),
-        timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-        status: 'warning',
-        executionTimeMs: Math.max(1, Date.now() - t6),
-        details: 'ไม่สามารถอ่านไฟล์สถานะเดิมได้ จึงไม่ถือว่าระบบ Healthy',
-        shellCommand: '',
-      });
-    }
-
-    const overallHealth = getOverallHealth(executedActions);
-    const healthMessage = overallHealth === 'healthy'
-      ? 'ตรวจสอบระบบแล้ว ทุกขั้นตอนและ gateway ที่ทดสอบผ่าน'
-      : overallHealth === 'degraded'
-        ? 'ตรวจสอบเสร็จ แต่มีบางขั้นตอนหรือ gateway ที่ยังต้องตรวจสอบ'
-        : 'พบความผิดพลาดระหว่างตรวจสอบ ระบบยังไม่พร้อมและต้องแก้ไขเพิ่มเติม';
-    const healedStatus = {
-      ...currentStatus,
-      system_status: overallHealth,
-      last_health_check_timestamp: nowIso,
-      status_message: healthMessage,
-      recent_logs: [
-        {
-          timestamp: nowIso,
-          level: overallHealth === 'healthy' ? 'INFO' : 'WARN',
-          message: `[SELF-HEAL] ผลตรวจสอบ: ${overallHealth}; ${executedActions.length} ขั้นตอน`,
-        },
-        ...(Array.isArray(currentStatus.recent_logs) ? currentStatus.recent_logs : []),
-      ].slice(0, 30),
-    };
-
-    fs.writeFileSync(STATUS_PATH, JSON.stringify(healedStatus, null, 2), 'utf-8');
-    executedActions.push({
-      id: `act-${Date.now()}-6`,
-      commandCode: 'WRITE_VERIFIED_HEALTH_STATUS',
-      targetDevice: 'Runtime Status (status/status.json)',
-      description: 'บันทึกสถานะตามผลตรวจสอบจริง',
-      triggerReason: 'สรุปผลตรวจสอบระบบ',
-      timestamp: new Date().toISOString(),
-      timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-      status: 'success',
-      executionTimeMs: Math.max(1, Date.now() - t6),
-      details: `บันทึกสถานะ ${overallHealth}`,
-      shellCommand: '',
-    });
-
-    const fixedActionSummaries = executedActions.map((a) => `[${a.commandCode}] ${a.description}`);
-
-    // Save session in self_healing_history.json
-    let history: any[] = [];
-    try {
-      if (fs.existsSync(HEALING_HISTORY_PATH)) {
-        history = JSON.parse(fs.readFileSync(HEALING_HISTORY_PATH, 'utf-8'));
-        if (!Array.isArray(history)) history = [];
-      }
-    } catch {
-      history = [];
-    }
-
-    const sessionRecord = {
-      sessionId: `heal-${Date.now()}`,
+    const health = getOverallHealth(actions);
+    const session = {
+      sessionId: 'audit-' + Date.now(),
       triggeredAt: nowIso,
-      triggeredAtThai: thaiNow,
-      triggerType: triggerType || (targetDevice ? 'device_error_repair' : 'manual_user_click'),
-      triggeredByDevice: targetDevice || 'All Devices & Services (Full Suite)',
-      triggerReason: triggerReason || (targetDevice ? `พบปัญหาหรือข้อผิดพลาดที่อุปกรณ์: ${targetDevice}` : 'ผู้ใช้กดปุ่มระบบซ่อมแซม'),
-      overallResult: getOverallHealth(executedActions) === 'healthy' ? 'success' : getOverallHealth(executedActions) === 'error' ? 'failed' : 'partial',
-      totalActionsCount: executedActions.length,
-      successCount: executedActions.filter(a => a.status === 'success').length,
-      warningCount: executedActions.filter(a => a.status === 'warning').length,
-      failedCount: executedActions.filter(a => a.status === 'failed').length,
-      executionDurationTotalMs: Date.now() - startTime,
-      actions: executedActions,
+      triggeredAtThai: nowThai,
+      triggerType: triggerType || 'manual_user_click',
+      triggeredByDevice: targetDevice || 'All Services',
+      triggerReason: triggerReason || 'ผู้ใช้สั่งตรวจสอบระบบทั้งหมด',
+      overallResult: health === 'healthy' ? 'success' : health === 'error' ? 'failed' : 'partial',
+      totalActionsCount: actions.length,
+      successCount: actions.filter((item) => item.status === 'success').length,
+      warningCount: actions.filter((item) => item.status === 'warning').length,
+      failedCount: actions.filter((item) => item.status === 'failed').length,
+      executionDurationTotalMs: Date.now() - startedAt,
+      actions,
     };
 
-    history = [sessionRecord, ...history].slice(0, 50);
-    fs.writeFileSync(HEALING_HISTORY_PATH, JSON.stringify(history, null, 2), 'utf-8');
+    const previous = await readGitHubJson<any[]>('status/self_healing_history.json').catch(() => []);
+    const history = [session, ...(Array.isArray(previous) ? previous : [])].slice(0, 50);
+    const commit = await commitGitHubJson(
+      'status/self_healing_history.json',
+      history,
+      'chore(health): save verified system audit [skip ci]',
+    );
 
     return res.json({
       success: true,
-      message: sessionRecord.overallResult === 'success' ? 'ตรวจสอบระบบแล้ว ทุกขั้นตอนผ่าน' : 'ตรวจสอบเสร็จแล้ว แต่ยังมีรายการที่ต้องแก้ไขหรือตรวจสอบเพิ่มเติม',
+      message: session.overallResult === 'success'
+        ? 'ตรวจสอบเสร็จ ทุกข้อมูลและ gateway ที่ทดสอบผ่าน'
+        : 'ตรวจสอบเสร็จ แต่ยังมีรายการที่ต้องตรวจสอบเพิ่มเติม',
       timestamp: nowIso,
-      session: sessionRecord,
-      fixedActions: fixedActionSummaries,
-      executedActions,
+      session,
+      fixedActions: actions.map((item) => '[' + item.commandCode + '] ' + item.description),
+      executedActions: actions,
       history,
-      status: healedStatus,
+      storageCommit: commit,
+      note: 'การทำงานนี้เป็นการตรวจสอบเท่านั้น ไม่ได้เขียนทับข้อมูลผลหวยหรือไฟล์ในเครื่อง Render',
     });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err?.message || 'System audit failed' });
   }
 });
 
-// 6.3 GET /api/system/self-heal-history - Get self-healing actions logs
-app.get('/api/system/self-heal-history', (req, res) => {
+app.get('/api/system/self-heal-history', async (_req, res) => {
   try {
-    if (fs.existsSync(HEALING_HISTORY_PATH)) {
-      const data = JSON.parse(fs.readFileSync(HEALING_HISTORY_PATH, 'utf-8'));
-      return res.json({ success: true, history: Array.isArray(data) ? data : [] });
+    const history = await readGitHubJson<any[]>('status/self_healing_history.json');
+    return res.json({ success: true, history: Array.isArray(history) ? history : [] });
+  } catch (err: any) {
+    if (err instanceof GitHubStorageError && err.status === 404) {
+      return res.json({ success: true, history: [] });
     }
-    return res.json({ success: true, history: [] });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message, history: [] });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err?.message || 'Unable to read audit history', history: [] });
   }
 });
 
-// 6.4 DELETE /api/system/self-heal-history - Clear self-healing history log
-app.delete('/api/system/self-heal-history', (req, res) => {
+app.delete('/api/system/self-heal-history', async (_req, res) => {
   try {
-    fs.writeFileSync(HEALING_HISTORY_PATH, JSON.stringify([], null, 2), 'utf-8');
-    return res.json({ success: true, message: 'ล้างประวัติการซ่อมแซมตัวเองเรียบร้อยแล้ว' });
+    const commit = await commitGitHubJson(
+      'status/self_healing_history.json',
+      [],
+      'chore(health): clear system audit history [skip ci]',
+    );
+    return res.json({ success: true, message: 'ล้างประวัติการตรวจสอบเรียบร้อยแล้ว', commit });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err?.message || 'Unable to clear audit history' });
   }
 });
 
@@ -907,7 +679,7 @@ app.delete('/api/system/self-heal-history', (req, res) => {
 // 8. AI Endpoints (Google Search Grounding & Audio Transcription with Crash Shield & Circuit Breaker)
 
 // Helper to generate verified local fallback data without crashing
-function getLocalVerifiedFallback(prompt: string) {
+async function getLocalVerifiedFallback(prompt: string) {
   let previousResults: any[] = [];
   if (fs.existsSync(RESULTS_PATH)) {
     try {
@@ -919,14 +691,7 @@ function getLocalVerifiedFallback(prompt: string) {
   }
 
   let allLotteriesList: any[] = [];
-  if (fs.existsSync(ALL_LOTTERIES_PATH)) {
-    try {
-      const parsed = JSON.parse(fs.readFileSync(ALL_LOTTERIES_PATH, 'utf-8'));
-      allLotteriesList = Array.isArray(parsed) ? parsed : [];
-    } catch {
-      allLotteriesList = [];
-    }
-  }
+  try { allLotteriesList = await readGitHubJson<any[]>('data/all_lotteries.json'); } catch { allLotteriesList = []; }
 
   const normalizedPrompt = String(prompt || '').toLocaleLowerCase('th-TH');
   const matchedLottery = allLotteriesList.find((item: any) => {
