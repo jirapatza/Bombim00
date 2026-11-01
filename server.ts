@@ -245,18 +245,14 @@ const ALL_LOTTERIES_PATH = path.join(__dirname, 'data', 'all_lotteries.json');
 const WORKFLOW_PATH = path.join(__dirname, '.github', 'workflows', 'lottery.yml');
 const HEALING_HISTORY_PATH = path.join(__dirname, 'status', 'self_healing_history.json');
 
-// 1. GET /api/status - Read system status
+// 1. GET /api/status - Read the latest status written by GitHub Actions.
 app.get('/api/status', async (req, res) => {
   try {
-    const data = await readJsonWithCache(STATUS_PATH, {
-      system_status: 'healthy',
-      status_message: 'พร้อมทำงาน (Initial State)',
-      total_checks: 0,
-      active_sources_count: 2,
-    }, 2000);
+    const data = await readGitHubJson<Record<string, any>>('status/status.json');
     return res.json(data);
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'STATUS_READ_FAILED' });
   }
 });
 
