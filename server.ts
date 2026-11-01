@@ -143,6 +143,8 @@ app.get('/api/health', (req, res) => {
       status: 'healthy',
       storage: process.env.GITHUB_TOKEN ? 'configured' : 'read_only',
       writesEnabled: Boolean(process.env.GITHUB_TOKEN),
+      githubTokenConfigured: Boolean(process.env.GITHUB_TOKEN),
+      dashboardAuthConfigured: Boolean(process.env.DASH_PASSWORD),
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
