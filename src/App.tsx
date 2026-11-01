@@ -819,32 +819,41 @@ export default function App() {
           custom_watched_numbers: updatedList,
         },
       };
-      setSettings(newSettings);
       try {
-        await apiFetch('/api/settings', {
+        const response = await apiFetch('/api/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newSettings),
         });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+          showToast(data.error || `บันทึกรายการเฝ้าระวังไม่สำเร็จ (HTTP ${response.status})`);
+          return;
+        }
+        setSettings(newSettings);
         showToast(`เพิ่มเลข ${num} ลงในรายการเฝ้าระวังแล้ว`);
-      } catch {}
+      } catch {
+        showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อบันทึกได้');
+      }
     } else {
       showToast(`เลข ${num} อยู่ในรายการเฝ้าระวังแล้ว`);
     }
   };
 
   const handleSaveMultiChannelSettings = async (newSettings: any) => {
-    setSettings(newSettings);
     try {
       const res = await apiFetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newSettings),
       });
-      const data = await res.json();
-      if (data.success) {
-        showToast('บันทึกการตั้งค่าช่องทางแจ้งเตือนสำเร็จ!');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        showToast(data.error || `บันทึกการตั้งค่าไม่สำเร็จ (HTTP ${res.status})`);
+        return;
       }
+      setSettings(newSettings);
+      showToast('บันทึกการตั้งค่าช่องทางแจ้งเตือนสำเร็จ!');
     } catch {
       showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อบันทึกได้');
     }
@@ -852,19 +861,19 @@ export default function App() {
 
   // Update all lotteries (for schedule and result edits in modal)
   const handleUpdateAllLotteries = async (updated: LotteryItem[]) => {
-    setAllLotteries(updated);
     try {
       const res = await apiFetch('/api/all-lotteries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated),
       });
-      const data = await res.json();
-      if (data.success) {
-        showToast('💾 บันทึกและอัปเดตตารางหวยเรียบร้อยแล้ว');
-      } else {
-        showToast('บันทึกลงเซิร์ฟเวอร์ไม่สำเร็จ');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        showToast(data.error || `บันทึกตารางหวยไม่สำเร็จ (HTTP ${res.status})`);
+        return;
       }
+      setAllLotteries(updated);
+      showToast('💾 บันทึกและอัปเดตตารางหวยเรียบร้อยแล้ว');
     } catch {
       showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อบันทึกตารางหวยได้');
     }
@@ -895,7 +904,7 @@ export default function App() {
         fetchJsonWithFallback('/api/settings'),
         // Use the public results file as a fallback when the web API is unavailable.
         fetchJsonWithFallback('/api/results', `${rawBase}/lottery_previous_results.json`),
-                fetchJsonWithFallback('/api/all-lotteries', `${rawBase}/data/all_lotteries.json`),
+        fetchJsonWithFallback('/api/all-lotteries', `${rawBase}/data/all_lotteries.json`),
       ]);
 
       if (resStatus) setStatus(resStatus);
