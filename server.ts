@@ -349,39 +349,32 @@ app.post('/api/all-lotteries', async (req, res) => {
   }
 });
 
-// 4.3 POST /api/test-line - Test LINE Notify notification
+// Test LINE Messaging API push using server-side secrets only.
 app.post('/api/test-line', async (req, res) => {
   try {
-    const { token, message } = req.body;
-    const lineToken = (token || process.env.LINE_NOTIFY_TOKEN || '').trim();
-    if (!lineToken) {
-      return res.status(400).json({ success: false, error: 'กรุณาระบุ LINE Notify Token (ส่วนตัวหรือกลุ่ม)' });
+    const channelAccessToken = (process.env.LINE_CHANNEL_ACCESS_TOKEN || '').trim();
+    const targetId = (process.env.LINE_TARGET_ID || '').trim();
+    if (!channelAccessToken || !targetId) {
+      return res.status(503).json({ success: false, error: 'ต้องตั้งค่า LINE_CHANNEL_ACCESS_TOKEN และ LINE_TARGET_ID ใน Environment ก่อน' });
     }
-
-    const defaultMsg = message || '\n📢 ทดสอบการแจ้งเตือน Lottery Alert System\nระบบเชื่อมต่อ LINE สำเร็จเรียบแล้ว';
-    const formParams = new URLSearchParams();
-    formParams.append('message', defaultMsg);
-
-    const lineRes = await fetch('https://notify-api.line.me/api/notify', {
+    const message = String(req.body?.message || 'ทดสอบการแจ้งเตือน Bombim00 ผ่าน LINE Messaging API').trim();
+    if (!message || message.length > 5000) {
+      return res.status(400).json({ success: false, error: 'ข้อความต้องมีความยาว 1–5000 ตัวอักษร' });
+    }
+    const lineRes = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lineToken}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Bearer ' + channelAccessToken,
+        'Content-Type': 'application/json',
       },
-      body: formParams.toString(),
+      body: JSON.stringify({ to: targetId, messages: [{ type: 'text', text: message }] }),
+      signal: AbortSignal.timeout(10000),
     });
-
-    const data: any = await lineRes.json().catch(() => ({}));
-    if (lineRes.ok && data.status === 200) {
-      return res.json({ success: true, message: 'ส่งข้อความทดสอบไปยัง LINE Notify สำเร็จเรียบร้อยแล้ว! 🟢' });
-    } else {
-      return res.status(lineRes.status || 400).json({
-        success: false,
-        error: data.message || `LINE ปฏิเสธ (HTTP ${lineRes.status}) กรุณาตรวจสอบ Token อีกครั้ง`,
-      });
-    }
+    if (lineRes.ok) return res.json({ success: true, message: 'ส่งข้อความทดสอบผ่าน LINE Messaging API แล้ว' });
+    const detail = await lineRes.text().catch(() => '');
+    return res.status(502).json({ success: false, error: 'LINE Messaging API ปฏิเสธคำขอ (HTTP ' + lineRes.status + '): ' + detail.slice(0, 300) });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(502).json({ success: false, error: err?.message || 'ส่งข้อความ LINE ไม่สำเร็จ' });
   }
 });
 
