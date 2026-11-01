@@ -139,8 +139,8 @@ app.get('/api/health', (req, res) => {
     res.json({
       ok: true,
       status: 'healthy',
-      storage: process.env.GITHUB_TOKEN ? 'configured' : 'not_configured',
-    writesEnabled: Boolean(process.env.GITHUB_TOKEN),
+      storage: process.env.GITHUB_TOKEN ? 'configured' : 'read_only',
+      writesEnabled: Boolean(process.env.GITHUB_TOKEN),
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
@@ -397,7 +397,7 @@ app.post('/api/github/dispatch', async (req, res) => {
   }
 });
 
-app.post('/api/github/runs', async (_req, res) => {
+app.get('/api/github/runs', async (_req, res) => {
   try {
     const ghToken = (process.env.GITHUB_TOKEN || '').trim();
     const headers: Record<string, string> = {
