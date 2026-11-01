@@ -10,7 +10,7 @@ test('production server validates auth, removed endpoints and real checker failu
   const server = spawn(process.execPath, ['server.js'], {
     cwd: new URL('..', import.meta.url),
     // Python must not run live feeds or send notifications in this smoke test.
-    env: { ...process.env, PORT: String(port), NODE_ENV: 'production', DASH_PASSWORD: 'test-secret', DISABLE_BACKGROUND_CHECK: 'true', PATH: '' },
+    env: { ...process.env, PORT: String(port), NODE_ENV: 'production', DASH_PASSWORD: 'test-secret', GITHUB_TOKEN: '', DISABLE_BACKGROUND_CHECK: 'true', PATH: '' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
@@ -32,6 +32,8 @@ test('production server validates auth, removed endpoints and real checker failu
     });
     assert.equal((await post('/api/trigger', {}, false)).status, 401);
     assert.equal((await post('/api/trigger', { lotteryTarget: 'invalid' })).status, 400);
+    assert.equal((await post('/api/settings', {})).status, 503);
+    assert.equal((await post('/api/all-lotteries', [])).status, 503);
     for (const path of ['/api/github/workflow', '/api/github/get-remote-file', '/api/github/commit-file']) {
       const response = await post(path);
       assert.equal(response.status, 404);
