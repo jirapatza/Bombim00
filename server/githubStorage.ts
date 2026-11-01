@@ -126,7 +126,7 @@ export async function commitGitHubJson(
     method: 'PUT',
     headers: { ...headers, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      message,
+      message: message.includes('[skip render]') ? message : `${message} [skip render]`,
       content,
       branch,
       sha: currentFile.sha,
