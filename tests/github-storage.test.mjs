@@ -51,7 +51,7 @@ test('does not attempt writes when the Render GitHub token is missing', async ()
 
 test('rejects secret-like settings fields before they can be committed publicly', () => {
   assert.throws(
-    () => assertNoSecretFields({ channels: { ntfy: { topic: 'public-topic' } }, apiKey: 'do-not-commit' }),
+    () => assertNoSecretFields({ channels: { ntfy: { topic: 'public-topic' }, line_token: 'do-not-commit' } }),
     (error) => error instanceof GitHubStorageError && error.code === 'SECRET_FIELD_NOT_ALLOWED',
   );
   assert.doesNotThrow(() => assertNoSecretFields({ channels: { ntfy: { topic: 'public-topic' }, line: { token: '' } } }));
