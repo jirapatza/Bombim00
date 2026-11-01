@@ -540,7 +540,7 @@ app.get('/api/system/monitor', async (_req, res) => {
 });
 
 // Self-heal is deliberately diagnostic-only: it must not rewrite bot-owned results or claim to repair Render.
-app.post('/api/system/self-heal', async (req, res) => {
+app.post('/api/system/audit', async (req, res) => {
   const startedAt = Date.now();
   const now = new Date();
   const nowIso = now.toISOString();
@@ -656,7 +656,7 @@ app.post('/api/system/self-heal', async (req, res) => {
   }
 });
 
-app.get('/api/system/self-heal-history', async (_req, res) => {
+app.get('/api/system/audit-history', async (_req, res) => {
   try {
     const history = await readGitHubJson<any[]>('status/self_healing_history.json');
     return res.json({ success: true, history: Array.isArray(history) ? history : [] });
@@ -669,7 +669,7 @@ app.get('/api/system/self-heal-history', async (_req, res) => {
   }
 });
 
-app.delete('/api/system/self-heal-history', async (_req, res) => {
+app.delete('/api/system/audit-history', async (_req, res) => {
   try {
     const commit = await commitGitHubJson(
       'status/self_healing_history.json',
