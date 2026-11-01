@@ -16,31 +16,6 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-const jsonCache = new Map<string, { value: any; expiresAt: number }>();
-
-async function readJsonWithCache<T>(filePath: string, fallback: T, ttlMs = 5000): Promise<T> {
-  const now = Date.now();
-  const cached = jsonCache.get(filePath);
-  if (cached && cached.expiresAt > now) return cached.value as T;
-
-  try {
-    const raw = await fs.promises.readFile(filePath, 'utf-8');
-    const value = JSON.parse(raw);
-    jsonCache.set(filePath, { value, expiresAt: now + ttlMs });
-    return value as T;
-  } catch {
-    const value = fallback;
-    jsonCache.set(filePath, { value, expiresAt: now + ttlMs });
-    return value;
-  }
-}
-
-async function writeJsonWithCache(filePath: string, value: any, ttlMs = 5000) {
-  await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.promises.writeFile(filePath, JSON.stringify(value, null, 2), 'utf-8');
-  jsonCache.set(filePath, { value, expiresAt: Date.now() + ttlMs });
-}
-
 function pruneApiRateMap() {
   const now = Date.now();
   for (const [key, value] of apiRateMap.entries()) {
@@ -220,14 +195,10 @@ function ensureRuntimePaths() {
 
 app.get('/api/health', (req, res) => {
   try {
-    const hasSettings = fs.existsSync(path.join(__dirname, 'config', 'settings.json'));
-    const hasStatus = fs.existsSync(path.join(__dirname, 'status', 'status.json'));
-
     res.json({
       ok: true,
       status: 'healthy',
-      has_settings: hasSettings,
-      has_status: hasStatus,
+      storage: process.env.GITHUB_TOKEN ? 'configured' : 'not_configured',
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
@@ -276,10 +247,9 @@ app.post('/api/settings', async (req, res) => {
     const commit = await commitGitHubJson(
       'config/settings.json',
       updated,
-      'chore(settings): update dashboard settings',
+      'chore(settings): update dashboard settings [skip ci]',
     );
     // Keep this running instance in sync; GitHub remains the durable source of truth.
-    await writeJsonWithCache(SETTINGS_PATH, updated, 5000);
     return res.json({ success: true, message: 'Settings saved to GitHub successfully.', commit });
   } catch (err: any) {
     const status = err instanceof GitHubStorageError ? err.status : 502;
@@ -332,9 +302,8 @@ app.post('/api/lotteries/cleanup-history', async (req, res) => {
     const commit = await commitGitHubJson(
       'lottery_previous_results.json',
       deduped,
-      'chore(results): clean duplicate and unsupported history',
+      'chore(results): clean duplicate and unsupported history [skip ci]',
     );
-    await writeJsonWithCache(RESULTS_PATH, deduped, 5000);
     const removedCount = totalBefore - deduped.length;
     return res.json({
       success: true,
@@ -371,9 +340,8 @@ app.post('/api/all-lotteries', async (req, res) => {
     const commit = await commitGitHubJson(
       'data/all_lotteries.json',
       updated,
-      'chore(catalog): update lottery catalog',
+      'chore(catalog): update lottery catalog [skip ci]',
     );
-    await writeJsonWithCache(ALL_LOTTERIES_PATH, updated, 5000);
     return res.json({ success: true, message: 'Lottery catalog saved to GitHub.', commit });
   } catch (err: any) {
     const status = err instanceof GitHubStorageError ? err.status : 502;
@@ -984,48 +952,7 @@ app.delete('/api/system/self-heal-history', (req, res) => {
   }
 });
 
-// 7. GET /api/project-files - List project files for the in-app code editor
-app.get('/api/project-files', (req, res) => {
-  try {
-    const candidateFiles = [
-      'config/settings.json',
-      'lottery_checker.py',
-      'settings_loader.py',
-      'requirements.txt',
-      '.env.example',
-      'Dockerfile',
-      'docker-compose.yml',
-      'server.ts',
-      'src/App.tsx',
-    ];
-
-    const projectFiles: Array<{ name: string; path: string; category: string; content: string }> = [];
-
-    for (const relPath of candidateFiles) {
-      const fullPath = path.join(__dirname, relPath);
-      if (fs.existsSync(fullPath)) {
-        try {
-          const content = fs.readFileSync(fullPath, 'utf-8');
-          let category = 'config';
-          if (relPath.endsWith('.py')) category = 'python';
-          else if (relPath.endsWith('.ts') || relPath.endsWith('.tsx') || relPath.endsWith('.js')) category = 'backend';
-          projectFiles.push({
-            name: path.basename(relPath),
-            path: relPath,
-            category,
-            content,
-          });
-        } catch {
-          // Ignore read errors
-        }
-      }
-    }
-
-    return res.json(projectFiles);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
+// Project-file editing endpoints are intentionally not exposed by the dashboard.
 
 // 8. AI Endpoints (Google Search Grounding & Audio Transcription with Crash Shield & Circuit Breaker)
 
