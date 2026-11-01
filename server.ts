@@ -494,6 +494,8 @@ app.post('/api/github/dispatch', async (req, res) => {
     if (ghRes.status === 204 || ghRes.status === 200) {
       return res.json({
         success: true,
+        queued: true,
+        workflow_dispatched: true,
         message: `ส่งคำสั่งสั่งรัน GitHub Actions (${cleanWorkflow}) บนคลัง ${cleanRepo} สำเร็จเรียบร้อยแล้ว!`,
       });
     }
