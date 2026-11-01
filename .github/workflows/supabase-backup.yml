@@ -1,0 +1,74 @@
+name: Supabase encrypted backup to private GitHub repository
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bombim00-supabase-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate backup configuration
+        id: config
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_REPOSITORY: ${{ vars.BACKUP_REPOSITORY }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ] || [ -z "${BACKUP_REPOSITORY:-}" ] || [ -z "${BACKUP_REPO_TOKEN:-}" ]; then
+            echo "::warning::Backup is not configured. Set SUPABASE_DB_URL, BACKUP_REPOSITORY (owner/repo), and BACKUP_REPO_TOKEN."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ ! "$BACKUP_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "::error::BACKUP_REPOSITORY must use owner/repository format."
+            exit 1
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install PostgreSQL client
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Create database dump
+        if: steps.config.outputs.configured == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p backup
+          export PGSSLMODE=require
+          FILE="bombim00-$(date -u +%Y%m%dT%H%M%SZ).dump"
+          pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-acl --file "backup/$FILE"
+          sha256sum "backup/$FILE" > "backup/$FILE.sha256"
+          echo "BACKUP_FILE=$FILE" >> "$GITHUB_ENV"
+
+      - name: Push dump to separate private repository
+        if: steps.config.outputs.configured == 'true'
+        env:
+          BACKUP_REPOSITORY: ${{ vars.BACKUP_REPOSITORY }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone "https://x-access-token:${BACKUP_REPO_TOKEN}@github.com/${BACKUP_REPOSITORY}.git" backup-repo
+          install -m 600 "backup/$BACKUP_FILE" "backup-repo/$BACKUP_FILE"
+          install -m 600 "backup/$BACKUP_FILE.sha256" "backup-repo/$BACKUP_FILE.sha256"
+          cd backup-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          find . -maxdepth 1 -type f -name 'bombim00-*.dump' -mtime +30 -delete
+          find . -maxdepth 1 -type f -name 'bombim00-*.dump.sha256' -mtime +30 -delete
+          git add .
+          git commit -m "backup: Bombim00 Supabase snapshot $BACKUP_FILE"
+          git push
