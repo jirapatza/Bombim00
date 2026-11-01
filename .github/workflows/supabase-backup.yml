@@ -53,7 +53,7 @@ jobs:
           export PGSSLMODE=require
           FILE="bombim00-$(date -u +%Y%m%dT%H%M%SZ).dump"
           pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-acl --file "backup/$FILE"
-          gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$BACKUP_ENCRYPTION_PASSPHRASE" --output "backup/$FILE.gpg" "backup/$FILE"
+          printf '%s' "$BACKUP_ENCRYPTION_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric --cipher-algo AES256 --output "backup/$FILE.gpg" "backup/$FILE"
           rm -f "backup/$FILE"
           sha256sum "backup/$FILE.gpg" > "backup/$FILE.gpg.sha256"
           echo "BACKUP_FILE=$FILE.gpg" >> "$GITHUB_ENV"
