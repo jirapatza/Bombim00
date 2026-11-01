@@ -55,7 +55,8 @@ test('production API protects writes and exposes only the single GitHub Actions 
       '/api/github/get-remote-file',
       '/api/github/commit-file',
       '/api/project-files',
-      '/api/system/self-heal',
+      '/api/system/audit',
+      '/api/system/audit-history',
       '/api/system/self-heal-history',
     ]) {
       const response = await post(path);
