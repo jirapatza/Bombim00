@@ -131,7 +131,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "chore(bot): update lottery results and status [skip ci]"
+            git commit -m "chore(bot): update lottery results and status [skip ci] [skip render]"
             for attempt in 1 2 3; do
               if git push; then
                 exit 0
