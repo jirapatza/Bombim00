@@ -246,7 +246,7 @@ export function SystemMonitorKiosk() {
 
   // Clear Self-Healing History
   const handleClearHistory = async () => {
-    if (!window.confirm('คุณต้องการล้างประวัติคำสั่งซ่อมแซมตัวเองทั้งหมดใช่หรือไม่?')) return;
+    if (!window.confirm('คุณต้องการล้างประวัติคำสั่งตรวจสอบระบบทั้งหมดใช่หรือไม่?')) return;
     try {
       const res = await apiFetch('/api/system/self-heal-history', { method: 'DELETE' });
       if (res.ok) {
@@ -290,7 +290,7 @@ export function SystemMonitorKiosk() {
       selfHealingHistory: healingHistory,
       lastSelfHealLog: healResult,
       quickResolutionGuide: [
-        'หากไฟล์ JSON เสียหาย: กดปุ่ม "⚡ ซ่อมแซมระบบอัตโนมัติ" หรือกดซ่อมเฉพาะจุดที่การ์ดไฟล์นั้นๆ',
+        'หากอ่านไฟล์ JSON ไม่ได้: ตรวจสอบสถานะและแก้ไขไฟล์บน GitHub โดยระบบจะไม่เขียนทับข้อมูลเดิมอัตโนมัติ',
         'หากติด Merge Conflict ใน GitHub: ให้เปิดเมนู GitHub CI/CD แล้วกดแก้ไขข้อขัดแย้งในหน้า Pull Request',
         'หาก ntfy ส่งไม่ผ่าน: ตรวจสอบ Topic ว่าตรงกับแอปบนมือถือหรือไม่',
       ],
@@ -338,7 +338,7 @@ export function SystemMonitorKiosk() {
       statusText: 'กำหนดให้ GitHub Actions เป็นตัวตรวจหวยเพียงจุดเดียว',
       latency: null,
       details: 'Render ทำหน้าที่เว็บ/API เท่านั้น ไม่มี Python checker หรือ scheduler ซ้ำในเว็บเซิร์ฟเวอร์',
-      easyFix: 'ตรวจสอบประวัติ Workflow ในหน้า GitHub Actions';
+      easyFix: 'ตรวจสอบประวัติ Workflow ในหน้า GitHub Actions',
     },
     {
       id: 'settings_file',
@@ -356,7 +356,7 @@ export function SystemMonitorKiosk() {
     {
       id: 'status_file',
       name: 'Runtime Status (status/status.json)',
-      category: 'Filesystem Database',
+      category: 'GitHub Repository Storage',
       icon: Activity,
       status: statusFile?.exists && statusFile.validJson !== false ? 'healthy' : monitorData ? 'error' : 'degraded',
       statusText: !monitorData ? 'ยังไม่ได้ตรวจสอบไฟล์' : statusFile?.exists && statusFile.validJson !== false
@@ -523,7 +523,7 @@ export function SystemMonitorKiosk() {
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-              🖥️ มอนิเตอร์ตรวจสอบอุปกรณ์ &amp; ระบบซ่อมแซมตัวเองอัตโนมัติ
+              🖥️ มอนิเตอร์ตรวจสอบอุปกรณ์ &amp; ระบบตรวจสอบระบบอัตโนมัติ
             </h1>
             <p className="text-sm text-slate-400 mt-1 max-w-3xl leading-relaxed">
               จอแสดงผลสถานะการทำงานของอุปกรณ์ เซิร์ฟเวอร์ ฐานข้อมูล และช่องทางแจ้งเตือนทั้งหมด
@@ -542,7 +542,7 @@ export function SystemMonitorKiosk() {
               className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 flex items-center gap-2 cursor-pointer transition active:scale-95 disabled:opacity-50"
             >
               <Zap className={`w-4 h-4 ${isSelfHealing ? 'animate-spin' : ''}`} />
-              <span>{isSelfHealing ? 'กำลังซ่อมแซมระบบอัตโนมัติ...' : '⚡ ซ่อมแซมระบบอัตโนมัติ (Self-Heal All)'}</span>
+              <span>{isSelfHealing ? 'กำลังตรวจสอบระบบ...' : 'ตรวจสอบระบบ (Self-Heal All)'}</span>
             </button>
 
             <button
@@ -639,7 +639,7 @@ export function SystemMonitorKiosk() {
                 <h3 className="font-bold text-base text-white flex items-center gap-2">
                   {healResult.success
                     ? '🎉 ซ่อมแซมและฟื้นฟูระบบสำเร็จเรียบร้อย! (Self-Healing Success)'
-                    : '⚠️ การซ่อมแซมระบบพบข้อผิดพลาดบางส่วน'}
+                    : '⚠️ การตรวจสอบระบบพบข้อผิดพลาดบางส่วน'}
                 </h3>
                 <p className="text-xs text-slate-300 mt-1">{healResult.message}</p>
 
@@ -933,7 +933,7 @@ export function SystemMonitorKiosk() {
                 <History className="w-5 h-5" />
               </span>
               <h2 className="text-xl font-black text-white flex items-center gap-2">
-                📋 บันทึกประวัติคำสั่งซ่อมแซมระบบอัตโนมัติ (Self-Healing Actions Log)
+                📋 บันทึกประวัติคำสั่งตรวจสอบระบบ (Self-Healing Actions Log)
               </h2>
             </div>
             <p className="text-xs text-slate-400">
@@ -977,7 +977,7 @@ export function SystemMonitorKiosk() {
         {/* Top Mini-Stats Strip for Self-Healing */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800/80">
-            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">รอบการซ่อมแซมทั้งหมด</span>
+            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">รอบการตรวจสอบทั้งหมด</span>
             <div className="text-xl font-black text-white mt-0.5">{totalSessionsCount} ครั้ง</div>
           </div>
           <div className="bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800/80">
@@ -1044,9 +1044,9 @@ export function SystemMonitorKiosk() {
         {filteredHistory.length === 0 ? (
           <div className="bg-slate-950/60 rounded-2xl border border-dashed border-slate-800 p-8 text-center space-y-2">
             <ShieldCheck className="w-8 h-8 text-slate-600 mx-auto" />
-            <h4 className="text-sm font-bold text-slate-300">ยังไม่มีบันทึกคำสั่งซ่อมแซมตัวเอง</h4>
+            <h4 className="text-sm font-bold text-slate-300">ยังไม่มีบันทึกคำสั่งตรวจสอบระบบ</h4>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
-              ระบบจะบันทึกประวัติทันทีเมื่อมีการตรวจพบข้อผิดพลาด หรือเมื่อกดปุ่ม "ซ่อมแซมระบบอัตโนมัติ"
+              ระบบจะบันทึกประวัติทันทีเมื่อมีการตรวจพบข้อผิดพลาด หรือเมื่อกดปุ่ม "ตรวจสอบระบบ"
             </p>
             <button
               type="button"
@@ -1267,7 +1267,7 @@ export function SystemMonitorKiosk() {
             </h4>
             <p className="text-xs text-slate-400 mt-0.5">
               เกิดจาก branch มีโค้ดที่ขัดแย้งกับ main branch หรือ workflow เก่าล้มเหลว
-              คุณสามารถกดปุ่ม "ซ่อมแซมระบบอัตโนมัติ" ในหน้านี้เพื่ออัปเดต workflow ไฟล์ และรันจำลองทดสอบผ่านระบบทันที
+              คุณสามารถกดปุ่ม "ตรวจสอบระบบ" ในหน้านี้เพื่ออัปเดต workflow ไฟล์ และรันจำลองทดสอบผ่านระบบทันที
             </p>
           </div>
         </div>
