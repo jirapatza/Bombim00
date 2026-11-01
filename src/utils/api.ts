@@ -1,15 +1,15 @@
 /**
- * Same-origin API helper. Dashboard credentials live only in this browser tab's session.
+ * Same-origin API helper. Dashboard credentials remain in memory only.
+ * They are never written to browser storage, URLs, or repository files.
  */
+let dashboardPassword = '';
+
+export function setDashboardPassword(value: string): void {
+  dashboardPassword = value.trim();
+}
+
 export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
-  if (typeof window !== 'undefined') {
-    try {
-      const password = window.sessionStorage.getItem('bombim00_dashboard_password') || '';
-      if (password) headers.set('Authorization', `Bearer ${password}`);
-    } catch {
-      // Storage may be unavailable; protected writes fail safely on the server.
-    }
-  }
+  if (dashboardPassword) headers.set('Authorization', `Bearer ${dashboardPassword}`);
   return fetch(input, { ...init, headers });
 }
