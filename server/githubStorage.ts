@@ -64,7 +64,10 @@ export function assertNoSecretFields(value: unknown) {
     for (const [key, child] of Object.entries(item as Record<string, unknown>)) {
       const normalized = key.replace(/[^a-z0-9]/gi, '').toLowerCase();
       if (forbidden.has(normalized)) {
-        throw new GitHubStorageError(`Sensitive field "${key}" cannot be stored in the public GitHub repository. Configure it as a Render secret instead.`, 400, 'SECRET_FIELD_NOT_ALLOWED');
+        const isEmpty = child === '' || child === null || child === undefined;
+        if (!isEmpty) {
+          throw new GitHubStorageError(`Sensitive field "${key}" cannot be stored in the public GitHub repository. Configure it as a Render secret instead.`, 400, 'SECRET_FIELD_NOT_ALLOWED');
+        }
       }
       visit(child, depth + 1);
     }
