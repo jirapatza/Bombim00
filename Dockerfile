@@ -3,7 +3,7 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 RUN mkdir -p config status data
 COPY . .
@@ -22,7 +22,7 @@ RUN apk add --no-cache python3 py3-pip py3-virtualenv curl \
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 # Python runtime dependencies for checking lottery sources
 COPY requirements.txt ./requirements.txt
@@ -45,3 +45,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 EXPOSE 3000
 
 CMD ["node", "server.js"]
+

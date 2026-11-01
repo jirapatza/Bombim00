@@ -10,8 +10,11 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - DASH_PASSWORD=${DASH_PASSWORD:?Set DASH_PASSWORD before starting}
+      - DISABLE_BACKGROUND_CHECK=${DISABLE_BACKGROUND_CHECK:-false}
       - NTFY_TOPIC=lottery-alert-thai-2026
     volumes:
       - ./config:/app/config
       - ./status:/app/status
       - ./lottery_previous_results.json:/app/lottery_previous_results.json
+

@@ -1230,39 +1230,20 @@ export default function App() {
   const handleTriggerCheck = async () => {
     setIsTriggering(true);
     try {
-      let res: Response | null = null;
-      let data: any = null;
-
-      if (workerUrl && dashPassword) {
-        try {
-          const apiBase = workerUrl.replace(/\/+$/, '');
-          const remoteRes = await fetch(`${apiBase}/api/trigger`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lotteryTarget: 'all' }),
-          });
-          const remoteData = await remoteRes.json().catch(() => ({}));
-          if (remoteRes.ok && remoteData.success) {
-            res = remoteRes;
-            data = remoteData;
-          }
-        } catch {
-          res = null;
-        }
-      }
-
-      if (!res || !res.ok) {
-        const localRes = await apiFetch('/api/trigger', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lotteryTarget: 'all' }),
-        });
-        const localData = await localRes.json().catch(() => ({}));
-        res = localRes;
-        data = localData;
-      }
+      // Choose one backend; retrying on another can run and notify twice.
+      const apiBase = workerUrl.replace(/\/+$/, '');
+      const res = await apiFetch(`${apiBase}/api/trigger`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lotteryTarget: 'all' }),
+      });
+      const data = await res.json().catch(() => ({}));
 
       if (res && res.ok && data?.success) {
+        if (data.queued) {
+          showToast('ส่งคำสั่งไป GitHub Actions แล้ว รอผลการตรวจสอบจากงานที่รัน');
+          return;
+        }
         if (data.status) setStatus(data.status);
         const refreshed = await fetchData();
         if (refreshed.newResults.length === 0) {
@@ -2617,3 +2598,4 @@ export default function App() {
     </div>
   );
 }
+

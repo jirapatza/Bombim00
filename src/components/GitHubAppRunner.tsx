@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../utils/api';
 import {
   Play,
   RotateCw,
@@ -7,21 +8,12 @@ import {
   Github,
   Terminal,
   ExternalLink,
-  Copy,
   Check,
-  Download,
-  Settings,
-  Shield,
   Clock,
-  Layers,
   Key,
-  Flame,
-  FileCode2,
   Activity,
   Cpu,
   RefreshCw,
-  FolderGit2,
-  Sparkles,
   Zap,
   Info,
 } from 'lucide-react';
@@ -57,12 +49,12 @@ interface GitHubAppRunnerProps {
 }
 
 export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCount = 54 }: GitHubAppRunnerProps) {
-  const [subTab, setSubTab] = useState<'runner' | 'runs' | 'builder' | 'setup'>('runner');
+  const [subTab, setSubTab] = useState<'runner' | 'runs'>('runner');
 
-  // GitHub credentials & config (saved to localStorage for user convenience)
+  // Persist only non-secret repository preferences.
   const [repo, setRepo] = useState<string>(() => localStorage.getItem('gh_repo') || 'jirapatza/Bombim00');
   const [branch, setBranch] = useState<string>(() => localStorage.getItem('gh_branch') || 'main');
-  const [token, setToken] = useState<string>(() => localStorage.getItem('gh_token') || '');
+  const [token, setToken] = useState<string>('');
   const [showToken, setShowToken] = useState<boolean>(false);
   const [workflowFile, setWorkflowFile] = useState<string>('lottery.yml');
 
@@ -97,13 +89,6 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
   const [isLoadingRuns, setIsLoadingRuns] = useState<boolean>(false);
   const [runsError, setRunsError] = useState<string | null>(null);
 
-  // Workflow builder
-  const [workflowYaml, setWorkflowYaml] = useState<string>('');
-  const [isLoadingWorkflow, setIsLoadingWorkflow] = useState<boolean>(false);
-  const [isSavingWorkflow, setIsSavingWorkflow] = useState<boolean>(false);
-  const [workflowSaveStatus, setWorkflowSaveStatus] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-
   const checkConnectionStatus = async () => {
     setConnectionStatus((prev) => ({ ...prev, checking: true }));
     try {
@@ -129,7 +114,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
 
       let srvOk = false;
       try {
-        const srvRes = await fetch(`${getApiBase()}/api/status`);
+        const srvRes = await apiFetch(`${getApiBase()}/api/status`);
         if (srvRes.ok) srvOk = true;
       } catch {
         srvOk = false;
@@ -148,59 +133,15 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
     }
   };
 
-  // Load workflow yaml & check connection on mount or when repo changes
+  useEffect(() => {
+    localStorage.removeItem('gh_token');
+  }, []);
+
+  // Refresh the selected repository and workflow without loading removed editors.
   useEffect(() => {
     checkConnectionStatus();
     fetchRuns();
-  }, [repo]);
-
-  useEffect(() => {
-    fetchWorkflowYaml(workflowFile);
-  }, [workflowFile]);
-
-  const fetchWorkflowYaml = async (wf = workflowFile) => {
-    setIsLoadingWorkflow(true);
-    try {
-      const res = await fetch(`${getApiBase()}/api/github/workflow?workflow=${encodeURIComponent(wf)}`);
-      const data = await res.json();
-      if (data.content) {
-        setWorkflowYaml(data.content);
-      }
-    } catch (err) {
-      console.error('Failed to load workflow yaml:', err);
-    } finally {
-      setIsLoadingWorkflow(false);
-    }
-  };
-
-  const saveWorkflowYaml = async () => {
-    setIsSavingWorkflow(true);
-    setWorkflowSaveStatus(null);
-    try {
-      const res = await fetch(`${getApiBase()}/api/github/workflow`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, repo, branch, workflow: workflowFile, content: workflowYaml }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setWorkflowSaveStatus(`บันทึกไฟล์ .github/workflows/${workflowFile} สำเร็จเรียบร้อย`);
-        setTimeout(() => setWorkflowSaveStatus(null), 4000);
-      } else {
-        setWorkflowSaveStatus(`ผิดพลาด: ${data.error}`);
-      }
-    } catch (err: any) {
-      setWorkflowSaveStatus(`ผิดพลาด: ${err.message}`);
-    } finally {
-      setIsSavingWorkflow(false);
-    }
-  };
-
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2500);
-  };
+  }, [repo, workflowFile]);
 
   // Dispatch workflow run on GitHub
   const handleDispatchWorkflow = async () => {
@@ -208,15 +149,11 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
       setDispatchResult({ error: 'กรุณากรอกชื่อ GitHub Repository เช่น username/lottery-alert' });
       return;
     }
-    if (!token) {
-      setDispatchResult({ error: 'กรุณากรอก GitHub Personal Access Token (PAT) ที่มีสิทธิ์ Actions Write' });
-      return;
-    }
 
     setIsDispatching(true);
     setDispatchResult(null);
 
-    // Save credentials to localStorage
+    // Save non-secret connection preferences
     localStorage.setItem('gh_repo', repo);
     localStorage.setItem('gh_branch', branch);
     // Do not persist the GitHub credential in browser storage.
@@ -227,7 +164,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
         lottery_target: lotteryTarget,
       } : {};
 
-      const res = await fetch(`${getApiBase()}/api/github/dispatch`, {
+      const res = await apiFetch(`${getApiBase()}/api/github/dispatch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -263,7 +200,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
     setRunsError(null);
 
     try {
-      const res = await fetch(`${getApiBase()}/api/github/runs`, {
+      const res = await apiFetch(`${getApiBase()}/api/github/runs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -292,25 +229,22 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
     setSimulationLogs(['🚀 กำลังเตรียมสภาพแวดล้อม Python 3.10/3.11 และอ่าน settings.json...']);
 
     try {
-      const res = await fetch(`${getApiBase()}/api/simulate-runner`, {
+      const res = await apiFetch(`${getApiBase()}/api/simulate-runner`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, forceNotify, lotteryTarget }),
       });
 
       const data = await res.json();
-      if (data.stdout || data.stderr) {
-        const lines = (data.stdout + '\n' + (data.stderr || ''))
-          .split('\n')
-          .filter((l: string) => l.trim().length > 0);
-        setSimulationLogs(lines);
+      const output = [data.stdout, data.stderr].filter(Boolean).join('\n');
+      const lines = output.split('\n').filter((line: string) => line.trim().length > 0);
+      if (!res.ok || !data.success) {
+        lines.push(`❌ ผิดพลาด: ${data.error || data.message || 'ไม่สามารถรันการตรวจสอบได้'}`);
       } else {
-        setSimulationLogs([data.message || 'การจำลองเสร็จสิ้น']);
+        lines.push(data.message || 'ตรวจสอบผลหวยเสร็จสิ้น');
       }
-
-      if (onRefreshStatus) {
-        onRefreshStatus();
-      }
+      setSimulationLogs(lines);
+      onRefreshStatus?.();
     } catch (err: any) {
       setSimulationLogs((prev) => [...prev, `❌ ผิดพลาด: ${err.message}`]);
     } finally {
@@ -338,7 +272,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                สร้างแอพพลิเคชันและสั่งรันระบบตรวจผลหวยอัตโนมัติบน GitHub Actions ได้จากหน้าจอนี้โดยตรง พร้อมตัวมอนิเตอร์ Workflow Runs, ปรับแต่งไฟล์ YAML, และคำสั่งจำลอง Runner เสมือนจริง
+                สั่งรันระบบตรวจผลหวยบน GitHub Actions หรือบนเซิร์ฟเวอร์ และตรวจสอบประวัติการทำงานกับผลลัพธ์การรันจากหน้าจอนี้
               </p>
             </div>
           </div>
@@ -351,7 +285,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-bold text-xs rounded-xl cursor-pointer transition flex items-center gap-2 shadow-md disabled:opacity-50"
             >
               <Cpu className={`w-4 h-4 ${isSimulating ? 'animate-spin' : 'text-amber-400'}`} />
-              {isSimulating ? 'กำลังทดสอบรัน...' : '💻 จำลองรันบน Server เสมือน'}
+              {isSimulating ? 'กำลังทดสอบรัน...' : '💻 รันตรวจผลบน Server ทันที'}
             </button>
             <a
               href={`https://github.com/${repo}/actions`}
@@ -394,29 +328,6 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
             2. ประวัติการรันสด (Live Workflow Runs)
           </button>
 
-          <button
-            onClick={() => setSubTab('builder')}
-            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-2 cursor-pointer ${
-              subTab === 'builder'
-                ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-600/30'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <FileCode2 className="w-3.5 h-3.5" />
-            3. ปรับแต่งไฟล์ Workflow (.yml Builder)
-          </button>
-
-          <button
-            onClick={() => setSubTab('setup')}
-            className={`px-3.5 py-2 rounded-xl transition flex items-center gap-2 cursor-pointer ${
-              subTab === 'setup'
-                ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-600/30'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <FolderGit2 className="w-3.5 h-3.5" />
-            4. สร้างแอพพลิเคชั่นบน GitHub & Secrets Setup
-          </button>
         </div>
       </div>
 
@@ -479,7 +390,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
                   <Key className="w-4 h-4 text-purple-400" />
                   การเชื่อมต่อกับ GitHub Repository
                 </span>
-                <span className="text-[11px] text-slate-400">บันทึกลงเบราว์เซอร์ของคุณอย่างปลอดภัย</span>
+                <span className="text-[11px] text-slate-400">บันทึกเฉพาะชื่อ Repository และ Branch; ไม่บันทึก PAT</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -514,7 +425,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                     <span>GitHub Personal Access Token (PAT)</span>
-                    <span className="text-[10px] text-purple-400 font-normal">(จำเป็นเฉพาะเมื่อกดสั่งรัน workflow_dispatch ผ่าน API)</span>
+                    <span className="text-[10px] text-purple-400 font-normal">(ใช้เมื่อเซิร์ฟเวอร์ยังไม่ได้ตั้งค่า GITHUB_TOKEN)</span>
                   </label>
                   <button
                     type="button"
@@ -526,13 +437,13 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
                 </div>
                 <input
                   type={showToken ? 'text' : 'password'}
-                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (หรือเว้นว่างไว้เพื่อใช้ปุ่มจำลองรันบน Server ได้ทันที)"
+                  placeholder="เว้นว่างหากเซิร์ฟเวอร์ตั้งค่า GITHUB_TOKEN ไว้แล้ว"
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-purple-500"
                 />
                 <div className="flex flex-wrap items-center justify-between gap-2 mt-1 text-[11px] text-slate-400">
-                  <span>💡 หากไม่มี PAT Token: สามารถกดปุ่ม <strong>"💻 จำลองรันบน Server ทันที"</strong> ด้านล่างเพื่อทดสอบตรวจหวย 56 รายการสดได้เลย!</span>
+                  <span>💡 หากไม่มี PAT Token: สามารถกดปุ่ม <strong>"💻 รันตรวจผลบน Server ทันที"</strong> ด้านล่างเพื่อรันสคริปต์ตรวจหวยได้ (ต้องใช้เซิร์ฟเวอร์ที่รองรับ Python)</span>
                   <a
                     href="https://github.com/settings/tokens/new?scopes=repo,workflow"
                     target="_blank"
@@ -671,7 +582,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
                   className="px-5 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs rounded-xl cursor-pointer transition flex items-center gap-2 shadow-lg shadow-amber-500/20 disabled:opacity-50 active:scale-95"
                 >
                   <Cpu className={`w-4 h-4 ${isSimulating ? 'animate-spin' : 'text-slate-950'}`} />
-                  {isSimulating ? 'กำลังรันตรวจผลสด...' : '💻 จำลองรันบน Server ทันที (ไม่ต้องใช้ Token)'}
+                  {isSimulating ? 'กำลังรันตรวจผลสด...' : '💻 รันตรวจผลบน Server ทันที'}
                 </button>
 
                 <button
@@ -789,7 +700,7 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
                     <Terminal className="w-8 h-8 mx-auto opacity-30 text-slate-400" />
                     <div>ยังไม่มีประวัติการรันล่าสุด</div>
                     <div className="text-[10px] text-slate-700">
-                      กดปุ่ม "🚀 สั่งรันบน GitHub Actions" หรือ "💻 จำลองรันบน Server" เพื่อเริ่มการตรวจสอบ
+                      กดปุ่ม "🚀 สั่งรันบน GitHub Actions" หรือ "💻 รันตรวจผลบน Server" เพื่อเริ่มการตรวจสอบ
                     </div>
                   </div>
                 )}
@@ -929,275 +840,6 @@ export function GitHubAppRunner({ onRefreshStatus, systemStatus, allLotteriesCou
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 3: WORKFLOW YAML BUILDER                                         */}
-      {/* ========================================================================= */}
-      {subTab === 'builder' && (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-lg">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <FileCode2 className="w-4 h-4 text-purple-400" />
-                  ปรับแต่งไฟล์ .github/workflows/{workflowFile}
-                </h3>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800 font-mono">
-                  {isLoadingWorkflow ? 'กำลังโหลด...' : 'พร้อมแก้ไข'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                แก้ไขกำหนดเวลา Cron, ตัวแปร Secrets, และขั้นตอนการทำงานของ GitHub Actions
-              </p>
-              {/* Workflow switcher pills */}
-              <div className="flex items-center gap-1.5 mt-2">
-                {['lottery.yml', 'runtime-smoke.yml'].map((wf) => (
-                  <button
-                    key={wf}
-                    type="button"
-                    onClick={() => {
-                      setWorkflowFile(wf);
-                      fetchWorkflowYaml(wf);
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-mono cursor-pointer transition ${
-                      workflowFile === wf
-                        ? 'bg-purple-600 text-white font-bold'
-                        : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-                    }`}
-                  >
-                    {wf}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleCopy(workflowYaml, 'workflow_yaml')}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold text-xs rounded-xl cursor-pointer transition flex items-center gap-1"
-              >
-                {copiedKey === 'workflow_yaml' ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5 text-slate-400" />
-                )}
-                {copiedKey === 'workflow_yaml' ? 'คัดลอกแล้ว!' : 'คัดลอก YAML'}
-              </button>
-
-              <button
-                type="button"
-                onClick={saveWorkflowYaml}
-                disabled={isSavingWorkflow}
-                className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl cursor-pointer transition shadow-md shadow-purple-600/30 flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <Download className="w-3.5 h-3.5" />
-                {isSavingWorkflow ? 'กำลังบันทึก...' : 'บันทึกลงไฟล์ .yml'}
-              </button>
-            </div>
-          </div>
-
-          {workflowSaveStatus && (
-            <div
-              className={`p-3.5 rounded-xl border text-xs ${
-                workflowSaveStatus.includes('สำเร็จ')
-                  ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
-                  : 'bg-rose-950/40 border-rose-500/40 text-rose-300'
-              }`}
-            >
-              {workflowSaveStatus}
-            </div>
-          )}
-
-          {/* Quick Schedule Presets */}
-          <div className="bg-slate-950/70 border border-slate-800 p-4 rounded-2xl space-y-2">
-            <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" />
-              ตารางเวลาการรันอัตโนมัติ (Cron Schedules) ที่ตั้งค่าไว้ในไฟล์:
-            </span>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-300">
-              <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                <div className="font-bold text-amber-300 mb-0.5">1. สลากกินแบ่งรัฐบาล (วันที่ 1, 16)</div>
-                <div className="font-mono text-[11px] text-slate-400">*/15 7-10 1,16 * *</div>
-                <div className="text-[11px] text-slate-500 mt-1">ทุก 15 นาที ช่วง 14:00 - 17:00 น.</div>
-              </div>
-
-              <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                <div className="font-bold text-cyan-300 mb-0.5">2. หวยหุ้นไทย & ต่างประเทศ (จันทร์-ศุกร์)</div>
-                <div className="font-mono text-[11px] text-slate-400">30 3,8,10,13 * * 1-5</div>
-                <div className="text-[11px] text-slate-500 mt-1">เวลา 10:30, 15:30, 17:30, 20:00 น.</div>
-              </div>
-
-              <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                <div className="font-bold text-emerald-300 mb-0.5">3. Heartbeat / สรุปผลประจำวัน</div>
-                <div className="font-mono text-[11px] text-slate-400">0 9 * * *</div>
-                <div className="text-[11px] text-slate-500 mt-1">ทุกวัน เวลา 16:00 น. (UTC 09:00)</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative">
-            <textarea
-              value={workflowYaml}
-              onChange={(e) => setWorkflowYaml(e.target.value)}
-              rows={20}
-              className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 font-mono text-xs text-emerald-300 focus:outline-none focus:border-purple-500 leading-relaxed shadow-inner"
-              spellCheck={false}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* SUB-TAB 4: GITHUB APPLICATION CREATOR & SETUP GUIDE                     */}
-      {/* ========================================================================= */}
-      {subTab === 'setup' && (
-        <div className="space-y-6">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-lg">
-            <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <FolderGit2 className="w-4 h-4 text-purple-400" />
-                คู่มือการตั้งค่าเว็บแอปและ Deploy ขึ้น GitHub แบบทีละขั้นตอน
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                ทำตาม 4 ขั้นตอนสั้นๆ นี้เพื่อเปิดระบบแจ้งเตือนอัตโนมัติบน GitHub ให้ทำงานฟรี 24 ชม. ตลอดชีพ
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              {/* Step 1 */}
-              <div className="bg-slate-950/70 border border-slate-800 p-5 rounded-2xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="font-bold text-xs text-slate-100 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-black">
-                      1
-                    </span>
-                    <span>สร้าง GitHub Repository ใหม่ & สั่ง Push โค้ดทั้งหมดขึ้น GitHub</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleCopy(
-                        `git init\ngit add .\ngit commit -m "feat: complete lottery alert system with github actions runner"\ngit branch -M main\ngit remote add origin https://github.com/${repo}.git\ngit push -u origin main`,
-                        'git_commands'
-                      )
-                    }
-                    className="text-[11px] text-purple-400 hover:text-purple-300 font-semibold cursor-pointer flex items-center gap-1"
-                  >
-                    {copiedKey === 'git_commands' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                    {copiedKey === 'git_commands' ? 'คัดลอกคำสั่งแล้ว' : 'คัดลอกคำสั่ง Git'}
-                  </button>
-                </div>
-
-                <pre className="bg-slate-900 p-3.5 rounded-xl border border-slate-800 font-mono text-[11px] text-amber-300 overflow-x-auto leading-relaxed">
-{`git init
-git add .
-git commit -m "feat: complete lottery alert system with github actions runner"
-git branch -M main
-git remote add origin https://github.com/${repo}.git
-git push -u origin main`}
-                </pre>
-              </div>
-
-              {/* Step 2 */}
-              <div className="bg-slate-950/70 border border-slate-800 p-5 rounded-2xl space-y-3">
-                <div className="font-bold text-xs text-slate-100 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-black">
-                    2
-                  </span>
-                  <span>ตั้งค่า GitHub Secrets (Settings &gt; Secrets and variables &gt; Actions)</span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                  <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="font-mono font-bold text-amber-400">NTFY_TOPIC</div>
-                      <div className="text-[11px] text-slate-400">ชื่อ Topic สำหรับส่งแจ้งเตือนมือถือ</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy('NTFY_TOPIC', 's1')}
-                      className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-mono cursor-pointer"
-                    >
-                      {copiedKey === 's1' ? 'คัดลอกแล้ว' : 'Copy'}
-                    </button>
-                  </div>
-
-                  <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="font-mono font-bold text-amber-400">DISCORD_WEBHOOK_URL</div>
-                      <div className="text-[11px] text-slate-400">Webhook แจ้งเตือนเข้า Discord</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy('DISCORD_WEBHOOK_URL', 's2')}
-                      className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-mono cursor-pointer"
-                    >
-                      {copiedKey === 's2' ? 'คัดลอกแล้ว' : 'Copy'}
-                    </button>
-                  </div>
-
-                  <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="font-mono font-bold text-amber-400">TELEGRAM_BOT_TOKEN</div>
-                      <div className="text-[11px] text-slate-400">บอทโทเคน Telegram (ถ้าใช้)</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy('TELEGRAM_BOT_TOKEN', 's3')}
-                      className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-mono cursor-pointer"
-                    >
-                      {copiedKey === 's3' ? 'คัดลอกแล้ว' : 'Copy'}
-                    </button>
-                  </div>
-
-                  <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="font-mono font-bold text-amber-400">TELEGRAM_CHAT_ID</div>
-                      <div className="text-[11px] text-slate-400">ห้องแชท Telegram (ถ้าใช้)</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy('TELEGRAM_CHAT_ID', 's4')}
-                      className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-mono cursor-pointer"
-                    >
-                      {copiedKey === 's4' ? 'คัดลอกแล้ว' : 'Copy'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 3 */}
-              <div className="bg-slate-950/70 border border-slate-800 p-5 rounded-2xl space-y-2">
-                <div className="font-bold text-xs text-slate-100 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-black">
-                    3
-                  </span>
-                  <span>เปิดสิทธิ์ Workflow Permissions เพื่อให้ Actions บันทึกผลกลับเข้า Repo ได้</span>
-                </div>
-                <p className="text-xs text-slate-300 leading-relaxed pl-7">
-                  ไปที่ <strong>Settings &gt; Actions &gt; General &gt; Workflow permissions</strong> เลือก{' '}
-                  <strong className="text-emerald-400">"Read and write permissions"</strong> และติ๊กถูก{' '}
-                  <strong>"Allow GitHub Actions to create and approve pull requests"</strong> แล้วกด Save
-                </p>
-              </div>
-
-              {/* Step 4 */}
-              <div className="bg-slate-950/70 border border-slate-800 p-5 rounded-2xl space-y-2">
-                <div className="font-bold text-xs text-slate-100 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-black">
-                    4
-                  </span>
-                  <span>ทดสอบยิงคำสั่งแรกจากแท็บ "1. สั่งรันบน GitHub"</span>
-                </div>
-                <p className="text-xs text-slate-300 leading-relaxed pl-7">
-                  ใส่ Personal Access Token แล้วกดปุ่ม <strong>"🚀 สั่งรันบน GitHub Actions ทันที"</strong>{' '}
-                  ระบบจะสั่ง Trigger ทันที และสามารถดูประวัติการรันสดในแท็บที่ 2 ได้แบบเรียลไทม์
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

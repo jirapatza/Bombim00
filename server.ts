@@ -2,18 +2,16 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { createLotteryRunner, lotteryTargets } from './server/lotteryRunner.ts';
 import { timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
 
-const execAsync = promisify(exec);
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const runBackgroundAutoCheck = createLotteryRunner(__dirname);
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -298,7 +296,7 @@ app.get('/api/results', async (req, res) => {
 // 4.0 POST /api/lotteries/cleanup-history - Purge unrequested LIW/pingpong and duplicate entries
 app.post('/api/lotteries/cleanup-history', async (req, res) => {
   try {
-    const raw = await readJsonWithCache(RESULTS_PATH, [], 2000);
+    const raw = await readJsonWithCache<any[]>(RESULTS_PATH, [], 2000);
     if (!Array.isArray(raw)) {
       return res.json({ success: true, removedCount: 0, totalAfter: 0 });
     }
@@ -439,94 +437,6 @@ app.post('/api/test-ntfy', async (req, res) => {
 });
 
 // 4.5 GitHub Actions Integration Endpoints
-// GET /api/github/workflow - Read workflow YAML
-app.get('/api/github/workflow', (req, res) => {
-  try {
-    const workflow = (req.query.workflow as string) || 'lottery.yml';
-    const cleanWorkflow = path.basename(workflow);
-    const localWfPath = path.join(__dirname, '.github', 'workflows', cleanWorkflow);
-
-    if (fs.existsSync(localWfPath)) {
-      const content = fs.readFileSync(localWfPath, 'utf-8');
-      return res.json({ success: true, content, sha: 'local-file' });
-    }
-
-    if (fs.existsSync(WORKFLOW_PATH)) {
-      const content = fs.readFileSync(WORKFLOW_PATH, 'utf-8');
-      return res.json({ success: true, content, sha: 'local-file' });
-    }
-
-    return res.status(404).json({ success: false, error: `Workflow file ${cleanWorkflow} not found` });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// POST /api/github/workflow - Save workflow YAML
-app.post('/api/github/workflow', async (req, res) => {
-  try {
-    const { token, content, workflow = 'lottery.yml', repo = 'jirapatza/Bombim00', branch = 'main' } = req.body;
-    if (!content) {
-      return res.status(400).json({ success: false, error: 'Missing workflow content' });
-    }
-    const cleanWorkflow = path.basename(workflow);
-    const localWfPath = path.join(__dirname, '.github', 'workflows', cleanWorkflow);
-    fs.mkdirSync(path.dirname(localWfPath), { recursive: true });
-    fs.writeFileSync(localWfPath, content, 'utf-8');
-
-    const ghToken = token || process.env.GITHUB_TOKEN;
-    let ghCommitSha = null;
-    if (ghToken && repo) {
-      try {
-        const fileUrl = `https://api.github.com/repos/${repo}/contents/.github/workflows/${cleanWorkflow}?ref=${encodeURIComponent(branch)}`;
-        const getRes = await fetch(fileUrl, {
-          headers: {
-            'User-Agent': 'LotteryAlert/1.0',
-            'Accept': 'application/vnd.github.v3+json',
-            'Authorization': `Bearer ${ghToken}`,
-          },
-        });
-        let currentSha: string | undefined;
-        if (getRes.ok) {
-          const currentData = await getRes.json();
-          currentSha = currentData.sha;
-        }
-
-        const encoded = Buffer.from(content).toString('base64');
-        const putRes = await fetch(`https://api.github.com/repos/${repo}/contents/.github/workflows/${cleanWorkflow}`, {
-          method: 'PUT',
-          headers: {
-            'User-Agent': 'LotteryAlert/1.0',
-            'Accept': 'application/vnd.github.v3+json',
-            'Authorization': `Bearer ${ghToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: `chore(workflow): update ${cleanWorkflow} from dashboard`,
-            content: encoded,
-            branch,
-            ...(currentSha ? { sha: currentSha } : {}),
-          }),
-        });
-        if (putRes.ok) {
-          const putData = await putRes.json();
-          ghCommitSha = putData?.commit?.sha;
-        }
-      } catch (err: any) {
-        console.warn('Note: Could not commit workflow to GitHub directly:', err.message);
-      }
-    }
-
-    return res.json({
-      success: true,
-      message: `บันทึกไฟล์ .github/workflows/${cleanWorkflow} เรียบร้อยแล้ว`,
-      commit: ghCommitSha,
-    });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
-
 // POST /api/github/dispatch - Dispatch GitHub Actions workflow run
 app.post('/api/github/dispatch', async (req, res) => {
   try {
@@ -631,211 +541,27 @@ app.post('/api/github/runs', async (req, res) => {
   }
 });
 
-// POST /api/simulate-runner - Local execution simulation
-app.post('/api/simulate-runner', async (req, res) => {
+// Compatibility URLs share validation, execution lock, output and error handling.
+app.post(['/api/check-now', '/api/trigger', '/api/simulate-runner'], async (req, res) => {
   try {
-    const { forceNotify, lotteryTarget = 'all' } = req.body;
-    const now = new Date();
-    const thaiTime = now.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
-
-    console.log(`[SIMULATE] Runner simulation triggered (target: ${lotteryTarget}, force: ${forceNotify})`);
-
-    const env = {
-      ...process.env,
-      FORCE_NOTIFY: forceNotify ? 'true' : 'false',
-      LOTTERY_TARGET: String(lotteryTarget || 'all'),
-    };
-
-    let stdout = '';
-    let stderr = '';
-
-    try {
-      const result = await execAsync('python3 lottery_checker.py', {
-        env,
-        cwd: __dirname,
-        timeout: 30000,
-      });
-      stdout = result.stdout;
-      stderr = result.stderr;
-    } catch (cmdErr: any) {
-      stdout = cmdErr.stdout || '';
-      stderr = cmdErr.stderr || cmdErr.message || '';
+    const target = req.body?.lotteryTarget ?? 'all';
+    const forceNotify = req.body?.forceNotify ?? false;
+    if (typeof target !== 'string' || !lotteryTargets.has(target) || typeof forceNotify !== 'boolean') {
+      return res.status(400).json({ success: false, error: 'Invalid lottery target or forceNotify value.' });
     }
-
-    const summaryLog = `✓ ทดสอบรันการตรวจสอบหวย [เป้าหมาย: ${lotteryTarget}] สำเร็จเมื่อ ${thaiTime}`;
-    const outputLines = [
-      `[SIMULATOR] เริ่มต้นการจำลองรันสคริปต์ lottery_checker.py ณ เวลา ${thaiTime}`,
-      `[CONFIG] FORCE_NOTIFY=${env.FORCE_NOTIFY}, LOTTERY_TARGET=${env.LOTTERY_TARGET}`,
-      `[STATUS] อ่านการตั้งค่าจาก config/settings.json และประวัติ lottery_previous_results.json`,
-      stdout || '✓ สคริปต์ทำงานเสร็จสิ้น ไม่มีข้อผิดพลาด',
-      stderr ? `[STDERR]\n${stderr}` : '',
-      `[COMPLETE] ${summaryLog}`,
-    ].filter(Boolean).join('\n');
-
-    return res.json({
-      success: true,
-      message: summaryLog,
-      stdout: outputLines,
-      stderr: '',
-    });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// POST /api/github/get-remote-file - For ProjectCodeEditor
-app.post('/api/github/get-remote-file', async (req, res) => {
-  try {
-    const { filePath, repo = 'jirapatza/Bombim00', branch = 'main', token } = req.body;
-    if (!filePath || filePath.includes('..') || filePath.startsWith('/')) {
-      return res.status(400).json({ error: 'Invalid file path' });
-    }
-
-    const localPath = path.join(__dirname, filePath);
-    if (fs.existsSync(localPath)) {
-      const content = fs.readFileSync(localPath, 'utf-8');
-      return res.json({ content, sha: 'local-file', size: content.length, source: 'local' });
-    }
-
-    const ghToken = token || process.env.GITHUB_TOKEN;
-    const headers: Record<string, string> = {
-      'User-Agent': 'LotteryAlert/1.0',
-      'Accept': 'application/vnd.github.v3+json',
-    };
-    if (ghToken) headers['Authorization'] = `Bearer ${ghToken}`;
-
-    const remoteRes = await fetch(
-      `https://api.github.com/repos/${repo}/contents/${filePath}?ref=${encodeURIComponent(branch)}`,
-      { headers }
-    );
-    if (!remoteRes.ok) {
-      return res.status(remoteRes.status).json({ error: 'Unable to read file from local or remote' });
-    }
-
-    const data: any = await remoteRes.json();
-    const content =
-      data.encoding === 'base64'
-        ? Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString('utf-8')
-        : data.content;
-
-    return res.json({ content, sha: data.sha, size: data.size, source: 'github' });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/github/commit-file - For ProjectCodeEditor
-app.post('/api/github/commit-file', async (req, res) => {
-  try {
-    const { filePath, content, commitMessage, repo = 'jirapatza/Bombim00', branch = 'main', token } = req.body;
-    if (!filePath || filePath.includes('..') || filePath.startsWith('/')) {
-      return res.status(400).json({ error: 'Invalid file path' });
-    }
-
-    const localPath = path.join(__dirname, filePath);
-    fs.mkdirSync(path.dirname(localPath), { recursive: true });
-    fs.writeFileSync(localPath, content || '', 'utf-8');
-
-    const ghToken = token || process.env.GITHUB_TOKEN;
-    let ghCommitSha = null;
-    let htmlUrl = null;
-
-    if (ghToken && repo) {
-      const headers = {
-        'User-Agent': 'LotteryAlert/1.0',
-        'Accept': 'application/vnd.github.v3+json',
-        'Authorization': `Bearer ${ghToken}`,
-        'Content-Type': 'application/json',
-      };
-
-      const fileUrl = `https://api.github.com/repos/${repo}/contents/${filePath}?ref=${encodeURIComponent(branch)}`;
-      const getRes = await fetch(fileUrl, { headers });
-      let sha: string | undefined;
-      if (getRes.ok) {
-        const fileData = await getRes.json();
-        sha = fileData.sha;
-      }
-
-      const encoded = Buffer.from(content || '').toString('base64');
-      const putRes = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({
-          message: commitMessage || `Update ${filePath} from dashboard`,
-          content: encoded,
-          branch,
-          ...(sha ? { sha } : {}),
-        }),
-      });
-
-      if (putRes.ok) {
-        const result = await putRes.json();
-        ghCommitSha = result?.commit?.sha;
-        htmlUrl = result?.content?.html_url;
-      }
-    }
-
-    return res.json({
-      success: true,
-      message: 'บันทึกไฟล์สำเร็จเรียบร้อย',
-      commit_sha: ghCommitSha,
-      html_url: htmlUrl,
-    });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-// 5. POST /api/check-now - Trigger check (simulated / live check)
-app.post('/api/check-now', async (req, res) => {
-  try {
-    const lotteryTarget = String(req.body?.lotteryTarget || 'all');
-    const run = await runBackgroundAutoCheck(lotteryTarget);
-    let currentStatus: any = {};
-    let currentResults: any[] = [];
-    if (fs.existsSync(STATUS_PATH)) {
-      try { currentStatus = JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8')); } catch { currentStatus = {}; }
-    }
-    if (fs.existsSync(RESULTS_PATH)) {
-      try {
-        const parsed = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
-        currentResults = Array.isArray(parsed) ? parsed : [];
-      } catch { currentResults = []; }
-    }
-    return res.status(run.success ? 200 : 502).json({
-      success: run.success,
-      message: run.success ? 'ตรวจสอบผลหวยจากแหล่งข้อมูลจริงเสร็จแล้ว' : 'การตรวจสอบผลหวยล้มเหลว',
-      error: run.error || null,
-      status: currentStatus,
-      results: currentResults,
-    });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 6. POST /api/trigger - Trigger check and return immediate status
-app.post('/api/trigger', async (req, res) => {
-  try {
-    const lotteryTarget = String(req.body?.lotteryTarget || 'all');
-    const run = await runBackgroundAutoCheck(lotteryTarget);
-    let currentStatus: any = {};
-    let currentResults: any[] = [];
-    if (fs.existsSync(STATUS_PATH)) {
-      try { currentStatus = JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8')); } catch { currentStatus = {}; }
-    }
-    if (fs.existsSync(RESULTS_PATH)) {
-      try {
-        const parsed = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
-        currentResults = Array.isArray(parsed) ? parsed : [];
-      } catch { currentResults = []; }
-    }
-    return res.status(run.success ? 200 : 502).json({
-      success: run.success,
-      message: run.success ? 'ตรวจสอบผลหวยจากแหล่งข้อมูลจริงเสร็จแล้ว' : 'การตรวจสอบผลหวยล้มเหลว',
-      error: run.error || null,
-      status: currentStatus,
-      results: currentResults,
+    const run = await runBackgroundAutoCheck(target, forceNotify);
+    // The checker writes these files outside this process; do not serve stale cached data.
+    jsonCache.delete(STATUS_PATH);
+    jsonCache.delete(RESULTS_PATH);
+    const [status, results] = await Promise.all([
+      readJsonWithCache(STATUS_PATH, {}, 2000),
+      readJsonWithCache<any[]>(RESULTS_PATH, [], 2000),
+    ]);
+    return res.status(run.busy ? 409 : run.success ? 200 : 502).json({
+      ...run,
+      message: run.success ? 'ตรวจสอบผลหวยเสร็จแล้ว' : run.error,
+      status,
+      results: Array.isArray(results) ? results : [],
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
@@ -1041,28 +767,6 @@ app.post('/api/system/self-heal', async (req, res) => {
         shellCommand: `cat << 'EOF' > config/settings.json\n{\n  "version": "1.2.0",\n  "app_name": "Lottery Alert System Pro",\n  "sources": { "glo": { "enabled": true } }\n}\nEOF`,
       });
     }
-
-    // Action 3: CLEAR_MUTEX_LOCK
-    const t2 = Date.now();
-    const wasLocked = isBackgroundCheckRunning;
-    isBackgroundCheckRunning = false;
-    executedActions.push({
-      id: `act-${Date.now()}-3`,
-      commandCode: 'CLEAR_MUTEX_LOCK',
-      targetDevice: 'Background Lottery Runner Daemon',
-      description: 'ปลดล็อก Concurrency Process Mutex ของระบบตรวจผลสลากอัตโนมัติ',
-      triggerReason: wasLocked
-        ? 'ตรวจพบโพรเซสทำงานค้าง (Hung Process Lock > 45s)'
-        : (triggerReason || 'ยืนยันสถานะความพร้อมของ Background Runner สแตนด์บาย'),
-      timestamp: new Date().toISOString(),
-      timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-      status: 'success',
-      executionTimeMs: Math.max(1, Date.now() - t2),
-      details: wasLocked
-        ? 'ปลดล็อก Concurrency Lock สำเร็จ รีเซ็ตโพรเซสให้พร้อมรับการตรวจสอบรอบถัดไป'
-        : 'ตรวจสอบ Mutex Lock เรียบร้อย โพรเซสอยู่ในสถานะ Idle พร้อมทำงาน',
-      shellCommand: 'export RUNNER_LOCK=0 && pkill -f "lottery_checker.py" 2>/dev/null || true',
-    });
 
     // Action 4: SYNC_OFFLINE_CACHE
     const t3 = Date.now();
@@ -1517,38 +1221,12 @@ app.get('/api/system/crash-shield-status', (req, res) => {
   });
 });
 
-// ... keep rest of file unchanged ...
-
-let isBackgroundCheckRunning = false;
-
-async function runBackgroundAutoCheck(lotteryTarget = 'all'): Promise<{ success: boolean; error?: string }> {
-  if (isBackgroundCheckRunning) {
-    const message = 'A previous lottery check is still running.';
-    console.log(`[AUTO-RUNNER] ${message}`);
-    return { success: false, error: message };
-  }
-  isBackgroundCheckRunning = true;
-  try {
-    const env = {
-      ...process.env,
-      FORCE_NOTIFY: 'false',
-      LOTTERY_TARGET: String(lotteryTarget || 'all'),
-    };
-    await execAsync('python3 lottery_checker.py', { env, cwd: __dirname, timeout: 90000 });
-    console.log(`[AUTO-RUNNER] Background lottery check completed at ${new Date().toISOString()} (target: ${env.LOTTERY_TARGET})`);
-    return { success: true };
-  } catch (err: any) {
-    const message = err?.stderr || err?.message || 'Lottery checker failed.';
-    console.warn('[AUTO-RUNNER] Background check failed:', message);
-    return { success: false, error: String(message) };
-  } finally {
-    isBackgroundCheckRunning = false;
-  }
-}
-
 async function startServer() {
   const hasDist = fs.existsSync(path.join(__dirname, 'dist', 'index.html'));
   const isProd = (process.env.NODE_ENV === 'production' || __filename.endsWith('server.js') || process.env.npm_lifecycle_event === 'start') && hasDist;
+
+  // Unknown APIs must return JSON, never the SPA HTML fallback.
+  app.use('/api', (_req, res) => res.status(404).json({ error: 'API endpoint not found.' }));
 
   if (!isProd) {
     const { createServer } = await import('vite');
@@ -1584,9 +1262,7 @@ async function startServer() {
         void runBackgroundAutoCheck('all');
       }, 5000);
       setInterval(() => {
-        if (!isBackgroundCheckRunning) {
-          void runBackgroundAutoCheck('all');
-        }
+        void runBackgroundAutoCheck('all');
       }, 10 * 60 * 1000);
     } else {
       console.log('[AUTO-RUNNER] Background checks disabled by DISABLE_BACKGROUND_CHECK.');
@@ -1594,4 +1270,8 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((error) => {
+  console.error('Server startup failed:', error);
+  process.exitCode = 1;
+});
+
