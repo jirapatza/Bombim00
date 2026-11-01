@@ -50,7 +50,6 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
       return '';
     }
   });
-  const [passwordSaved, setPasswordSaved] = useState(false);
   const [target, setTarget] = useState('all');
   const [forceNotify, setForceNotify] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
@@ -66,7 +65,6 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
       if (value) sessionStorage.setItem('bombim00_dashboard_password', value);
       else sessionStorage.removeItem('bombim00_dashboard_password');
       setDashboardPassword(value);
-      setPasswordSaved(Boolean(value));
       setMessage(value ? 'บันทึกรหัสผ่านไว้เฉพาะแท็บนี้แล้ว' : 'ลบรหัสผ่านออกจากเซสชันแล้ว');
     } catch {
       setError('เบราว์เซอร์ไม่อนุญาตให้เก็บรหัสผ่านใน Session Storage');
@@ -77,11 +75,7 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
     setIsLoadingRuns(true);
     setError(null);
     try {
-      const response = await apiFetch('/api/github/runs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
+      const response = await apiFetch('/api/github/runs', { cache: 'no-store' });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success) {
         throw new Error(data.error || `อ่านประวัติการรันไม่สำเร็จ (HTTP ${response.status})`);
