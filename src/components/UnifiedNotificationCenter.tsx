@@ -97,7 +97,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
   };
 
   // Save changes to settings for LINE
-  const handleSaveLineConfig = (newToken: string, enabled: boolean) => {
+  const handleSaveLineConfig = (_newToken: string, enabled: boolean) => {
     const updated = {
       ...settings,
       channels: {
@@ -105,7 +105,8 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
         line: {
           ...(settings?.channels?.line || {}),
           enabled,
-          token: newToken.trim(),
+          // Credentials must live in Render Environment Variables, never in public Git history.
+          token: '',
           mode: 'notify',
         },
       },
@@ -279,7 +280,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
               <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 space-y-2">
                 <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
                   <Key className="w-3.5 h-3.5 text-emerald-400" />
-                  LINE Notify Access Token:
+                  LINE Notify Token (ใช้ทดสอบชั่วคราว):
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -310,6 +311,9 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
                 </div>
               )}
 
+              <div className="text-[11px] text-slate-400 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80">
+                🔐 Token ที่ใช้ส่งแจ้งเตือนจริงให้ตั้งเป็น <code>LINE_NOTIFY_TOKEN</code> ใน Render Environment เท่านั้น ปุ่มบันทึกจะไม่เก็บ Token ลง GitHub; ช่องด้านบนใช้สำหรับทดสอบชั่วคราว
+              </div>
               <div className="text-[11px] text-slate-400 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80">
                 💬 <em>รับ Token ฟรีได้ที่ <a href="https://notify-bot.line.me/" target="_blank" rel="noreferrer" className="text-emerald-400 underline">notify-bot.line.me</a> เลือกว่าจะให้ส่งเข้าแชตส่วนตัวหรือกลุ่ม LINE</em>
               </div>
