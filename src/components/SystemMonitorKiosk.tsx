@@ -114,7 +114,7 @@ export function SystemMonitorKiosk() {
   const [clientOnline, setClientOnline] = useState<boolean>(navigator.onLine);
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
 
-  // Helper to provide realistic shell command if older history record lacks it
+  // No remote shell commands are executed by this dashboard.
   const getDefaultShellCommand = (code: string): string => {
     switch (code) {
       default:
@@ -334,8 +334,8 @@ export function SystemMonitorKiosk() {
       name: 'GitHub Actions Lottery Runner',
       category: 'Automation Engine',
       icon: GitBranch,
-      status: 'healthy',
-      statusText: 'กำหนดให้ GitHub Actions เป็นตัวตรวจหวยเพียงจุดเดียว',
+      status: 'degraded',
+      statusText: 'กำหนดให้ GitHub Actions เป็นตัวตรวจเพียงจุดเดียว แต่ยังไม่ได้ตรวจสถานะ Workflow ล่าสุดในแผงนี้',
       latency: null,
       details: 'Render ทำหน้าที่เว็บ/API เท่านั้น ไม่มี Python checker หรือ scheduler ซ้ำในเว็บเซิร์ฟเวอร์',
       easyFix: 'ตรวจสอบประวัติ Workflow ในหน้า GitHub Actions',
@@ -909,7 +909,7 @@ export function SystemMonitorKiosk() {
                   <Zap className={`w-3.5 h-3.5 ${isTargetBeingHealed ? 'animate-spin' : ''}`} />
                   <span>
                     {isTargetBeingHealed
-                      ? 'กำลังซ่อมแซมอุปกรณ์นี้...'
+                      ? 'กำลังตรวจสอบอุปกรณ์นี้...'
                       : isError
                       ? '⚡ สั่งแก้ปัญหาจุดนี้ทันที (Auto-Repair This Error)'
                       : '🔧 ทดสอบซ่อมแซม & ตรวจสอบจุดนี้'}
@@ -1054,7 +1054,7 @@ export function SystemMonitorKiosk() {
               className="mt-2 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-md"
             >
               <Zap className="w-3.5 h-3.5" />
-              <span>รันการตรวจสอบ &amp; ซ่อมแซมระบบรอบแรกเดี๋ยวนี้</span>
+              <span>รันการตรวจสอบ &amp; ตรวจสอบระบบรอบแรกเดี๋ยวนี้</span>
             </button>
           </div>
         ) : (
