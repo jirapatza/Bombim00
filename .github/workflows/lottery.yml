@@ -116,6 +116,7 @@ jobs:
       - name: Run Lottery Checker & Alert
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          LINE_NOTIFY_TOKEN: ${{ secrets.LINE_NOTIFY_TOKEN }}
           FORCE_NOTIFY: ${{ github.event.inputs.force_notify || 'false' }}
           LOTTERY_TARGET: ${{ github.event.inputs.lottery_target || 'all' }}
         run: |
