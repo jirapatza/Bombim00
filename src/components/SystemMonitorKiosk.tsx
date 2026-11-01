@@ -117,24 +117,8 @@ export function SystemMonitorKiosk() {
   // Helper to provide realistic shell command if older history record lacks it
   const getDefaultShellCommand = (code: string): string => {
     switch (code) {
-      case 'REPAIR_FILESYSTEM_DIRS':
-        return 'mkdir -p config status data && chmod 755 config status data && ls -ld config status data';
-      case 'RESTORE_CONFIG_SCHEMA':
-        return 'node -e \'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("config/settings.json","utf-8")); console.log("Config OK:", c.app_name);\'';
-      case 'CLEAR_MUTEX_LOCK':
-        return 'export RUNNER_LOCK=0 && pkill -f "lottery_checker.py" 2>/dev/null || true';
-      case 'SYNC_OFFLINE_CACHE':
-        return 'python3 -c "import json; r=json.load(open(\'lottery_previous_results.json\')); print(f\'Validated {len(r)} historical draws\')"';
-      case 'RESET_SYSTEM_HEALTH_METRICS':
-        return '# Legacy action only: do not force Healthy; use verified system checks instead.';
-      case 'VERIFY_GATEWAYS_REACHABILITY':
-        return 'curl -I --max-time 3 https://www.glo.or.th && curl -I --max-time 3 https://ntfy.sh && curl -I --max-time 3 https://api.github.com';
-      case 'PRESERVE_INVALID_RUNTIME_STATUS':
-        return '# The API preserves the unreadable status file and records a warning; no destructive command is available.';
-      case 'WRITE_VERIFIED_HEALTH_STATUS':
-        return '# The API writes the status derived from verified checks; do not set Healthy manually.';
       default:
-        return `# Executing auto-repair for ${code}\nsystemctl restart lotto-daemon.service || true`;
+        return `# No shell command is executed by the Render dashboard. Diagnostic action: ${code}`;
     }
   };
 
@@ -346,29 +330,27 @@ export function SystemMonitorKiosk() {
       easyFix: 'ตรวจสอบ API Server และดูผลตอบกลับล่าสุดก่อนสั่งซ่อมแซม',
     },
     {
-      id: 'background_runner',
-      name: 'Local Background Lottery Runner',
+      id: 'github_actions_runner',
+      name: 'GitHub Actions Lottery Runner',
       category: 'Automation Engine',
-      icon: Cpu,
-      status: monitorData?.system.backgroundRunnerActive ? 'healthy' : 'degraded',
-      statusText: monitorData?.system.backgroundRunnerActive
-        ? 'เปิดใช้งานตัวตรวจในเซิร์ฟเวอร์นี้ทุก 10 นาที'
-        : 'ยังยืนยันไม่ได้ว่าตัวตรวจเบื้องหลังเปิดใช้งาน',
+      icon: GitBranch,
+      status: 'healthy',
+      statusText: 'กำหนดให้ GitHub Actions เป็นตัวตรวจหวยเพียงจุดเดียว',
       latency: null,
-      details: 'เป็นตัวตรวจเบื้องหลังของ API Server แยกจาก GitHub Actions ที่ตรวจทุก 5 นาที',
-      easyFix: 'ตรวจสอบ DISABLE_BACKGROUND_CHECK และบันทึกการทำงานของ API Server',
+      details: 'Render ทำหน้าที่เว็บ/API เท่านั้น ไม่มี Python checker หรือ scheduler ซ้ำในเว็บเซิร์ฟเวอร์',
+      easyFix: 'ตรวจสอบประวัติ Workflow ในหน้า GitHub Actions';
     },
     {
       id: 'settings_file',
       name: 'System Config (config/settings.json)',
-      category: 'Filesystem Database',
+      category: 'GitHub Repository Storage',
       icon: FileCheck2,
       status: settingsFile?.exists && settingsFile.validJson !== false ? 'healthy' : monitorData ? 'error' : 'degraded',
       statusText: !monitorData ? 'ยังไม่ได้ตรวจสอบไฟล์' : settingsFile?.exists && settingsFile.validJson !== false
-        ? 'ไฟล์มีอยู่และเป็น JSON ที่อ่านได้'
-        : 'ไม่พบไฟล์หรือ JSON ไม่ถูกต้อง',
+        ? 'ข้อมูลบน GitHub มีอยู่และเป็น JSON ที่อ่านได้'
+        : 'ไม่พบข้อมูลบน GitHub หรือ JSON ไม่ถูกต้อง',
       latency: null,
-      details: 'ไฟล์กำหนดค่าแหล่งข้อมูล ช่องทางแจ้งเตือน และแม่แบบเสียง',
+      details: 'ข้อมูลกำหนดค่าแหล่งข้อมูล ช่องทางแจ้งเตือน และแม่แบบเสียง',
       easyFix: 'ตรวจสอบไฟล์ config/settings.json ก่อนกู้คืนหรือแก้ไข',
     },
     {
@@ -381,8 +363,8 @@ export function SystemMonitorKiosk() {
         ? 'ไฟล์มีอยู่และเป็น JSON ที่อ่านได้'
         : 'ไม่พบไฟล์หรือ JSON ไม่ถูกต้อง',
       latency: null,
-      details: 'เก็บสถานะการตรวจหวยล่าสุดและบันทึกเหตุการณ์',
-      easyFix: 'สำรองไฟล์ก่อนซ่อมแซม status/status.json',
+      details: 'ข้อมูลสถานะที่ GitHub Actions เขียนล่าสุด',
+      easyFix: 'ตรวจสอบ Workflow และสิทธิ์เขียน status/status.json',
     },
     {
       id: 'glo_feed',
@@ -435,15 +417,15 @@ export function SystemMonitorKiosk() {
       easyFix: 'ตรวจรายชื่อเสียงที่ติดตั้งบน Android และทดสอบเสียงจริง',
     },
     {
-      id: 'firestore_db',
-      name: 'Firebase Cloud Firestore Sync',
-      category: 'Cloud Persistence',
+      id: 'github_storage',
+      name: 'GitHub Repository Durable Storage',
+      category: 'Persistent Storage',
       icon: Database,
-      status: 'degraded',
-      statusText: 'ยังไม่มีการตรวจสอบการเชื่อมต่อ Firestore จาก System Monitor',
+      status: settingsFile?.exists && settingsFile.validJson !== false && statusFile?.exists && statusFile.validJson !== false ? 'healthy' : monitorData ? 'error' : 'degraded',
+      statusText: !monitorData ? 'ยังไม่ได้ตรวจสอบข้อมูลถาวร' : settingsFile?.exists && statusFile?.exists ? 'อ่านไฟล์ข้อมูลหลักจาก GitHub repository ได้' : 'อ่านไฟล์ข้อมูลถาวรไม่ครบ',
       latency: null,
-      details: 'ไม่แสดงสถานะเขียวจนกว่าจะมีผลตรวจการเชื่อมต่อจริง',
-      easyFix: 'ตรวจ Firebase SDK และอ่านผลการเชื่อมต่อจากแอปก่อนสรุปสถานะ',
+      details: 'การตั้งค่า ผลหวย และประวัติการตรวจสอบอ่านจาก GitHub ไม่พึ่ง filesystem ชั่วคราวของ Render',
+      easyFix: 'ตรวจสอบ GITHUB_TOKEN และสิทธิ์ Contents Read/Write ของ repository',
     },
     {
       id: 'github_sync',
