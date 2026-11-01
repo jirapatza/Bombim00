@@ -427,109 +427,66 @@ app.post('/api/test-ntfy', async (req, res) => {
 });
 
 // 4.5 GitHub Actions Integration Endpoints
-// POST /api/github/dispatch - Dispatch GitHub Actions workflow run
+// GitHub Actions is the only lottery execution environment for this deployment.
+const LOTTERY_WORKFLOW = 'lottery.yml';
+const LOTTERY_REPOSITORY = 'jirapatza/Bombim00';
+const LOTTERY_BRANCH = 'main';
+const LOTTERY_TARGETS = new Set(['all', 'vip', 'foreign_stock', 'hanoi', 'lao', 'thai_stock', 'government', 'malay']);
+
 app.post('/api/github/dispatch', async (req, res) => {
   try {
-    const { repo = 'jirapatza/Bombim00', branch = 'main', token, workflow = 'lottery.yml', inputs = {} } = req.body;
-    const cleanRepo = (repo || 'jirapatza/Bombim00').trim();
-    const cleanWorkflow = path.basename(workflow);
-    const ghToken = (token || process.env.GITHUB_TOKEN || '').trim();
-
+    const ghToken = (process.env.GITHUB_TOKEN || '').trim();
     if (!ghToken) {
-      return res.status(400).json({
-        success: false,
-        error: 'กรุณากรอก GitHub Personal Access Token (PAT) ที่มีสิทธิ์ Actions Write ในการสั่งรันบน GitHub หรือใช้งานจาก env GITHUB_TOKEN',
-      });
+      return res.status(503).json({ success: false, error: 'ยังไม่ได้ตั้งค่า GITHUB_TOKEN ใน Render Environment' });
     }
-
-    const dispatchUrl = `https://api.github.com/repos/${cleanRepo}/actions/workflows/${cleanWorkflow}/dispatches`;
+    const inputs = req.body?.inputs || {};
+    const target = String(inputs.lottery_target || 'all');
+    const forceNotify = String(inputs.force_notify || 'false');
+    if (!LOTTERY_TARGETS.has(target) || !['true', 'false'].includes(forceNotify)) {
+      return res.status(400).json({ success: false, error: 'ค่ากลุ่มหวยหรือ Force Notify ไม่ถูกต้อง' });
+    }
+    const dispatchUrl = 'https://api.github.com/repos/' + LOTTERY_REPOSITORY + '/actions/workflows/' + LOTTERY_WORKFLOW + '/dispatches';
     const ghRes = await fetch(dispatchUrl, {
       method: 'POST',
       headers: {
-        'User-Agent': 'LotteryAlert/1.0',
-        'Accept': 'application/vnd.github.v3+json',
-        'Authorization': `Bearer ${ghToken}`,
+        'User-Agent': 'Bombim00-Render/1.0',
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Authorization': 'Bearer ' + ghToken,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        ref: branch || 'main',
-        inputs: inputs,
-      }),
+      body: JSON.stringify({ ref: LOTTERY_BRANCH, inputs: { lottery_target: target, force_notify: forceNotify } }),
+      signal: AbortSignal.timeout(10000),
     });
-
     if (ghRes.status === 204 || ghRes.status === 200) {
-      return res.json({
-        success: true,
-        queued: true,
-        workflow_dispatched: true,
-        message: `ส่งคำสั่งสั่งรัน GitHub Actions (${cleanWorkflow}) บนคลัง ${cleanRepo} สำเร็จเรียบร้อยแล้ว!`,
-      });
+      return res.json({ success: true, queued: true, workflow_dispatched: true, message: 'ส่งคำสั่งตรวจผลไปยัง GitHub Actions แล้ว' });
     }
-
-    const errText = await ghRes.text();
-    let errMsg = errText;
-    try {
-      const errObj = JSON.parse(errText);
-      errMsg = errObj.message || errText;
-    } catch {
-      // ignore
-    }
-
-    return res.status(ghRes.status).json({
-      success: false,
-      error: `GitHub ปฏิเสธคำสั่ง (HTTP ${ghRes.status}): ${errMsg}`,
-    });
+    const detail = await ghRes.text().catch(() => '');
+    return res.status(502).json({ success: false, error: 'GitHub ปฏิเสธคำสั่ง (HTTP ' + ghRes.status + '): ' + detail.slice(0, 300) });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(502).json({ success: false, error: err?.name === 'TimeoutError' ? 'GitHub ตอบกลับช้าเกินกำหนด' : err.message });
   }
 });
 
-// POST /api/github/runs - List workflow runs
-app.post('/api/github/runs', async (req, res) => {
+app.post('/api/github/runs', async (_req, res) => {
   try {
-    const { repo = 'jirapatza/Bombim00', token, workflow = 'lottery.yml' } = req.body;
-    const cleanRepo = (repo || 'jirapatza/Bombim00').trim();
-    const cleanWorkflow = path.basename(workflow);
-    const ghToken = (token || process.env.GITHUB_TOKEN || '').trim();
-
+    const ghToken = (process.env.GITHUB_TOKEN || '').trim();
     const headers: Record<string, string> = {
-      'User-Agent': 'LotteryAlert/1.0',
-      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'Bombim00-Render/1.0',
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
     };
-    if (ghToken) {
-      headers['Authorization'] = `Bearer ${ghToken}`;
+    if (ghToken) headers.Authorization = 'Bearer ' + ghToken;
+    const runsUrl = 'https://api.github.com/repos/' + LOTTERY_REPOSITORY + '/actions/workflows/' + LOTTERY_WORKFLOW + '/runs?per_page=10';
+    const ghRes = await fetch(runsUrl, { headers, signal: AbortSignal.timeout(10000) });
+    if (!ghRes.ok) {
+      const detail = await ghRes.text().catch(() => '');
+      return res.status(502).json({ success: false, error: 'อ่านประวัติ GitHub Actions ไม่สำเร็จ (HTTP ' + ghRes.status + '): ' + detail.slice(0, 300), workflow_runs: [] });
     }
-
-    const runsUrl = `https://api.github.com/repos/${cleanRepo}/actions/workflows/${cleanWorkflow}/runs?per_page=10`;
-    const ghRes = await fetch(runsUrl, { headers });
-
-    if (ghRes.ok) {
-      const data = await ghRes.json();
-      return res.json({
-        success: true,
-        workflow_runs: data.workflow_runs || [],
-      });
-    }
-
-    // Fallback: try repo-wide runs
-    const repoRunsUrl = `https://api.github.com/repos/${cleanRepo}/actions/runs?per_page=10`;
-    const repoRes = await fetch(repoRunsUrl, { headers }).catch(() => null);
-    if (repoRes && repoRes.ok) {
-      const data = await repoRes.json();
-      return res.json({
-        success: true,
-        workflow_runs: data.workflow_runs || [],
-      });
-    }
-
-    const errText = await ghRes.text().catch(() => '');
-    return res.json({
-      success: false,
-      error: `ไม่สามารถดึงข้อมูล Runs จาก GitHub (HTTP ${ghRes.status}): ${errText || 'Repository อาจเป็น Private หรือติด Rate Limit'}`,
-      workflow_runs: [],
-    });
+    const data = await ghRes.json() as { workflow_runs?: unknown[] };
+    return res.json({ success: true, workflow_runs: data.workflow_runs || [] });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message, workflow_runs: [] });
+    return res.status(502).json({ success: false, error: err?.message || 'อ่านประวัติการทำงานไม่สำเร็จ', workflow_runs: [] });
   }
 });
 
