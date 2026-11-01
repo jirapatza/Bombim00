@@ -84,9 +84,9 @@ begin
   if p_source_sha256 !~ '^[a-f0-9]{64}$' then
     raise exception 'source_sha256 must be a lowercase SHA-256 digest';
   end if;
-  if jsonb_typeof(p_snapshot->'results') <> 'array'
-     or jsonb_typeof(p_snapshot->'catalog') <> 'array'
-     or jsonb_typeof(p_snapshot->'self_healing_history') <> 'array' then
+  if coalesce(jsonb_typeof(p_snapshot->'results'), '') <> 'array'
+     or coalesce(jsonb_typeof(p_snapshot->'catalog'), '') <> 'array'
+     or coalesce(jsonb_typeof(p_snapshot->'self_healing_history'), '') <> 'array' then
     raise exception 'snapshot arrays are missing or invalid';
   end if;
 
@@ -123,8 +123,8 @@ begin
     v_catalog_count := v_catalog_count + 1;
   end loop;
 
-  if jsonb_typeof(p_snapshot->'settings') <> 'object'
-     or jsonb_typeof(p_snapshot->'status') <> 'object' then
+  if coalesce(jsonb_typeof(p_snapshot->'settings'), '') <> 'object'
+     or coalesce(jsonb_typeof(p_snapshot->'status'), '') <> 'object' then
     raise exception 'settings or status object is missing';
   end if;
   insert into public.app_settings (id, payload, updated_at)
