@@ -221,7 +221,7 @@ export function SystemMonitorKiosk() {
         body: JSON.stringify({
           targetDevice: params?.targetDevice,
           triggerReason: params?.triggerReason,
-          triggerType: params?.targetDevice ? 'device_error_repair' : 'manual_user_click',
+          triggerType: params?.targetDevice ? 'device_error_diagnostic' : 'manual_user_click',
         }),
       });
       const data = await res.json();
@@ -857,7 +857,7 @@ export function SystemMonitorKiosk() {
                 <p className="text-xs text-slate-400 mb-3 leading-relaxed">{service.details}</p>
               </div>
 
-              {/* Bottom: Latency, Easy Fix Advice, and Device Quick-Repair Button */}
+              {/* Bottom: Latency, Easy Fix Advice, and Device Quick-Diagnostic Button */}
               <div className="pt-3 border-t border-slate-800/80 space-y-2">
                 <div className="flex items-center justify-between text-[11px] text-slate-400">
                   <span className="flex items-center gap-1">
@@ -888,7 +888,7 @@ export function SystemMonitorKiosk() {
                   </div>
                 </div>
 
-                {/* Per-device Quick Repair Action */}
+                {/* Per-device Quick Diagnostic Action */}
                 <button
                   type="button"
                   onClick={() =>
@@ -1207,7 +1207,7 @@ export function SystemMonitorKiosk() {
                                 </div>
                               )}
 
-                              {/* Executed Shell Command / Script Block */}
+                              {/* Diagnostic Detail Block */}
                               <div className="rounded-xl bg-slate-950 border border-slate-800 overflow-hidden shadow-inner">
                                 <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900/90 border-b border-slate-800/80 text-[11px] text-slate-400 font-mono">
                                   <div className="flex items-center gap-1.5">
@@ -1236,7 +1236,7 @@ export function SystemMonitorKiosk() {
                                   </button>
                                 </div>
                                 <div className="p-3 font-mono text-xs overflow-x-auto text-emerald-300 bg-slate-950 flex items-start gap-2.5">
-                                  <span className="text-amber-400 select-none font-bold text-sm leading-none pt-0.5">$</span>
+                                  <span className="text-sky-400 select-none font-bold text-sm leading-none pt-0.5">ℹ</span>
                                   <code className="font-mono text-xs leading-relaxed whitespace-pre-wrap break-all text-slate-200 select-all flex-1">
                                     {commandToDisplay}
                                   </code>
