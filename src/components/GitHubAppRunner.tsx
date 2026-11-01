@@ -171,7 +171,7 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
               onClick={saveDashboardPassword}
               className="rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-black text-slate-950 hover:bg-amber-400"
             >
-              บันทึกในแท็บนี้
+              ใช้รหัสผ่านนี้
             </button>
           </div>
           <p className="text-[11px] text-slate-500">รหัสผ่านอยู่ในหน่วยความจำของหน้านี้เท่านั้น ไม่บันทึกลงอุปกรณ์หรือ GitHub และต้องกรอกใหม่เมื่อรีเฟรชหน้า</p>
