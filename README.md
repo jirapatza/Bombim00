@@ -6,6 +6,7 @@
 - **GitHub Actions** is the only lottery checker and scheduler (workflow schedule: every five minutes; GitHub may delay scheduled runs).
 - **GitHub repository JSON files** are the durable source of truth for settings, catalog, results, latest status and system audit history. Render's local filesystem is not used for mutable application data.
 - The web service never starts a second Python checker or background polling scheduler.
+- Data-only GitHub commits include Render's `[skip render]` marker so each five-minute result update does not rebuild the web service.
 - Notifications are sent by the GitHub Actions checker. ntfy uses `NTFY_TOPIC`; LINE uses LINE Messaging API secrets.
 
 ## Run locally
