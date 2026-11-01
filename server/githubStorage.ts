@@ -38,7 +38,7 @@ function githubHeaders(token?: string): HeadersInit {
 }
 
 function safePath(filePath: string) {
-  if (!/^(config\/settings\.json|data\/all_lotteries\.json|lottery_previous_results\.json|status\/status\.json|status\/self_healing_history\.json)$/.test(filePath)) {
+  if (!/^(config\/settings\.json|data\/all_lotteries\.json|lottery_previous_results\.json|status\/status\.json|status\/self_healing_history\.json|status\/self_healing_history\.json)$/.test(filePath)) {
     throw new GitHubStorageError('The requested repository data path is not allowed.', 400, 'INVALID_DATA_PATH');
   }
   return filePath.split('/').map(encodeURIComponent).join('/');
