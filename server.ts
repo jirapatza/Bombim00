@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createLotteryRunner, lotteryTargets } from './server/lotteryRunner.ts';
+import { assertNoSecretFields, commitGitHubJson, GitHubStorageError, readGitHubJson } from './server/githubStorage.ts';
 import { getOverallHealth, preserveCorruptFile } from './server/selfHeal.ts';
 import { timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
@@ -259,45 +260,54 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
-// 2. GET /api/settings - Read settings.json
+// 2. GET /api/settings - Read the canonical, durable settings file from GitHub.
 app.get('/api/settings', async (req, res) => {
   try {
-    if (!fs.existsSync(SETTINGS_PATH)) {
-      return res.status(404).json({ error: 'settings.json not found' });
-    }
-
-    const data = await readJsonWithCache(SETTINGS_PATH, {}, 2000);
+    const data = await readGitHubJson<Record<string, any>>('config/settings.json');
     return res.json(data);
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'SETTINGS_READ_FAILED' });
   }
 });
 
-// 3. POST /api/settings - Update settings.json
+// 3. POST /api/settings - Commit settings to GitHub so they survive Render restarts.
 app.post('/api/settings', async (req, res) => {
   try {
     const updated = req.body;
+    if (!updated || typeof updated !== 'object' || Array.isArray(updated)) {
+      return res.status(400).json({ success: false, error: 'Settings must be a JSON object.' });
+    }
+    assertNoSecretFields(updated);
+    const commit = await commitGitHubJson(
+      'config/settings.json',
+      updated,
+      'chore(settings): update dashboard settings',
+    );
+    // Keep this running instance in sync; GitHub remains the durable source of truth.
     await writeJsonWithCache(SETTINGS_PATH, updated, 5000);
-    return res.json({ success: true, message: 'Settings saved successfully' });
+    return res.json({ success: true, message: 'Settings saved to GitHub successfully.', commit });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'SETTINGS_WRITE_FAILED' });
   }
 });
 
-// 4. GET /api/results - Read past lottery results
+// 4. GET /api/results - Read the latest results committed by GitHub Actions.
 app.get('/api/results', async (req, res) => {
   try {
-    const data = await readJsonWithCache(RESULTS_PATH, [], 2000);
+    const data = await readGitHubJson<any[]>('lottery_previous_results.json');
     return res.json(data);
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'RESULTS_READ_FAILED' });
   }
 });
 
 // 4.0 POST /api/lotteries/cleanup-history - Purge unrequested LIW/pingpong and duplicate entries
 app.post('/api/lotteries/cleanup-history', async (req, res) => {
   try {
-    const raw = await readJsonWithCache<any[]>(RESULTS_PATH, [], 2000);
+    const raw = await readGitHubJson<any[]>('lottery_previous_results.json');
     if (!Array.isArray(raw)) {
       return res.json({ success: true, removedCount: 0, totalAfter: 0 });
     }
@@ -325,6 +335,11 @@ app.post('/api/lotteries/cleanup-history', async (req, res) => {
       }
     }
 
+    const commit = await commitGitHubJson(
+      'lottery_previous_results.json',
+      deduped,
+      'chore(results): clean duplicate and unsupported history',
+    );
     await writeJsonWithCache(RESULTS_PATH, deduped, 5000);
     const removedCount = totalBefore - deduped.length;
     return res.json({
@@ -333,30 +348,42 @@ app.post('/api/lotteries/cleanup-history', async (req, res) => {
       totalBefore,
       totalAfter: deduped.length,
       removedCount,
+      commit,
     });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'RESULTS_WRITE_FAILED' });
   }
 });
 
-// 4.1 GET /api/all-lotteries - Read full catalog and daily summary of all lotteries
+// 4.1 GET /api/all-lotteries - Read the canonical lottery catalog from GitHub.
 app.get('/api/all-lotteries', async (req, res) => {
   try {
-    const data = await readJsonWithCache(ALL_LOTTERIES_PATH, [], 2000);
+    const data = await readGitHubJson<any[]>('data/all_lotteries.json');
     return res.json(data);
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'CATALOG_READ_FAILED' });
   }
 });
 
-// 4.2 POST /api/all-lotteries - Update lotteries data
+// 4.2 POST /api/all-lotteries - Persist lottery catalog changes in GitHub.
 app.post('/api/all-lotteries', async (req, res) => {
   try {
     const updated = req.body;
+    if (!Array.isArray(updated)) {
+      return res.status(400).json({ success: false, error: 'Lottery catalog must be a JSON array.' });
+    }
+    const commit = await commitGitHubJson(
+      'data/all_lotteries.json',
+      updated,
+      'chore(catalog): update lottery catalog',
+    );
     await writeJsonWithCache(ALL_LOTTERIES_PATH, updated, 5000);
-    return res.json({ success: true, message: 'All lotteries data updated successfully' });
+    return res.json({ success: true, message: 'Lottery catalog saved to GitHub.', commit });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'CATALOG_WRITE_FAILED' });
   }
 });
 
