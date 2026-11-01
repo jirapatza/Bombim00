@@ -101,7 +101,6 @@ def import_snapshot(snapshot: dict[str, Any], source_sha256: str) -> dict[str, A
         method="POST",
         headers={
             "apikey": secret_key,
-            "Authorization": f"Bearer {secret_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
         },
