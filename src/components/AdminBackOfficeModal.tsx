@@ -119,7 +119,7 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
     {
       id: 'runner' as const,
       label: 'สั่งรันตรวจผล & GitHub Actions',
-      sublabel: 'จำลองสคริปต์ & Workflow Dispatch',
+      sublabel: 'รันสคริปต์ & Workflow Dispatch',
       icon: Github,
     },
     {
@@ -408,10 +408,10 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
                   <div>
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                       <Github className="w-5 h-5 text-slate-300" />
-                      GitHub Actions &amp; App Runner Simulator
+                      GitHub Actions และการรันตรวจหวย
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      สั่งรัน workflow บน GitHub หรือจำลองการรันสคริปต์ตรวจหวยบน Server
+                      สั่งรัน workflow บน GitHub หรือรันสคริปต์ตรวจหวยบน Server
                     </p>
                   </div>
                 </div>
@@ -486,3 +486,4 @@ export const AdminBackOfficeModal: React.FC<AdminBackOfficeModalProps> = ({
     </div>
   );
 };
+

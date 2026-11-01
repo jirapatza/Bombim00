@@ -7,10 +7,11 @@
     "dev": "NODE_ENV=development tsx server.ts",
     "build": "vite build && esbuild server.ts --platform=node --packages=external --bundle --format=esm --outfile=server.js",
     "preview": "vite preview --host 0.0.0.0",
-    "start": "node server.ts",
+    "start": "NODE_ENV=production node server.js",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test:runtime": "npm run build && node --test tests/server.runtime.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -27,7 +28,7 @@
     "react-dom": "^19.0.1",
     "recharts": "^3.10.1",
     "vite": "^8.3.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",
