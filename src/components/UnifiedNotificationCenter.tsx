@@ -19,7 +19,7 @@ import {
 
 export interface UnifiedNotificationCenterProps {
   settings: any;
-  onSaveSettings: (newSettings: any) => void;
+  onSaveSettings: (newSettings: any) => Promise<boolean>;
   voiceEnabled: boolean;
   onToggleVoice: (enabled: boolean) => void;
   onSpeakSample: () => void;
@@ -70,7 +70,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
   const subscribeUrl = `${cleanServer}/${encodeURIComponent(topic)}`;
 
   // Save changes to settings for ntfy
-  const handleSaveNtfyConfig = (newTopic: string, enabled: boolean) => {
+  const handleSaveNtfyConfig = async (newTopic: string, enabled: boolean): Promise<boolean> => {
     const updated = {
       ...settings,
       channels: {
@@ -91,11 +91,11 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
         server: cleanServer,
       },
     };
-    onSaveSettings(updated);
+    return onSaveSettings(updated);
   };
 
   // Save changes to settings for LINE
-  const handleSaveLineConfig = (enabled: boolean) => {
+  const handleSaveLineConfig = async (enabled: boolean): Promise<boolean> => {
     const updated = {
       ...settings,
       channels: {
@@ -107,7 +107,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
         },
       },
     };
-    onSaveSettings(updated);
+    return onSaveSettings(updated);
   };
 
   // Test send to mobile app (ntfy)
@@ -149,7 +149,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
   };
 
   // Test send through the LINE Messaging API configured on the server.
-  const handleTestLineNotify = async () => {
+  const handleTestLineMessagingApi = async () => {
     setIsTestingLine(true);
     setLineTestResult(null);
 
@@ -247,10 +247,9 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
 
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   const nextState = !isLineEnabled;
-                  setIsLineEnabled(nextState);
-                  handleSaveLineConfig(nextState);
+                  if (await handleSaveLineConfig(nextState)) setIsLineEnabled(nextState);
                 }}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
                   isLineEnabled ? 'bg-emerald-500' : 'bg-slate-800'
@@ -294,7 +293,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
           <div className="pt-4">
             <button
               type="button"
-              onClick={handleTestLineNotify}
+              onClick={handleTestLineMessagingApi}
               disabled={isTestingLine}
               className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-40 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
             >
@@ -330,10 +329,9 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
 
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   const nextState = !isNtfyEnabled;
-                  setIsNtfyEnabled(nextState);
-                  handleSaveNtfyConfig(topic, nextState);
+                  if (await handleSaveNtfyConfig(topic, nextState)) setIsNtfyEnabled(nextState);
                 }}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
                   isNtfyEnabled ? 'bg-indigo-600' : 'bg-slate-800'
