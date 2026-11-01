@@ -27,10 +27,24 @@ function pruneApiRateMap() {
 
 app.use(express.json({ limit: '25mb' }));
 
-// Protect every state-changing API request. Production must configure DASH_PASSWORD;
-// development remains usable without a secret, but validates it whenever configured.
+// Protect known state-changing API routes only. Unknown/removed paths must reach
+// Express' JSON 404 handler instead of being masked by an authentication error.
+const protectedApiRoutes = new Set([
+  'POST /api/settings',
+  'POST /api/lotteries/cleanup-history',
+  'POST /api/all-lotteries',
+  'POST /api/test-line',
+  'POST /api/test-ntfy',
+  'POST /api/github/dispatch',
+  'POST /api/system/audit',
+  'DELETE /api/system/audit-history',
+  'POST /api/ai/verify-grounding',
+  'POST /api/ai/transcribe',
+]);
+
+// Production must configure DASH_PASSWORD; development remains usable without it.
 app.use('/api', (req, res, next) => {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  if (!protectedApiRoutes.has(`${req.method} ${req.path}`)) return next();
 
   const expectedPassword = process.env.DASH_PASSWORD || '';
   if (!expectedPassword) {
