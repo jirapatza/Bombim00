@@ -123,21 +123,6 @@ interface SystemStatus {
   recent_logs?: Array<{ timestamp: string; level: string; message: string }>;
 }
 
-interface ProjectFile {
-  name: string;
-  path: string;
-  category: string;
-  content: string;
-}
-
-export interface ReconnectLog {
-  id: string;
-  timeStr: string;
-  attempt: number;
-  status: 'pending' | 'success' | 'failed' | 'cancelled';
-  message: string;
-  delayMs?: number;
-}
 
 export interface LotteryAnnouncement {
   id: string;
@@ -457,7 +442,6 @@ export default function App() {
   const [results, setResults] = useState<LotteryResult[]>([]);
   const [allLotteries, setAllLotteries] = useState<LotteryItem[]>(bundledLotteryFallback);
   const [selectedCatalogLottery, setSelectedCatalogLottery] = useState<LotteryItem | null>(null);
-  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<string>('lottery_checker.py');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isTriggering, setIsTriggering] = useState<boolean>(false);
@@ -476,30 +460,6 @@ export default function App() {
   const [testPriority, setTestPriority] = useState<string>('high');
   const [testCustomMessage, setTestCustomMessage] = useState<string>('ข้อความทดสอบแจ้งเตือนหวย VIP และหุ้นต่างประเทศ (ไม่ใช่ผลหวยจริง)');
   const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
-
-  // Cloudflare Worker settings & Reconnection Helper state
-  const [workerUrl, setWorkerUrl] = useState<string>(() => {
-    const saved = localStorage.getItem('cf_worker_url');
-    if (!saved || saved === 'https://bombim00-github-api.jirapatcip2557.workers.dev') {
-      return '';
-    }
-    return saved;
-  });
-  const [dashPassword, setDashPassword] = useState<string>(localStorage.getItem('cf_dash_password') || '');
-  const [isWorkerConnected, setIsWorkerConnected] = useState<boolean>(false);
-  const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
-  const [reconnectAttempt, setReconnectAttempt] = useState<number>(0);
-  const [maxReconnectRetries, setMaxReconnectRetries] = useState<number>(5);
-  const [initialRetryDelayMs, setInitialRetryDelayMs] = useState<number>(1000);
-  const [backoffMultiplier, setBackoffMultiplier] = useState<number>(2.0);
-  const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
-  const [autoRetryOnFail, setAutoRetryOnFail] = useState<boolean>(true);
-  const [reconnectLogs, setReconnectLogs] = useState<ReconnectLog[]>([]);
-  const [workerDetails, setWorkerDetails] = useState<any>(null);
-
-  const reconnectTimerRef = useRef<any>(null);
-  const countdownIntervalRef = useRef<any>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Watched number input
   const [newWatchedNumber, setNewWatchedNumber] = useState<string>('');
@@ -558,176 +518,6 @@ export default function App() {
     setIsModalOpen(false);
     setAnnouncementQueue([]);
     setCurrentQueueIndex(0);
-  };
-
-  // ==================== CLOUDFLARE WORKER RECONNECTION HELPER (EXPONENTIAL BACKOFF) ====================
-  const clearReconnectionTimers = () => {
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-      countdownIntervalRef.current = null;
-    }
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-  };
-
-  const cancelReconnection = () => {
-    clearReconnectionTimers();
-    setIsReconnecting(false);
-    setCountdownSeconds(0);
-    setReconnectLogs((prev) => [
-      {
-        id: 'log-' + Date.now(),
-        timeStr: new Date().toLocaleTimeString('th-TH'),
-        attempt: reconnectAttempt,
-        status: 'cancelled' as const,
-        message: 'ผู้ใช้กดยกเลิกการพยายามเชื่อมต่อใหม่',
-      },
-      ...prev,
-    ].slice(0, 30));
-    showToast('ยกเลิกการเชื่อมต่อใหม่แล้ว');
-  };
-
-  const handleConnectWithBackoff = async (retryIndex = 0, customTargetUrl?: string) => {
-    clearReconnectionTimers();
-    const targetUrl = customTargetUrl !== undefined ? customTargetUrl : workerUrl;
-
-    if (!targetUrl.trim()) {
-      showToast('กรุณากรอก Cloudflare Worker URL');
-      return;
-    }
-
-    const currentAttempt = retryIndex + 1;
-    setIsReconnecting(true);
-    setReconnectAttempt(currentAttempt);
-
-    const nowTime = new Date().toLocaleTimeString('th-TH');
-    setReconnectLogs((prev) => [
-      {
-        id: 'log-' + Date.now(),
-        timeStr: nowTime,
-        attempt: currentAttempt,
-        status: 'pending' as const,
-        message: `[พยายามครั้งที่ ${currentAttempt}/${maxReconnectRetries}] กำลังส่งคำขอตรวจสอบสถานะไปยัง Worker...`,
-      },
-      ...prev,
-    ].slice(0, 30));
-
-    abortControllerRef.current = new AbortController();
-    const timeoutId = setTimeout(() => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    }, 8000);
-
-    try {
-      const cleanUrl = targetUrl.replace(/\/$/, '') + '/api/status';
-      const res = await fetch(cleanUrl, {
-        signal: abortControllerRef.current.signal,
-        headers: dashPassword ? { Authorization: `Bearer ${dashPassword}` } : {},
-      });
-
-      clearTimeout(timeoutId);
-
-      if (res.ok) {
-        const data = await res.json();
-        setIsWorkerConnected(true);
-        setIsReconnecting(false);
-        setCountdownSeconds(0);
-        setWorkerDetails(data);
-
-        setReconnectLogs((prev) => [
-          {
-            id: 'log-' + Date.now(),
-            timeStr: new Date().toLocaleTimeString('th-TH'),
-            attempt: currentAttempt,
-            status: 'success' as const,
-            message: `[สำเร็จ] เชื่อมต่อ Worker สำเร็จ! (HTTP 200 OK • โค้ดตอบรับสมบูรณ์)`,
-          },
-          ...prev,
-        ].slice(0, 30));
-
-        showToast(`เชื่อมต่อ Cloudflare Worker สำเร็จในครั้งที่ ${currentAttempt}!`);
-        return;
-      } else {
-        throw new Error(`HTTP ${res.status}: ${res.statusText || 'Response not OK'}`);
-      }
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      setIsWorkerConnected(false);
-
-      const isAborted = err.name === 'AbortError';
-      const errMsg = isAborted ? 'คำขอหมดเวลา (Connection Timeout 8s)' : (err.message || 'Network request failed');
-
-      if (autoRetryOnFail && currentAttempt < maxReconnectRetries) {
-        // Exponential Backoff calculation: delay = initialDelay * (multiplier ^ retryIndex) + jitter
-        const exponentialDelay = Math.round(
-          initialRetryDelayMs * Math.pow(backoffMultiplier, retryIndex) + Math.random() * 250
-        );
-        const delaySeconds = Math.max(1, Math.ceil(exponentialDelay / 1000));
-        setCountdownSeconds(delaySeconds);
-
-        setReconnectLogs((prev) => [
-          {
-            id: 'log-' + Date.now(),
-            timeStr: new Date().toLocaleTimeString('th-TH'),
-            attempt: currentAttempt,
-            status: 'failed' as const,
-            message: `[ล้มเหลวครั้งที่ ${currentAttempt}] ${errMsg} → กำลังหน่วงเวลา Exponential Backoff (${(exponentialDelay / 1000).toFixed(1)}s) ก่อนลองใหม่...`,
-            delayMs: exponentialDelay,
-          },
-          ...prev,
-        ].slice(0, 30));
-
-        let remaining = delaySeconds;
-        countdownIntervalRef.current = setInterval(() => {
-          remaining -= 1;
-          if (remaining <= 0) {
-            if (countdownIntervalRef.current) {
-              clearInterval(countdownIntervalRef.current);
-              countdownIntervalRef.current = null;
-            }
-            setCountdownSeconds(0);
-          } else {
-            setCountdownSeconds(remaining);
-          }
-        }, 1000);
-
-        reconnectTimerRef.current = setTimeout(() => {
-          handleConnectWithBackoff(retryIndex + 1, targetUrl);
-        }, exponentialDelay);
-      } else {
-        setIsReconnecting(false);
-        setCountdownSeconds(0);
-        setReconnectLogs((prev) => [
-          {
-            id: 'log-' + Date.now(),
-            timeStr: new Date().toLocaleTimeString('th-TH'),
-            attempt: currentAttempt,
-            status: 'failed' as const,
-            message: `[หยุดการพยายาม] ล้มเหลวครบกำหนด ${maxReconnectRetries} ครั้งแล้ว (${errMsg}) กรุณาตรวจสอบ Worker URL และการตั้งค่า CORS`,
-          },
-          ...prev,
-        ].slice(0, 30));
-
-        showToast(`การเชื่อมต่อล้มเหลวหลังพยายามครบ ${maxReconnectRetries} ครั้ง`);
-      }
-    }
-  };
-
-  const retryNowImmediately = () => {
-    clearReconnectionTimers();
-    handleConnectWithBackoff(reconnectAttempt, workerUrl);
-  };
-
-  const simulateBackoffFailure = () => {
-    showToast('กำลังจำลองสถานการณ์เชื่อมต่อล้มเหลวเพื่อทดสอบ Exponential Backoff...');
-    handleConnectWithBackoff(0, 'https://invalid-worker-simulated-test-999.workers.dev');
   };
 
   // Build speech text from customizable template
@@ -999,9 +789,9 @@ export default function App() {
     };
 
     try {
-      const res = await fetch(`${workerUrl}/api/settings`, {
+      const res = await apiFetch('/api/settings', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedSettings),
       });
       const data = await res.json();
@@ -1064,7 +854,7 @@ export default function App() {
   const handleUpdateAllLotteries = async (updated: LotteryItem[]) => {
     setAllLotteries(updated);
     try {
-      const res = await fetch(`${workerUrl}/api/all-lotteries`, {
+      const res = await apiFetch('/api/all-lotteries', {
         method: 'POST',
         headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(updated),
@@ -1086,12 +876,11 @@ export default function App() {
     let safeResults: LotteryResult[] = [];
     let newResults: LotteryResult[] = [];
     try {
-      const apiBase = workerUrl ? workerUrl.replace(/\/+$/, '') : '';
       const rawBase = 'https://raw.githubusercontent.com/jirapatza/Bombim00/main';
       const fetchJsonWithFallback = async (primaryUrl: string, fallbackUrl?: string) => {
         const request = async (url: string) => {
           try {
-            const response = await fetch(url, { cache: 'no-store' });
+            const response = url.startsWith('/api/') ? await apiFetch(url, { cache: 'no-store' }) : await fetch(url, { cache: 'no-store' });
             return response.ok ? await response.json() : null;
           } catch {
             return null;
@@ -1101,13 +890,12 @@ export default function App() {
         if (primary !== null) return primary;
         return fallbackUrl ? await request(fallbackUrl) : null;
       };
-      const [resStatus, resSettings, resResults, resFiles, resAllLotteries] = await Promise.all([
-        fetchJsonWithFallback(`${apiBase}/api/status`, `${rawBase}/status/status.json`),
-        fetchJsonWithFallback(`${apiBase}/api/settings`),
+      const [resStatus, resSettings, resResults, resAllLotteries] = await Promise.all([
+        fetchJsonWithFallback('/api/status', `${rawBase}/status/status.json`),
+        fetchJsonWithFallback('/api/settings'),
         // Use the public results file as a fallback when the web API is unavailable.
-        fetchJsonWithFallback(`${apiBase}/api/results`, `${rawBase}/lottery_previous_results.json`),
-        fetch(`${apiBase}/api/project-files`).then((r) => r.ok ? r.json() : []).catch(() => []),
-        fetchJsonWithFallback(`${apiBase}/api/all-lotteries`, `${rawBase}/data/all_lotteries.json`),
+        fetchJsonWithFallback('/api/results', `${rawBase}/lottery_previous_results.json`),
+                fetchJsonWithFallback('/api/all-lotteries', `${rawBase}/data/all_lotteries.json`),
       ]);
 
       if (resStatus) setStatus(resStatus);
@@ -1139,7 +927,6 @@ export default function App() {
         knownResultsRef.current = new Set(safeResults.map((row: any) => getLotteryResultFingerprint(row)));
         setResults(safeResults);
       }
-      if (Array.isArray(resFiles)) setProjectFiles(resFiles);
       const apiLotteryCatalog = Array.isArray(resAllLotteries) ? resAllLotteries : [];
       const bundledCatalog = bundledLotteryFallback;
       const availableCatalog = apiLotteryCatalog.length > 0 ? apiLotteryCatalog : bundledCatalog;
@@ -1231,15 +1018,14 @@ export default function App() {
     setIsTriggering(true);
     try {
       // Choose one backend; retrying on another can run and notify twice.
-      const apiBase = workerUrl.replace(/\/+$/, '');
-      const res = await apiFetch(`${apiBase}/api/trigger`, {
+      const res = await apiFetch('/api/github/dispatch', {
         method: 'POST',
         headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lotteryTarget: 'all' }),
+        body: JSON.stringify({ workflow: 'lottery.yml', inputs: { lottery_target: 'all', force_notify: 'false' } }),
       });
       const data = await res.json().catch(() => ({}));
 
-      if (res && res.ok && data?.success) {
+      if (res.ok && data?.success) {
         if (data.queued) {
           showToast('ส่งคำสั่งไป GitHub Actions แล้ว รอผลการตรวจสอบจากงานที่รัน');
           return;
@@ -1452,7 +1238,7 @@ export default function App() {
     }
     setIsSendingTest(true);
     try {
-      const res = await fetch(`${workerUrl}/api/test-ntfy`, {
+      const res = await apiFetch('/api/test-ntfy', {
         method: 'POST',
         headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
