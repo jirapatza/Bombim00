@@ -479,6 +479,8 @@ export default function App() {
 
   // Cloudflare Worker settings & Reconnection Helper state
   const [workerUrl, setWorkerUrl] = useState<string>(() => {
+    // Render serves the API on the same origin; do not route this deployment back to an old Worker URL.
+    if (window.location.hostname.endsWith('.onrender.com')) return '';
     const saved = localStorage.getItem('cf_worker_url');
     if (!saved || saved === 'https://bombim00-github-api.jirapatcip2557.workers.dev') {
       return '';
@@ -1241,15 +1243,15 @@ export default function App() {
     try {
       // Choose one backend; retrying on another can run and notify twice.
       const apiBase = workerUrl.replace(/\/+$/, '');
-      const res = await apiFetch(`${apiBase}/api/trigger`, {
+      const res = await apiFetch(`${apiBase}/api/github/dispatch`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lotteryTarget: 'all' }),
+        body: JSON.stringify({ workflow: 'lottery.yml', inputs: { lottery_target: 'all', force_notify: 'false' } }),
       });
       const data = await res.json().catch(() => ({}));
 
       if (res && res.ok && data?.success) {
-        if (data.queued) {
+        if (data.queued || data.workflow_dispatched) {
           showToast('ส่งคำสั่งไป GitHub Actions แล้ว รอผลการตรวจสอบจากงานที่รัน');
           return;
         }
