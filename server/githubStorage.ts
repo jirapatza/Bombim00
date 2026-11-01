@@ -53,7 +53,7 @@ async function responseError(response: Response, action: string) {
 }
 
 export function assertNoSecretFields(value: unknown) {
-  const forbidden = new Set(['token', 'password', 'secret', 'apikey', 'authorization', 'privatekey', 'credential', 'clientsecret']);
+  const forbiddenFragments = ['token', 'password', 'secret', 'apikey', 'authorization', 'privatekey', 'credential'];
   const visit = (item: unknown, depth: number) => {
     if (depth > 20) throw new GitHubStorageError('Settings structure is too deeply nested.', 400, 'INVALID_SETTINGS');
     if (Array.isArray(item)) {
@@ -63,7 +63,7 @@ export function assertNoSecretFields(value: unknown) {
     if (!item || typeof item !== 'object') return;
     for (const [key, child] of Object.entries(item as Record<string, unknown>)) {
       const normalized = key.replace(/[^a-z0-9]/gi, '').toLowerCase();
-      if (forbidden.has(normalized)) {
+      if (forbiddenFragments.some((fragment) => normalized.includes(fragment))) {
         const isEmpty = child === '' || child === null || child === undefined;
         if (!isEmpty) {
           throw new GitHubStorageError(`Sensitive field "${key}" cannot be stored in the public GitHub repository. Configure it as a Render secret instead.`, 400, 'SECRET_FIELD_NOT_ALLOWED');
@@ -117,6 +117,9 @@ export async function commitGitHubJson(
   });
   if (!currentResponse.ok) throw await responseError(currentResponse, 'read-before-write');
   const currentFile = await currentResponse.json() as { sha?: string };
+  if (!currentFile.sha) {
+    throw new GitHubStorageError('GitHub did not return the current file version; refusing to overwrite repository data.', 502, 'MISSING_BLOB_SHA');
+  }
 
   const content = Buffer.from(JSON.stringify(value, null, 2), 'utf8').toString('base64');
   const commitResponse = await fetchImpl(apiUrl, {
