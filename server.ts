@@ -762,6 +762,7 @@ app.post('/api/system/self-heal', async (req, res) => {
         details: `อ่านไฟล์ตั้งค่าไม่สำเร็จและไม่ได้เขียนทับข้อมูลเดิม${backupPath ? `; สำรองไฟล์ไว้ที่ ${path.basename(backupPath)}` : ''}${backupError ? `; สำรองไฟล์ไม่สำเร็จ: ${backupError}` : ''}`,
         shellCommand: '',
       });
+    }
 
     // Action 4: SYNC_OFFLINE_CACHE
     const t3 = Date.now();
