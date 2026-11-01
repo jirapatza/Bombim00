@@ -20,7 +20,7 @@ The server uses it to commit dashboard settings and catalog edits to GitHub, whi
 is the durable source of truth on Render's free ephemeral filesystem. Never put this
 token, a LINE token, or any other credential in `config/settings.json`; non-empty
 secret-like fields are rejected before a public repository write. Set
-`LINE_NOTIFY_TOKEN` as a Render secret if LINE notifications are required.
+Add `LINE_NOTIFY_TOKEN` as a GitHub Actions repository secret for automatic LINE alerts. You may also set it as a Render secret for dashboard-side test notifications.
 Optionally set `GITHUB_REPOSITORY=jirapatza/Bombim00` and `GITHUB_BRANCH=main`;
 these are the defaults. Set `DISABLE_BACKGROUND_CHECK=true` when GitHub Actions
 is the scheduled checker, to avoid duplicate checks from the web service.
