@@ -45,7 +45,7 @@ does not connect to Supabase.
 python scripts/migrate_legacy_to_supabase.py --apply
 ```
 
-Never put the secret key in source control, browser code, logs, or chat.
+The importer sends the modern `sb_secret_...` key in the `apikey` header only; it does not send it as a Bearer JWT. Never put the secret key in source control, browser code, logs, or chat.
 
 ## Cutover gates
 
