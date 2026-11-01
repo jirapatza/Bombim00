@@ -10,10 +10,23 @@ python3 -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Set `DASH_PASSWORD` in `.env` before production use. Enter that same password in
-the dashboard connection settings. Configure notification destinations separately.
-Set `GITHUB_TOKEN` on the server/Worker to dispatch GitHub Actions without entering
-a PAT in the browser. Browser-entered PATs are held in memory and cleared on reload.
+Set `DASH_PASSWORD` in the Render service environment before production use.
+Enter that same password in the dashboard connection settings. All state-changing
+API routes require this password in production.
+
+For Render deployments, also set `GITHUB_TOKEN` to a fine-grained GitHub PAT scoped
+to this repository with **Contents: Read and write** and **Actions: Read and write**.
+The server uses it to commit dashboard settings and catalog edits to GitHub, which
+is the durable source of truth on Render's free ephemeral filesystem. Never put this
+token, a LINE token, or any other credential in `config/settings.json`; non-empty
+secret-like fields are rejected before a public repository write. Set
+`LINE_NOTIFY_TOKEN` as a Render secret if LINE notifications are required.
+Optionally set `GITHUB_REPOSITORY=jirapatza/Bombim00` and `GITHUB_BRANCH=main`;
+these are the defaults. Set `DISABLE_BACKGROUND_CHECK=true` when GitHub Actions
+is the scheduled checker, to avoid duplicate checks from the web service.
+
+Browser-entered GitHub PATs are held in memory and cleared on reload. Prefer the
+server-side `GITHUB_TOKEN` secret instead.
 
 ```sh
 npm run dev
