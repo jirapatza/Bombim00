@@ -45,6 +45,7 @@ test('production API protects writes and exposes only the single GitHub Actions 
     assert.equal((await post('/api/settings', {})).status, 503);
     assert.equal((await post('/api/github/dispatch', {})).status, 503);
     assert.equal((await post('/api/test-line', {})).status, 503);
+    assert.equal((await post('/api/system/self-heal', {})).status, 503);
     assert.equal((await post('/api/test-ntfy', { topic: 'bad/topic' })).status, 400);
 
     for (const path of [
@@ -57,7 +58,6 @@ test('production API protects writes and exposes only the single GitHub Actions 
       '/api/project-files',
       '/api/system/audit',
       '/api/system/audit-history',
-      '/api/system/self-heal-history',
     ]) {
       const response = await post(path);
       assert.equal(response.status, 404, path);
