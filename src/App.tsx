@@ -1029,15 +1029,22 @@ export default function App() {
           custom_watched_numbers: updatedList,
         },
       };
-      setSettings(newSettings);
       try {
-        await fetch(`${workerUrl}/api/settings`, {
+        const response = await fetch(`${workerUrl}/api/settings`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${dashPassword}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(newSettings),
         });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+          showToast(data.error || `บันทึกรายการเฝ้าระวังไม่สำเร็จ (HTTP ${response.status})`);
+          return;
+        }
+        setSettings(newSettings);
         showToast(`เพิ่มเลข ${num} ลงในรายการเฝ้าระวังแล้ว`);
-      } catch {}
+      } catch {
+        showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อบันทึกได้');
+      }
     } else {
       showToast(`เลข ${num} อยู่ในรายการเฝ้าระวังแล้ว`);
     }
