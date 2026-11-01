@@ -167,65 +167,65 @@ interface LotteryScheduleItem {
 
 const LOTTERY_SCHEDULE: LotteryScheduleItem[] = [
   // 【หวยเช้า】
-  { name: 'ลาว EXTRA', closeTimeStr: '08:20 น.', closeHour: 8, closeMinute: 20, drawDaysLabel: 'ทุกวัน' },
-  { name: 'นิเคอิเช้า VIP', closeTimeStr: '08:55 น.', closeHour: 8, closeMinute: 55, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'ฮานอยอาเซียน', closeTimeStr: '09:05 น.', closeHour: 9, closeMinute: 5, drawDaysLabel: 'ทุกวัน' },
+  { name: 'ลาว EXTRA', closeTimeStr: '08:20 น.', closeHour: 8, closeMinute: 20, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'นิเคอิเช้า VIP', closeTimeStr: '08:55 น.', closeHour: 8, closeMinute: 55, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ฮานอยอาเซียน', closeTimeStr: '09:05 น.', closeHour: 9, closeMinute: 5, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'นิเคอิรอบเช้า', closeTimeStr: '09:20 น.', closeHour: 9, closeMinute: 20, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'จีนเช้า VIP', closeTimeStr: '09:55 น.', closeHour: 9, closeMinute: 55, drawDaysLabel: 'จันทร์ - ศุกร์' },
+  { name: 'จีนเช้า VIP', closeTimeStr: '09:55 น.', closeHour: 9, closeMinute: 55, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'จีนรอบเช้า', closeTimeStr: '10:15 น.', closeHour: 10, closeMinute: 15, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'ลาว TV', closeTimeStr: '10:20 น.', closeHour: 10, closeMinute: 20, drawDaysLabel: 'ทุกวัน' },
-  { name: 'ฮั่งเส็งเช้า VIP', closeTimeStr: '10:25 น.', closeHour: 10, closeMinute: 25, drawDaysLabel: 'จันทร์ - ศุกร์' },
+  { name: 'ลาว TV', closeTimeStr: '10:20 น.', closeHour: 10, closeMinute: 20, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ฮั่งเส็งเช้า VIP', closeTimeStr: '10:25 น.', closeHour: 10, closeMinute: 25, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'หวย ธ.ก.ส.', closeTimeStr: '10:30 น.', closeHour: 10, closeMinute: 30, drawDaysLabel: 'ทุกวันที่ 16' },
   { name: 'ฮั่งเส็งรอบเช้า', closeTimeStr: '10:50 น.', closeHour: 10, closeMinute: 50, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'ฮานอย HD', closeTimeStr: '11:05 น.', closeHour: 11, closeMinute: 5, drawDaysLabel: 'ทุกวัน' },
-  { name: 'ไต้หวัน VIP', closeTimeStr: '11:25 น.', closeHour: 11, closeMinute: 25, drawDaysLabel: 'จันทร์ - ศุกร์' },
+  { name: 'ฮานอย HD', closeTimeStr: '11:05 น.', closeHour: 11, closeMinute: 5, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ไต้หวัน VIP', closeTimeStr: '11:25 น.', closeHour: 11, closeMinute: 25, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
 
   // 【หวยบ่าย】
-  { name: 'ฮานอย STAR', closeTimeStr: '12:05 น.', closeHour: 12, closeMinute: 5, drawDaysLabel: 'ทุกวัน' },
+  { name: 'ฮานอย STAR', closeTimeStr: '12:05 น.', closeHour: 12, closeMinute: 5, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'ไต้หวัน', closeTimeStr: '12:05 น.', closeHour: 12, closeMinute: 5, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'เกาหลี VIP', closeTimeStr: '12:25 น.', closeHour: 12, closeMinute: 25, drawDaysLabel: 'จันทร์ - ศุกร์' },
+  { name: 'เกาหลี VIP', closeTimeStr: '12:25 น.', closeHour: 12, closeMinute: 25, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'เกาหลี', closeTimeStr: '12:40 น.', closeHour: 12, closeMinute: 40, drawDaysLabel: 'จันทร์ - ศุกร์' },
   { name: 'นิเคอิรอบบ่าย', closeTimeStr: '12:50 น.', closeHour: 12, closeMinute: 50, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'นิเคอิบ่าย VIP', closeTimeStr: '13:15 น.', closeHour: 13, closeMinute: 15, drawDaysLabel: 'จันทร์ - ศุกร์' },
+  { name: 'นิเคอิบ่าย VIP', closeTimeStr: '13:15 น.', closeHour: 13, closeMinute: 15, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'หวยออมสิน', closeTimeStr: '13:30 น.', closeHour: 13, closeMinute: 30, drawDaysLabel: 'วันที่ 1 และ 16' },
-  { name: 'ลาว HD', closeTimeStr: '13:35 น.', closeHour: 13, closeMinute: 35, drawDaysLabel: 'ทุกวัน' },
+  { name: 'ลาว HD', closeTimeStr: '13:35 น.', closeHour: 13, closeMinute: 35, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'จีนรอบบ่าย', closeTimeStr: '13:40 น.', closeHour: 13, closeMinute: 40, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'ฮานอย TV', closeTimeStr: '14:05 น.', closeHour: 14, closeMinute: 5, drawDaysLabel: 'ทุกวัน' },
-  { name: 'จีนบ่าย VIP', closeTimeStr: '14:15 น.', closeHour: 14, closeMinute: 15, drawDaysLabel: 'จันทร์ - ศุกร์' },
+  { name: 'ฮานอย TV', closeTimeStr: '14:05 น.', closeHour: 14, closeMinute: 5, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'จีนบ่าย VIP', closeTimeStr: '14:15 น.', closeHour: 14, closeMinute: 15, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'สลากกินแบ่งรัฐบาล (ไทย)', closeTimeStr: '14:30 น.', closeHour: 14, closeMinute: 30, drawDaysLabel: 'วันที่ 1 และ 16' },
   { name: 'ฮั่งเส็งรอบบ่าย', closeTimeStr: '14:50 น.', closeHour: 14, closeMinute: 50, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'ฮั่งเส็งบ่าย VIP', closeTimeStr: '15:15 น.', closeHour: 15, closeMinute: 15, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'ลาว STAR', closeTimeStr: '15:35 น.', closeHour: 15, closeMinute: 35, drawDaysLabel: 'ทุกวัน' },
+  { name: 'ฮั่งเส็งบ่าย VIP', closeTimeStr: '15:15 น.', closeHour: 15, closeMinute: 15, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ลาว STAR', closeTimeStr: '15:35 น.', closeHour: 15, closeMinute: 35, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'สิงคโปร์', closeTimeStr: '15:50 น.', closeHour: 15, closeMinute: 50, drawDaysLabel: 'จันทร์ - ศุกร์' },
   { name: 'ไทยเย็น', closeTimeStr: '16:00 น.', closeHour: 16, closeMinute: 0, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'ฮานอยกาชาด', closeTimeStr: '16:05 น.', closeHour: 16, closeMinute: 5, drawDaysLabel: 'ทุกวัน' },
+  { name: 'ฮานอยกาชาด', closeTimeStr: '16:05 น.', closeHour: 16, closeMinute: 5, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'อินเดีย', closeTimeStr: '16:45 น.', closeHour: 16, closeMinute: 45, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'สิงคโปร์ VIP', closeTimeStr: '16:55 น.', closeHour: 16, closeMinute: 55, drawDaysLabel: 'จันทร์ - ศุกร์' },
+  { name: 'สิงคโปร์ VIP', closeTimeStr: '16:55 น.', closeHour: 16, closeMinute: 55, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
 
   // 【หวยเย็น】
-  { name: 'ฮานอยสามัคคี', closeTimeStr: '17:05 น.', closeHour: 17, closeMinute: 5, drawDaysLabel: 'ทุกวัน' },
-  { name: 'ฮานอยพิเศษ', closeTimeStr: '17:05 น.', closeHour: 17, closeMinute: 5, drawDaysLabel: 'ทุกวัน' },
-  { name: 'ฮานอยปกติ', closeTimeStr: '18:05 น.', closeHour: 18, closeMinute: 5, drawDaysLabel: 'ทุกวัน' },
-  { name: 'ฮานอย VIP', closeTimeStr: '19:05 น.', closeHour: 19, closeMinute: 5, drawDaysLabel: 'ทุกวัน' },
-  { name: 'ฮานอยพัฒนา', closeTimeStr: '19:05 น.', closeHour: 19, closeMinute: 5, drawDaysLabel: 'ทุกวัน' },
+  { name: 'ฮานอยสามัคคี', closeTimeStr: '17:05 น.', closeHour: 17, closeMinute: 5, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ฮานอยพิเศษ', closeTimeStr: '17:05 น.', closeHour: 17, closeMinute: 5, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ฮานอยปกติ', closeTimeStr: '18:05 น.', closeHour: 18, closeMinute: 5, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ฮานอย VIP', closeTimeStr: '19:05 น.', closeHour: 19, closeMinute: 5, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ฮานอยพัฒนา', closeTimeStr: '19:05 น.', closeHour: 19, closeMinute: 5, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'ลาวพัฒนา', closeTimeStr: '20:15 น.', closeHour: 20, closeMinute: 15, drawDaysLabel: 'จันทร์, พุธ, ศุกร์' },
-  { name: 'ลาวสามัคคี', closeTimeStr: '20:15 น.', closeHour: 20, closeMinute: 15, drawDaysLabel: 'ทุกวัน' },
-  { name: 'ลาวอาเซียน', closeTimeStr: '20:45 น.', closeHour: 20, closeMinute: 45, drawDaysLabel: 'ทุกวัน' },
-  { name: 'ลาว VIP', closeTimeStr: '21:15 น.', closeHour: 21, closeMinute: 15, drawDaysLabel: 'ทุกวัน' },
-  { name: 'ลาวสามัคคี VIP', closeTimeStr: '21:15 น.', closeHour: 21, closeMinute: 15, drawDaysLabel: 'ทุกวัน' },
+  { name: 'ลาวสามัคคี', closeTimeStr: '20:15 น.', closeHour: 20, closeMinute: 15, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ลาวอาเซียน', closeTimeStr: '20:45 น.', closeHour: 20, closeMinute: 45, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ลาว VIP', closeTimeStr: '21:15 น.', closeHour: 21, closeMinute: 15, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ลาวสามัคคี VIP', closeTimeStr: '21:15 น.', closeHour: 21, closeMinute: 15, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
 
   // 【หวยดึก】
-  { name: 'อังกฤษ VIP', closeTimeStr: '21:40 น.', closeHour: 21, closeMinute: 40, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'ลาว STAR VIP', closeTimeStr: '21:45 น.', closeHour: 21, closeMinute: 45, drawDaysLabel: 'ทุกวัน' },
-  { name: 'ฮานอย EXTRA', closeTimeStr: '22:05 น.', closeHour: 22, closeMinute: 5, drawDaysLabel: 'ทุกวัน' },
+  { name: 'อังกฤษ VIP', closeTimeStr: '21:40 น.', closeHour: 21, closeMinute: 40, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ลาว STAR VIP', closeTimeStr: '21:45 น.', closeHour: 21, closeMinute: 45, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ฮานอย EXTRA', closeTimeStr: '22:05 น.', closeHour: 22, closeMinute: 5, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'อังกฤษ', closeTimeStr: '22:10 น.', closeHour: 22, closeMinute: 10, drawDaysLabel: 'จันทร์ - ศุกร์' },
   { name: 'เยอรมัน', closeTimeStr: '22:10 น.', closeHour: 22, closeMinute: 10, drawDaysLabel: 'จันทร์ - ศุกร์' },
   { name: 'รัสเซีย', closeTimeStr: '22:25 น.', closeHour: 22, closeMinute: 25, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'เยอรมัน VIP', closeTimeStr: '22:40 น.', closeHour: 22, closeMinute: 40, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'ลาวกาชาด', closeTimeStr: '23:20 น.', closeHour: 23, closeMinute: 20, drawDaysLabel: 'ทุกวัน' },
-  { name: 'รัสเซีย VIP', closeTimeStr: '23:40 น.', closeHour: 23, closeMinute: 40, drawDaysLabel: 'จันทร์ - ศุกร์' },
-  { name: 'ดาวโจนส์ VIP', closeTimeStr: '00:05 น.', closeHour: 24, closeMinute: 5, drawDaysLabel: 'อังคาร - เสาร์' },
-  { name: 'ดาวโจนส์ STAR', closeTimeStr: '00:55 น.', closeHour: 24, closeMinute: 55, drawDaysLabel: 'อังคาร - เสาร์' },
+  { name: 'เยอรมัน VIP', closeTimeStr: '22:40 น.', closeHour: 22, closeMinute: 40, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ลาวกาชาด', closeTimeStr: '23:20 น.', closeHour: 23, closeMinute: 20, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'รัสเซีย VIP', closeTimeStr: '23:40 น.', closeHour: 23, closeMinute: 40, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ดาวโจนส์ VIP', closeTimeStr: '00:05 น.', closeHour: 24, closeMinute: 5, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
+  { name: 'ดาวโจนส์ STAR', closeTimeStr: '00:55 น.', closeHour: 24, closeMinute: 55, drawDaysLabel: 'ทุกวัน (จันทร์ - อาทิตย์)' },
   { name: 'ดาวโจนส์', closeTimeStr: '01:00 น.', closeHour: 25, closeMinute: 0, drawDaysLabel: 'อังคาร - เสาร์' },
 ];
 
@@ -243,17 +243,43 @@ function getBangkokClockParts(date = new Date()) {
 }
 
 function isLotteryScheduledOnDate(item: LotteryScheduleItem, weekday: string, dayOfMonth: number): boolean {
+  const isWeekend = weekday === 'Saturday' || weekday === 'Sunday';
+  const name = item.name || '';
+  const isVip = /VIP|STAR|สตาร์/i.test(name);
+  const isStock = /นิเคอิ|จีน|ฮั่งเส็ง|ไต้หวัน|เกาหลี|สิงคโปร์|ไทยเย็น|อินเดีย|อังกฤษ|เยอรมัน|รัสเซีย|ดาวโจนส์/u.test(name);
+
+  // 1. Government and Savings lotteries: only on day 1 and 16 (or day 16 for BAAC)
+  if (name.includes('สลากกินแบ่ง') || name.includes('รัฐบาลไทย') || name.includes('ออมสิน')) {
+    return dayOfMonth === 1 || dayOfMonth === 16;
+  }
+  if (name.includes('ธ.ก.ส.') || name.includes('ธกส')) {
+    return dayOfMonth === 16;
+  }
+
+  // 2. Regular stock lotteries: closed on weekends (Saturday & Sunday); open on weekdays
+  if (isStock && !isVip) {
+    if (isWeekend) return false;
+    return true;
+  }
+
+  // 3. Lao Development: Monday, Wednesday, Friday
+  if (name.includes('ลาวพัฒนา') && !isVip) {
+    return weekday === 'Monday' || weekday === 'Wednesday' || weekday === 'Friday';
+  }
+
+  // 4. VIP Stocks & Daily Lotteries: Active every day
   const rule = item.drawDaysLabel || '';
   if (rule.includes('ทุกวัน')) return true;
   if (rule.includes('ทุกวันที่ 16')) return dayOfMonth === 16;
   if (rule.includes('วันที่ 1 และ 16')) return dayOfMonth === 1 || dayOfMonth === 16;
+
   const weekdayThai: Record<string, string> = {
     Sunday: 'อาทิตย์', Monday: 'จันทร์', Tuesday: 'อังคาร', Wednesday: 'พุธ',
     Thursday: 'พฤหัส', Friday: 'ศุกร์', Saturday: 'เสาร์',
   };
   const todayThai = weekdayThai[weekday];
   const orderedDays = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์'];
-  const namedDays = orderedDays.filter((name) => rule.includes(name));
+  const namedDays = orderedDays.filter((n) => rule.includes(n));
   if (!todayThai || namedDays.length === 0) return false;
   if (rule.includes('-') && namedDays.length >= 2) {
     const start = orderedDays.indexOf(namedDays[0]);
@@ -265,8 +291,18 @@ function isLotteryScheduledOnDate(item: LotteryScheduleItem, weekday: string, da
 }
 
 function selectThaiVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
-  const thaiVoices = voices.filter((voice) => voice.lang.toLowerCase().startsWith('th'));
-  return thaiVoices.find((voice) => /male|man|ชาย/i.test(voice.name)) || thaiVoices[0];
+  if (!voices || voices.length === 0) return undefined;
+  const thaiVoices = voices.filter(
+    (voice) => voice.lang.toLowerCase().replace('_', '-').startsWith('th') || /thai|ไทย/i.test(voice.name)
+  );
+  if (thaiVoices.length > 0) {
+    return (
+      thaiVoices.find((v) => /kanya|niwat|google|siri/i.test(v.name)) ||
+      thaiVoices.find((v) => /th-th|th_th/i.test(v.lang)) ||
+      thaiVoices[0]
+    );
+  }
+  return undefined;
 }
 
 function getLotteryResultFingerprint(row: any): string {
@@ -342,9 +378,26 @@ function playChime() {
   }
 }
 
+const THAI_NUMBER_WORDS: Record<string, string> = {
+  '0': 'ศูนย์',
+  '1': 'หนึ่ง',
+  '2': 'สอง',
+  '3': 'สาม',
+  '4': 'สี่',
+  '5': 'ห้า',
+  '6': 'หก',
+  '7': 'เจ็ด',
+  '8': 'แปด',
+  '9': 'เก้า',
+};
+
 function spellDigits(numStr: string): string {
-  if (!numStr) return '';
-  return numStr.split('').join(' ');
+  if (!numStr || numStr === '-' || numStr === '--' || numStr === '---') return 'ยังไม่ออก';
+  return numStr
+    .trim()
+    .split('')
+    .map((char) => THAI_NUMBER_WORDS[char] || char)
+    .join(' ');
 }
 
 // Message template presets
@@ -679,7 +732,16 @@ export default function App() {
 
   // Build speech text from customizable template
   const buildSpeechText = (item: LotteryAnnouncement): string => {
-    let script = speechScript || 'ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. รางวัลที่หนึ่ง ออกเลข {first_prize_spelled}. เลขท้ายสองตัว ออกเลข {last_2_spelled}. และหวยรอบถัดไปที่จะปิดรับคือ {next_closing_name} ปิดรับเวลา {next_closing_time} {polite_ending}.';
+    const isGov = /สลากกินแบ่ง|รัฐบาลไทย|ออมสิน|ธ\.?ก\.?ส/i.test(item.lotteryName);
+    let defaultTemplate = isGov
+      ? 'ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. รางวัลที่หนึ่ง ออกเลข {first_prize_spelled}. เลขท้ายสองตัว ออกเลข {last_2_spelled}. และหวยรอบถัดไปที่จะปิดรับคือ {next_closing_name} ปิดรับเวลา {next_closing_time} {polite_ending}.'
+      : 'ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. สามตัวบน ออกเลข {first_prize_spelled}. สองตัวล่าง ออกเลข {last_2_spelled}. และหวยรอบถัดไปที่จะปิดรับคือ {next_closing_name} ปิดรับเวลา {next_closing_time} {polite_ending}.';
+
+    let script = speechScript || defaultTemplate;
+    // If the active script is generic or stock, adapt announcement phrasing to user requirements
+    if (!isGov && script.includes('รางวัลที่หนึ่ง')) {
+      script = script.replace('รางวัลที่หนึ่ง', 'สามตัวบน').replace('เลขท้ายสองตัว', 'สองตัวล่าง');
+    }
 
     const replacements: Record<string, string> = {
       '{lottery_name}': item.lotteryName,
@@ -846,15 +908,20 @@ export default function App() {
     }
 
     let text = `ประกาศผล ${item.name} งวดวันที่ ${item.date}. `;
-    const isThaiGov = item.category === 'gov_savings' || item.id === 'thai_gov' || item.name.includes('สลากกินแบ่งรัฐบาล') || item.name.includes('หวยรัฐบาลไทย');
+    const isThaiGov =
+      item.category === 'gov_savings' ||
+      item.id === 'thai_gov' ||
+      item.id === 'gsb' ||
+      item.id === 'baac' ||
+      /สลากกินแบ่ง|รัฐบาลไทย|ออมสิน|ธ\.?ก\.?ส/i.test(item.name);
 
     if (isThaiGov && item.firstPrize) {
       text += `รางวัลที่หนึ่ง ออกเลข ${spellDigits(item.firstPrize)}. `;
       if (bottomResult) text += `เลขท้ายสองตัว ออกเลข ${spellDigits(bottomResult)}. `;
     } else {
-      // For stock lotteries and foreign lotteries: read 3 ตัว and 2 ตัว without saying บน/ล่าง
-      if (topResult) text += `สามตัว ออกเลข ${spellDigits(topResult)}. `;
-      if (bottomResult) text += `สองตัว ออกเลข ${spellDigits(bottomResult)}. `;
+      // User requirement: For stock lotteries (regular and VIP) and foreign lotteries, read 3 ตัวบน and 2 ตัวล่าง
+      if (topResult) text += `สามตัวบน ออกเลข ${spellDigits(topResult)}. `;
+      if (bottomResult) text += `สองตัวล่าง ออกเลข ${spellDigits(bottomResult)}. `;
     }
     if (item.setIndex) {
       text += `ดัชนีตลาดปิดที่ ${item.setIndex}. `;

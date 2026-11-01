@@ -266,3 +266,22 @@ def test_stock_group_scraper_ignores_faq_headings(monkeypatch):
     assert rows[0]["ชื่อหวย"] == "หวยหุ้นดาวโจนส์ VISA"
     assert rows[0]["เลขบน_3_ตัว"] == "510"
     assert rows[0]["เลขล่าง_2_ตัว"] == "53"
+
+
+def test_send_line_notification(monkeypatch):
+    posted = {}
+    monkeypatch.setattr(lc, "S", {
+        "channels": {"line": {"enabled": True, "token": "fake-line-token"}}
+    })
+    monkeypatch.setattr(lc, "_http_post", lambda url, data, headers, timeout=10: posted.update(url=url, data=data, headers=headers) or True)
+
+    ok = lc.send_line_notification({
+        "ชื่อหวย": "หวยฮานอยพิเศษ",
+        "งวดวันที่": "31 ตุลาคม 2569",
+        "เลขบน_3_ตัว": "024",
+        "เลขล่าง_2_ตัว": "44",
+    })
+    assert ok is True
+    assert "notify-api.line.me" in posted["url"]
+    assert "Bearer fake-line-token" in posted["headers"]["Authorization"]
+

@@ -339,96 +339,37 @@ app.post('/api/all-lotteries', (req, res) => {
   }
 });
 
-// 4.3 POST /api/test-channel - Test Discord / Telegram / Webhook dispatch
-app.post('/api/test-channel', async (req, res) => {
+// 4.3 POST /api/test-line - Test LINE Notify notification
+app.post('/api/test-line', async (req, res) => {
   try {
-    const { channel, config = {}, message } = req.body;
-
-    if (channel === 'discord') {
-      const webhookUrl = (config.webhook_url || process.env.DISCORD_WEBHOOK_URL || '').trim();
-      if (!webhookUrl) {
-        return res.status(400).json({ success: false, error: 'กรุณากรอก Discord Webhook URL' });
-      }
-
-      const payload = {
-        username: 'Lottery Alert Bot',
-        avatar_url: 'https://raw.githubusercontent.com/jirapatza/Bombim00/main/public/icon-192.png',
-        embeds: [{
-          title: '📢 ทดสอบการแจ้งเตือน Lottery Alert System (Discord)',
-          description: message || 'ข้อความทดสอบเท่านั้น (ไม่ใช่ผลหวยจริง) 🎯\n\nหวยหุ้น VIP ตัวอย่าง\n🔺 **3 ตัวบน:** `469`\n🔻 **2 ตัวล่าง:** `63`',
-          color: 0xf59e0b, // Amber Gold
-          timestamp: new Date().toISOString(),
-          footer: { text: 'Lottery Alert System Pro • Discord Webhook' }
-        }]
-      };
-
-      const discordRes = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (discordRes.ok) {
-        return res.json({ success: true, message: 'ส่งข้อความทดสอบไปยัง Discord Webhook เรียบร้อยแล้ว! ✅' });
-      } else {
-        const errorText = await discordRes.text();
-        return res.status(discordRes.status).json({ success: false, error: `Discord ปฏิเสธ (HTTP ${discordRes.status}): ${errorText}` });
-      }
+    const { token, message } = req.body;
+    const lineToken = (token || process.env.LINE_NOTIFY_TOKEN || '').trim();
+    if (!lineToken) {
+      return res.status(400).json({ success: false, error: 'กรุณาระบุ LINE Notify Token (ส่วนตัวหรือกลุ่ม)' });
     }
 
-    if (channel === 'telegram') {
-      const botToken = (config.bot_token || process.env.TELEGRAM_BOT_TOKEN || '').trim();
-      const chatId = (config.chat_id || process.env.TELEGRAM_CHAT_ID || '').trim();
-      if (!botToken || !chatId) {
-        return res.status(400).json({ success: false, error: 'กรุณาระบุ Telegram Bot Token และ Chat ID' });
-      }
+    const defaultMsg = message || '\n📢 ทดสอบการแจ้งเตือน Lottery Alert System\nระบบเชื่อมต่อ LINE สำเร็จเรียบร้อย! ✅';
+    const formParams = new URLSearchParams();
+    formParams.append('message', defaultMsg);
 
-      const text = message || '📢 <b>Lottery Alert System</b>\n\nทดสอบการแจ้งเตือนผ่าน Telegram Bot สำเร็จเรียบร้อย!';
-      const tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          parse_mode: 'HTML',
-        }),
+    const lineRes = await fetch('https://notify-api.line.me/api/notify', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lineToken}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formParams.toString(),
+    });
+
+    const data: any = await lineRes.json().catch(() => ({}));
+    if (lineRes.ok && data.status === 200) {
+      return res.json({ success: true, message: 'ส่งข้อความทดสอบไปยัง LINE Notify สำเร็จเรียบร้อยแล้ว! 🟢' });
+    } else {
+      return res.status(lineRes.status || 400).json({
+        success: false,
+        error: data.message || `LINE ปฏิเสธ (HTTP ${lineRes.status}) กรุณาตรวจสอบ Token อีกครั้ง`,
       });
-
-      const tgData: any = await tgRes.json().catch(() => ({}));
-      if (tgRes.ok && tgData.ok) {
-        return res.json({ success: true, message: 'ส่งข้อความทดสอบไปยัง Telegram สำเร็จแล้ว! ✅' });
-      } else {
-        return res.status(400).json({ success: false, error: tgData.description || 'ส่ง Telegram ไม่สำเร็จ' });
-      }
     }
-
-    if (channel === 'webhook') {
-      const targetUrl = (config.url || '').trim();
-      if (!targetUrl) {
-        return res.status(400).json({ success: false, error: 'กรุณาระบุ Webhook URL' });
-      }
-
-      const webhookRes = await fetch(targetUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(config.secret_token ? { 'X-Webhook-Secret': config.secret_token } : {})
-        },
-        body: JSON.stringify({
-          event: 'lottery.test_notification',
-          timestamp: new Date().toISOString(),
-          message: message || 'Test webhook delivery',
-        }),
-      });
-
-      if (webhookRes.ok) {
-        return res.json({ success: true, message: 'ส่ง Webhook สำเร็จเรียบร้อย! ✅' });
-      } else {
-        return res.status(webhookRes.status).json({ success: false, error: `Webhook ปลายทางตอบกลับ HTTP ${webhookRes.status}` });
-      }
-    }
-
-    return res.status(400).json({ success: false, error: `ไม่รองรับ channel: ${channel}` });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }

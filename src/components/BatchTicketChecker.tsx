@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import confetti from 'canvas-confetti';
+import * as XLSX from 'xlsx';
 import { apiFetch } from '../utils/api';
 import {
   Ticket,
@@ -17,6 +19,7 @@ import {
   Globe,
   RefreshCw,
   ExternalLink,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface BatchProps {
@@ -251,6 +254,20 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
     }
 
     setCheckedResults(matches);
+
+    const hasWinners = matches.some((m) => m.isWinner);
+    if (hasWinners) {
+      try {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#fbbf24', '#f59e0b', '#10b981', '#3b82f6', '#ec4899'],
+        });
+      } catch (err) {
+        console.error('Confetti animation error:', err);
+      }
+    }
   };
 
   const totalPrizeAll = checkedResults
@@ -285,6 +302,34 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
     navigator.clipboard.writeText(text);
     setCopiedSlip(true);
     setTimeout(() => setCopiedSlip(false), 2000);
+  };
+
+  const exportSlipExcel = () => {
+    if (!checkedResults || checkedResults.length === 0) return;
+    try {
+      const wb = XLSX.utils.book_new();
+      const rows = checkedResults.map((t, idx) => ({
+        'ลำดับ': idx + 1,
+        'หมายเลขสลาก': t.ticketNumber,
+        'สถานะ': t.isWinner ? '🎉 ถูกรางวัล' : '❌ ไม่ถูกรางวัล',
+        'รางวัลที่ถูก': t.prizesWon.map((p) => p.prizeName).join(', ') || '-',
+        'เงินรางวัลรวม (บาท)': t.totalPrize,
+        'งวดวันที่ตรวจ': selectedDrawDate,
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 8 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 30 },
+        { wch: 20 },
+        { wch: 18 },
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, 'ผลการตรวจสลาก');
+      XLSX.writeFile(wb, `ticket-check-${selectedDrawDate.replace(/\s+/g, '_')}.xlsx`);
+    } catch (err) {
+      console.error('Export slip Excel failed:', err);
+    }
   };
 
   return (
@@ -438,6 +483,15 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={exportSlipExcel}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-semibold border border-emerald-500/40 cursor-pointer transition flex items-center gap-1.5"
+                  title="ส่งออกใบบันทึกผลตรวจสลากเป็น Excel (.xlsx)"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>บันทึกเป็น Excel</span>
+                </button>
                 <button
                   type="button"
                   onClick={copySlip}

@@ -30,7 +30,9 @@ import {
   ListFilter,
   Check,
   Flame,
+  FileSpreadsheet,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { parseLotteryTimelineMinutes } from './LiveUpcomingDraws';
 import { filterLotteriesForDrawDate } from '../utils/lotterySchedule';
 import { EditLotteryModal } from './EditLotteryModal';
@@ -350,12 +352,25 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
 
   // Process lotteries according to Today vs Daily Selected Date
   const activeLotteryList = useMemo(() => {
-    if (isSelectedDateToday && summaryMode === 'today') return lotteries;
+    // Determine target date object for Bangkok calendar rules
+    let targetDateObj: Date;
+    if (isSelectedDateToday && summaryMode === 'today') {
+      targetDateObj = new Date();
+    } else {
+      const [y, m, d] = selectedDate.split('-').map(Number);
+      targetDateObj = new Date(y, (m || 1) - 1, d || 1, 12, 0, 0);
+    }
 
-    // Filter lotteries appropriate for selected date (e.g. government lotteries on 1st/16th)
-    const [y, m, d] = selectedDate.split('-').map(Number);
-    const dateObj = new Date(y, (m || 1) - 1, d || 1, 12, 0, 0);
-    const baseList = filterLotteriesForDrawDate(lotteries, dateObj);
+    // Filter lotteries appropriate for date:
+    // - Weekend (Sat & Sun): regular stocks are closed, only VIP stocks and daily lotteries draw
+    // - Weekday (Mon - Fri): both regular stocks and VIP stocks draw
+    // - Thai Gov & GSB: only on 1st & 16th
+    // - BAAC: only on 16th
+    const baseList = filterLotteriesForDrawDate(lotteries, targetDateObj);
+
+    if (isSelectedDateToday && summaryMode === 'today') {
+      return baseList;
+    }
 
     // Daily mode: map each lottery to the historical draw on selectedDate
     return baseList.map((item) => {
@@ -633,7 +648,12 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   // For Thai Gov Lottery: read full official prizes.
   // For stock lotteries and others: read 3 ตัว 2 ตัว without saying บน/ล่าง!
   const handleCustomSpeakLottery = (item: LotteryItem) => {
-    const isThaiGov = item.category === 'gov_savings' || item.id === 'thai_gov' || item.name.includes('สลากกินแบ่งรัฐบาล') || item.name.includes('หวยรัฐบาลไทย');
+    const isThaiGov =
+      item.category === 'gov_savings' ||
+      item.id === 'thai_gov' ||
+      item.id === 'gsb' ||
+      item.id === 'baac' ||
+      /สลากกินแบ่ง|รัฐบาลไทย|ออมสิน|ธ\.?ก\.?ส/i.test(item.name);
     const topResult = String(item.top3 || item.firstPrize || '').trim();
     const bottomResult = String(item.bottom2 || '').trim();
 
@@ -653,9 +673,9 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
       speechText += `รางวัลที่หนึ่ง ออกเลข ${spell(item.firstPrize)}. `;
       if (bottomResult) speechText += `เลขท้ายสองตัว ออกเลข ${spell(bottomResult)}. `;
     } else {
-      // User requirement: stocks read 3 ตัว 2 ตัว, do not say 3 บน 2 ล่าง
-      if (topResult) speechText += `สามตัว ออกเลข ${spell(topResult)}. `;
-      if (bottomResult) speechText += `สองตัว ออกเลข ${spell(bottomResult)}. `;
+      // User requirement: stocks (regular and VIP) and foreign lotteries read 3 ตัวบน and 2 ตัวล่าง
+      if (topResult) speechText += `สามตัวบน ออกเลข ${spell(topResult)}. `;
+      if (bottomResult) speechText += `สองตัวล่าง ออกเลข ${spell(bottomResult)}. `;
     }
 
     if ('speechSynthesis' in window) {
@@ -702,35 +722,122 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     setIsStatsModalOpen(true);
   };
 
-  const downloadResultsCsv = async () => {
-    if (!Array.isArray(results) || results.length === 0) {
-      showToast('ยังไม่มีข้อมูลผลหวยให้ดาวน์โหลด');
-      return;
-    }
-
-    const columns = [
-      ['ชื่อหวย', 'ชื่อหวย'],
-      ['รหัสหวย', 'หวย'],
-      ['หมวดหวย', 'หมวดหวย'],
-      ['งวดวันที่', 'งวดวันที่'],
-      ['รางวัลที่ 1', 'รางวัลที่_1'],
-      ['เลขบน 3 ตัว', 'เลขบน_3_ตัว'],
-      ['เลขท้าย 2 ตัว', 'เลขท้าย_2_ตัว'],
-      ['เลขล่าง 2 ตัว', 'เลขล่าง_2_ตัว'],
-      ['แหล่งข้อมูล', 'แหล่งข้อมูล'],
-      ['เวลาที่ตรวจพบ', 'เวลาที่ตรวจพบ'],
-    ] as const;
-    const csvCell = (value: unknown) => {
-      const cell = Array.isArray(value) ? value.join(', ') : String(value ?? '');
-      return '"' + cell.replace(/"/g, '""') + '"';
-    };
-    const csv = '\uFEFF' + [
-      columns.map(([label]) => csvCell(label)).join(','),
-      ...results.map((row) => columns.map(([, key]) => csvCell(row?.[key])).join(',')),
-    ].join('\r\n');
-    const fileName = `Bombim00-results-${new Date().toISOString().slice(0, 10)}.csv`;
-
+  const downloadResultsExcel = () => {
     try {
+      const dataToExport = filteredLotteries.length > 0 ? filteredLotteries : lotteries;
+      if (!dataToExport || dataToExport.length === 0) {
+        showToast('ยังไม่มีข้อมูลผลหวยให้ดาวน์โหลด');
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: ตารางผลหวย (งวดที่เลือก/งวดปัจจุบัน)
+      const currentRows = dataToExport.map((item, idx) => ({
+        'ลำดับ': idx + 1,
+        'ชื่อหวย': item.name,
+        'หมวดหมู่': item.categoryLabel || item.category,
+        'ช่วงเวลา': item.periodLabel || item.period || '-',
+        'งวดวันที่': item.date || selectedDate,
+        '3 ตัวบน / รางวัลที่ 1': item.firstPrize || item.top3 || '---',
+        '2 ตัวล่าง': item.bottom2 || '--',
+        'สถานะ': item.status === 'announced' ? 'ออกผลแล้ว' : item.status === 'waiting' ? 'ปิดรับ/รอผล' : 'เปิดรับแทง',
+        'เวลาปิดรับ': item.closeTimeStr || '-',
+        'เวลาออกผล': item.drawTimeStr || '-',
+        'แหล่งข้อมูล': item.source || 'ระบบอัตโนมัติ',
+      }));
+
+      const wsCurrent = XLSX.utils.json_to_sheet(currentRows);
+      wsCurrent['!cols'] = [
+        { wch: 8 },
+        { wch: 25 },
+        { wch: 18 },
+        { wch: 12 },
+        { wch: 14 },
+        { wch: 22 },
+        { wch: 12 },
+        { wch: 14 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 24 },
+      ];
+      XLSX.utils.book_append_sheet(wb, wsCurrent, 'ผลหวยงวดนี้');
+
+      // Sheet 2: ประวัติผลหวยทั้งหมดจากฟีด API
+      if (Array.isArray(results) && results.length > 0) {
+        const historyRows = results.map((row, idx) => ({
+          'ลำดับ': idx + 1,
+          'ชื่อหวย': row.ชื่อหวย || row.name || '-',
+          'รหัสหวย': row.หวย || row.id || '-',
+          'หมวดหวย': row.หมวดหวย || row.category || '-',
+          'งวดวันที่': row.งวดวันที่ || row.date || '-',
+          'รางวัลที่ 1': row.รางวัลที่_1 || row.firstPrize || '-',
+          'เลขบน 3 ตัว': row.เลขบน_3_ตัว || row.top3 || '-',
+          'เลขท้าย 2 ตัว': row.เลขท้าย_2_ตัว || row.bottom2 || '-',
+          'เลขล่าง 2 ตัว': row.เลขล่าง_2_ตัว || '-',
+          'แหล่งข้อมูล': row.แหล่งข้อมูล || row.source || '-',
+          'เวลาที่ตรวจพบ': row.เวลาที่ตรวจพบ || row.timestamp || '-',
+        }));
+        const wsHistory = XLSX.utils.json_to_sheet(historyRows);
+        wsHistory['!cols'] = [
+          { wch: 8 },
+          { wch: 25 },
+          { wch: 18 },
+          { wch: 16 },
+          { wch: 14 },
+          { wch: 16 },
+          { wch: 14 },
+          { wch: 14 },
+          { wch: 14 },
+          { wch: 24 },
+          { wch: 22 },
+        ];
+        XLSX.utils.book_append_sheet(wb, wsHistory, 'ประวัติผลหวยทั้งหมด');
+      }
+
+      const fileName = `lottery-report-${selectedDate}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      showToast('ส่งออกไฟล์ Excel (.xlsx) สำเร็จเรียบร้อย! 📊');
+    } catch (error) {
+      console.error('Excel export failed:', error);
+      showToast('ส่งออกไฟล์ Excel ไม่สำเร็จ');
+    }
+  };
+
+  const downloadResultsCsv = () => {
+    try {
+      const dataToExport = filteredLotteries.length > 0 ? filteredLotteries : lotteries;
+      if (!dataToExport || dataToExport.length === 0) {
+        showToast('ยังไม่มีข้อมูลผลหวยให้ดาวน์โหลด');
+        return;
+      }
+
+      const columns = ['ลำดับ', 'ชื่อหวย', 'หมวดหมู่', 'ช่วงเวลา', 'งวดวันที่', '3 ตัวบน / รางวัลที่ 1', '2 ตัวล่าง', 'สถานะ', 'เวลาปิดรับ', 'เวลาออกผล', 'แหล่งข้อมูล'];
+      const csvCell = (value: unknown) => {
+        const cell = Array.isArray(value) ? value.join(', ') : String(value ?? '');
+        return '"' + cell.replace(/"/g, '""') + '"';
+      };
+
+      const rows = dataToExport.map((item, idx) => [
+        idx + 1,
+        item.name,
+        item.categoryLabel || item.category,
+        item.periodLabel || item.period || '-',
+        item.date || selectedDate,
+        item.firstPrize || item.top3 || '---',
+        item.bottom2 || '--',
+        item.status === 'announced' ? 'ออกผลแล้ว' : item.status === 'waiting' ? 'ปิดรับ/รอผล' : 'เปิดรับแทง',
+        item.closeTimeStr || '-',
+        item.drawTimeStr || '-',
+        item.source || 'ระบบอัตโนมัติ',
+      ]);
+
+      const csv = '\uFEFF' + [
+        columns.map(csvCell).join(','),
+        ...rows.map((row) => row.map(csvCell).join(',')),
+      ].join('\r\n');
+
+      const fileName = `lottery-results-${selectedDate}.csv`;
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
@@ -741,10 +848,10 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
       anchor.click();
       anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1500);
-      showToast('ส่งออก CSV เรียบร้อยแล้ว! 📥');
+      showToast('ส่งออก CSV (UTF-8 BOM) เรียบร้อยแล้ว! 📄');
     } catch (error) {
       console.error('CSV export failed:', error);
-      showToast('ส่งออกไฟล์ไม่สำเร็จ');
+      showToast('ส่งออกไฟล์ CSV ไม่สำเร็จ');
     }
   };
 
@@ -765,6 +872,58 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
       default:
         return 'bg-slate-800 text-slate-300 border-slate-700';
     }
+  };
+
+  // Dedicated Schedule Tag Helper
+  const renderScheduleBadge = (drawDays: string) => {
+    const raw = String(drawDays || '').trim();
+    if (raw.includes('ทุกวัน') || raw.includes('จันทร์ - อาทิตย์')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+          <span>⚡ ทุกวัน (จันทร์ - อาทิตย์)</span>
+        </span>
+      );
+    }
+    if (raw.includes('จันทร์ - ศุกร์')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30">
+          <span>📅 จันทร์ - ศุกร์</span>
+        </span>
+      );
+    }
+    if (raw.includes('1 และ 16') || raw.includes('วันที่ 1 และ 16')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+          <span>🏛️ เฉพาะวันที่ 1 และ 16</span>
+        </span>
+      );
+    }
+    if (raw.includes('16')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+          <span>🏦 เฉพาะวันที่ 16</span>
+        </span>
+      );
+    }
+    if (raw.includes('จันทร์, พุธ, ศุกร์')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+          <span>🇱🇦 จันทร์, พุธ, ศุกร์</span>
+        </span>
+      );
+    }
+    if (raw.includes('อังคาร - เสาร์')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+          <span>🇺🇸 อังคาร - เสาร์</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+        <span>{raw}</span>
+      </span>
+    );
   };
 
   return (
@@ -1047,14 +1206,25 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
             <span>แชร์สรุป</span>
           </button>
 
-          {/* Export CSV */}
+          {/* 📊 Export Excel (.xlsx) */}
           <button
             type="button"
-            onClick={() => void downloadResultsCsv()}
-            className="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition flex items-center gap-1.5"
-            title="ดาวน์โหลดไฟล์ CSV"
+            onClick={downloadResultsExcel}
+            className="px-3.5 py-2.5 text-xs sm:text-sm font-bold rounded-2xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 cursor-pointer shadow-md transition flex items-center gap-1.5 active:scale-95"
+            title="ส่งออกรายงานผลหวยและประวัติเป็นไฟล์ Excel (.xlsx)"
           >
-            <Download className="w-3.5 h-3.5 text-slate-400" />
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+            <span>Excel (.xlsx)</span>
+          </button>
+
+          {/* 📄 Export CSV */}
+          <button
+            type="button"
+            onClick={downloadResultsCsv}
+            className="px-3.5 py-2.5 text-xs sm:text-sm font-bold rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 cursor-pointer shadow-md transition flex items-center gap-1.5 active:scale-95"
+            title="ดาวน์โหลดไฟล์ CSV (UTF-8 BOM สำหรับ Excel ภาษาไทย)"
+          >
+            <Download className="w-4 h-4 text-slate-300" />
             <span>CSV</span>
           </button>
 
@@ -1324,11 +1494,11 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
               <tr>
                 <th className="py-3.5 px-3 text-center">ลำดับ</th>
                 <th className="py-3.5 px-3">เวลาออกผล</th>
-                <th className="py-3.5 px-4">ชื่อหวย / ประเทศ</th>
+                <th className="py-3.5 px-4">ชื่อหวย / รอบวันออกสลาก</th>
                 <th className="py-3.5 px-3">เวลาปิดรับ</th>
                 <th className="py-3.5 px-3">หมวดหมู่</th>
-                <th className="py-3.5 px-3 text-center">3 ตัวบน</th>
-                <th className="py-3.5 px-3 text-center">2 ตัวล่าง</th>
+                <th className="py-3.5 px-3 text-center">3 ตัวบน / รางวัลที่ 1</th>
+                <th className="py-3.5 px-3 text-center">2 ตัวล่าง / เลขท้าย</th>
                 <th className="py-3.5 px-3 text-center">สถานะ</th>
                 <th className="py-3.5 px-4 text-right">ปุ่มแชร์ / สถิติ / เครื่องมือ</th>
               </tr>
@@ -1337,6 +1507,12 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
               {filteredLotteries.length > 0 ? (
                 filteredLotteries.map((item, index) => {
                   const isAnnounced = item.status === 'announced' || (item.top3 && item.bottom2);
+                  const isGov =
+                    item.category === 'gov_savings' ||
+                    item.id === 'thai_gov' ||
+                    item.id === 'gsb' ||
+                    item.id === 'baac' ||
+                    /สลากกินแบ่ง|รัฐบาลไทย|ออมสิน|ธ\.?ก\.?ส/i.test(item.name);
 
                   return (
                     <tr
@@ -1360,7 +1536,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                         </div>
                       </td>
 
-                      {/* Name & Flag */}
+                      {/* Name & Flag & Schedule Badge */}
                       <td className="py-4 px-4 font-sans">
                         <div className="flex items-center gap-3">
                           <span className="text-2xl shrink-0">{item.flag}</span>
@@ -1368,9 +1544,9 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                             <div className="font-black text-white text-sm sm:text-base group-hover:text-amber-400 transition flex items-center gap-1.5">
                               {item.name}
                             </div>
-                            <span className="text-xs text-slate-400 font-mono">
-                              {item.drawDays}
-                            </span>
+                            <div className="mt-1 flex items-center gap-1.5">
+                              {renderScheduleBadge(item.drawDays)}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -1391,12 +1567,17 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                         </span>
                       </td>
 
-                      {/* Top 3 */}
+                      {/* Top 3 / 1st Prize */}
                       <td className="py-4 px-3 text-center">
-                        {isAnnounced && item.top3 ? (
-                          <span className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 font-black text-base sm:text-lg border border-amber-500/50 shadow-sm inline-block">
-                            {item.top3}
-                          </span>
+                        {isAnnounced && (item.top3 || item.firstPrize) ? (
+                          <div className="inline-flex flex-col items-center">
+                            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-0.5">
+                              {isGov ? 'รางวัลที่ 1' : '3 ตัวบน'}
+                            </span>
+                            <span className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 font-black text-base sm:text-lg border border-amber-500/50 shadow-sm inline-block font-mono">
+                              {item.firstPrize || item.top3}
+                            </span>
+                          </div>
                         ) : (
                           <span className="px-3 py-1 rounded-xl bg-slate-950 text-slate-500 font-bold text-xs sm:text-sm border border-slate-800">
                             ⏳ รอผล
@@ -1407,9 +1588,14 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                       {/* Bottom 2 */}
                       <td className="py-4 px-3 text-center">
                         {isAnnounced && item.bottom2 ? (
-                          <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 font-black text-base sm:text-lg border border-emerald-500/50 shadow-sm inline-block">
-                            {item.bottom2}
-                          </span>
+                          <div className="inline-flex flex-col items-center">
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-0.5">
+                              {isGov ? 'เลขท้าย 2 ตัว' : '2 ตัวล่าง'}
+                            </span>
+                            <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 font-black text-base sm:text-lg border border-emerald-500/50 shadow-sm inline-block font-mono">
+                              {item.bottom2}
+                            </span>
+                          </div>
                         ) : (
                           <span className="px-3 py-1 rounded-xl bg-slate-950 text-slate-500 font-bold text-xs sm:text-sm border border-slate-800">
                             ⏳ รอผล
@@ -1635,7 +1821,10 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                   <span>{detailLottery.flag}</span>
                   <span>{detailLottery.name}</span>
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">{detailLottery.categoryLabel} • {detailLottery.drawDays}</p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="text-xs text-slate-400">{detailLottery.categoryLabel}</span>
+                  {renderScheduleBadge(detailLottery.drawDays)}
+                </div>
               </div>
               <button
                 type="button"

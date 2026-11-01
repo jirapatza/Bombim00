@@ -349,6 +349,31 @@ export default {
         return new Response(JSON.stringify({ success: true, message: `Test alert sent to ${server}/${topic}` }), { status: 200, headers: corsHeaders });
       }
 
+      // 11. POST /api/test-line - Send test notification to LINE Notify
+      if (path === "/api/test-line" && request.method === "POST") {
+        const body = await request.json();
+        const token = body.token;
+        if (!token) {
+          return new Response(JSON.stringify({ error: "Missing LINE token parameter" }), { status: 400, headers: corsHeaders });
+        }
+        const message = body.message || "🔔 ทดสอบการแจ้งเตือน LINE Notify จากระบบ Lottery Alert สำเร็จเรียบร้อย!";
+        const params = new URLSearchParams();
+        params.append("message", message);
+        const lineRes = await fetch("https://notify-api.line.me/api/notify", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: params.toString(),
+        });
+        const lineData = await lineRes.json().catch(() => ({}));
+        if (!lineRes.ok) {
+          return new Response(JSON.stringify({ error: lineData.message || "Failed to send LINE notification" }), { status: lineRes.status, headers: corsHeaders });
+        }
+        return new Response(JSON.stringify({ success: true, message: "ส่งข้อความทดสอบเข้า LINE Notify เรียบร้อยแล้ว!" }), { status: 200, headers: corsHeaders });
+      }
+
       // Default Health Check
       return new Response(
         JSON.stringify({

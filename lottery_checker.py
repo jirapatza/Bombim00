@@ -631,10 +631,10 @@ def send_ntfy_notification(row: dict) -> bool:
     return False
 
 
-def send_discord_notification(row: dict) -> bool:
-    """Send rich embed to Discord webhook with source attribution and app link."""
-    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL") or S.get("channels", {}).get("discord", {}).get("webhook_url", "")
-    if not webhook_url:
+def send_line_notification(row: dict) -> bool:
+    """Send formatted alert to LINE Notify personal/group token."""
+    token = os.environ.get("LINE_NOTIFY_TOKEN") or S.get("channels", {}).get("line", {}).get("token", "")
+    if not token or not S.get("channels", {}).get("line", {}).get("enabled", True):
         return False
 
     raw_lottery_name = row.get("ชื่อหวย") or row.get("หวย") or "หวยไม่ระบุชื่อ"
@@ -644,96 +644,56 @@ def send_discord_notification(row: dict) -> bool:
     canonical_name = sl.map_canonical_lottery_name(raw_lottery_name)
     app_url = os.environ.get("APP_URL") or "https://ais-pre-qiphuob5ntzos2dco2lbsq-675247792549.asia-southeast1.run.app"
     category = _lottery_category(row)
+
     if category in {"government", "gov_savings"}:
-        description = (
-            f"🎯 **หวย:** {canonical_name}\n"
-            f"🏆 **รางวัลที่ 1:** `{row.get('รางวัลที่_1', '-')}`\n"
-            f"🔢 **เลขท้าย 2 ตัว:** `{row.get('เลขท้าย_2_ตัว', '-')}`\n"
-            f"✨ **เลขหน้า 3 ตัว:** `{', '.join(row.get('เลขหน้า_3_ตัว', []))}`\n"
-            f"🌟 **เลขท้าย 3 ตัว:** `{', '.join(row.get('เลขท้าย_3_ตัว', []))}`"
+        first_prize = row.get("รางวัลที่_1", "-")
+        last_2 = row.get("เลขท้าย_2_ตัว", "-")
+        front_3 = ", ".join(row.get("เลขหน้า_3_ตัว", [])) or "-"
+        last_3 = ", ".join(row.get("เลขท้าย_3_ตัว", [])) or "-"
+        msg = (
+            f"\n📢 ผล{canonical_name} งวด {row.get('งวดวันที่', '')}\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"🏆 รางวัลที่ 1: {first_prize}\n"
+            f"🔢 เลขท้าย 2 ตัว: {last_2}\n"
+            f"✨ เลขหน้า 3 ตัว: {front_3}\n"
+            f"🌟 เลขท้าย 3 ตัว: {last_3}\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"📡 ตรวจผลสด: {app_url}"
         )
     else:
-        description = (
-            f"🎯 **หวย:** {canonical_name}\n"
-            f"🔺 **3 ตัวบน:** `{row.get('เลขบน_3_ตัว') or row.get('top3') or row.get('รางวัลที่_1', '-')}`\n"
-            f"🔻 **2 ตัวล่าง:** `{row.get('เลขล่าง_2_ตัว') or row.get('เลขท้าย_2_ตัว') or '-'}`"
+        top3 = row.get("เลขบน_3_ตัว") or row.get("top3") or row.get("รางวัลที่_1", "-")
+        bottom2 = row.get("เลขล่าง_2_ตัว") or row.get("เลขท้าย_2_ตัว") or "-"
+        msg = (
+            f"\n📢 ผล{canonical_name} งวด {row.get('งวดวันที่', '')}\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"🔺 3 ตัวบน: {top3}\n"
+            f"🔻 2 ตัวล่าง: {bottom2}\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"📡 ตรวจผลสด: {app_url}"
         )
-    payload = {
-        "username": "Lottery Alert Bot",
-        "avatar_url": "https://raw.githubusercontent.com/jirapatza/Bombim00/main/public/icon-192.png",
-        "embeds": [{
-            "title": f"📢 ผล{canonical_name} งวดวันที่ {row.get('งวดวันที่', '')}",
-            "url": app_url,
-            "description": description + f"\n\n📅 **งวดวันที่:** `{row.get('งวดวันที่', '')}`\n📡 **แหล่งข้อมูล:** 👑เฮียฮวด พารวย\n🔗 [กดเปิดแอปตรวจรางวัล]({app_url})",
-            "color": 16107019,
-            "footer": {"text": "Lottery Alert System Pro"}
-        }]
-    }
 
     try:
-        success = _http_post(webhook_url, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"), headers={"Content-Type": "application/json"})
+        url = "https://notify-api.line.me/api/notify"
+        import urllib.parse
+        data = urllib.parse.urlencode({"message": msg}).encode("utf-8")
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        success = _http_post(url, data=data, headers=headers, timeout=10)
         if success:
-            print("[SUCCESS] Sent notification to Discord Webhook.")
+            print("[SUCCESS] Sent notification to LINE Notify.")
             return True
     except Exception as e:
-        print(f"[WARN] Failed posting to Discord: {e}")
-    return False
-
-
-def send_telegram_notification(row: dict) -> bool:
-    """Send formatted HTML to Telegram chat with source attribution and app link."""
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN") or S.get("channels", {}).get("telegram", {}).get("bot_token", "")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID") or S.get("channels", {}).get("telegram", {}).get("chat_id", "")
-    if not bot_token or not chat_id:
-        return False
-
-    raw_lottery_name = row.get("ชื่อหวย") or row.get("หวย") or "หวยไม่ระบุชื่อ"
-    if sl.is_disallowed_lottery(raw_lottery_name):
-        return False
-
-    canonical_name = sl.map_canonical_lottery_name(raw_lottery_name)
-    app_url = os.environ.get("APP_URL") or "https://ais-pre-qiphuob5ntzos2dco2lbsq-675247792549.asia-southeast1.run.app"
-    category = _lottery_category(row)
-    if category in {"government", "gov_savings"}:
-        result_text = (
-            f"🎯 <b>หวย:</b> {canonical_name}\n"
-            f"🏆 <b>รางวัลที่ 1:</b> <code>{row.get('รางวัลที่_1', '-')}</code>\n"
-            f"🔢 <b>เลขท้าย 2 ตัว:</b> <code>{row.get('เลขท้าย_2_ตัว', '-')}</code>\n"
-            f"✨ <b>เลขหน้า 3 ตัว:</b> <code>{', '.join(row.get('เลขหน้า_3_ตัว', []))}</code>\n"
-            f"🌟 <b>เลขท้าย 3 ตัว:</b> <code>{', '.join(row.get('เลขท้าย_3_ตัว', []))}</code>"
-        )
-    else:
-        result_text = (
-            f"🎯 <b>หวย:</b> {canonical_name}\n"
-            f"🔺 <b>3 ตัวบน:</b> <code>{row.get('เลขบน_3_ตัว') or row.get('top3') or row.get('รางวัลที่_1', '-')}</code>\n"
-            f"🔻 <b>2 ตัวล่าง:</b> <code>{row.get('เลขล่าง_2_ตัว') or row.get('เลขท้าย_2_ตัว') or '-'}</code>"
-        )
-    text = (
-        f"📢 <b>ผล{canonical_name} งวดวันที่ {row.get('งวดวันที่', '')}</b>\n\n"
-        f"{result_text}\n"
-        f"📅 <b>งวดวันที่:</b> <code>{row.get('งวดวันที่', '')}</code>\n"
-        f"📡 <b>แหล่งข้อมูล:</b> 👑เฮียฮวด พารวย\n\n"
-        f"🔗 <a href='{app_url}'>เปิดแอปตรวจรางวัลทันที</a>"
-    )
-
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
-    try:
-        success = _http_post(url, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"), headers={"Content-Type": "application/json"})
-        if success:
-            print("[SUCCESS] Sent notification to Telegram.")
-            return True
-    except Exception as e:
-        print(f"[WARN] Failed posting to Telegram: {e}")
+        print(f"[WARN] Failed posting to LINE Notify: {e}")
     return False
 
 
 def send_all_notifications(row: dict) -> bool:
-    """Dispatch alert across all active notification channels."""
+    """Dispatch alert across active channels (LINE & ntfy strictly)."""
     s1 = send_ntfy_notification(row)
-    s2 = send_discord_notification(row)
-    s3 = send_telegram_notification(row)
-    return s1 or s2 or s3
+    s2 = send_line_notification(row)
+    return s1 or s2
 
 
 def main():
