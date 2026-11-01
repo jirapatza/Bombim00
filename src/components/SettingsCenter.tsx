@@ -5,7 +5,7 @@ import { UnifiedNotificationCenter } from './UnifiedNotificationCenter';
 
 interface SettingsCenterProps {
   settings: any;
-  onSaveSettings: (newSettings: any) => void;
+  onSaveSettings: (newSettings: any) => Promise<boolean>;
   status?: any;
   latestDraw?: any;
   allLotteries?: any[];
