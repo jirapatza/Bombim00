@@ -18,6 +18,40 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
+const jsonCache = new Map<string, { value: any; expiresAt: number }>();
+
+async function readJsonWithCache<T>(filePath: string, fallback: T, ttlMs = 5000): Promise<T> {
+  const now = Date.now();
+  const cached = jsonCache.get(filePath);
+  if (cached && cached.expiresAt > now) return cached.value as T;
+
+  try {
+    const raw = await fs.promises.readFile(filePath, 'utf-8');
+    const value = JSON.parse(raw);
+    jsonCache.set(filePath, { value, expiresAt: now + ttlMs });
+    return value as T;
+  } catch {
+    const value = fallback;
+    jsonCache.set(filePath, { value, expiresAt: now + ttlMs });
+    return value;
+  }
+}
+
+async function writeJsonWithCache(filePath: string, value: any, ttlMs = 5000) {
+  await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.promises.writeFile(filePath, JSON.stringify(value, null, 2), 'utf-8');
+  jsonCache.set(filePath, { value, expiresAt: Date.now() + ttlMs });
+}
+
+function pruneApiRateMap() {
+  const now = Date.now();
+  for (const [key, value] of apiRateMap.entries()) {
+    if (now > value.resetAt || now - value.resetAt > 60000) {
+      apiRateMap.delete(key);
+    }
+  }
+}
+
 app.use(express.json({ limit: '25mb' }));
 
 // Protect every state-changing API request. Production must configure DASH_PASSWORD;
@@ -57,6 +91,7 @@ process.on('unhandledRejection', (reason: any) => {
 // Anti-flood / Rate limiting protection for API endpoints
 const apiRateMap = new Map<string, { count: number; resetAt: number }>();
 app.use('/api', (req, res, next) => {
+  pruneApiRateMap();
   const clientKey = req.ip || req.socket.remoteAddress || 'client';
   const now = Date.now();
   const entry = apiRateMap.get(clientKey) || { count: 0, resetAt: now + 60000 };
@@ -211,42 +246,39 @@ const WORKFLOW_PATH = path.join(__dirname, '.github', 'workflows', 'lottery.yml'
 const HEALING_HISTORY_PATH = path.join(__dirname, 'status', 'self_healing_history.json');
 
 // 1. GET /api/status - Read system status
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
   try {
-    if (fs.existsSync(STATUS_PATH)) {
-      const data = JSON.parse(fs.readFileSync(STATUS_PATH, 'utf-8'));
-      return res.json(data);
-    }
-    return res.json({
+    const data = await readJsonWithCache(STATUS_PATH, {
       system_status: 'healthy',
       status_message: 'พร้อมทำงาน (Initial State)',
       total_checks: 0,
       active_sources_count: 2,
-    });
+    }, 2000);
+    return res.json(data);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
 // 2. GET /api/settings - Read settings.json
-app.get('/api/settings', (req, res) => {
+app.get('/api/settings', async (req, res) => {
   try {
-    if (fs.existsSync(SETTINGS_PATH)) {
-      const data = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
-      return res.json(data);
+    if (!fs.existsSync(SETTINGS_PATH)) {
+      return res.status(404).json({ error: 'settings.json not found' });
     }
-    return res.status(404).json({ error: 'settings.json not found' });
+
+    const data = await readJsonWithCache(SETTINGS_PATH, {}, 2000);
+    return res.json(data);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
 // 3. POST /api/settings - Update settings.json
-app.post('/api/settings', (req, res) => {
+app.post('/api/settings', async (req, res) => {
   try {
     const updated = req.body;
-    fs.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
-    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(updated, null, 2), 'utf-8');
+    await writeJsonWithCache(SETTINGS_PATH, updated, 5000);
     return res.json({ success: true, message: 'Settings saved successfully' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -254,25 +286,19 @@ app.post('/api/settings', (req, res) => {
 });
 
 // 4. GET /api/results - Read past lottery results
-app.get('/api/results', (req, res) => {
+app.get('/api/results', async (req, res) => {
   try {
-    if (fs.existsSync(RESULTS_PATH)) {
-      const data = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
-      return res.json(data);
-    }
-    return res.json([]);
+    const data = await readJsonWithCache(RESULTS_PATH, [], 2000);
+    return res.json(data);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
 // 4.0 POST /api/lotteries/cleanup-history - Purge unrequested LIW/pingpong and duplicate entries
-app.post('/api/lotteries/cleanup-history', (req, res) => {
+app.post('/api/lotteries/cleanup-history', async (req, res) => {
   try {
-    if (!fs.existsSync(RESULTS_PATH)) {
-      return res.json({ success: true, removedCount: 0, totalAfter: 0 });
-    }
-    const raw = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf-8'));
+    const raw = await readJsonWithCache(RESULTS_PATH, [], 2000);
     if (!Array.isArray(raw)) {
       return res.json({ success: true, removedCount: 0, totalAfter: 0 });
     }
@@ -300,7 +326,7 @@ app.post('/api/lotteries/cleanup-history', (req, res) => {
       }
     }
 
-    fs.writeFileSync(RESULTS_PATH, JSON.stringify(deduped, null, 2), 'utf-8');
+    await writeJsonWithCache(RESULTS_PATH, deduped, 5000);
     const removedCount = totalBefore - deduped.length;
     return res.json({
       success: true,
@@ -315,24 +341,20 @@ app.post('/api/lotteries/cleanup-history', (req, res) => {
 });
 
 // 4.1 GET /api/all-lotteries - Read full catalog and daily summary of all lotteries
-app.get('/api/all-lotteries', (req, res) => {
+app.get('/api/all-lotteries', async (req, res) => {
   try {
-    if (fs.existsSync(ALL_LOTTERIES_PATH)) {
-      const data = JSON.parse(fs.readFileSync(ALL_LOTTERIES_PATH, 'utf-8'));
-      return res.json(data);
-    }
-    return res.json([]);
+    const data = await readJsonWithCache(ALL_LOTTERIES_PATH, [], 2000);
+    return res.json(data);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
 // 4.2 POST /api/all-lotteries - Update lotteries data
-app.post('/api/all-lotteries', (req, res) => {
+app.post('/api/all-lotteries', async (req, res) => {
   try {
     const updated = req.body;
-    fs.mkdirSync(path.dirname(ALL_LOTTERIES_PATH), { recursive: true });
-    fs.writeFileSync(ALL_LOTTERIES_PATH, JSON.stringify(updated, null, 2), 'utf-8');
+    await writeJsonWithCache(ALL_LOTTERIES_PATH, updated, 5000);
     return res.json({ success: true, message: 'All lotteries data updated successfully' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -348,7 +370,7 @@ app.post('/api/test-line', async (req, res) => {
       return res.status(400).json({ success: false, error: 'กรุณาระบุ LINE Notify Token (ส่วนตัวหรือกลุ่ม)' });
     }
 
-    const defaultMsg = message || '\n📢 ทดสอบการแจ้งเตือน Lottery Alert System\nระบบเชื่อมต่อ LINE สำเร็จเรียบร้อย! ✅';
+    const defaultMsg = message || '\n📢 ทดสอบการแจ้งเตือน Lottery Alert System\nระบบเชื่อมต่อ LINE สำเร็จเรียบแล้ว';
     const formParams = new URLSearchParams();
     formParams.append('message', defaultMsg);
 
@@ -395,7 +417,7 @@ app.post('/api/test-ntfy', async (req, res) => {
       },
       body: JSON.stringify({
         title: title || '📢 แจ้งเตือนผลสลากและหวยสด',
-        message: message || '📢 แจ้งเตือนผลสลากและหวยสด\n📡 แหล่งข้อมูล: 👑เฮียฮวด พารวย\nแตะเพื่อเปิดแอปตรวจรางวัลทันที',
+        message: message || '📢 แจ้งเตือนผลสลากและหวยสด\n📡 แหล่งข้อมูล: 👑เฮียฮวด พารวย',
         priority: 4,
         tags: ['loudspeaker', 'dart'],
         click: appUrl,
@@ -405,7 +427,7 @@ app.post('/api/test-ntfy', async (req, res) => {
     if (ntfyRes.ok) {
       return res.json({
         success: true,
-        message: `ส่งข้อความแจ้งเตือนผลหวยไปยัง ntfy topic '${cleanTopic}' สำเร็จเรียบร้อย! 🎉 (คลิกแล้วจะเปิดแอปนี้ทันที)`,
+        message: `ส่งข้อความแจ้งเตือนผลหวยไปยัง ntfy topic '${cleanTopic}' สำเร็จเรียบร้อย! 🎉`,
       });
     } else {
       const errText = await ntfyRes.text();
@@ -516,7 +538,7 @@ app.post('/api/github/dispatch', async (req, res) => {
     if (!ghToken) {
       return res.status(400).json({
         success: false,
-        error: 'กรุณากรอก GitHub Personal Access Token (PAT) ที่มีสิทธิ์ Actions Write ในการสั่งรันบน GitHub หรือใช้ปุ่ม "จำลองรันบน Server เสมือน" ด้านล่างเพื่อทดสอบ',
+        error: 'กรุณากรอก GitHub Personal Access Token (PAT) ที่มีสิทธิ์ Actions Write ในการสั่งรันบน GitHub หรือใช้งานจาก env GITHUB_TOKEN',
       });
     }
 
@@ -538,7 +560,7 @@ app.post('/api/github/dispatch', async (req, res) => {
     if (ghRes.status === 204 || ghRes.status === 200) {
       return res.json({
         success: true,
-        message: `ส่งคำสั่งสั่งรัน GitHub Actions (${cleanWorkflow}) บนคลัง ${cleanRepo} สำเร็จเรียบร้อยแล้ว! 🎉`,
+        message: `ส่งคำสั่งสั่งรัน GitHub Actions (${cleanWorkflow}) บนคลัง ${cleanRepo} สำเร็จเรียบร้อยแล้ว!`,
       });
     }
 
@@ -601,7 +623,7 @@ app.post('/api/github/runs', async (req, res) => {
     const errText = await ghRes.text().catch(() => '');
     return res.json({
       success: false,
-      error: `ไม่สามารถดึงข้อมูล Runs จาก GitHub (HTTP ${ghRes.status}): ${errText || 'Repository อาจเป็น Private หรือติด Rate Limit กรุณาใส่ PAT Token'}`,
+      error: `ไม่สามารถดึงข้อมูล Runs จาก GitHub (HTTP ${ghRes.status}): ${errText || 'Repository อาจเป็น Private หรือติด Rate Limit'}`,
       workflow_runs: [],
     });
   } catch (err: any) {
@@ -782,7 +804,7 @@ app.post('/api/check-now', async (req, res) => {
     }
     return res.status(run.success ? 200 : 502).json({
       success: run.success,
-      message: run.success ? 'ตรวจสอบผลหวยจากแหล่งข้อมูลจริงเสร็จแล้ว' : 'การตรวจสอบผลหวยไม่สำเร็จ',
+      message: run.success ? 'ตรวจสอบผลหวยจากแหล่งข้อมูลจริงเสร็จแล้ว' : 'การตรวจสอบผลหวยล้มเหลว',
       error: run.error || null,
       status: currentStatus,
       results: currentResults,
@@ -810,7 +832,7 @@ app.post('/api/trigger', async (req, res) => {
     }
     return res.status(run.success ? 200 : 502).json({
       success: run.success,
-      message: run.success ? 'ตรวจสอบผลหวยจากแหล่งข้อมูลจริงเสร็จแล้ว' : 'การตรวจสอบผลหวยไม่สำเร็จ',
+      message: run.success ? 'ตรวจสอบผลหวยจากแหล่งข้อมูลจริงเสร็จแล้ว' : 'การตรวจสอบผลหวยล้มเหลว',
       error: run.error || null,
       status: currentStatus,
       results: currentResults,
@@ -979,7 +1001,7 @@ app.post('/api/system/self-heal', async (req, res) => {
         id: `act-${Date.now()}-2`,
         commandCode: 'RESTORE_CONFIG_SCHEMA',
         targetDevice: 'System Config (config/settings.json)',
-        description: 'ตรวจสอบความถูกต้องของ JSON Schema และค่าเริ่มต้นระบบแจ้งเตือน 51 แหล่ง',
+        description: 'ตรวจสอบความถูกต้องของ JSON Schema และค่าเริ่มต้นระบบแจ้งเตือน',
         triggerReason: targetDevice?.includes('Config') || targetDevice?.includes('settings')
           ? 'ตรวจพบอุปกรณ์/ไฟล์ config มีปัญหาหรือโครงสร้างเสียหาย'
           : (triggerReason || 'ยืนยันความถูกต้องของไฟล์การตั้งค่าและ API Sources'),
@@ -990,7 +1012,7 @@ app.post('/api/system/self-heal', async (req, res) => {
         details: restored
           ? 'สร้างไฟล์ config/settings.json ใหม่สำเร็จด้วยโครงสร้างมาตรฐาน v1.2.0'
           : 'ตรวจสอบไฟล์ config/settings.json สำเร็จ โครงสร้าง JSON ถูกต้อง 100%',
-        shellCommand: `node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("config/settings.json","utf-8")); console.log("Config OK:", c.app_name, "Sources:", Object.keys(c.sources||{}).length);'`,
+        shellCommand: `node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("config/settings.json","utf-8")); console.log("Config OK:", c.app_name, "Sources:", Object.keys(c.sources || {}).length)'`,
       });
     } catch (err: any) {
       fs.writeFileSync(SETTINGS_PATH, JSON.stringify({
@@ -1054,14 +1076,14 @@ app.post('/api/system/self-heal', async (req, res) => {
         id: `act-${Date.now()}-4`,
         commandCode: 'SYNC_OFFLINE_CACHE',
         targetDevice: 'Lottery Results Cache & 51 Catalog Feeds',
-        description: 'ตรวจสอบและจัดระเบียบแคชผลสลากกินแบ่งย้อนหลังเพื่อพร้อมอ่านออฟไลน์',
+        description: 'ตรวจสอบและจัดระเบียบแคชผลสลากกินแบ่งย้อนหลังเพื่อพร้อมอ่า',
         triggerReason: triggerReason || 'ยืนยันความพร้อมของฐานข้อมูลแคชในตัวเครื่อง',
         timestamp: new Date().toISOString(),
         timestampThai: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
         status: 'success',
         executionTimeMs: Math.max(1, Date.now() - t3),
         details: `ตรวจสอบแคชสมบูรณ์ พบประวัติผลสลาก ${resultsCount} งวดล่าสุด`,
-        shellCommand: `python3 -c "import json; r=json.load(open('lottery_previous_results.json')); print(f'Validated {len(r)} historical draws')"`
+        shellCommand: `python3 -c "import json; r=json.load(open('lottery_previous_results.json')); print(f'Validated {len(r)} historical draws')"`,
       });
     } catch {
       executedActions.push({
@@ -1117,7 +1139,7 @@ app.post('/api/system/self-heal', async (req, res) => {
       status: 'success',
       executionTimeMs: Math.max(1, Date.now() - t4),
       details: 'เขียนสถานะ Healthy State และบันทึกประวัติล่าสุดลง status/status.json',
-      shellCommand: `node -e 'const fs=require("fs"); const s=JSON.parse(fs.readFileSync("status/status.json")); s.system_status="healthy"; fs.writeFileSync("status/status.json", JSON.stringify(s, null, 2));'`,
+      shellCommand: `node -e 'const fs=require("fs"); const s=JSON.parse(fs.readFileSync("status/status.json")); s.system_status="healthy"; fs.writeFileSync("status/status.json", JSON.stringify(s,null,2)); console.log("status ok")'`,
     });
 
     // Action 6: VERIFY_GATEWAYS_REACHABILITY
@@ -1153,7 +1175,7 @@ app.post('/api/system/self-heal', async (req, res) => {
       triggeredAtThai: thaiNow,
       triggerType: triggerType || (targetDevice ? 'device_error_repair' : 'manual_user_click'),
       triggeredByDevice: targetDevice || 'All Devices & Services (Full Suite)',
-      triggerReason: triggerReason || (targetDevice ? `พบปัญหาหรือข้อผิดพลาดที่อุปกรณ์: ${targetDevice}` : 'ผู้ใช้กดปุ่มซ่อมแซมระบบอัตโนมัติ'),
+      triggerReason: triggerReason || (targetDevice ? `พบปัญหาหรือข้อผิดพลาดที่อุปกรณ์: ${targetDevice}` : 'ผู้ใช้กดปุ่มระบบซ่อมแซม'),
       overallResult: executedActions.every(a => a.status === 'success') ? 'success' : 'partial',
       totalActionsCount: executedActions.length,
       successCount: executedActions.filter(a => a.status === 'success').length,
@@ -1167,7 +1189,7 @@ app.post('/api/system/self-heal', async (req, res) => {
 
     return res.json({
       success: true,
-      message: 'ระบบดำเนินการตรวจสอบและแก้ไขปัญหาตัวเองอัตโนมัติเรียบร้อยแล้ว (Self-Healing Complete)',
+      message: 'ระบบดำเนินการตรวจสอบและแก้ไขปัญหาตัวเองอัตโนมัติเรียบร้อยแล้ว',
       timestamp: nowIso,
       session: sessionRecord,
       fixedActions: fixedActionSummaries,
@@ -1293,13 +1315,13 @@ function getLocalVerifiedFallback(prompt: string) {
       ? matchedCachedResult.รางวัลที่_1 || '-'
       : matchedCachedResult.เลขบน_3_ตัว || matchedCachedResult.รางวัลที่_1 || '-';
     const lowerNumber = matchedCachedResult.เลขล่าง_2_ตัว || matchedCachedResult.เลขท้าย_2_ตัว || '-';
-    fallbackText = `ข้อมูลที่บันทึกไว้ล่าสุดของ ${lotteryName} (ข้อมูลย้อนหลังจากแคชระบบ ไม่ใช่การตรวจสอบสด):\n` +
+    fallbackText = `ข้อมูลที่บันทึกไว้ล่าสุดของ ${lotteryName} (ข้อมูลย้อนหลังจากแคชระบบ ไว้เป็นข้อมูลสำรอง)\n` +
       `• วันที่งวด: ${matchedCachedResult.งวดวันที่ || matchedCachedResult.วันที่จัดรูปแบบ || 'ไม่ระบุ'}\n` +
       (isGovernment
         ? `• รางวัลที่ 1: ${upperNumber}\n• เลขท้าย 2 ตัว: ${lowerNumber}\n`
         : `• 3 ตัวบน: ${upperNumber}\n• 2 ตัวล่าง: ${lowerNumber}\n`) +
       `• แหล่งข้อมูลเดิม: ${matchedCachedResult.แหล่งข้อมูล || 'ไม่ระบุ'}\n` +
-      `🛡️ สถานะระบบ: ทำงานผ่านระบบป้องกันระบบล่ม (Circuit Breaker & Fallback Cache) แสดงผลข้อมูลจริงจากระบบต่อเนื่อง 100%`;
+      `🛡️ สถานะระบบ: ทำงานผ่านระบบป้องกันระบบล่ม (Circuit Breaker & Fallback Cache) แสดงผลข้อมูลจากแคชระบบเป็นไปอย่างปลอดภัย`;
     fallbackSources.push({ title: 'คลังผลหวยที่ระบบบันทึกไว้', uri: 'https://github.com/jirapatza/Bombim00' });
   } else if (matchedLottery) {
     fallbackText = `พบรายการ ${matchedLottery.name} ในแคตตาล็อกระบบ\n` +
@@ -1307,11 +1329,11 @@ function getLocalVerifiedFallback(prompt: string) {
       `• เวลาปิดรับ: ${matchedLottery.closeTimeStr || 'ไม่ระบุ'}\n` +
       `• เวลาออกรางวัลตามตาราง: ${matchedLottery.drawTimeStr || 'ไม่ระบุ'}\n` +
       `• สถานะในแคตตาล็อก: ${matchedLottery.status || 'ไม่ระบุ'}\n` +
-      `🛡️ สถานะระบบ: ทำงานผ่านระบบป้องกันระบบล่ม (Safe Fallback Mode) เพื่อป้องกันการหยุดชะงัก`;
+      `🛡️ สถานะระบบ: ทำงานผ่านระบบป้องกันระบบล่ม (Safe Fallback Mode) เพื่อป้องกันการสร้างข้อมูลเท็จ`;
     fallbackSources.push({ title: 'แคตตาล็อกหวยในโปรเจกต์', uri: 'https://github.com/jirapatza/Bombim00' });
   } else {
     fallbackText = `ค้นหาผลรางวัลสำหรับ "${prompt}"\n` +
-      `🛡️ ระบบป้องกันระบบล่ม (Circuit Breaker & Safe Mode) กำลังทำงานเพื่อป้องกันโควตาเกิน จึงไม่แสดงตัวเลขสมมุติ เพื่อความถูกต้องแม่นยำของข้อมูล`;
+      `🛡️ ระบบป้องกันระบบล่ม (Circuit Breaker & Safe Mode) กำลังทำงานเพื่อป้องกันโควตาเกิน หรือการล้มเหลวจากแหล่งภายนอก`;
   }
 
   return { fallbackText, fallbackSources };
@@ -1320,7 +1342,7 @@ function getLocalVerifiedFallback(prompt: string) {
 // 8.1 POST /api/ai/verify-grounding - Verify lottery results using Google Search Grounding with Circuit Breaker Protection
 app.post('/api/ai/verify-grounding', async (req, res) => {
   const { query, lotteryName = 'สลากกินแบ่งรัฐบาลไทย', drawDate } = req.body;
-  const prompt = (query || `ตรวจสอบผลการออกรางวัลจริงของ ${lotteryName} ${drawDate ? `งวดวันที่ ${drawDate}` : 'งวดล่าสุด'} จากผลอย่างเป็นทางการ ระบุรางวัลที่ 1 เลขท้าย 2 ตัว เลขหน้า 3 ตัว เลขท้าย 3 ตัว (ถ้ามี) พร้อมวันที่และแหล่งอ้างอิงให้ชัดเจน`).trim();
+  const prompt = (query || `ตรวจสอบผลการออกรางวัลจริงของ ${lotteryName} ${drawDate ? `งวดวันที่ ${drawDate}` : 'งวดล่าสุด'}`).trim();
 
   // 1. Check in-memory verification cache first (1-hour cache to save quota and ensure speed)
   const cached = verificationCache.get(prompt);
@@ -1346,7 +1368,7 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
       isFallback: true,
       circuitBreakerActive: true,
       remainingCooldownSec: circuit.remainingCooldownSec,
-      fallbackReason: `ระบบป้องกันระบบล่ม (Circuit Breaker) กำลังทำงานอัตโนมัติเนื่องจากอัตราการเรียกใช้ API ถึงโควตาชั่วคราว (เหลือเวลาคูลดาวน์ ${circuit.remainingCooldownSec} วินาที) โดยนำข้อมูลจริงที่ยืนยันแล้วในแคชระบบมาแสดงผลแทน 100% ไม่สะดุด`,
+      fallbackReason: `ระบบป้องกันระบบล่ม (Circuit Breaker) กำลังทำงานอัตโนมัติเนื่องจากอัตราคำขอใกล้เกินโควตา`,
       timestamp: new Date().toISOString(),
     });
   }
@@ -1381,7 +1403,6 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
       timestamp: new Date().toISOString(),
     };
 
-    // Store in memory cache for 1 hour
     verificationCache.set(prompt, {
       data: resultPayload,
       expiresAt: Date.now() + 60 * 60 * 1000,
@@ -1413,8 +1434,8 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
       circuitBreakerActive: true,
       remainingCooldownSec: 60,
       fallbackReason: isQuotaError
-        ? 'ระบบป้องกันระบบล่ม (Circuit Breaker & Fallback Shield) ทำงานอัตโนมัติเนื่องจากอัตราการเรียกใช้ API ถึงโควตาชั่วคราว จึงนำข้อมูลจริงที่ยืนยันแล้วในแคชระบบมาแสดงผลแทน เพื่อให้ระบบทำงานต่อเนื่อง 100%'
-        : 'ระบบป้องกันระบบล่มดึงข้อมูลจากแคชระบบมาแสดงผลแทนอัตโนมัติ เพื่อป้องกันการขัดข้อง',
+        ? 'ระบบป้องกันระบบล่ม (Circuit Breaker & Fallback Shield) ทำงานอัตโนมัติเนื่องจากอัตราการร้องขอเกินโควตา'
+        : 'ระบบป้องกันระบบล่มดึงข้อมูลจากแคชระบบมาแสดงผลแทนอัตโนมัติ เพื่อป้องกันความล้มเหลวจาก API ภายนอก',
       timestamp: new Date().toISOString(),
     });
   }
@@ -1441,7 +1462,7 @@ app.post('/api/ai/transcribe', async (req, res) => {
             },
           },
           {
-            text: 'ถอดความเสียงนี้เป็นข้อความภาษาไทยอย่างแม่นยำ โดยเฉพาะหากผู้ใช้พูดตัวเลขสลากกินแบ่ง (เช่น 6 หลัก, 3 หลัก, 2 หลัก) หรือพูดคำสั่งตรวจสลาก ให้ถอดความตัวเลขและข้อความออกมาอย่างถูกต้องที่สุด',
+            text: 'ถอดความเสียงนี้เป็นข้อความภาษาไทยอย่างแม่นยำ โดยเฉพาะหากผู้พูดระบุตัวเลขหรือเลขสลาก',
           },
         ],
       },
@@ -1461,7 +1482,7 @@ app.post('/api/ai/transcribe', async (req, res) => {
     return res.json({ 
       success: false, 
       isQuotaLimited: true,
-      error: 'โควตาการแปลงเสียงชั่วคราวเต็ม กรุณาลองใหม่อีกครั้งใน 30 วินาที หรือพิมพ์ตัวเลขโดยตรงในช่องค้นหา'
+      error: 'โควตาการแปลงเสียงชั่วคราวเต็ม กรุณาลองให้อีกครั้งใน 30 วินาที หรือใช้ข้อความแทน',
     });
   }
 });
@@ -1559,8 +1580,14 @@ async function startServer() {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Lottery Alert Dashboard server running on http://0.0.0.0:${PORT}`);
     if (process.env.DISABLE_BACKGROUND_CHECK !== 'true') {
-      setTimeout(runBackgroundAutoCheck, 5000);
-      setInterval(runBackgroundAutoCheck, 10 * 60 * 1000);
+      setTimeout(() => {
+        void runBackgroundAutoCheck('all');
+      }, 5000);
+      setInterval(() => {
+        if (!isBackgroundCheckRunning) {
+          void runBackgroundAutoCheck('all');
+        }
+      }, 10 * 60 * 1000);
     } else {
       console.log('[AUTO-RUNNER] Background checks disabled by DISABLE_BACKGROUND_CHECK.');
     }
