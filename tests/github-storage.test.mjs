@@ -47,6 +47,7 @@ test('commits JSON with the current blob SHA and keeps the token out of the payl
   assert.equal(calls.length, 2);
   assert.equal(calls[1].init.method, 'PUT');
   assert.equal(JSON.parse(calls[1].init.body).sha, 'blob-sha');
+  assert.match(JSON.parse(calls[1].init.body).message, /\\[skip render\\]/);
   assert.equal(calls[1].init.body.includes('test-secret-token'), false);
   assert.equal(calls[1].init.headers.Authorization, 'Bearer test-secret-token');
 });
