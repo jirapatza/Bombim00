@@ -85,7 +85,7 @@ export default {
         const selectedWorkflow = String(incomingBody.workflow || workflow);
         const r = await fetch("https://api.github.com/repos/" + repo + "/actions/workflows/" + selectedWorkflow + "/dispatches", { method: "POST", headers: ghHeaders, body: JSON.stringify({ ref: branch, inputs: incomingBody.inputs || {} }) });
         if (!r.ok) return new Response(JSON.stringify({ error: "Workflow dispatch failed", details: await r.text() }), { status: r.status, headers: corsHeaders });
-        return new Response(JSON.stringify({ success: true, message: "สั่งรัน GitHub Actions แล้ว" }), { status: 200, headers: corsHeaders });
+        return new Response(JSON.stringify({ success: true, queued: true, workflow_dispatched: true, message: "สั่งรัน GitHub Actions แล้ว" }), { status: 200, headers: corsHeaders });
       }
       if (path === "/api/github/runs" && request.method === "POST") {
         const selectedWorkflow = String(incomingBody.workflow || workflow);
