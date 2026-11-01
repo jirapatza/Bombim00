@@ -179,7 +179,7 @@ export function SystemMonitorKiosk() {
   const fetchHealingHistory = async () => {
     setIsHistoryLoading(true);
     try {
-      const res = await apiFetch('/api/system/self-heal-history');
+      const res = await apiFetch('/api/system/audit-history');
       if (res.ok) {
         const data = await res.json();
         if (data.history && Array.isArray(data.history)) {
@@ -209,13 +209,13 @@ export function SystemMonitorKiosk() {
     return () => clearInterval(interval);
   }, [autoRefresh]);
 
-  // Automated Self-Healing Routine (supports either All or specific device target)
+  // Automated System Audit Routine (supports either All or specific device target)
   const handleAutoSelfHeal = async (params?: { targetDevice?: string; triggerReason?: string }) => {
     setIsSelfHealing(true);
     setHealingTargetDevice(params?.targetDevice || null);
     setHealResult(null);
     try {
-      const res = await apiFetch('/api/system/self-heal', {
+      const res = await apiFetch('/api/system/audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -234,9 +234,9 @@ export function SystemMonitorKiosk() {
     } catch (err: any) {
       setHealResult({
         success: false,
-        message: 'เกิดข้อผิดพลาดขณะเรียกใช้งานระบบซ่อมแซม: ' + (err.message || 'Network error'),
+        message: 'เกิดข้อผิดพลาดขณะเรียกใช้งานระบบตรวจสอบ: ' + (err.message || 'Network error'),
         timestamp: new Date().toISOString(),
-        fixedActions: ['พบปัญหาการเชื่อมต่อไปยัง API Endpoint ซ่อมแซม'],
+        fixedActions: ['พบปัญหาการเชื่อมต่อไปยัง API Endpoint ตรวจสอบ'],
       });
     } finally {
       setIsSelfHealing(false);
@@ -244,11 +244,11 @@ export function SystemMonitorKiosk() {
     }
   };
 
-  // Clear Self-Healing History
+  // Clear System Audit History
   const handleClearHistory = async () => {
     if (!window.confirm('คุณต้องการล้างประวัติคำสั่งตรวจสอบระบบทั้งหมดใช่หรือไม่?')) return;
     try {
-      const res = await apiFetch('/api/system/self-heal-history', { method: 'DELETE' });
+      const res = await apiFetch('/api/system/audit-history', { method: 'DELETE' });
       if (res.ok) {
         setHealingHistory([]);
         setExpandedSessionId(null);
@@ -258,7 +258,7 @@ export function SystemMonitorKiosk() {
     }
   };
 
-  // Export Self-Healing Logs as JSON
+  // Export System Audit Logs as JSON
   const handleExportHealingLogsJson = () => {
     const blob = new Blob([JSON.stringify(healingHistory, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -327,7 +327,7 @@ export function SystemMonitorKiosk() {
       details: monitorData
         ? `Node ${monitorData.system.nodeVersion} • Uptime ${monitorData.system.uptimeFormatted} • RAM ${monitorData.system.memoryUsageMB}MB / ${monitorData.system.totalHeapMB}MB`
         : 'รอผลตรวจสุขภาพจาก API Server',
-      easyFix: 'ตรวจสอบ API Server และดูผลตอบกลับล่าสุดก่อนสั่งซ่อมแซม',
+      easyFix: 'ตรวจสอบ API Server และดูผลตอบกลับล่าสุดก่อนสั่งตรวจสอบ',
     },
     {
       id: 'github_actions_runner',
@@ -529,11 +529,11 @@ export function SystemMonitorKiosk() {
               จอแสดงผลสถานะการทำงานของอุปกรณ์ เซิร์ฟเวอร์ ฐานข้อมูล และช่องทางแจ้งเตือนทั้งหมด
               หากจุดใดทำงานปกติจะขึ้น <strong className="text-emerald-400 font-semibold">สีเขียว 🟢</strong>{' '}
               หากจุดใดขัดข้องหรือพังจะขึ้น <strong className="text-red-400 font-semibold">สีแดง 🔴</strong>{' '}
-              พร้อมระบบ <strong className="text-amber-300 font-semibold">Self-Healing Actions Log</strong> ที่บันทึกคำสั่งซ่อมแซมที่ถูกรันโดยละเอียดเมื่ออุปกรณ์แจ้งข้อผิดพลาด
+              พร้อมระบบ <strong className="text-amber-300 font-semibold">System Audit Actions Log</strong> ที่บันทึกคำสั่งตรวจสอบที่ถูกรันโดยละเอียดเมื่ออุปกรณ์แจ้งข้อผิดพลาด
             </p>
           </div>
 
-          {/* Action Buttons: Auto Self-Heal & Download Diagnostics */}
+          {/* Action Buttons: System Audit & Download Diagnostics */}
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
@@ -617,7 +617,7 @@ export function SystemMonitorKiosk() {
         </div>
       </div>
 
-      {/* Self-Healing Feedback Banner (if executed) */}
+      {/* System Audit Feedback Banner (if executed) */}
       {healResult && (
         <div
           className={`p-5 rounded-3xl border transition-all animate-in fade-in slide-in-from-top-3 ${
@@ -638,7 +638,7 @@ export function SystemMonitorKiosk() {
               <div>
                 <h3 className="font-bold text-base text-white flex items-center gap-2">
                   {healResult.success
-                    ? '🎉 ซ่อมแซมและฟื้นฟูระบบสำเร็จเรียบร้อย! (Self-Healing Success)'
+                    ? '🎉 ตรวจสอบและตรวจสอบระบบเสร็จเรียบร้อย! (System Audit Success)'
                     : '⚠️ การตรวจสอบระบบพบข้อผิดพลาดบางส่วน'}
                 </h3>
                 <p className="text-xs text-slate-300 mt-1">{healResult.message}</p>
@@ -894,7 +894,7 @@ export function SystemMonitorKiosk() {
                   onClick={() =>
                     handleAutoSelfHeal({
                       targetDevice: service.name,
-                      triggerReason: `สั่งซ่อมแซมและตรวจสอบเฉพาะอุปกรณ์: ${service.name} (สถานะ: ${service.statusText})`,
+                      triggerReason: `สั่งตรวจสอบและตรวจสอบเฉพาะอุปกรณ์: ${service.name} (สถานะ: ${service.statusText})`,
                     })
                   }
                   disabled={isSelfHealing}
@@ -912,7 +912,7 @@ export function SystemMonitorKiosk() {
                       ? 'กำลังตรวจสอบอุปกรณ์นี้...'
                       : isError
                       ? '⚡ สั่งแก้ปัญหาจุดนี้ทันที (Auto-Repair This Error)'
-                      : '🔧 ทดสอบซ่อมแซม & ตรวจสอบจุดนี้'}
+                      : '🔧 ทดสอบตรวจสอบ & ตรวจสอบจุดนี้'}
                   </span>
                 </button>
               </div>
@@ -933,7 +933,7 @@ export function SystemMonitorKiosk() {
                 <History className="w-5 h-5" />
               </span>
               <h2 className="text-xl font-black text-white flex items-center gap-2">
-                📋 บันทึกประวัติคำสั่งตรวจสอบระบบ (Self-Healing Actions Log)
+                📋 บันทึกประวัติคำสั่งตรวจสอบระบบ (System Audit Actions Log)
               </h2>
             </div>
             <p className="text-xs text-slate-400">
@@ -974,7 +974,7 @@ export function SystemMonitorKiosk() {
           </div>
         </div>
 
-        {/* Top Mini-Stats Strip for Self-Healing */}
+        {/* Top Mini-Stats Strip for System Audit */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800/80">
             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">รอบการตรวจสอบทั้งหมด</span>
