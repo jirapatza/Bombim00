@@ -118,7 +118,7 @@ export function SystemMonitorKiosk() {
   const getDefaultShellCommand = (code: string): string => {
     switch (code) {
       default:
-        return `# No shell command is executed by the Render dashboard. Diagnostic action: ${code}`;
+        return `# ไม่มีการรันคำสั่ง Shell จากหน้า Dashboard เป็นการตรวจสอบ:  ${code}`;
     }
   };
 
@@ -179,7 +179,7 @@ export function SystemMonitorKiosk() {
   const fetchHealingHistory = async () => {
     setIsHistoryLoading(true);
     try {
-      const res = await apiFetch('/api/system/audit-history');
+      const res = await apiFetch('/api/system/self-heal-history');
       if (res.ok) {
         const data = await res.json();
         if (data.history && Array.isArray(data.history)) {
@@ -215,7 +215,7 @@ export function SystemMonitorKiosk() {
     setHealingTargetDevice(params?.targetDevice || null);
     setHealResult(null);
     try {
-      const res = await apiFetch('/api/system/audit', {
+      const res = await apiFetch('/api/system/self-heal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -248,7 +248,7 @@ export function SystemMonitorKiosk() {
   const handleClearHistory = async () => {
     if (!window.confirm('คุณต้องการล้างประวัติคำสั่งตรวจสอบระบบทั้งหมดใช่หรือไม่?')) return;
     try {
-      const res = await apiFetch('/api/system/audit-history', { method: 'DELETE' });
+      const res = await apiFetch('/api/system/self-heal-history', { method: 'DELETE' });
       if (res.ok) {
         setHealingHistory([]);
         setExpandedSessionId(null);
@@ -542,7 +542,7 @@ export function SystemMonitorKiosk() {
               className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 flex items-center gap-2 cursor-pointer transition active:scale-95 disabled:opacity-50"
             >
               <Zap className={`w-4 h-4 ${isSelfHealing ? 'animate-spin' : ''}`} />
-              <span>{isSelfHealing ? 'กำลังตรวจสอบระบบ...' : 'ตรวจสอบระบบ (Self-Heal All)'}</span>
+              <span>{isSelfHealing ? 'กำลังตรวจสอบระบบ...' : 'ตรวจสอบระบบทั้งหมด'}</span>
             </button>
 
             <button
@@ -647,7 +647,7 @@ export function SystemMonitorKiosk() {
                   <div className="mt-3 space-y-1.5">
                     <div className="text-[11px] font-bold text-slate-300 flex items-center gap-2">
                       <Terminal className="w-3.5 h-3.5 text-amber-400" />
-                      <span>คำสั่งที่ระบบสั่งรันเพื่อแก้ไขข้อผิดพลาด (Executed Auto-Repair Commands):</span>
+                      <span>รายการตรวจสอบที่ระบบทำจริง (Diagnostic Checks):</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {healResult.executedActions.map((action: SelfHealingActionItem, idx: number) => {
@@ -684,7 +684,7 @@ export function SystemMonitorKiosk() {
                                 type="button"
                                 onClick={() => handleCopyCommand(cmdText, cmdId)}
                                 className="shrink-0 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 hover:text-white flex items-center gap-1 cursor-pointer transition"
-                                title="คัดลอกคำสั่ง Shell"
+                                title="คัดลอกรายละเอียดตรวจสอบ"
                               >
                                 {copiedCommandId === cmdId ? (
                                   <>
@@ -911,7 +911,7 @@ export function SystemMonitorKiosk() {
                     {isTargetBeingHealed
                       ? 'กำลังตรวจสอบอุปกรณ์นี้...'
                       : isError
-                      ? '⚡ สั่งแก้ปัญหาจุดนี้ทันที (Auto-Repair This Error)'
+                      ? '⚡ ตรวจสอบจุดนี้ทันที'
                       : '🔧 ทดสอบตรวจสอบ & ตรวจสอบจุดนี้'}
                   </span>
                 </button>
@@ -937,7 +937,7 @@ export function SystemMonitorKiosk() {
               </h2>
             </div>
             <p className="text-xs text-slate-400">
-              ติดตามบันทึกคำสั่ง Auto-Repair ทั้งหมดที่ถูกเรียกใช้งานเมื่ออุปกรณ์รายงานข้อผิดพลาด พร้อมระบุเวลา สาเหตุ และสถานะความสำเร็จ
+              ติดตามประวัติการตรวจสอบระบบ พร้อมระบุเวลา สาเหตุ รายการตรวจ และสถานะผลตรวจ
             </p>
           </div>
 
@@ -1133,7 +1133,7 @@ export function SystemMonitorKiosk() {
                       <div className="text-xs font-bold text-slate-300 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                           <Terminal className="w-3.5 h-3.5 text-amber-400" />
-                          รายการคำสั่ง Auto-Repair ที่ถูกกระตุ้นตามลำดับ (Sequential Actions Execution):
+                          รายการตรวจสอบที่ทำตามลำดับ (Sequential Diagnostic Checks):
                         </span>
                         <span className="text-[11px] text-slate-500">
                           สถานะ: {session.successCount}/{session.totalActionsCount} สำเร็จ
@@ -1213,14 +1213,14 @@ export function SystemMonitorKiosk() {
                                   <div className="flex items-center gap-1.5">
                                     <Code2 className="w-3.5 h-3.5 text-amber-400" />
                                     <span className="font-bold text-slate-300">
-                                      คำสั่ง Shell / สคริปต์ที่รัน (Executed Shell Command):
+                                      รายละเอียดขั้นตอนตรวจสอบ (Diagnostic Detail):
                                     </span>
                                   </div>
                                   <button
                                     type="button"
                                     onClick={() => handleCopyCommand(commandToDisplay, actionCmdId)}
                                     className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"
-                                    title="คัดลอกคำสั่ง Shell ไปยังคลิปบอร์ด"
+                                    title="คัดลอกรายละเอียดการตรวจสอบ"
                                   >
                                     {copiedCommandId === actionCmdId ? (
                                       <>
