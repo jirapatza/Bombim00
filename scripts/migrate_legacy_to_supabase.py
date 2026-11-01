@@ -16,9 +16,10 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-import settings_loader as sl
-
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+import settings_loader as sl
 SOURCES = {
     "results": ROOT / "lottery_previous_results.json",
     "catalog": ROOT / "data" / "all_lotteries.json",
