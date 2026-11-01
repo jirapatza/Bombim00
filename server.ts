@@ -2,7 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createLotteryRunner, lotteryTargets } from './server/lotteryRunner.ts';
+import { assertNoSecretFields, commitGitHubJson, GitHubStorageError, readGitHubJson } from './server/githubStorage.ts';
 import { getOverallHealth, preserveCorruptFile } from './server/selfHeal.ts';
 import { timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
@@ -12,7 +12,6 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const runBackgroundAutoCheck = createLotteryRunner(__dirname);
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -244,60 +243,65 @@ const ALL_LOTTERIES_PATH = path.join(__dirname, 'data', 'all_lotteries.json');
 const WORKFLOW_PATH = path.join(__dirname, '.github', 'workflows', 'lottery.yml');
 const HEALING_HISTORY_PATH = path.join(__dirname, 'status', 'self_healing_history.json');
 
-// 1. GET /api/status - Read system status
+// 1. GET /api/status - Read the latest status written by GitHub Actions.
 app.get('/api/status', async (req, res) => {
   try {
-    const data = await readJsonWithCache(STATUS_PATH, {
-      system_status: 'healthy',
-      status_message: 'พร้อมทำงาน (Initial State)',
-      total_checks: 0,
-      active_sources_count: 2,
-    }, 2000);
+    const data = await readGitHubJson<Record<string, any>>('status/status.json');
     return res.json(data);
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'STATUS_READ_FAILED' });
   }
 });
 
-// 2. GET /api/settings - Read settings.json
+// 2. GET /api/settings - Read the canonical, durable settings file from GitHub.
 app.get('/api/settings', async (req, res) => {
   try {
-    if (!fs.existsSync(SETTINGS_PATH)) {
-      return res.status(404).json({ error: 'settings.json not found' });
-    }
-
-    const data = await readJsonWithCache(SETTINGS_PATH, {}, 2000);
+    const data = await readGitHubJson<Record<string, any>>('config/settings.json');
     return res.json(data);
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'SETTINGS_READ_FAILED' });
   }
 });
 
-// 3. POST /api/settings - Update settings.json
+// 3. POST /api/settings - Commit settings to GitHub so they survive Render restarts.
 app.post('/api/settings', async (req, res) => {
   try {
     const updated = req.body;
+    if (!updated || typeof updated !== 'object' || Array.isArray(updated)) {
+      return res.status(400).json({ success: false, error: 'Settings must be a JSON object.' });
+    }
+    assertNoSecretFields(updated);
+    const commit = await commitGitHubJson(
+      'config/settings.json',
+      updated,
+      'chore(settings): update dashboard settings',
+    );
+    // Keep this running instance in sync; GitHub remains the durable source of truth.
     await writeJsonWithCache(SETTINGS_PATH, updated, 5000);
-    return res.json({ success: true, message: 'Settings saved successfully' });
+    return res.json({ success: true, message: 'Settings saved to GitHub successfully.', commit });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'SETTINGS_WRITE_FAILED' });
   }
 });
 
-// 4. GET /api/results - Read past lottery results
+// 4. GET /api/results - Read the latest results committed by GitHub Actions.
 app.get('/api/results', async (req, res) => {
   try {
-    const data = await readJsonWithCache(RESULTS_PATH, [], 2000);
+    const data = await readGitHubJson<any[]>('lottery_previous_results.json');
     return res.json(data);
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'RESULTS_READ_FAILED' });
   }
 });
 
 // 4.0 POST /api/lotteries/cleanup-history - Purge unrequested LIW/pingpong and duplicate entries
 app.post('/api/lotteries/cleanup-history', async (req, res) => {
   try {
-    const raw = await readJsonWithCache<any[]>(RESULTS_PATH, [], 2000);
+    const raw = await readGitHubJson<any[]>('lottery_previous_results.json');
     if (!Array.isArray(raw)) {
       return res.json({ success: true, removedCount: 0, totalAfter: 0 });
     }
@@ -325,6 +329,11 @@ app.post('/api/lotteries/cleanup-history', async (req, res) => {
       }
     }
 
+    const commit = await commitGitHubJson(
+      'lottery_previous_results.json',
+      deduped,
+      'chore(results): clean duplicate and unsupported history',
+    );
     await writeJsonWithCache(RESULTS_PATH, deduped, 5000);
     const removedCount = totalBefore - deduped.length;
     return res.json({
@@ -333,30 +342,42 @@ app.post('/api/lotteries/cleanup-history', async (req, res) => {
       totalBefore,
       totalAfter: deduped.length,
       removedCount,
+      commit,
     });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'RESULTS_WRITE_FAILED' });
   }
 });
 
-// 4.1 GET /api/all-lotteries - Read full catalog and daily summary of all lotteries
+// 4.1 GET /api/all-lotteries - Read the canonical lottery catalog from GitHub.
 app.get('/api/all-lotteries', async (req, res) => {
   try {
-    const data = await readJsonWithCache(ALL_LOTTERIES_PATH, [], 2000);
+    const data = await readGitHubJson<any[]>('data/all_lotteries.json');
     return res.json(data);
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'CATALOG_READ_FAILED' });
   }
 });
 
-// 4.2 POST /api/all-lotteries - Update lotteries data
+// 4.2 POST /api/all-lotteries - Persist lottery catalog changes in GitHub.
 app.post('/api/all-lotteries', async (req, res) => {
   try {
     const updated = req.body;
+    if (!Array.isArray(updated)) {
+      return res.status(400).json({ success: false, error: 'Lottery catalog must be a JSON array.' });
+    }
+    const commit = await commitGitHubJson(
+      'data/all_lotteries.json',
+      updated,
+      'chore(catalog): update lottery catalog',
+    );
     await writeJsonWithCache(ALL_LOTTERIES_PATH, updated, 5000);
-    return res.json({ success: true, message: 'All lotteries data updated successfully' });
+    return res.json({ success: true, message: 'Lottery catalog saved to GitHub.', commit });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const status = err instanceof GitHubStorageError ? err.status : 502;
+    return res.status(status).json({ success: false, error: err.message, code: err.code || 'CATALOG_WRITE_FAILED' });
   }
 });
 
@@ -471,6 +492,8 @@ app.post('/api/github/dispatch', async (req, res) => {
     if (ghRes.status === 204 || ghRes.status === 200) {
       return res.json({
         success: true,
+        queued: true,
+        workflow_dispatched: true,
         message: `ส่งคำสั่งสั่งรัน GitHub Actions (${cleanWorkflow}) บนคลัง ${cleanRepo} สำเร็จเรียบร้อยแล้ว!`,
       });
     }
@@ -542,32 +565,7 @@ app.post('/api/github/runs', async (req, res) => {
   }
 });
 
-// Compatibility URLs share validation, execution lock, output and error handling.
-app.post(['/api/check-now', '/api/trigger', '/api/simulate-runner'], async (req, res) => {
-  try {
-    const target = req.body?.lotteryTarget ?? 'all';
-    const forceNotify = req.body?.forceNotify ?? false;
-    if (typeof target !== 'string' || !lotteryTargets.has(target) || typeof forceNotify !== 'boolean') {
-      return res.status(400).json({ success: false, error: 'Invalid lottery target or forceNotify value.' });
-    }
-    const run = await runBackgroundAutoCheck(target, forceNotify);
-    // The checker writes these files outside this process; do not serve stale cached data.
-    jsonCache.delete(STATUS_PATH);
-    jsonCache.delete(RESULTS_PATH);
-    const [status, results] = await Promise.all([
-      readJsonWithCache(STATUS_PATH, {}, 2000),
-      readJsonWithCache<any[]>(RESULTS_PATH, [], 2000),
-    ]);
-    return res.status(run.busy ? 409 : run.success ? 200 : 502).json({
-      ...run,
-      message: run.success ? 'ตรวจสอบผลหวยเสร็จแล้ว' : run.error,
-      status,
-      results: Array.isArray(results) ? results : [],
-    });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
+// Lottery checks run only in GitHub Actions; this service never starts a second checker.
 
 // 6.1 GET /api/system/monitor - Comprehensive system & devices health monitor
 app.get('/api/system/monitor', async (req, res) => {
@@ -1314,16 +1312,7 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Lottery Alert Dashboard server running on http://0.0.0.0:${PORT}`);
-    if (process.env.DISABLE_BACKGROUND_CHECK !== 'true') {
-      setTimeout(() => {
-        void runBackgroundAutoCheck('all');
-      }, 5000);
-      setInterval(() => {
-        void runBackgroundAutoCheck('all');
-      }, 10 * 60 * 1000);
-    } else {
-      console.log('[AUTO-RUNNER] Background checks disabled by DISABLE_BACKGROUND_CHECK.');
-    }
+    console.log('[RUNNER] Lottery checks are executed only by GitHub Actions.');
   });
 }
 
