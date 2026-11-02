@@ -106,3 +106,41 @@ export async function probeSupabase(options?: SupabaseOptions): Promise<{ config
     tables: ['lottery_results', 'lottery_catalog', 'app_settings', 'system_status', 'self_healing_history'],
   };
 }
+
+export async function writeSupabaseSingleton(
+  table: 'app_settings' | 'system_status' | 'self_healing_history',
+  payload: Record<string, unknown> | unknown[],
+  options?: SupabaseOptions,
+): Promise<void> {
+  await request(
+    `${table}?on_conflict=id`,
+    {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify([{ id: 'main', payload }]),
+    },
+    options,
+  );
+}
+
+export async function writeSupabaseCatalog(
+  rows: Array<Record<string, unknown>>,
+  options?: SupabaseOptions,
+): Promise<void> {
+  if (!Array.isArray(rows)) throw new SupabaseStorageError('Lottery catalog must be an array.', 400);
+  const records = rows.map((row) => {
+    const id = String(row?.id ?? '').trim();
+    if (!id) throw new SupabaseStorageError('Every catalog item must have a non-empty id.', 400);
+    return { lottery_id: id, payload: row };
+  });
+  if (records.length === 0) return;
+  await request(
+    'lottery_catalog?on_conflict=lottery_id',
+    {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(records),
+    },
+    options,
+  );
+}
