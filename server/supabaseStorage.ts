@@ -30,7 +30,7 @@ function config(options: SupabaseOptions = {}) {
   } catch {
     throw new SupabaseStorageError('SUPABASE_URL is invalid.', 500, 'SUPABASE_URL_INVALID');
   }
-  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash) {
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) {
     throw new SupabaseStorageError('SUPABASE_URL must be an HTTPS project origin.', 500, 'SUPABASE_URL_INVALID');
   }
   return { url, key, fetchImpl: options.fetchImpl || fetch };
