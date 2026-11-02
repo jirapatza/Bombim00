@@ -8,15 +8,15 @@ export function createRecentDispatchGuard(cooldownMs = 8000) {
   }
 
   return {
-    isDuplicate(fingerprint, now = Date.now()) {
+    isDuplicate(fingerprint: string, now = Date.now()) {
       prune(now);
       return (recentDispatches.get(fingerprint) || 0) > now;
     },
-    remainingMs(fingerprint, now = Date.now()) {
+    remainingMs(fingerprint: string, now = Date.now()) {
       prune(now);
       return Math.max(0, (recentDispatches.get(fingerprint) || 0) - now);
     },
-    markAccepted(fingerprint, now = Date.now()) {
+    markAccepted(fingerprint: string, now = Date.now()) {
       prune(now);
       recentDispatches.set(fingerprint, now + cooldownMs);
     },
