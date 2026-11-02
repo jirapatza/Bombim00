@@ -1,3 +1,5 @@
+import './overview.css';
+import { ResultsOverview, IndividualHistory } from './components/ResultsOverview';
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import bundledLotteryCatalog from '../data/all_lotteries.json';
 import { apiFetch, setDashboardPassword } from './utils/api';
@@ -433,7 +435,7 @@ const TEMPLATE_PRESETS = {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<
-    'summary' | 'checker' | 'live' | 'history' | 'accuracy' | 'batch' | 'results' | 'settings' | 'diagnostics'
+    'summary' | 'checker' | 'live' | 'history' | 'stats' | 'notifications' | 'accuracy' | 'batch' | 'results' | 'settings' | 'diagnostics'
   >('live');
   const [isAdminBackOfficeOpen, setIsAdminBackOfficeOpen] = useState<boolean>(false);
   const [checkerSubTab, setCheckerSubTab] = useState<'accuracy' | 'batch' | 'history'>('accuracy');
@@ -1531,10 +1533,13 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <nav id="bombim-main-nav" aria-label="เมนูหลัก" className="flex gap-2 sm:gap-3 border-t border-slate-800/80 overflow-x-auto py-3 text-sm sm:text-base font-black no-scrollbar">
             {[
-              { id: 'summary', label: '🏆 ผลหวย & สรุปภาพแชร์', icon: TableProperties },
-              { id: 'checker', label: '🎫 ตรวจสลากรางวัล', icon: Search },
-              { id: 'live', label: '⏱️ รอบหวยสด & นับถอยหลัง', icon: Radio },
-              { id: 'history', label: '📊 สถิติ & ประวัติย้อนหลัง', icon: History },
+              { id: 'live', label: 'หน้าหลัก', icon: Layers },
+              { id: 'stats', label: 'สถิติ', icon: BarChart3 },
+              { id: 'history', label: 'ประวัติผล', icon: History },
+              { id: 'notifications', label: 'แจ้งเตือน', icon: Bell },
+              { id: 'settings', label: 'ตั้งค่า', icon: Settings },
+              { id: 'summary', label: 'ตารางผลและภาพแชร์', icon: TableProperties },
+              { id: 'checker', label: 'ตรวจสลากรางวัล', icon: Search },
             ].map((tab) => {
               const Icon = tab.icon;
               const selected = activeTab === tab.id ||
@@ -1542,10 +1547,12 @@ export default function App() {
               return (
                 <button
                   key={tab.id}
+                  aria-current={selected ? 'page' : undefined}
                   type="button"
                   onClick={() => {
                     setActiveTab(tab.id as any);
                     if (tab.id === 'checker') setCheckerSubTab('batch');
+                    if (tab.id === 'stats') setCheckerSubTab('history');
                   }}
                   className={`px-5 py-3 rounded-2xl flex items-center gap-2.5 whitespace-nowrap transition cursor-pointer text-sm sm:text-base font-black ${
                     selected
@@ -1565,30 +1572,8 @@ export default function App() {
       {/* Main Content Area */}
       <main id="bombim-main-content" className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
         {/* ==================== TAB 1: LIVE UPCOMING DRAWS (WAITING & ABOUT-TO-DRAW) ==================== */}
-        <div className={activeTab === 'live' ? 'block' : 'hidden'}>
-          <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันการแสดงผลหวยสดขัดข้อง (Live Draws Shield)">
-            <LiveUpcomingDraws
-              lotteries={filterLotteriesForDrawDate(allLotteries)}
-              onSelectLottery={(item) => {
-                setSelectedCatalogLottery(item);
-                setActiveTab('summary');
-              }}
-              onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
-              onSpeakText={(text) => speakCustomText(text)}
-              voiceEnabled={voiceEnabled}
-              onToggleVoice={() => {
-                const nextState = !voiceEnabled;
-                setVoiceEnabled(nextState);
-                if (!nextState) stopSpeech();
-                showToast(nextState ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
-              }}
-              onNavigateToSummary={() => setActiveTab('summary')}
-            />
-          </CrashShieldErrorBoundary>
-          <div className="mt-6">
-            <LatestThreeResults results={results} lotteries={allLotteries} />
-          </div>
-        </div>
+        {activeTab === 'live' && <ResultsOverview lotteries={allLotteries} results={results} onSettings={() => setActiveTab('notifications')} onRefresh={fetchData} lastUpdated={status?.last_run_date_thai} />}
+        {activeTab === 'history' && <IndividualHistory lotteries={allLotteries} results={results} />}
 
         {/* ==================== TAB 2: DAILY SUMMARY TABLE (FULL 51 LOTTERIES MATRIX) ==================== */}
         {activeTab === 'summary' && (
@@ -1611,7 +1596,7 @@ export default function App() {
         )}
 
         {/* ==================== TAB 4: UNIFIED SETTINGS CENTER ==================== */}
-        {activeTab === 'settings' && (
+        {(activeTab === 'settings' || activeTab === 'notifications') && (
           <SettingsCenter
             settings={settings}
             onSaveSettings={handleSaveMultiChannelSettings}
@@ -1685,7 +1670,7 @@ export default function App() {
         )}
 
         {/* ==================== TAB 3: SMART TICKET CHECKER & AI ACCURACY CENTER ==================== */}
-        {(activeTab === 'checker' || activeTab === 'accuracy' || activeTab === 'batch' || activeTab === 'results' || activeTab === 'history') && (
+        {(activeTab === 'checker' || activeTab === 'accuracy' || activeTab === 'batch' || activeTab === 'results' || activeTab === 'stats') && (
           <div className="space-y-6">
             {/* Sub-navigation bar with larger fonts */}
             <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-3 sm:p-4 shadow-xl flex flex-wrap items-center justify-between gap-3">
@@ -1697,12 +1682,12 @@ export default function App() {
                     setActiveTab('checker');
                   }}
                   className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-sm sm:text-base font-black transition cursor-pointer flex items-center gap-2 ${
-                    checkerSubTab === 'batch' && activeTab !== 'history'
+                    checkerSubTab === 'batch' && activeTab !== 'stats'
                       ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25 scale-[1.02]'
                       : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
                   }`}
                 >
-                  <Ticket className={`w-5 h-5 ${checkerSubTab === 'batch' && activeTab !== 'history' ? 'text-slate-950' : 'text-amber-400'}`} />
+                  <Ticket className={`w-5 h-5 ${checkerSubTab === 'batch' && activeTab !== 'stats' ? 'text-slate-950' : 'text-amber-400'}`} />
                   <span>🎯 ตรวจรางวัลสลาก (เดี่ยว &amp; ชุดหลายใบ)</span>
                 </button>
 
@@ -1713,7 +1698,7 @@ export default function App() {
                     setActiveTab('history');
                   }}
                   className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-sm sm:text-base font-black transition cursor-pointer flex items-center gap-2 ${
-                    checkerSubTab === 'history' || activeTab === 'history'
+                    checkerSubTab === 'history' || activeTab === 'stats'
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 scale-[1.02]'
                       : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
                   }`}
@@ -1729,12 +1714,12 @@ export default function App() {
                     setActiveTab('checker');
                   }}
                   className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-sm sm:text-base font-black transition cursor-pointer flex items-center gap-2 ${
-                    checkerSubTab === 'accuracy' && activeTab !== 'history'
+                    checkerSubTab === 'accuracy' && activeTab !== 'stats'
                       ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25 scale-[1.02]'
                       : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
                   }`}
                 >
-                  <Globe className={`w-5 h-5 ${checkerSubTab === 'accuracy' && activeTab !== 'history' ? 'text-slate-950' : 'text-emerald-400'}`} />
+                  <Globe className={`w-5 h-5 ${checkerSubTab === 'accuracy' && activeTab !== 'stats' ? 'text-slate-950' : 'text-emerald-400'}`} />
                   <span>🛡️ ตรวจความแม่นยำ AI</span>
                 </button>
               </div>
