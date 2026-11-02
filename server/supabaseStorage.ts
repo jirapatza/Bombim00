@@ -106,12 +106,3 @@ export async function probeSupabase(options?: SupabaseOptions): Promise<{ config
     tables: ['lottery_results', 'lottery_catalog', 'app_settings', 'system_status', 'self_healing_history'],
   };
 }
-
-export function resultFingerprint(row: Record<string, unknown>): string {
-  const name = String(row['ชื่อหวย'] || row.lottery_name || row['หวย'] || row.id || 'หวยไม่ระบุชื่อ')
-    .trim().toLocaleLowerCase('th-TH').replace(/\s+/g, ' ');
-  const date = String(row['งวดวันที่'] || row['วันที่จัดรูปแบบ'] || row.draw_date || '').trim();
-  const top = String(row['เลขบน_3_ตัว'] || row.top3 || row['รางวัลที่_1'] || '').trim();
-  const bottom = String(row['เลขท้าย_2_ตัว'] || row['เลขล่าง_2_ตัว'] || row.bottom2 || '').trim();
-  return createHash('sha256').update([name, date, top.slice(-3), bottom.slice(-2)].join('|')).digest('hex');
-}
