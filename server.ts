@@ -1,4 +1,5 @@
 import express from 'express';
+import { createRecentDispatchGuard } from './src/utils/recentDispatchGuard.ts';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -387,6 +388,9 @@ const LOTTERY_REPOSITORY = 'jirapatza/Bombim00';
 const LOTTERY_BRANCH = 'main';
 const LOTTERY_TARGETS = new Set(['all', 'vip', 'foreign_stock', 'hanoi', 'lao', 'thai_stock', 'government', 'malay']);
 let lotteryDispatchInFlight = false;
+// Suppress accidental sequential double-clicks for the same dispatch inputs.
+// This is deliberately short so an operator can retry a failed/manual run promptly.
+const recentLotteryDispatches = createRecentDispatchGuard(8000);
 
 app.post('/api/github/dispatch', async (req, res) => {
   let acquiredDispatchLock = false;
@@ -400,6 +404,17 @@ app.post('/api/github/dispatch', async (req, res) => {
     const forceNotify = String(inputs.force_notify || 'false');
     if (!LOTTERY_TARGETS.has(target) || !['true', 'false'].includes(forceNotify)) {
       return res.status(400).json({ success: false, error: 'ค่ากลุ่มหวยหรือ Force Notify ไม่ถูกต้อง' });
+    }
+    // Suppress rapid retries of an identical dispatch after GitHub accepted it.
+    const dispatchFingerprint = JSON.stringify([target, forceNotify]);
+    if (recentLotteryDispatches.isDuplicate(dispatchFingerprint)) {
+      return res.status(409).json({
+        success: false,
+        queued: false,
+        code: 'DISPATCH_RECENTLY_ACCEPTED',
+        retryAfterMs: recentLotteryDispatches.remainingMs(dispatchFingerprint),
+        error: 'คำสั่งชุดเดียวกันเพิ่งถูกส่งไปแล้ว กรุณารอสักครู่ก่อนส่งซ้ำ',
+      });
     }
     // Both dashboard entry points share this server-side lock. This closes the
     // race that separate component-level loading flags cannot prevent.
@@ -428,6 +443,7 @@ app.post('/api/github/dispatch', async (req, res) => {
       signal: AbortSignal.timeout(10000),
     });
     if (ghRes.status === 204 || ghRes.status === 200) {
+      recentLotteryDispatches.markAccepted(dispatchFingerprint);
       return res.json({ success: true, queued: true, workflow_dispatched: true, message: 'ส่งคำสั่งตรวจผลไปยัง GitHub Actions แล้ว' });
     }
     const detail = await ghRes.text().catch(() => '');
