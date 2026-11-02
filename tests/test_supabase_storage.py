@@ -105,3 +105,17 @@ def test_status_is_written_to_supabase_and_github_json_mirror(monkeypatch, tmp_p
     assert calls[0][1] == result
     assert json.loads(target.read_text(encoding="utf-8")) == result
     assert result["total_checks"] == 5
+
+
+def test_load_results_paginates_past_postgrest_default_limit(monkeypatch):
+    calls = []
+    def fake_request(path, *args, **kwargs):
+        calls.append(path)
+        if "offset=0" in path:
+            return [{"payload": {"id": i}} for i in range(1000)]
+        return [{"payload": {"id": 1000}}, {"payload": {"id": 1001}}]
+    monkeypatch.setattr(ss, "_request", fake_request)
+    rows = ss.load_results()
+    assert len(rows) == 1002
+    assert calls[0].endswith("offset=0&order=created_at.desc")
+    assert calls[1].endswith("offset=1000&order=created_at.desc")
