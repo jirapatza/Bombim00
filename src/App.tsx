@@ -1,3 +1,5 @@
+import './overview.css';
+import { ResultsOverview, IndividualHistory } from './components/ResultsOverview';
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import bundledLotteryCatalog from '../data/all_lotteries.json';
 import { apiFetch, setDashboardPassword } from './utils/api';
@@ -433,7 +435,7 @@ const TEMPLATE_PRESETS = {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<
-    'summary' | 'checker' | 'live' | 'history' | 'accuracy' | 'batch' | 'results' | 'settings' | 'diagnostics'
+    'summary' | 'checker' | 'live' | 'history' | 'stats' | 'notifications' | 'accuracy' | 'batch' | 'results' | 'settings' | 'diagnostics'
   >('live');
   const [isAdminBackOfficeOpen, setIsAdminBackOfficeOpen] = useState<boolean>(false);
   const [checkerSubTab, setCheckerSubTab] = useState<'accuracy' | 'batch' | 'history'>('accuracy');
@@ -1451,79 +1453,13 @@ export default function App() {
 
       {/* Executive Header & Navigation */}
       <header id="bombim-header" className="border-b border-slate-800 bg-slate-900 sticky top-0 z-40 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30 text-slate-950 font-black shrink-0">
-              <Trophy className="w-7 h-7" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="font-black text-xl sm:text-2xl text-white tracking-tight">
-                  Bombim00
-                </h1>
-                <span className="text-xs sm:text-sm px-3 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  ระบบอัตโนมัติ 24 ชม.
-                </span>
-                <span className="text-xs sm:text-sm px-3 py-1 rounded-full font-bold bg-teal-500/20 text-teal-300 border border-teal-500/40 flex items-center gap-1.5" title="ระบบป้องกันระบบล่ม (Crash Shield & Circuit Breaker) ทำงานอยู่">
-                  <ShieldCheck className="w-4 h-4 text-teal-400" />
-                  <span>ป้องกันระบบล่ม (Active)</span>
-                </span>
-              </div>
-              <p className="text-sm text-slate-300 mt-1 font-medium hidden sm:block">
-                ศูนย์กลางตรวจผลหวยสดและจัดการระบบแบบเรียลไทม์
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Primary Back-Office & Settings Button */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('settings')}
-              aria-label="เปิดหน้าตั้งค่า"
-              aria-current={activeTab === 'settings' ? 'page' : undefined}
-              className="px-4 py-2.5 sm:px-5 sm:py-3 text-sm sm:text-base font-black rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 transition flex items-center gap-2 shadow-lg shadow-amber-500/25 cursor-pointer active:scale-95"
-            >
-              <Settings className="w-5 h-5 text-slate-950" />
-              <span>ตั้งค่า</span>
-            </button>
-
-            <button
-              onClick={handleTriggerCheck}
-              disabled={isTriggering}
-              className="px-3.5 py-2.5 text-xs sm:text-sm font-bold rounded-2xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 transition flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer active:scale-95"
-            >
-              <Play className={`w-4 h-4 fill-current ${isTriggering ? 'animate-spin' : ''}`} />
-              <span>{isTriggering ? 'กำลังตรวจ...' : '▶️ ตรวจผลทันที'}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                const nextState = !voiceEnabled;
-                setVoiceEnabled(nextState);
-                if (!nextState) stopSpeech();
-                showToast(nextState ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
-              }}
-              title={voiceEnabled ? 'เสียงพูดภาษาไทย: เปิดอยู่' : 'เสียงพูดภาษาไทย: ปิดอยู่'}
-              className={`px-3 py-2.5 text-xs sm:text-sm font-bold rounded-2xl border cursor-pointer transition flex items-center gap-1.5 ${
-                voiceEnabled
-                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-sm'
-                  : 'bg-slate-800/90 border-slate-700 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {voiceEnabled ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4" />}
-              <span className="hidden md:inline">{voiceEnabled ? 'เสียงไทย: เปิด' : 'เสียงไทย: ปิด'}</span>
-            </button>
-
-            <button
-              onClick={fetchData}
-              disabled={isLoading}
-              title="รีเฟรชข้อมูล"
-              className="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700 cursor-pointer"
-            >
-              <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
-            </button>
+        <div className="overview-header">
+          <div className="overview-brand"><h1>BOMBIM<span>00</span></h1><p>LIVE RESULTS</p></div>
+          <div className="overview-header-actions">
+            <button onClick={fetchData} disabled={isLoading}><RefreshCw size={18} className={isLoading ? 'animate-spin' : ''}/> รีเฟรชข้อมูล</button>
+            <span className="live-pill">● LIVE</span>
+            <button onClick={() => { const enabled = !voiceEnabled; setVoiceEnabled(enabled); if (!enabled) stopSpeech(); }} aria-label={voiceEnabled ? 'ปิดเสียงอ่าน' : 'เปิดเสียงอ่าน'}>{voiceEnabled ? <Volume2 size={19}/> : <VolumeX size={19}/>}</button>
+            <button onClick={handleTriggerCheck} disabled={isTriggering}><Play size={17}/>{isTriggering ? 'กำลังตรวจ...' : 'ตรวจผลทันที'}</button>
           </div>
         </div>
 
@@ -1531,10 +1467,13 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <nav id="bombim-main-nav" aria-label="เมนูหลัก" className="flex gap-2 sm:gap-3 border-t border-slate-800/80 overflow-x-auto py-3 text-sm sm:text-base font-black no-scrollbar">
             {[
-              { id: 'summary', label: '🏆 ผลหวย & สรุปภาพแชร์', icon: TableProperties },
-              { id: 'checker', label: '🎫 ตรวจสลากรางวัล', icon: Search },
-              { id: 'live', label: '⏱️ รอบหวยสด & นับถอยหลัง', icon: Radio },
-              { id: 'history', label: '📊 สถิติ & ประวัติย้อนหลัง', icon: History },
+              { id: 'live', label: 'หน้าหลัก', icon: Layers },
+              { id: 'stats', label: 'สถิติ', icon: BarChart3 },
+              { id: 'history', label: 'ประวัติผล', icon: History },
+              { id: 'notifications', label: 'แจ้งเตือน', icon: Bell },
+              { id: 'settings', label: 'ตั้งค่า', icon: Settings },
+              { id: 'summary', label: 'ตารางผลและภาพแชร์', icon: TableProperties },
+              { id: 'checker', label: 'ตรวจสลากรางวัล', icon: Search },
             ].map((tab) => {
               const Icon = tab.icon;
               const selected = activeTab === tab.id ||
@@ -1542,10 +1481,12 @@ export default function App() {
               return (
                 <button
                   key={tab.id}
+                  aria-current={selected ? 'page' : undefined}
                   type="button"
                   onClick={() => {
                     setActiveTab(tab.id as any);
                     if (tab.id === 'checker') setCheckerSubTab('batch');
+                    if (tab.id === 'stats') setCheckerSubTab('history');
                   }}
                   className={`px-5 py-3 rounded-2xl flex items-center gap-2.5 whitespace-nowrap transition cursor-pointer text-sm sm:text-base font-black ${
                     selected
@@ -1565,30 +1506,8 @@ export default function App() {
       {/* Main Content Area */}
       <main id="bombim-main-content" className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
         {/* ==================== TAB 1: LIVE UPCOMING DRAWS (WAITING & ABOUT-TO-DRAW) ==================== */}
-        <div className={activeTab === 'live' ? 'block' : 'hidden'}>
-          <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันการแสดงผลหวยสดขัดข้อง (Live Draws Shield)">
-            <LiveUpcomingDraws
-              lotteries={filterLotteriesForDrawDate(allLotteries)}
-              onSelectLottery={(item) => {
-                setSelectedCatalogLottery(item);
-                setActiveTab('summary');
-              }}
-              onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
-              onSpeakText={(text) => speakCustomText(text)}
-              voiceEnabled={voiceEnabled}
-              onToggleVoice={() => {
-                const nextState = !voiceEnabled;
-                setVoiceEnabled(nextState);
-                if (!nextState) stopSpeech();
-                showToast(nextState ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
-              }}
-              onNavigateToSummary={() => setActiveTab('summary')}
-            />
-          </CrashShieldErrorBoundary>
-          <div className="mt-6">
-            <LatestThreeResults results={results} lotteries={allLotteries} />
-          </div>
-        </div>
+        {activeTab === 'live' && <ResultsOverview lotteries={allLotteries} results={results} onSettings={() => setActiveTab('notifications')} onRefresh={fetchData} lastUpdated={status?.last_run_date_thai} />}
+        {activeTab === 'history' && <IndividualHistory lotteries={allLotteries} results={results} />}
 
         {/* ==================== TAB 2: DAILY SUMMARY TABLE (FULL 51 LOTTERIES MATRIX) ==================== */}
         {activeTab === 'summary' && (
@@ -1611,7 +1530,7 @@ export default function App() {
         )}
 
         {/* ==================== TAB 4: UNIFIED SETTINGS CENTER ==================== */}
-        {activeTab === 'settings' && (
+        {(activeTab === 'settings' || activeTab === 'notifications') && (
           <SettingsCenter
             settings={settings}
             onSaveSettings={handleSaveMultiChannelSettings}
@@ -1685,7 +1604,7 @@ export default function App() {
         )}
 
         {/* ==================== TAB 3: SMART TICKET CHECKER & AI ACCURACY CENTER ==================== */}
-        {(activeTab === 'checker' || activeTab === 'accuracy' || activeTab === 'batch' || activeTab === 'results' || activeTab === 'history') && (
+        {(activeTab === 'checker' || activeTab === 'accuracy' || activeTab === 'batch' || activeTab === 'results' || activeTab === 'stats') && (
           <div className="space-y-6">
             {/* Sub-navigation bar with larger fonts */}
             <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-3 sm:p-4 shadow-xl flex flex-wrap items-center justify-between gap-3">
@@ -1697,12 +1616,12 @@ export default function App() {
                     setActiveTab('checker');
                   }}
                   className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-sm sm:text-base font-black transition cursor-pointer flex items-center gap-2 ${
-                    checkerSubTab === 'batch' && activeTab !== 'history'
+                    checkerSubTab === 'batch' && activeTab !== 'stats'
                       ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25 scale-[1.02]'
                       : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
                   }`}
                 >
-                  <Ticket className={`w-5 h-5 ${checkerSubTab === 'batch' && activeTab !== 'history' ? 'text-slate-950' : 'text-amber-400'}`} />
+                  <Ticket className={`w-5 h-5 ${checkerSubTab === 'batch' && activeTab !== 'stats' ? 'text-slate-950' : 'text-amber-400'}`} />
                   <span>🎯 ตรวจรางวัลสลาก (เดี่ยว &amp; ชุดหลายใบ)</span>
                 </button>
 
@@ -1713,7 +1632,7 @@ export default function App() {
                     setActiveTab('history');
                   }}
                   className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-sm sm:text-base font-black transition cursor-pointer flex items-center gap-2 ${
-                    checkerSubTab === 'history' || activeTab === 'history'
+                    checkerSubTab === 'history' || activeTab === 'stats'
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 scale-[1.02]'
                       : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
                   }`}
@@ -1729,12 +1648,12 @@ export default function App() {
                     setActiveTab('checker');
                   }}
                   className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-sm sm:text-base font-black transition cursor-pointer flex items-center gap-2 ${
-                    checkerSubTab === 'accuracy' && activeTab !== 'history'
+                    checkerSubTab === 'accuracy' && activeTab !== 'stats'
                       ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25 scale-[1.02]'
                       : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
                   }`}
                 >
-                  <Globe className={`w-5 h-5 ${checkerSubTab === 'accuracy' && activeTab !== 'history' ? 'text-slate-950' : 'text-emerald-400'}`} />
+                  <Globe className={`w-5 h-5 ${checkerSubTab === 'accuracy' && activeTab !== 'stats' ? 'text-slate-950' : 'text-emerald-400'}`} />
                   <span>🛡️ ตรวจความแม่นยำ AI</span>
                 </button>
               </div>
