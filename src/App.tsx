@@ -1012,6 +1012,14 @@ export default function App() {
           showToast(`ตรวจพบผลใหม่ ${refreshed.newResults.length} รายการ`);
         }
       } else {
+        if (res.status === 401) {
+          showToast('ยังไม่ได้ยืนยันรหัส Dashboard หรือรหัสไม่ถูกต้อง กรุณาเปิด ตั้งค่า → GitHub Actions แล้วกรอกรหัส Dashboard ก่อนลองอีกครั้ง');
+          return;
+        }
+        if (res.status === 503 && String(data?.error || '').includes('DASH_PASSWORD')) {
+          showToast('ระบบยังไม่ได้ตั้งค่า DASH_PASSWORD บนเซิร์ฟเวอร์ กรุณาตรวจสอบการตั้งค่า Render');
+          return;
+        }
         const reason = data?.error || data?.message || (res ? `HTTP ${res.status}` : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
         showToast(`ตรวจสอบไม่สำเร็จ: ${reason}`);
         console.error('Trigger workflow failed:', res?.status, data);
