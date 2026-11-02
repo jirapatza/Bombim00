@@ -1453,79 +1453,13 @@ export default function App() {
 
       {/* Executive Header & Navigation */}
       <header id="bombim-header" className="border-b border-slate-800 bg-slate-900 sticky top-0 z-40 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30 text-slate-950 font-black shrink-0">
-              <Trophy className="w-7 h-7" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="font-black text-xl sm:text-2xl text-white tracking-tight">
-                  Bombim00
-                </h1>
-                <span className="text-xs sm:text-sm px-3 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  ระบบอัตโนมัติ 24 ชม.
-                </span>
-                <span className="text-xs sm:text-sm px-3 py-1 rounded-full font-bold bg-teal-500/20 text-teal-300 border border-teal-500/40 flex items-center gap-1.5" title="ระบบป้องกันระบบล่ม (Crash Shield & Circuit Breaker) ทำงานอยู่">
-                  <ShieldCheck className="w-4 h-4 text-teal-400" />
-                  <span>ป้องกันระบบล่ม (Active)</span>
-                </span>
-              </div>
-              <p className="text-sm text-slate-300 mt-1 font-medium hidden sm:block">
-                ศูนย์กลางตรวจผลหวยสดและจัดการระบบแบบเรียลไทม์
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Primary Back-Office & Settings Button */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('settings')}
-              aria-label="เปิดหน้าตั้งค่า"
-              aria-current={activeTab === 'settings' ? 'page' : undefined}
-              className="px-4 py-2.5 sm:px-5 sm:py-3 text-sm sm:text-base font-black rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 transition flex items-center gap-2 shadow-lg shadow-amber-500/25 cursor-pointer active:scale-95"
-            >
-              <Settings className="w-5 h-5 text-slate-950" />
-              <span>ตั้งค่า</span>
-            </button>
-
-            <button
-              onClick={handleTriggerCheck}
-              disabled={isTriggering}
-              className="px-3.5 py-2.5 text-xs sm:text-sm font-bold rounded-2xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 transition flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer active:scale-95"
-            >
-              <Play className={`w-4 h-4 fill-current ${isTriggering ? 'animate-spin' : ''}`} />
-              <span>{isTriggering ? 'กำลังตรวจ...' : '▶️ ตรวจผลทันที'}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                const nextState = !voiceEnabled;
-                setVoiceEnabled(nextState);
-                if (!nextState) stopSpeech();
-                showToast(nextState ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
-              }}
-              title={voiceEnabled ? 'เสียงพูดภาษาไทย: เปิดอยู่' : 'เสียงพูดภาษาไทย: ปิดอยู่'}
-              className={`px-3 py-2.5 text-xs sm:text-sm font-bold rounded-2xl border cursor-pointer transition flex items-center gap-1.5 ${
-                voiceEnabled
-                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-sm'
-                  : 'bg-slate-800/90 border-slate-700 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {voiceEnabled ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4" />}
-              <span className="hidden md:inline">{voiceEnabled ? 'เสียงไทย: เปิด' : 'เสียงไทย: ปิด'}</span>
-            </button>
-
-            <button
-              onClick={fetchData}
-              disabled={isLoading}
-              title="รีเฟรชข้อมูล"
-              className="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700 cursor-pointer"
-            >
-              <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
-            </button>
+        <div className="overview-header">
+          <div className="overview-brand"><h1>BOMBIM<span>00</span></h1><p>LIVE RESULTS</p></div>
+          <div className="overview-header-actions">
+            <button onClick={fetchData} disabled={isLoading}><RefreshCw size={18} className={isLoading ? 'animate-spin' : ''}/> รีเฟรชข้อมูล</button>
+            <span className="live-pill">● LIVE</span>
+            <button onClick={() => { const enabled = !voiceEnabled; setVoiceEnabled(enabled); if (!enabled) stopSpeech(); }} aria-label={voiceEnabled ? 'ปิดเสียงอ่าน' : 'เปิดเสียงอ่าน'}>{voiceEnabled ? <Volume2 size={19}/> : <VolumeX size={19}/>}</button>
+            <button onClick={handleTriggerCheck} disabled={isTriggering}><Play size={17}/>{isTriggering ? 'กำลังตรวจ...' : 'ตรวจผลทันที'}</button>
           </div>
         </div>
 
