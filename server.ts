@@ -254,6 +254,12 @@ app.get('/api/results', async (req, res) => {
 // 4.0 POST /api/lotteries/cleanup-history - Purge unrequested LIW/pingpong and duplicate entries
 app.post('/api/lotteries/cleanup-history', async (req, res) => {
   try {
+    if (process.env.SUPABASE_STORAGE_ENABLED === 'true') {
+      return res.status(409).json({
+        success: false,
+        error: 'History cleanup is temporarily disabled in Supabase mode until the database maintenance RPC is enabled.',
+      });
+    }
     const raw = await readGitHubJson<any[]>('lottery_previous_results.json');
     if (!Array.isArray(raw)) {
       return res.json({ success: true, removedCount: 0, totalAfter: 0 });
