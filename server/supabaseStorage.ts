@@ -108,11 +108,23 @@ export async function readSupabaseSingleton(table: 'app_settings' | 'system_stat
 }
 
 export async function probeSupabase(options?: SupabaseOptions): Promise<{ configured: true; reachable: true; tables: string[] }> {
-  await request('app_settings?select=id&limit=1', {}, options);
+  const probes: Array<[string, string]> = [
+    ['lottery_results', 'id'],
+    ['lottery_catalog', 'lottery_id'],
+    ['app_settings', 'id'],
+    ['system_status', 'id'],
+    ['self_healing_history', 'id'],
+    ['notification_events', 'id'],
+    ['legacy_import_batches', 'source_sha256'],
+    ['notification_suppressions', 'fingerprint'],
+  ];
+  await Promise.all(probes.map(([table, column]) =>
+    request(`${table}?select=${column}&limit=1`, {}, options)
+  ));
   return {
     configured: true,
     reachable: true,
-    tables: ['lottery_results', 'lottery_catalog', 'app_settings', 'system_status', 'self_healing_history'],
+    tables: probes.map(([table]) => table),
   };
 }
 
