@@ -691,7 +691,7 @@ def send_line_notification(row: dict) -> bool:
         print(f"[WARN] Failed posting to LINE Messaging API: {e}")
     return False
 
-def send_all_notifications(row: dict) -> bool:
+def send_all_notifications(row: dict, force: bool = False) -> bool:
     """Dispatch per-channel alerts with database idempotency when Supabase mode is enabled."""
     if os.environ.get("SUPABASE_CHECKER_ENABLED", "").strip().lower() != "true":
         s1 = send_ntfy_notification(row)
@@ -706,6 +706,7 @@ def send_all_notifications(row: dict) -> bool:
             fingerprint,
             channel,
             {"lottery": row.get("ชื่อหวย"), "draw_date": row.get("งวดวันที่")},
+            force=force,
         )
         if not claimed:
             print(f"[DEDUP] Supabase already has a sent or active {channel} reservation for this draw.")
@@ -808,7 +809,7 @@ def main():
             row["สถานะการแจ้งเตือน"] = "sent"
             print(f"[DEDUP] Already delivered; skip {row.get('ชื่อหวย', 'unknown lottery')} / {row.get('งวดวันที่', 'unknown draw')}.")
             continue
-        if send_all_notifications(row):
+        if send_all_notifications(row, force=force_notify):
             row["สถานะการแจ้งเตือน"] = "sent"
             delivered.append(row)
         else:
