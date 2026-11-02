@@ -117,5 +117,5 @@ def test_load_results_paginates_past_postgrest_default_limit(monkeypatch):
     monkeypatch.setattr(ss, "_request", fake_request)
     rows = ss.load_results()
     assert len(rows) == 1002
-    assert calls[0].endswith("offset=0&order=created_at.desc")
-    assert calls[1].endswith("offset=1000&order=created_at.desc")
+    assert calls[0].endswith("offset=0&order=updated_at.desc")
+    assert calls[1].endswith("offset=1000&order=updated_at.desc")
