@@ -128,9 +128,12 @@ export async function writeSupabaseCatalog(
   options?: SupabaseOptions,
 ): Promise<void> {
   if (!Array.isArray(rows)) throw new SupabaseStorageError('Lottery catalog must be an array.', 400);
+  const seen = new Set<string>();
   const records = rows.map((row) => {
     const id = String(row?.id ?? '').trim();
     if (!id) throw new SupabaseStorageError('Every catalog item must have a non-empty id.', 400);
+    if (seen.has(id)) throw new SupabaseStorageError(`Duplicate lottery catalog id: ${id}`, 400);
+    seen.add(id);
     return { lottery_id: id, payload: row };
   });
   if (records.length === 0) return;
