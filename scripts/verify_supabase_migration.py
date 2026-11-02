@@ -40,6 +40,13 @@ def compare_snapshot(
     actual_results = {row["fingerprint"]: row["payload"] for row in actual_result_rows}
     expected_catalog = {str(row["id"]): row for row in snapshot["catalog"]}
     actual_catalog = {str(row["lottery_id"]): row["payload"] for row in actual["catalog"]}
+    expected_suppressions = {
+        row["fingerprint"]
+        for row in snapshot["results"]
+        if row["payload"].get("สถานะการแจ้งเตือน") == "sent"
+        or row["payload"].get("notification_status") == "sent"
+    }
+    actual_suppressions = {row["fingerprint"] for row in actual["suppressions"]}
 
     errors: list[str] = []
     if len(actual_result_rows) != len(expected_results) or set(actual_results) != set(expected_results):
@@ -57,6 +64,8 @@ def compare_snapshot(
         errors.append("system_status payload differs from the source snapshot")
     if actual["history"] != snapshot["self_healing_history"]:
         errors.append("self_healing_history payload differs from the source snapshot")
+    if actual_suppressions != expected_suppressions:
+        errors.append("legacy notification suppression fingerprints differ from sent source results")
     matching_batches = [row for row in actual["batches"] if row.get("source_sha256") == source_sha256]
     if not matching_batches:
         errors.append("legacy_import_batches does not contain the current source SHA-256")
@@ -75,11 +84,13 @@ def compare_snapshot(
             "results": len(expected_results),
             "catalog": len(expected_catalog),
             "self_healing_history": len(snapshot["self_healing_history"]),
+            "legacy_notification_suppressions": len(expected_suppressions),
         },
         "database_counts": {
             "results": len(actual_result_rows),
             "catalog": len(actual["catalog"]),
             "self_healing_history": len(actual["history"]),
+            "legacy_notification_suppressions": len(actual_suppressions),
         },
         "errors": errors,
     }
@@ -96,6 +107,7 @@ def verify() -> dict[str, Any]:
         "settings": _single("app_settings"),
         "status": _single("system_status"),
         "history": _single("self_healing_history"),
+        "suppressions": fetch_all("notification_suppressions", "fingerprint"),
         "batches": fetch_all("legacy_import_batches", "source_sha256,results_count,catalog_count,history_count"),
     }
     return compare_snapshot(snapshot, digest, actual)
