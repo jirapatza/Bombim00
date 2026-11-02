@@ -853,7 +853,7 @@ export default function App() {
     let safeResults: LotteryResult[] = [];
     let newResults: LotteryResult[] = [];
     try {
-      const rawBase = 'https://raw.githubusercontent.com/jirapatza/Bombim00/main';
+      const rawBase = 'https://raw.githubusercontent.com/jirapatza/Bombim00/runtime-live';
       const fetchJsonWithFallback = async (primaryUrl: string, fallbackUrl?: string) => {
         const request = async (url: string) => {
           try {
