@@ -692,7 +692,7 @@ app.post('/api/system/self-heal', async (req, res) => {
     };
 
     const previous = process.env.SUPABASE_STORAGE_ENABLED === 'true'
-      ? await readSupabaseSingleton('self_healing_history').catch(() => [])
+      ? await readSupabaseSingleton('self_healing_history')
       : await readGitHubJson<any[]>('status/self_healing_history.json').catch(() => []);
     const history = [session, ...(Array.isArray(previous) ? previous : [])].slice(0, 50);
     if (process.env.SUPABASE_STORAGE_ENABLED === 'true') {
