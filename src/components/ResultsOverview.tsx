@@ -4,29 +4,8 @@ import type { LotteryItem } from './DailySummaryTable';
 import { getResultNumbers, normalizeLotteryIdentity } from '../utils/lotteryResult';
 import { filterLotteriesForDrawDate, isGovernmentLottery } from '../utils/lotterySchedule';
 
+import { dayKey, thaiToday, minutes, complete, rowName, rowDate } from '../utils/overviewResults';
 type Row = Record<string, any>;
-const dayKey = (value: string): string => {
-  const raw = String(value || '');
-  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  const dmy = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
-  if (iso || dmy) {
-    const [y, m, d] = iso ? [Number(iso[1]), iso[2], iso[3]] : [Number(dmy![3]), dmy![2], dmy![1]];
-    return `${y > 2400 ? y - 543 : y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  }
-  const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-  const month = months.findIndex(m => raw.includes(m));
-  const nums = raw.match(/\d+/g);
-  if (month >= 0 && nums && nums.length >= 2) {
-    const y = Number(nums[1]);
-    return `${y > 2400 ? y - 543 : y}-${String(month + 1).padStart(2, '0')}-${nums[0].padStart(2, '0')}`;
-  }
-  return '';
-};
-const thaiToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-const minutes = (s: string) => { const m = s?.match(/(\d{1,2}):(\d{2})/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
-const complete = (r: Row) => { const n = getResultNumbers(r); return !!(n.top3 && n.bottom2); };
-const rowName = (r: Row) => String(r.ชื่อหวย || r.หวย || r.lotteryName || r.name || '');
-const rowDate = (r: Row) => String(r.งวดวันที่ || r.date || '');
 
 export function ResultsOverview({ lotteries, results, onSettings, onRefresh, lastUpdated }: {
   lotteries: LotteryItem[]; results: Row[]; onSettings: () => void; onRefresh: () => void; lastUpdated?: string;
