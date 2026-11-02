@@ -65,7 +65,8 @@ import {
 } from 'lucide-react';
 
 const BatchTicketChecker = lazy(() => import('./components/BatchTicketChecker').then((module) => ({ default: module.BatchTicketChecker })));
-import { DailySummaryTable, LotteryItem } from './components/DailySummaryTable';
+import type { LotteryItem } from './components/DailySummaryTable';
+const DailySummaryTable = lazy(() => import('./components/DailySummaryTable').then((module) => ({ default: module.DailySummaryTable })));
 import { LatestThreeResults } from './components/LatestThreeResults';
 import { filterLotteriesForDrawDate } from './utils/lotterySchedule';
 // Local lottery catalog fallback for the web dashboard.
@@ -1625,16 +1626,18 @@ export default function App() {
         {activeTab === 'summary' && (
           <div className="space-y-5">
             <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันตารางสรุปผลหวยขัดข้อง (Summary Table Shield)">
-            <DailySummaryTable
-              lotteries={allLotteries}
-              results={results}
-              onSelectLottery={(item) => {
-                setSelectedCatalogLottery(item);
-              }}
-              onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
-              onUpdateLotteries={handleUpdateAllLotteries}
-              nextClosing={getNextClosingLottery()}
-            />
+            <Suspense fallback={<div className="rounded-2xl border border-slate-800 p-4 text-sm text-slate-400">กำลังโหลดตารางสรุปผล...</div>}>
+              <DailySummaryTable
+                lotteries={allLotteries}
+                results={results}
+                onSelectLottery={(item) => {
+                  setSelectedCatalogLottery(item);
+                }}
+                onSpeakLottery={(item) => handleSpeakSpecificLottery(item)}
+                onUpdateLotteries={handleUpdateAllLotteries}
+                nextClosing={getNextClosingLottery()}
+              />
+            </Suspense>
             </CrashShieldErrorBoundary>
           </div>
         )}
