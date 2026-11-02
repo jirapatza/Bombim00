@@ -5,106 +5,114 @@ export type ScheduledLottery = {
   drawDays?: string;
 };
 
-export function isVipLottery(item: ScheduledLottery): boolean {
-  const cat = String(item.category ?? '').toLowerCase();
-  const id = String(item.id ?? '').toLowerCase();
-  const name = String(item.name ?? '');
-  if (cat === 'vip') return true;
-  if (/\b(vip|star)\b/i.test(id)) return true;
-  if (/vip|สตาร์|star/i.test(name)) return true;
-  return false;
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+type Weekday = (typeof WEEKDAYS)[number];
+
+const THAI_DAY_NAMES: Record<string, Weekday> = {
+  'อาทิตย์': 'Sun',
+  'จันทร์': 'Mon',
+  'อังคาร': 'Tue',
+  'พุธ': 'Wed',
+  'พฤหัส': 'Thu',
+  'พฤหัสบดี': 'Thu',
+  'ศุกร์': 'Fri',
+  'เสาร์': 'Sat',
+};
+
+function getBangkokDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Bangkok',
+    day: 'numeric',
+    weekday: 'short',
+  }).formatToParts(date);
+
+  return {
+    day: Number(parts.find((part) => part.type === 'day')?.value || 1),
+    weekday: (parts.find((part) => part.type === 'weekday')?.value || 'Mon') as Weekday,
+  };
 }
 
+function scheduledWeekdays(drawDays: string): Weekday[] | null {
+  const rule = String(drawDays || '').trim();
+  if (!rule) return null;
+  if (/ทุกวัน/u.test(rule)) return [...WEEKDAYS];
+
+  const matches = Object.keys(THAI_DAY_NAMES)
+    .sort((a, b) => b.length - a.length)
+    .filter((day) => rule.includes(day));
+  const days = [...new Set(matches.map((day) => THAI_DAY_NAMES[day]))];
+  if (days.length > 0) return days;
+
+  const englishDays: Record<string, Weekday> = {
+    sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
+    thursday: 'Thu', friday: 'Fri', saturday: 'Sat',
+  };
+  const englishMatches = Object.entries(englishDays)
+    .filter(([label]) => new RegExp(label, 'i').test(rule))
+    .map(([, day]) => day);
+  return englishMatches.length > 0 ? [...new Set(englishMatches)] : null;
+}
+
+export function isVipLottery(item: ScheduledLottery): boolean {
+  const category = String(item.category ?? '').toLowerCase();
+  const id = String(item.id ?? '').toLowerCase();
+  const name = String(item.name ?? '');
+  return category === 'vip' || /(?:^|[_\s-])(vip|star)(?:$|[_\s-])/i.test(id) || /vip|สตาร์|star/i.test(name);
+}
+
+/** Regular, non-VIP stock draws are hidden on weekends. */
 export function isRegularStockLottery(item: ScheduledLottery): boolean {
   if (isVipLottery(item)) return false;
-  const cat = String(item.category ?? '').toLowerCase();
+  const category = String(item.category ?? '').toLowerCase();
   const id = String(item.id ?? '').toLowerCase();
   const name = String(item.name ?? '');
 
-  if (cat === 'foreign_stock' || cat === 'thai_stock') return true;
-  if (id.includes('stock') || /nikkei|hangseng|china|taiwan|korea|singapore|india|dowjones|uk|germany|russia|thai_evening/i.test(id)) {
-    return true;
-  }
-  if (/หุ้น|นิเคอิ|ฮั่งเส็ง|จีน|ไต้หวัน|เกาหลี|สิงคโปร์|อินเดีย|อังกฤษ|เยอรมัน|รัสเซีย|ดาวโจนส์|ไทยเย็น/u.test(name)) {
-    return true;
-  }
-  return false;
+  if (['foreign_stock', 'thai_stock', 'other_foreign'].includes(category)) return true;
+  if (/stock|nikkei|hangseng|china|taiwan|korea|singapore|india|dowjones|uk|germany|russia|thai_evening/i.test(id)) return true;
+  return /หุ้น|นิเคอิ|ฮั่งเส็ง|จีน|ไต้หวัน|เกาหลี|สิงคโปร์|อินเดีย|อังกฤษ|เยอรมัน|รัสเซีย|ดาวโจนส์|ไทยเย็น/u.test(name);
 }
 
 export function isGovernmentLottery(item: ScheduledLottery): boolean {
-  const cat = String(item.category ?? '').toLowerCase();
+  const category = String(item.category ?? '').toLowerCase();
   const id = String(item.id ?? '').toLowerCase();
   const name = String(item.name ?? '');
-  return (
-    cat === 'gov_savings' ||
-    id === 'thai_gov' ||
-    id === 'gsb' ||
-    id === 'baac' ||
-    /รัฐบาล|สลากกินแบ่ง|ออมสิน|ธ\s*\.?\s*ก\s*\.?\s*ส\s*\.?|ธกส/u.test(name)
-  );
+  return category === 'gov_savings' || ['thai_gov', 'gsb', 'baac'].includes(id) ||
+    /รัฐบาล|สลากกินแบ่ง|ออมสิน|ธ\s*\.?\s*ก\s*\.?\s*ส\s*\.?|ธกส/u.test(name);
 }
 
-/** Keep non-draw lotteries out of the list on specific dates.
- * - Weekends (Saturday & Sunday): Regular stock markets are closed; ONLY VIP stocks and daily lotteries draw.
- * - Weekdays (Monday-Friday): Both regular stocks and VIP stocks draw.
- * - Thai Government and GSB: Only on days 1 and 16.
- * - BAAC: Only on day 16.
- * - Lao Development: Monday, Wednesday, Friday.
+/**
+ * Filters the summary table by the selected Bangkok calendar date.
+ * Regular stock rows are weekday-only; VIP and daily draws remain visible every day.
+ * Other published draw-day rules (for example Lao Development) are read from drawDays.
  */
 export function filterLotteriesForDrawDate<T extends ScheduledLottery>(
   lotteries: T[],
   date: Date = new Date(),
 ): T[] {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Bangkok',
-    day: 'numeric',
-    weekday: 'short', // 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
-  }).formatToParts(date);
-
-  const bangkokDay = Number(parts.find((p) => p.type === 'day')?.value || 1);
-  const weekdayStr = parts.find((p) => p.type === 'weekday')?.value || 'Mon';
-  const isWeekend = weekdayStr === 'Sat' || weekdayStr === 'Sun';
+  const { day, weekday } = getBangkokDateParts(date);
 
   return lotteries.filter((item) => {
-    // 1. Government and Savings: strictly day 1 and 16 (or day 16 for BAAC)
     if (isGovernmentLottery(item)) {
       const id = String(item.id ?? '').trim().toLowerCase();
       const name = String(item.name ?? '').trim();
       const isBaac = id === 'baac' || /ธ\s*\.?\s*ก\s*\.?\s*ส\s*\.?|ธกส/u.test(name);
-      if (isBaac) return bangkokDay === 16;
-
-      const isGsb = id === 'gsb' || name.includes('ออมสิน');
-      if (isGsb) return bangkokDay === 1 || bangkokDay === 16;
-
-      const isThaiGovernment = id === 'thai_gov' || /รัฐบาล|สลากกินแบ่ง/u.test(name);
-      if (isThaiGovernment) return bangkokDay === 1 || bangkokDay === 16;
-
-      return bangkokDay === 1 || bangkokDay === 16;
+      return isBaac ? day === 16 : day === 1 || day === 16;
     }
 
-    // 2. Regular Stock Lotteries: Closed on Saturday & Sunday; open Monday to Friday
     if (isRegularStockLottery(item)) {
-      if (isWeekend) {
-        return false;
-      }
-      return true;
+      return weekday !== 'Sat' && weekday !== 'Sun';
     }
 
-    // 3. Lao Development (ออกเฉพาะ จันทร์, พุธ, ศุกร์)
-    const id = String(item.id ?? '').trim().toLowerCase();
-    const name = String(item.name ?? '').trim();
-    const isLaoDevelopment =
-      (id === 'laoslotto' || id === 'lao_development' || name.includes('ลาวพัฒนา')) &&
-      !name.includes('EXTRA') &&
-      !name.includes('VIP') &&
-      !name.includes('TV') &&
-      !name.includes('STAR');
-    if (isLaoDevelopment) {
-      return weekdayStr === 'Mon' || weekdayStr === 'Wed' || weekdayStr === 'Fri';
-    }
+    // VIP products and explicitly daily lotteries are available all week.
+    if (isVipLottery(item)) return true;
 
-    // 4. VIP Stocks and Daily Lotteries: draw every day including weekends
-    return true;
+    const days = scheduledWeekdays(item.drawDays || '');
+    if (days) return days.includes(weekday);
+
+    // A known daily category without a schedule is treated as daily. Unknown
+    // categories with no schedule are hidden to avoid displaying false draws.
+    const category = String(item.category ?? '').toLowerCase();
+    if (['hanoi', 'lao'].includes(category)) return true;
+    return false;
   });
 }
-
