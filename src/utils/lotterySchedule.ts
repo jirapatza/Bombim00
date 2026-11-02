@@ -9,23 +9,14 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 type Weekday = (typeof WEEKDAYS)[number];
 
 const THAI_DAY_NAMES: Record<string, Weekday> = {
-  'อาทิตย์': 'Sun',
-  'จันทร์': 'Mon',
-  'อังคาร': 'Tue',
-  'พุธ': 'Wed',
-  'พฤหัส': 'Thu',
-  'พฤหัสบดี': 'Thu',
-  'ศุกร์': 'Fri',
-  'เสาร์': 'Sat',
+  'อาทิตย์': 'Sun', 'จันทร์': 'Mon', 'อังคาร': 'Tue', 'พุธ': 'Wed',
+  'พฤหัสบดี': 'Thu', 'พฤหัส': 'Thu', 'ศุกร์': 'Fri', 'เสาร์': 'Sat',
 };
 
 function getBangkokDateParts(date: Date) {
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Bangkok',
-    day: 'numeric',
-    weekday: 'short',
+    timeZone: 'Asia/Bangkok', day: 'numeric', weekday: 'short',
   }).formatToParts(date);
-
   return {
     day: Number(parts.find((part) => part.type === 'day')?.value || 1),
     weekday: (parts.find((part) => part.type === 'weekday')?.value || 'Mon') as Weekday,
@@ -37,20 +28,57 @@ function scheduledWeekdays(drawDays: string): Weekday[] | null {
   if (!rule) return null;
   if (/ทุกวัน/u.test(rule)) return [...WEEKDAYS];
 
-  const matches = Object.keys(THAI_DAY_NAMES)
-    .sort((a, b) => b.length - a.length)
-    .filter((day) => rule.includes(day));
-  const days = [...new Set(matches.map((day) => THAI_DAY_NAMES[day]))];
-  if (days.length > 0) return days;
+  const thaiEntries = Object.entries(THAI_DAY_NAMES).sort((a, b) => b[0].length - a[0].length);
+  const tokens: Array<{ index: number; end: number; day: Weekday }> = [];
+  for (let i = 0; i < rule.length;) {
+    const match = thaiEntries.find(([label]) => rule.startsWith(label, i));
+    if (match) {
+      tokens.push({ index: i, end: i + match[0].length, day: match[1] });
+      i += match[0].length;
+    } else i++;
+  }
+
+  if (tokens.length > 0) {
+    const result = new Set<Weekday>();
+    for (let i = 0; i < tokens.length; i++) {
+      result.add(tokens[i].day);
+      const next = tokens[i + 1];
+      if (!next) continue;
+      const between = rule.slice(tokens[i].end, next.index);
+      if (/(?:-|–|—|ถึง|จนถึง)/u.test(between)) {
+        let cursor = (WEEKDAYS.indexOf(tokens[i].day) + 1) % WEEKDAYS.length;
+        const end = WEEKDAYS.indexOf(next.day);
+        while (cursor !== end) {
+          result.add(WEEKDAYS[cursor]);
+          cursor = (cursor + 1) % WEEKDAYS.length;
+        }
+      }
+    }
+    return WEEKDAYS.filter((day) => result.has(day));
+  }
 
   const englishDays: Record<string, Weekday> = {
     sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
     thursday: 'Thu', friday: 'Fri', saturday: 'Sat',
   };
-  const englishMatches = Object.entries(englishDays)
-    .filter(([label]) => new RegExp(label, 'i').test(rule))
-    .map(([, day]) => day);
-  return englishMatches.length > 0 ? [...new Set(englishMatches)] : null;
+  const englishTokens = Object.entries(englishDays)
+    .flatMap(([label, day]) => [...rule.matchAll(new RegExp(label, 'gi'))].map((m) => ({ index: m.index!, end: m.index! + label.length, day })))
+    .sort((a, b) => a.index - b.index);
+  if (!englishTokens.length) return null;
+  const result = new Set<Weekday>();
+  for (let i = 0; i < englishTokens.length; i++) {
+    result.add(englishTokens[i].day);
+    const next = englishTokens[i + 1];
+    if (next && /(?:-|–|—|to|through)/i.test(rule.slice(englishTokens[i].end, next.index))) {
+      let cursor = (WEEKDAYS.indexOf(englishTokens[i].day) + 1) % WEEKDAYS.length;
+      const end = WEEKDAYS.indexOf(next.day);
+      while (cursor !== end) {
+        result.add(WEEKDAYS[cursor]);
+        cursor = (cursor + 1) % WEEKDAYS.length;
+      }
+    }
+  }
+  return WEEKDAYS.filter((day) => result.has(day));
 }
 
 export function isVipLottery(item: ScheduledLottery): boolean {
@@ -60,13 +88,11 @@ export function isVipLottery(item: ScheduledLottery): boolean {
   return category === 'vip' || /(?:^|[_\\s-])(vip|star)(?:$|[_\\s-])/i.test(id) || /vip|สตาร์|star/i.test(name);
 }
 
-/** Regular, non-VIP stock draws use their explicit schedule when one is configured. */
 export function isRegularStockLottery(item: ScheduledLottery): boolean {
   if (isVipLottery(item)) return false;
   const category = String(item.category ?? '').toLowerCase();
   const id = String(item.id ?? '').toLowerCase();
   const name = String(item.name ?? '');
-
   if (['foreign_stock', 'thai_stock', 'other_foreign'].includes(category)) return true;
   if (/stock|nikkei|hangseng|china|taiwan|korea|singapore|india|dowjones|uk|germany|russia|thai_evening/i.test(id)) return true;
   return /หุ้น|นิเคอิ|ฮั่งเส็ง|จีน|ไต้หวัน|เกาหลี|สิงคโปร์|อินเดีย|อังกฤษ|เยอรมัน|รัสเซีย|ดาวโจนส์|ไทยเย็น/u.test(name);
@@ -80,17 +106,11 @@ export function isGovernmentLottery(item: ScheduledLottery): boolean {
     /รัฐบาล|สลากกินแบ่ง|ออมสิน|ธ\\s*\\.?\\s*ก\\s*\\.?\\s*ส\\s*\\.?|ธกส/u.test(name);
 }
 
-/**
- * Filters the summary table by the selected Bangkok calendar date.
- * VIP products are always visible; all other configured draw-day rules take priority.
- * Regular stocks without an explicit rule fall back to weekdays only.
- */
 export function filterLotteriesForDrawDate<T extends ScheduledLottery>(
   lotteries: T[],
   date: Date = new Date(),
 ): T[] {
   const { day, weekday } = getBangkokDateParts(date);
-
   return lotteries.filter((item) => {
     if (isGovernmentLottery(item)) {
       const id = String(item.id ?? '').trim().toLowerCase();
@@ -98,18 +118,13 @@ export function filterLotteriesForDrawDate<T extends ScheduledLottery>(
       const isBaac = id === 'baac' || /ธ\\s*\\.?\\s*ก\\s*\\.?\\s*ส\\s*\\.?|ธกส/u.test(name);
       return isBaac ? day === 16 : day === 1 || day === 16;
     }
-
-    // VIP variants are explicitly configured as daily in this application.
     if (isVipLottery(item)) return true;
 
-    // A configured schedule is authoritative, including exceptional Saturday draws.
+    // Explicit draw-day configuration is authoritative, including weekend draws.
     const days = scheduledWeekdays(item.drawDays || '');
     if (days) return days.includes(weekday);
 
-    // Without an explicit schedule, regular stocks default to weekdays only.
     if (isRegularStockLottery(item)) return weekday !== 'Sat' && weekday !== 'Sun';
-
-    // Known daily categories without a schedule remain daily; unknown categories hide.
     const category = String(item.category ?? '').toLowerCase();
     if (['hanoi', 'lao'].includes(category)) return true;
     return false;
