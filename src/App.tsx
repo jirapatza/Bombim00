@@ -146,7 +146,7 @@ export interface LotteryAnnouncement {
 interface LotteryScheduleItem {
   id: string;
   name: string;
-  category: string;
+  category: LotteryItem['category'];
   closeTimeStr: string;
   closeHour: number;
   closeMinute: number;
