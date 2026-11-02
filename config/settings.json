@@ -96,7 +96,9 @@
       "loudspeaker"
     ],
     "click_url": "https://bombim00.onrender.com",
-    "attach_results": true
+    "attach_results": true,
+    "enabled": true,
+    "topic": "lottery-alert-live"
   },
   "schedule": {
     "cron": "*/5 * * * *",
