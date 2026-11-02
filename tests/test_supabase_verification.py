@@ -67,3 +67,31 @@ def test_source_parity_verifier_requires_suppression_for_legacy_sent_results():
     }
     with pytest.raises(ValueError, match="suppression"):
         compare_snapshot(snapshot, "c" * 64, actual)
+
+
+def test_source_parity_allows_retained_older_database_history():
+    snapshot = {
+        "results": [{"fingerprint": "current", "payload": {"status": "sent"}}],
+        "catalog": [],
+        "settings": {},
+        "status": {},
+        "self_healing_history": [],
+    }
+    actual = {
+        "results": [
+            {"fingerprint": "current", "payload": {"status": "sent"}},
+            {"fingerprint": "older-retained", "payload": {"status": "sent"}},
+        ],
+        "catalog": [],
+        "settings": {},
+        "status": {},
+        "history": [],
+        "suppressions": [
+            {"fingerprint": "current"},
+            {"fingerprint": "older-retained"},
+        ],
+        "batches": [{"source_sha256": "d" * 64, "results_count": 1, "catalog_count": 0, "history_count": 0}],
+    }
+    report = compare_snapshot(snapshot, "d" * 64, actual)
+    assert report["status"] == "verified"
+    assert report["database_counts"]["retained_extra_results"] == 1
