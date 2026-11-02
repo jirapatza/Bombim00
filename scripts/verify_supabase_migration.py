@@ -57,8 +57,16 @@ def compare_snapshot(
         errors.append("system_status payload differs from the source snapshot")
     if actual["history"] != snapshot["self_healing_history"]:
         errors.append("self_healing_history payload differs from the source snapshot")
-    if source_sha256 not in {row.get("source_sha256") for row in actual["batches"]}:
+    matching_batches = [row for row in actual["batches"] if row.get("source_sha256") == source_sha256]
+    if not matching_batches:
         errors.append("legacy_import_batches does not contain the current source SHA-256")
+    elif not any(
+        row.get("results_count") == len(expected_results)
+        and row.get("catalog_count") == len(expected_catalog)
+        and row.get("history_count") == len(snapshot["self_healing_history"])
+        for row in matching_batches
+    ):
+        errors.append("legacy_import_batches counts differ from the current source snapshot")
 
     report = {
         "status": "verified" if not errors else "mismatch",
