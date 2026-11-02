@@ -17,8 +17,9 @@ import urllib.parse
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+CODE_ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(os.environ.get("BOMBIM00_SOURCE_ROOT", str(CODE_ROOT))).resolve()
+sys.path.insert(0, str(CODE_ROOT))
 
 import settings_loader as sl
 SOURCES = {
