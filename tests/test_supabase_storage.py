@@ -119,3 +119,21 @@ def test_load_results_paginates_past_postgrest_default_limit(monkeypatch):
     assert len(rows) == 1002
     assert calls[0].endswith("offset=0&order=updated_at.desc")
     assert calls[1].endswith("offset=1000&order=updated_at.desc")
+
+
+def test_shadow_result_write_syncs_legacy_suppression_without_enabling_primary_reads(monkeypatch):
+    calls = []
+    monkeypatch.setenv("SUPABASE_SHADOW_WRITE", "true")
+    monkeypatch.delenv("SUPABASE_CHECKER_ENABLED", raising=False)
+    monkeypatch.setattr(ss, "_request", lambda path, *args, **kwargs: calls.append(path))
+    row = {
+        "ชื่อหวย": "ฮานอย VIP",
+        "งวดวันที่": "2 พฤศจิกายน 2569",
+        "เลขบน_3_ตัว": "123",
+        "เลขล่าง_2_ตัว": "45",
+        "สถานะการแจ้งเตือน": "sent",
+    }
+    ss.save_results([row])
+    assert calls[0].startswith("lottery_results?")
+    assert calls[1] == "rpc/sync_bombim00_legacy_suppressions"
+    assert ss.enabled() is False
