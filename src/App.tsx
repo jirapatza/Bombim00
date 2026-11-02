@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import bundledLotteryCatalog from '../data/all_lotteries.json';
 import { apiFetch, setDashboardPassword } from './utils/api';
+import { waitForDispatchedWorkflow } from './utils/workflowTracking';
 import { getResultNumbers, formatResultPair } from './utils/lotteryResult';
 import {
   Bell,
@@ -1016,7 +1017,33 @@ export default function App() {
 
       if (res.ok && data?.success) {
         if (data.queued) {
-          showToast('ส่งคำสั่งไป GitHub Actions แล้ว รอผลการตรวจสอบจากงานที่รัน');
+          if (!data.request_id) {
+            showToast('GitHub รับคำสั่งแล้ว แต่ยังไม่มีรหัสติดตามงาน กรุณาดูประวัติการรัน');
+            return;
+          }
+          showToast('GitHub รับคำสั่งแล้ว กำลังติดตามผลการรัน...');
+          try {
+            const run = await waitForDispatchedWorkflow(String(data.request_id), {
+              onProgress: (progress) => {
+                if (progress === 'queued') showToast('GitHub Actions อยู่ในคิว');
+                if (progress === 'in_progress') showToast('GitHub Actions กำลังทำงาน');
+              },
+            });
+            if (!run) {
+              showToast('ยังยืนยันผลการรันไม่ได้ภายใน 3 นาที กรุณาดูประวัติ GitHub Actions');
+              return;
+            }
+            if (run.conclusion !== 'success') {
+              showToast('GitHub Actions จบด้วยสถานะ ' + (run.conclusion || 'ไม่ทราบสาเหตุ') + ' กรุณาตรวจบันทึกการรัน');
+              return;
+            }
+            const refreshed = await fetchData();
+            showToast(refreshed.newResults.length > 0
+              ? 'GitHub Actions สำเร็จ พบข้อมูลใหม่ ' + refreshed.newResults.length + ' รายการ'
+              : 'GitHub Actions ทำงานสำเร็จแล้ว โหลดข้อมูลล่าสุดเรียบร้อย');
+          } catch (error: any) {
+            showToast('ส่งคำสั่งแล้ว แต่ติดตามผลไม่สำเร็จ: ' + (error?.message || 'โปรดตรวจประวัติ GitHub Actions'));
+          }
           return;
         }
         if (data.status) setStatus(data.status);
