@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { assertNoSecretFields, commitGitHubJson, GitHubStorageError, readGitHubJson } from './server/githubStorage.ts';
 import { getOverallHealth } from './server/selfHeal.ts';
 import { getResultNumbers } from './src/utils/lotteryResult.ts';
-import { timingSafeEqual } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 
@@ -434,6 +434,7 @@ app.post('/api/github/dispatch', async (req, res) => {
     lotteryDispatchInFlight = true;
     acquiredDispatchLock = true;
 
+    const requestId = randomUUID();
     const dispatchUrl = 'https://api.github.com/repos/' + LOTTERY_REPOSITORY + '/actions/workflows/' + LOTTERY_WORKFLOW + '/dispatches';
     const ghRes = await fetch(dispatchUrl, {
       method: 'POST',
@@ -444,12 +445,12 @@ app.post('/api/github/dispatch', async (req, res) => {
         'Authorization': 'Bearer ' + ghToken,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ ref: LOTTERY_BRANCH, inputs: { lottery_target: target, force_notify: forceNotify } }),
+      body: JSON.stringify({ ref: LOTTERY_BRANCH, inputs: { lottery_target: target, force_notify: forceNotify, request_id: requestId } }),
       signal: AbortSignal.timeout(10000),
     });
     if (ghRes.status === 204 || ghRes.status === 200) {
       recentLotteryDispatches.markAccepted(dispatchFingerprint);
-      return res.json({ success: true, queued: true, workflow_dispatched: true, message: 'ส่งคำสั่งตรวจผลไปยัง GitHub Actions แล้ว' });
+      return res.json({ success: true, queued: true, workflow_dispatched: true, request_id: requestId, message: 'ส่งคำสั่งตรวจผลไปยัง GitHub Actions แล้ว' });
     }
     const detail = await ghRes.text().catch(() => '');
     return res.status(502).json({ success: false, error: 'GitHub ปฏิเสธคำสั่ง (HTTP ' + ghRes.status + '): ' + detail.slice(0, 300) });
@@ -469,7 +470,7 @@ app.get('/api/github/runs', async (_req, res) => {
       'X-GitHub-Api-Version': '2022-11-28',
     };
     if (ghToken) headers.Authorization = 'Bearer ' + ghToken;
-    const runsUrl = 'https://api.github.com/repos/' + LOTTERY_REPOSITORY + '/actions/workflows/' + LOTTERY_WORKFLOW + '/runs?per_page=10';
+    const runsUrl = 'https://api.github.com/repos/' + LOTTERY_REPOSITORY + '/actions/workflows/' + LOTTERY_WORKFLOW + '/runs?per_page=30';
     const ghRes = await fetch(runsUrl, { headers, signal: AbortSignal.timeout(10000) });
     if (!ghRes.ok) {
       const detail = await ghRes.text().catch(() => '');
