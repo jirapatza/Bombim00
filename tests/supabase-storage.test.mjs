@@ -103,3 +103,24 @@ test('singleton and catalog writes use idempotent PostgREST upserts', async () =
   assert.match(calls[1].url, /lottery_catalog\?on_conflict=lottery_id/);
   assert.deepEqual(JSON.parse(calls[1].body), [{ lottery_id: 'hanoi-vip', payload: { id: 'hanoi-vip', name: 'Hanoi VIP' } }]);
 });
+
+
+test('result reads paginate beyond the PostgREST default maximum row count', async () => {
+  const urls = [];
+  const fetchImpl = async (url) => {
+    urls.push(String(url));
+    const offset = Number(new URL(String(url)).searchParams.get('offset'));
+    const rows = offset === 0
+      ? Array.from({ length: 1000 }, (_, id) => ({ payload: { id } }))
+      : [{ payload: { id: 1000 } }, { payload: { id: 1001 } }];
+    return jsonResponse(rows);
+  };
+  const rows = await readSupabaseResults({
+    url: 'https://project.supabase.co',
+    key: 'sb_secret_test',
+    fetchImpl,
+  });
+  assert.equal(rows.length, 1002);
+  assert.equal(new URL(urls[0]).searchParams.get('offset'), '0');
+  assert.equal(new URL(urls[1]).searchParams.get('offset'), '1000');
+});
