@@ -70,8 +70,8 @@ jobs:
           cat > "$RUNNER_TEMP/git-askpass.sh" <<'ASKPASS'
           #!/bin/sh
           case "$1" in
-            *Username*) printf '%s\\n' "x-access-token" ;;
-            *) printf '%s\\n' "$BACKUP_REPO_TOKEN" ;;
+            *Username*) printf '%s\n' "x-access-token" ;;
+            *) printf '%s\n' "$BACKUP_REPO_TOKEN" ;;
           esac
           ASKPASS
           chmod 700 "$RUNNER_TEMP/git-askpass.sh"
