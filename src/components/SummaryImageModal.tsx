@@ -198,7 +198,7 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
   const appShareUrl =
     typeof window !== 'undefined'
       ? window.location.origin
-      : 'https://ais-pre-qiphuob5ntzos2dco2lbsq-675247792549.asia-southeast1.run.app';
+      : 'https://bombim00.onrender.com';
 
   // Generate plain text summary for social sharing
   const generateSummaryText = useCallback(() => {

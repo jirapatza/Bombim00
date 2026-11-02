@@ -576,7 +576,7 @@ def send_ntfy_notification(row: dict) -> bool:
     front_3 = ", ".join(row.get("เลขหน้า_3_ตัว", [])) or "-"
     last_3 = ", ".join(row.get("เลขท้าย_3_ตัว", [])) or "-"
 
-    app_url = os.environ.get("APP_URL") or "https://ais-pre-qiphuob5ntzos2dco2lbsq-675247792549.asia-southeast1.run.app"
+    app_url = os.environ.get("APP_URL") or "https://bombim00.onrender.com"
     configured_click = S.get("channels", {}).get("ntfy", {}).get("click_url") or S.get("ntfy", {}).get("click_url") or ""
     click_url = app_url if (not configured_click or "sanook" in configured_click) else configured_click
 
