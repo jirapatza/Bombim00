@@ -79,3 +79,29 @@ def test_settings_loader_uses_supabase_only_when_flag_enabled(monkeypatch):
     monkeypatch.setenv("SUPABASE_CHECKER_ENABLED", "true")
     monkeypatch.setattr(ss, "load_settings", lambda: {"source": "supabase"})
     assert sl.load() == {"source": "supabase"}
+
+
+def test_results_are_written_to_supabase_and_github_json_mirror(monkeypatch, tmp_path):
+    import settings_loader as sl
+    calls = []
+    monkeypatch.setenv("SUPABASE_CHECKER_ENABLED", "true")
+    monkeypatch.setattr(ss, "save_results", lambda rows: calls.append(rows))
+    target = tmp_path / "results.json"
+    rows = [{"ชื่อหวย": "ฮานอย VIP", "สถานะการแจ้งเตือน": "sent"}]
+    sl.save_results(rows, str(target))
+    assert calls == [rows]
+    assert json.loads(target.read_text(encoding="utf-8")) == rows
+
+
+def test_status_is_written_to_supabase_and_github_json_mirror(monkeypatch, tmp_path):
+    import settings_loader as sl
+    calls = []
+    monkeypatch.setenv("SUPABASE_CHECKER_ENABLED", "true")
+    monkeypatch.setattr(ss, "load_status", lambda: {"total_checks": 4, "recent_logs": []})
+    monkeypatch.setattr(ss, "save_singleton", lambda table, payload: calls.append((table, payload)))
+    target = tmp_path / "status.json"
+    result = sl.write_status([], status_path=str(target), source_used="test")
+    assert calls and calls[0][0] == "system_status"
+    assert calls[0][1] == result
+    assert json.loads(target.read_text(encoding="utf-8")) == result
+    assert result["total_checks"] == 5
