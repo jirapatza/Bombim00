@@ -114,10 +114,11 @@ def save_results(rows: list[dict[str, Any]]) -> None:
     for row in rows:
         if not isinstance(row, dict):
             raise SupabaseStorageError("Every result must be an object.")
-        fingerprint = row.get("_supabase_fingerprint")
+        import settings_loader as sl
+        fingerprint = sl.result_fingerprint(row)
         if not isinstance(fingerprint, str) or not fingerprint:
             raise SupabaseStorageError("Result is missing its canonical fingerprint.")
-        payload = {key: value for key, value in row.items() if key != "_supabase_fingerprint"}
+        payload = dict(row)
         records.append({
             "fingerprint": fingerprint,
             "lottery_name": payload.get("ชื่อหวย") or payload.get("หวย") or payload.get("lottery_name"),
