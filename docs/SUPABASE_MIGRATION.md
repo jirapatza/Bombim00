@@ -121,8 +121,10 @@ the checker run to fail rather than claiming a fully backed-up run.
 Do not switch production reads/writes until all of these pass:
 
 - The source SHA-256 and row counts are recorded.
-- Supabase result count equals the source result count (175 at the last audit).
-- Supabase catalog count equals the source catalog count (54 at the last audit).
+- Every source result fingerprint exists exactly once with the same payload.
+  Supabase may retain older database-only history; no rows are deleted to force
+  a count match (175 source results at the last audit).
+- Supabase catalog IDs and payloads match the source exactly (54 at the last audit).
 - Every imported fingerprint exists exactly once.
 - Every legacy result marked `sent` has a global suppression marker; no
   historical channel delivery is invented.
