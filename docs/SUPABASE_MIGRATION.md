@@ -47,6 +47,39 @@ python scripts/migrate_legacy_to_supabase.py --apply
 
 The importer sends the modern `sb_secret_...` key in the `apikey` header only; it does not send it as a Bearer JWT. Never put the secret key in source control, browser code, logs, or chat.
 
+## Opt-in application integration (disabled by default)
+
+The server adapter and Python checker now support Supabase behind separate,
+explicit feature flags. Neither flag is enabled by this PR.
+
+- Render: set `SUPABASE_STORAGE_ENABLED=true` only after the database import
+  and validation gates pass. Add `SUPABASE_URL` and `SUPABASE_SECRET_KEY`
+  as private Render environment variables. The API then reads results,
+  catalog, settings, and status from Supabase; settings/catalog writes are
+  committed to Supabase first and mirrored to GitHub JSON.
+- GitHub Actions: set repository variable `SUPABASE_CHECKER_ENABLED=true`
+  only after the same validation gates pass. Add `SUPABASE_URL` and
+  `SUPABASE_SECRET_KEY` as Actions secrets. The checker reads settings and
+  prior results from Supabase, writes results/status to Supabase, and retains
+  the JSON files as a GitHub backup mirror.
+- Both flags must remain false until the exact same project has the validated
+  legacy import and the SQL migrations have been applied. If enabled but
+  credentials or database access fail, the checker fails closed; it does not
+  silently fall back to JSON and send duplicate alerts.
+- The history cleanup API is deliberately blocked while Supabase is primary
+  until a transactional maintenance RPC is available.
+
+Apply the notification idempotency migration
+`20261102000200_notification_idempotency.sql` after the core schema. It adds
+one unique reservation per result fingerprint and channel. The checker claims
+the reservation before sending, then records sent/failed. Failed reservations
+and reservations older than 10 minutes may be retried. This materially reduces
+concurrent duplicate sends; no remote messaging provider can guarantee
+exactly-once delivery if it accepts a message but the network response is lost.
+
+The GitHub JSON mirror remains the recovery copy. A failed mirror write causes
+the checker run to fail rather than claiming a fully backed-up run.
+
 ## Cutover gates
 
 Do not switch production reads/writes until all of these pass:
