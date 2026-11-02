@@ -145,11 +145,12 @@ def save_singleton(table: str, payload: dict[str, Any] | list[Any]) -> None:
     _request(f"{table}?on_conflict=id", "POST", [{"id": "main", "payload": payload}], "resolution=merge-duplicates,return=minimal")
 
 
-def claim_notification(fingerprint: str, channel: str, payload: dict[str, Any]) -> bool:
+def claim_notification(fingerprint: str, channel: str, payload: dict[str, Any], force: bool = False) -> bool:
     result = _request("rpc/claim_bombim00_notification", "POST", {
         "p_fingerprint": fingerprint,
         "p_channel": channel,
         "p_payload": payload,
+        "p_force": bool(force),
     })
     return result is True
 
