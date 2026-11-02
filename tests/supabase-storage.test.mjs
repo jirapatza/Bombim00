@@ -71,17 +71,21 @@ test('Supabase configuration rejects non-HTTPS URLs and reports missing credenti
 });
 
 test('probe checks a server-side table without returning credentials', async () => {
-  let requestUrl = '';
+  const requestUrls = [];
   const result = await probeSupabase({
     url: 'https://project.supabase.co',
     key: 'sb_secret_test',
     fetchImpl: async (url) => {
-      requestUrl = String(url);
+      requestUrls.push(String(url));
       return jsonResponse([{ id: 'main' }]);
     },
   });
   assert.equal(result.reachable, true);
-  assert.match(requestUrl, /app_settings\?select=id/);
+  assert.equal(requestUrls.length, 8);
+  for (const table of ['lottery_results', 'lottery_catalog', 'app_settings', 'system_status',
+    'self_healing_history', 'notification_events', 'legacy_import_batches', 'notification_suppressions']) {
+    assert.ok(requestUrls.some((url) => url.includes(`/${table}?`)), `missing probe for ${table}`);
+  }
   assert.equal(JSON.stringify(result).includes('sb_secret'), false);
 });
 
@@ -123,4 +127,18 @@ test('result reads paginate beyond the PostgREST default maximum row count', asy
   assert.equal(rows.length, 1002);
   assert.equal(new URL(urls[0]).searchParams.get('offset'), '0');
   assert.equal(new URL(urls[1]).searchParams.get('offset'), '1000');
+});
+
+
+test('Supabase health probe fails if any required table is inaccessible', async () => {
+  await assert.rejects(
+    () => probeSupabase({
+      url: 'https://project.supabase.co',
+      key: 'sb_secret_test',
+      fetchImpl: async (url) => String(url).includes('/notification_suppressions?')
+        ? jsonResponse({ message: 'missing relation' }, 404)
+        : jsonResponse([]),
+    }),
+    (error) => error instanceof SupabaseStorageError && error.status === 404,
+  );
 });
