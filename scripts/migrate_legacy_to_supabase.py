@@ -123,6 +123,18 @@ def import_snapshot(snapshot: dict[str, Any], source_sha256: str) -> dict[str, A
         raise RuntimeError(f"Supabase import failed with HTTP {exc.code}: {detail}") from exc
     if not isinstance(result, dict) or result.get("status") != "imported":
         raise RuntimeError("Supabase returned an unexpected import response.")
+
+    sync_request = urllib.request.Request(
+        f"{project_url}/rest/v1/rpc/sync_bombim00_legacy_suppressions",
+        data=b"{}",
+        method="POST",
+        headers=headers,
+    )
+    try:
+        with urllib.request.urlopen(sync_request, timeout=30) as response:
+            result["legacy_suppressions_added"] = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"Supabase legacy notification suppression sync failed with HTTP {exc.code}.") from exc
     return result
 
 
