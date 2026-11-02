@@ -92,7 +92,7 @@ async function readPayload(table: string, query: string, options?: SupabaseOptio
 }
 
 export async function readSupabaseResults(options?: SupabaseOptions): Promise<any[]> {
-  return readPayload('lottery_results', 'order=updated_at.desc', options) as Promise<any[]>;
+  return readPayload('lottery_results', 'order=updated_at.desc,id.asc', options) as Promise<any[]>;
 }
 
 export async function readSupabaseCatalog(options?: SupabaseOptions): Promise<any[]> {
