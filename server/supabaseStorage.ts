@@ -72,23 +72,32 @@ async function request<T>(path: string, init: RequestInit = {}, options: Supabas
 }
 
 async function readPayload(table: string, query: string, options?: SupabaseOptions) {
-  const rows = await request<Array<{ payload: unknown }>>(
-    `${table}?select=payload&${query}`,
-    {},
-    options,
-  );
-  if (!Array.isArray(rows)) throw new SupabaseStorageError(`Supabase table ${table} returned an invalid shape.`);
-  return rows.map((row) => row.payload);
+  const pageSize = 1000;
+  const collected: unknown[] = [];
+  let offset = 0;
+  while (true) {
+    const rows = await request<Array<{ payload: unknown }>>(
+      `${table}?select=payload&${query}&limit=${pageSize}&offset=${offset}`,
+      {},
+      options,
+    );
+    if (!Array.isArray(rows) || rows.some((row) => !row || typeof row !== 'object' || !('payload' in row))) {
+      throw new SupabaseStorageError(`Supabase table ${table} returned an invalid shape.`);
+    }
+    collected.push(...rows.map((row) => row.payload));
+    if (rows.length < pageSize) break;
+    offset += rows.length;
+  }
+  return collected;
 }
 
 export async function readSupabaseResults(options?: SupabaseOptions): Promise<any[]> {
-  return readPayload('lottery_results', 'order=updated_at.desc&limit=1000', options) as Promise<any[]>;
+  return readPayload('lottery_results', 'order=updated_at.desc', options) as Promise<any[]>;
 }
 
 export async function readSupabaseCatalog(options?: SupabaseOptions): Promise<any[]> {
-  return readPayload('lottery_catalog', 'order=lottery_id.asc&limit=1000', options) as Promise<any[]>;
+  return readPayload('lottery_catalog', 'order=lottery_id.asc', options) as Promise<any[]>;
 }
-
 export async function readSupabaseSingleton(table: 'app_settings' | 'system_status' | 'self_healing_history', options?: SupabaseOptions): Promise<any> {
   const rows = await readPayload(table, 'id=eq.main&limit=1', options);
   if (rows.length === 0) {
