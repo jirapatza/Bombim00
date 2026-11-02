@@ -15,7 +15,7 @@ def test_source_parity_verifier_accepts_exact_snapshot():
         "settings": {"enabled": True},
         "status": {"system_status": "healthy"},
         "history": [{"sessionId": "one"}],
-        "batches": [{"source_sha256": "a" * 64}],
+        "batches": [{"source_sha256": "a" * 64, "results_count": 1, "catalog_count": 1, "history_count": 1}],
     }
     report = compare_snapshot(snapshot, "a" * 64, actual)
     assert report["status"] == "verified"
@@ -38,7 +38,7 @@ def test_source_parity_verifier_rejects_payload_or_digest_mismatch():
         "settings": {},
         "status": {},
         "history": [],
-        "batches": [{"source_sha256": "b" * 64}],
+        "batches": [{"source_sha256": "b" * 64, "results_count": 1, "catalog_count": 0, "history_count": 0}],
     }
     with pytest.raises(ValueError, match="payload"):
         compare_snapshot(snapshot, "a" * 64, actual)
