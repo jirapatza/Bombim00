@@ -21,8 +21,9 @@ Apply `supabase/migrations/20261102000100_bombim00_core.sql` first. The RPC
 `import_bombim00_legacy_snapshot` imports one complete snapshot in a single
 PostgreSQL transaction. It uses upserts and never deletes existing rows.
 Legacy result payloads are retained as JSONB so Thai field names and unknown
-provider fields are preserved. The legacy `sent` status stays inside each
-payload; no unverified historical notification channel events are fabricated.
+provider fields are preserved. Legacy `sent` flags are also represented in a
+separate global suppression table; this prevents a re-send without pretending
+to know whether LINE or ntfy delivered the original message.
 
 ## Dry run
 
@@ -101,9 +102,10 @@ plus a shared shadow-write flag:
   until a transactional maintenance RPC is available.
 
 Apply the notification idempotency migration
-`20261102000200_notification_idempotency.sql` after the core schema. It adds
-one unique reservation per result fingerprint and channel. The checker claims
-the reservation before sending, then records sent/failed. Failed reservations
+`20261102000200_notification_idempotency.sql` and the legacy suppression
+migration `20261102000300_legacy_notification_suppressions.sql` after the core schema. It adds
+one unique reservation per result fingerprint and channel. The checker checks legacy suppressions and claims
+a per-channel reservation before sending, then records sent/failed. Failed reservations
 and reservations older than 10 minutes may be retried. This materially reduces
 concurrent duplicate sends; no remote messaging provider can guarantee
 exactly-once delivery if it accepts a message but the network response is lost.
