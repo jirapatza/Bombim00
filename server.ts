@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { assertNoSecretFields, commitGitHubJson, GitHubStorageError, readGitHubJson } from './server/githubStorage.ts';
+import { probeSupabase, SupabaseStorageError } from './server/supabaseStorage.ts';
 import { getOverallHealth } from './server/selfHeal.ts';
 import { timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
@@ -30,6 +31,7 @@ app.use(express.json({ limit: '25mb' }));
 // Protect known state-changing API routes only. Unknown/removed paths must reach
 // Express' JSON 404 handler instead of being masked by an authentication error.
 const protectedApiRoutes = new Set([
+  'GET /api/supabase/health',
   'POST /api/settings',
   'POST /api/lotteries/cleanup-history',
   'POST /api/all-lotteries',
@@ -149,6 +151,23 @@ const ai = new GoogleGenAI({
   },
 });
 
+
+// Server-only Supabase connectivity probe. This does not change the active data source.
+app.get('/api/supabase/health', async (_req, res) => {
+  try {
+    const result = await probeSupabase();
+    return res.json({ ...result, activeDataSource: 'github-json' });
+  } catch (err: any) {
+    const status = err instanceof SupabaseStorageError ? err.status : 502;
+    return res.status(status).json({
+      configured: err?.code !== 'SUPABASE_NOT_CONFIGURED',
+      reachable: false,
+      activeDataSource: 'github-json',
+      error: err?.message || 'Supabase connectivity check failed',
+      code: err?.code || 'SUPABASE_PROBE_FAILED',
+    });
+  }
+});
 
 app.get('/api/health', (req, res) => {
   try {
