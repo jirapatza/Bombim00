@@ -60,8 +60,8 @@ async function request<T>(path: string, init: RequestInit = {}, options: Supabas
     );
   }
   if (!response.ok) {
-    const detail = (await response.text().catch(() => '')).slice(0, 300);
-    throw new SupabaseStorageError(`Supabase request failed (HTTP ${response.status}). ${detail}`.trim(), response.status);
+    // Keep upstream database details out of API responses and application logs.
+    throw new SupabaseStorageError(`Supabase request failed (HTTP ${response.status}).`, response.status);
   }
   if (response.status === 204) return undefined as T;
   try {
