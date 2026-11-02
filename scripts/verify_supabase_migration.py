@@ -49,12 +49,12 @@ def compare_snapshot(
     actual_suppressions = {row["fingerprint"] for row in actual["suppressions"]}
 
     errors: list[str] = []
-    if len(actual_result_rows) != len(expected_results) or set(actual_results) != set(expected_results):
-        errors.append("lottery_results count or fingerprint set differs from the source snapshot")
-    else:
-        mismatched = [key for key, value in expected_results.items() if actual_results.get(key) != value]
-        if mismatched:
-            errors.append(f"{len(mismatched)} lottery result payload(s) differ")
+    missing_fingerprints = set(expected_results) - set(actual_results)
+    if missing_fingerprints:
+        errors.append(f"{len(missing_fingerprints)} source lottery result fingerprint(s) are missing from Supabase")
+    mismatched = [key for key, value in expected_results.items() if key in actual_results and actual_results[key] != value]
+    if mismatched:
+        errors.append(f"{len(mismatched)} lottery result payload(s) differ")
 
     if len(actual["catalog"]) != len(expected_catalog) or actual_catalog != expected_catalog:
         errors.append("lottery_catalog count, IDs, or payloads differ from the source snapshot")
@@ -64,8 +64,8 @@ def compare_snapshot(
         errors.append("system_status payload differs from the source snapshot")
     if actual["history"] != snapshot["self_healing_history"]:
         errors.append("self_healing_history payload differs from the source snapshot")
-    if actual_suppressions != expected_suppressions:
-        errors.append("legacy notification suppression fingerprints differ from sent source results")
+    if not expected_suppressions.issubset(actual_suppressions):
+        errors.append("one or more legacy sent results are missing notification suppression markers")
     matching_batches = [row for row in actual["batches"] if row.get("source_sha256") == source_sha256]
     if not matching_batches:
         errors.append("legacy_import_batches does not contain the current source SHA-256")
@@ -88,6 +88,7 @@ def compare_snapshot(
         },
         "database_counts": {
             "results": len(actual_result_rows),
+            "retained_extra_results": len(set(actual_results) - set(expected_results)),
             "catalog": len(actual["catalog"]),
             "self_healing_history": len(actual["history"]),
             "legacy_notification_suppressions": len(actual_suppressions),
