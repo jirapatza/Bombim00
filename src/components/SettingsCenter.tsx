@@ -67,16 +67,16 @@ export function SettingsCenter({
             </div>
             <div>
               <h2 className="text-lg font-bold text-white tracking-tight">
-                ศูนย์จัดการและตั้งค่าระบบ (Settings Center)
+                ตั้งค่าเว็บไซต์
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                จัดระเบียบใหม่: รวมระบบแจ้งเตือนหลัก <strong>เสียงพูดไทย + แอปมือถือ</strong> ไว้ในที่เดียว ไม่ซ้ำซ้อน ไม่ตีกัน
+                เลือกหัวข้อย่อยเพื่อปรับการแจ้งเตือน ข้อความ และเสียงประกาศ
               </p>
             </div>
           </div>
 
           <span className="text-[11px] px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 font-bold border border-emerald-500/20">
-            ✓ สถาปัตยกรรมรวมศูนย์ (Unified)
+            ตั้งค่าการใช้งาน
           </span>
         </div>
 
@@ -93,7 +93,7 @@ export function SettingsCenter({
             }`}
           >
             <Zap className={`w-3.5 h-3.5 ${subTab === 'unified' ? 'text-slate-950' : 'text-amber-400'}`} />
-            <span>🔔 ศูนย์แจ้งเตือนหลัก (เสียง &amp; แอปมือถือ)</span>
+            <span>การแจ้งเตือน</span>
           </button>
 
           <button
@@ -106,7 +106,7 @@ export function SettingsCenter({
             }`}
           >
             <Palette className="w-3.5 h-3.5" />
-            🎨 ข้อความ &amp; เสียงอ่านไทย
+            ข้อความและเสียงอ่านไทย
           </button>
 
 

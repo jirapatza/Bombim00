@@ -89,3 +89,186 @@ html, body {
   font-weight: 600;
   color: #1e293b;
 }
+
+
+/* Bombim00 Black & Gold visual system */
+#bombim-app {
+  --bm-bg: #080807;
+  --bm-surface: #11110f;
+  --bm-surface-raised: #171612;
+  --bm-border: #332b18;
+  --bm-gold: #e4b53f;
+  --bm-gold-bright: #f4ce68;
+  --bm-muted: #a9a397;
+  background:
+    radial-gradient(ellipse at 82% 0%, rgba(190, 139, 31, .10), transparent 34rem),
+    var(--bm-bg) !important;
+  color: #f4f0e6;
+}
+#bombim-app button {
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+#bombim-app button:focus-visible,
+#bombim-app a:focus-visible,
+#bombim-app input:focus-visible,
+#bombim-app select:focus-visible,
+#bombim-app textarea:focus-visible {
+  outline: 2px solid var(--bm-gold-bright);
+  outline-offset: 3px;
+}
+#bombim-header {
+  background: rgba(8, 8, 7, .96) !important;
+  border-color: var(--bm-border) !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,.32) !important;
+  backdrop-filter: blur(16px);
+}
+#bombim-header > div:first-child {
+  max-width: none;
+}
+#bombim-main-nav {
+  scrollbar-width: thin;
+  scrollbar-color: #6d5520 transparent;
+}
+#bombim-main-nav button {
+  border-radius: 12px !important;
+  min-height: 46px;
+}
+#bombim-main-nav button[class*="bg-gradient-to-r"] {
+  background: linear-gradient(135deg, #f0c65b, #bd861e) !important;
+  color: #17120a !important;
+  border: 1px solid #f5d77e !important;
+  box-shadow: 0 8px 24px rgba(205, 151, 37, .16) !important;
+}
+#bombim-main-nav button:not([class*="bg-gradient-to-r"]) {
+  background: #12120f !important;
+  color: #c9c2b2 !important;
+  border: 1px solid #2d291f !important;
+}
+#bombim-main-nav button:not([class*="bg-gradient-to-r"]):hover {
+  background: #201b10 !important;
+  border-color: #806326 !important;
+  color: #fff3d1 !important;
+}
+#bombim-main-content {
+  max-width: 1440px;
+}
+#bombim-app [class*="border-cyan-"] { border-color: rgba(228,181,63,.30) !important; }
+#bombim-app [class*="text-cyan-"] { color: #e8bd55 !important; }
+#bombim-app [class*="bg-cyan-"] { background-color: rgba(228,181,63,.10) !important; }
+#bombim-app [class*="shadow-cyan-"] { --tw-shadow-color: rgba(228,181,63,.12) !important; }
+#bombim-app [class*="border-sky-"] { border-color: rgba(228,181,63,.25) !important; }
+#bombim-app [class*="text-sky-"] { color: #e6c56e !important; }
+#bombim-app [class*="bg-sky-"] { background-color: rgba(228,181,63,.08) !important; }
+#bombim-app section[aria-labelledby="latest-three-heading"] {
+  background: linear-gradient(145deg, #17150f, #0d0d0b) !important;
+  border: 1px solid #4b3a19 !important;
+  box-shadow: 0 16px 40px rgba(0,0,0,.22) !important;
+}
+#bombim-app #latest-three-heading { color: #f4e6bd !important; }
+#bombim-footer {
+  background: #080807 !important;
+  border-color: #2d281c !important;
+  color: #8e8777 !important;
+}
+#bombim-app input,
+#bombim-app select,
+#bombim-app textarea {
+  accent-color: var(--bm-gold);
+}
+#bombim-app [class*="bg-slate-950"] { background-color: #0b0b09 !important; }
+#bombim-app [class*="bg-slate-900"] { background-color: #12120f !important; }
+#bombim-app [class*="border-slate-800"] { border-color: #302a1d !important; }
+#bombim-app [class*="text-amber-"] { color: #f0c65b !important; }
+#bombim-app [class*="bg-amber-500"] { background-color: #d9a72e !important; }
+#bombim-app [class*="border-amber-"] { border-color: #74591f !important; }
+
+/* Desktop: turn the existing tab row into a persistent, readable side rail. */
+@media (min-width: 1100px) {
+  #bombim-header > div:first-child {
+    margin-left: 248px;
+    padding-left: 32px;
+    padding-right: 36px;
+  }
+  #bombim-main-nav {
+    position: fixed;
+    z-index: 45;
+    top: 88px;
+    bottom: 0;
+    left: 0;
+    width: 232px;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-top: 0 !important;
+    border-right: 1px solid #302817;
+    background: #0c0c0a;
+  }
+  #bombim-main-nav button {
+    width: 100%;
+    justify-content: flex-start;
+    white-space: normal;
+    text-align: left;
+    padding: 13px 14px !important;
+    font-size: 14px !important;
+    line-height: 1.35;
+  }
+  #bombim-main-content,
+  #bombim-footer {
+    margin-left: 232px;
+    width: calc(100% - 232px);
+  }
+  #bombim-main-content {
+    padding: 28px 34px;
+  }
+}
+@media (max-width: 1099px) {
+  #bombim-header > div:first-child { padding: 14px 16px; }
+  #bombim-main-nav {
+    padding: 10px 16px;
+    background: #0c0c0a;
+  }
+  #bombim-main-content { padding: 18px 14px 28px; }
+}
+@media (max-width: 640px) {
+  #bombim-header > div:first-child {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  #bombim-header > div:first-child > div:first-child { min-width: 0; }
+  #bombim-header h1 { font-size: 20px; }
+  #bombim-header > div:first-child > div:last-child {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  #bombim-header > div:first-child > div:last-child > button:first-child {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  #bombim-main-nav button {
+    min-height: 42px;
+    padding: 10px 13px !important;
+    font-size: 13px !important;
+  }
+  #bombim-main-content { padding: 14px 12px 24px; }
+  #bombim-app .modal-overlay { padding: 8px !important; }
+  #bombim-app .modal-overlay > div {
+    height: calc(100dvh - 16px) !important;
+    max-height: none !important;
+    border-radius: 18px !important;
+  }
+  #bombim-app .modal-overlay h2 { font-size: 17px !important; line-height: 1.3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #bombim-app *,
+  #bombim-app *::before,
+  #bombim-app *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}

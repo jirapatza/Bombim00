@@ -1279,7 +1279,7 @@ export default function App() {
   const renderedPreview = getRenderedPreview();
 
   return (
-    <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950 ${fontFamily === 'mono' ? 'font-mono' : 'font-sans'}`}>
+    <div id="bombim-app" className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950 ${fontFamily === 'mono' ? 'font-mono' : 'font-sans'}`}>
       {/* Toast Notification */}
       {notificationToast && (
         <div className="fixed top-5 right-5 z-50 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-emerald-400/30 animate-bounce">
@@ -1476,7 +1476,7 @@ export default function App() {
       )}
 
       {/* Executive Header & Navigation */}
-      <header className="border-b border-slate-800 bg-slate-900 sticky top-0 z-40 shadow-2xl">
+      <header id="bombim-header" className="border-b border-slate-800 bg-slate-900 sticky top-0 z-40 shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30 text-slate-950 font-black shrink-0">
@@ -1485,7 +1485,7 @@ export default function App() {
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="font-black text-xl sm:text-2xl text-white tracking-tight">
-                  ระบบตรวจและแจ้งเตือนผลหวยสด
+                  Bombim00
                 </h1>
                 <span className="text-xs sm:text-sm px-3 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -1497,7 +1497,7 @@ export default function App() {
                 </span>
               </div>
               <p className="text-sm text-slate-300 mt-1 font-medium hidden sm:block">
-                ศูนย์กลางผลสลาก 54 หวยมาตรฐาน • เช็คผลสดเรียลไทม์ • ทำรูปสรุปแชร์ • ยืนยันข้อมูลด้วย AI
+                ศูนย์กลางตรวจผลหวยสดและจัดการระบบแบบเรียลไทม์
               </p>
             </div>
           </div>
@@ -1506,11 +1506,13 @@ export default function App() {
             {/* Primary Back-Office & Settings Button */}
             <button
               type="button"
-              onClick={() => setIsAdminBackOfficeOpen(true)}
+              onClick={() => setActiveTab('settings')}
+              aria-label="เปิดหน้าตั้งค่า"
+              aria-current={activeTab === 'settings' ? 'page' : undefined}
               className="px-4 py-2.5 sm:px-5 sm:py-3 text-sm sm:text-base font-black rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 transition flex items-center gap-2 shadow-lg shadow-amber-500/25 cursor-pointer active:scale-95"
             >
               <Settings className="w-5 h-5 text-slate-950" />
-              <span>⚙️ ระบบหลังบ้าน &amp; ตั้งค่า</span>
+              <span>ตั้งค่า</span>
             </button>
 
             <button
@@ -1553,13 +1555,12 @@ export default function App() {
 
         {/* Main User Navigation: Clean, Clear, Large Font for General Users */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <nav className="flex gap-2 sm:gap-3 border-t border-slate-800/80 overflow-x-auto py-3 text-sm sm:text-base font-black no-scrollbar">
+          <nav id="bombim-main-nav" aria-label="เมนูหลัก" className="flex gap-2 sm:gap-3 border-t border-slate-800/80 overflow-x-auto py-3 text-sm sm:text-base font-black no-scrollbar">
             {[
               { id: 'summary', label: '🏆 ผลหวย & สรุปภาพแชร์', icon: TableProperties },
               { id: 'checker', label: '🎫 ตรวจสลากรางวัล', icon: Search },
               { id: 'live', label: '⏱️ รอบหวยสด & นับถอยหลัง', icon: Radio },
               { id: 'history', label: '📊 สถิติ & ประวัติย้อนหลัง', icon: History },
-              { id: 'settings', label: '⚙️ ตั้งค่าระบบ', icon: Settings },
             ].map((tab) => {
               const Icon = tab.icon;
               const selected = activeTab === tab.id ||
@@ -1588,7 +1589,7 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+      <main id="bombim-main-content" className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
         {/* ==================== TAB 1: LIVE UPCOMING DRAWS (WAITING & ABOUT-TO-DRAW) ==================== */}
         <div className={activeTab === 'live' ? 'block' : 'hidden'}>
           <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันการแสดงผลหวยสดขัดข้อง (Live Draws Shield)">
@@ -2346,7 +2347,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-4 text-center text-xs text-slate-500">
+      <footer id="bombim-footer" className="border-t border-slate-900 bg-slate-950 py-4 text-center text-xs text-slate-500">
         Lottery Alert System • ระบบแจ้งเตือนผลหวยพร้อมเสียงพูดไทย & ตัวปรับแต่งรูปแบบข้อความตัวหนังสือ
       </footer>
 
