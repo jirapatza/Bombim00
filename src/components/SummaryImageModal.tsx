@@ -12,6 +12,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import { LotteryItem } from './DailySummaryTable';
+import { getResultNumbers } from '../utils/lotteryResult';
 
 export type SummaryThemeKey = 'gold' | 'neon' | 'midnight' | 'emerald';
 
@@ -190,9 +191,10 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
   const hasAutoSharedRef = useRef(false);
 
   // Filter announced or valid lotteries
-  const displayLotteries = lotteries.filter(
-    (l) => l.status === 'announced' || (l.top3 && l.bottom2)
-  );
+  const displayLotteries = lotteries.filter((l) => {
+    const { top3, bottom2 } = getResultNumbers(l);
+    return l.status === 'announced' || Boolean(top3 && bottom2);
+  });
   const targetLotteries = displayLotteries.length > 0 ? displayLotteries : lotteries.slice(0, 15);
 
   const appShareUrl =
@@ -213,8 +215,9 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
     text += `━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 
     targetLotteries.forEach((l, index) => {
-      const top3 = l.top3 || '---';
-      const bot2 = l.bottom2 || '--';
+      const numbers = getResultNumbers(l);
+      const top3 = numbers.top3 || '---';
+      const bot2 = numbers.bottom2 || '--';
       text += `${index + 1}. ${l.flag || '🎯'} ${l.name}\n`;
       text += ` 👉 3 บน: ${top3} • 2 ล่าง: ${bot2}\n`;
     });
@@ -459,16 +462,9 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
           const nameToDraw = l.name.length > 20 ? l.name.slice(0, 19) + '…' : l.name;
           ctx.fillText(nameToDraw, 126, currentY + 36);
 
-          // Check if lottery is Government
-          const isGov =
-            l.category === 'gov_savings' ||
-            l.id === 'thai_gov' ||
-            l.id === 'gsb' ||
-            l.id === 'baac' ||
-            /สลากกินแบ่ง|รัฐบาลไทย|ออมสิน|ธ\.?ก\.?ส/i.test(l.name);
-
-          // Top 3 / 1st Prize Box
-          const topValue = (isGov && l.firstPrize) ? l.firstPrize : (l.top3 || '---');
+          const numbers = getResultNumbers(l);
+          // Every lottery uses the same three-upper / two-lower result pair.
+          const topValue = numbers.top3 || '---';
           const top3BoxX = width - 340;
           ctx.fillStyle = theme.top3BoxBg;
           ctx.strokeStyle = theme.top3BoxBorder;
@@ -480,14 +476,14 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
 
           ctx.fillStyle = theme.top3LabelColor;
           ctx.font = '600 11px system-ui, -apple-system, sans-serif';
-          ctx.fillText(isGov ? 'รางวัล 1' : '3 บน', top3BoxX + 8, currentY + 36);
+          ctx.fillText('3 บน', top3BoxX + 8, currentY + 36);
 
           ctx.fillStyle = theme.top3TextColor;
           ctx.font = 'bold 18px monospace';
           ctx.fillText(topValue, top3BoxX + 60, currentY + 38);
 
           // Bottom 2 Box
-          const bot2 = l.bottom2 || '--';
+          const bot2 = numbers.bottom2 || '--';
           const bot2BoxX = width - 185;
           ctx.fillStyle = theme.bot2BoxBg;
           ctx.strokeStyle = theme.bot2BoxBorder;
@@ -499,7 +495,7 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
 
           ctx.fillStyle = theme.bot2LabelColor;
           ctx.font = '600 11px system-ui, -apple-system, sans-serif';
-          ctx.fillText(isGov ? 'เลขท้าย 2' : '2 ล่าง', bot2BoxX + 8, currentY + 36);
+          ctx.fillText('2 ล่าง', bot2BoxX + 8, currentY + 36);
 
           ctx.fillStyle = theme.bot2TextColor;
           ctx.font = 'bold 18px monospace';

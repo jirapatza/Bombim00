@@ -9,6 +9,10 @@
 - Data-only GitHub commits include Render's `[skip render]` marker so each five-minute result update does not rebuild the web service.
 - Notifications are sent by the GitHub Actions checker. ntfy uses `NTFY_TOPIC`; LINE uses LINE Messaging API secrets.
 
+All lottery displays, speech, notifications and exports use upper-three/lower-two results, such as `782 - 57`. Government upper-three results come from the final three digits of the first prize; the lower-two result is its own published prize. Missing numbers remain unavailable and are never replaced with invented zeros. Original provider data remains available internally for compatibility.
+
+Government draw dates follow the provider's actual announcement, including postponed draws. Government rows remain visible while waiting; visibility does not assert that a draw occurs every day. Successful notification channels are recorded separately, so later runs retry only incomplete channels. Partial or failed delivery appears as degraded status.
+
 ## Run locally
 
 Use Node.js 22.14 or newer and Python 3.11 or newer.

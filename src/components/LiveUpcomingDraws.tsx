@@ -25,6 +25,48 @@ import {
   BellOff
 } from 'lucide-react';
 import { LotteryItem } from './DailySummaryTable';
+import { isGovernmentLottery } from '../utils/lotterySchedule';
+import { getResultNumbers } from '../utils/lotteryResult';
+
+function bangkokCalendarDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(date);
+}
+
+function normalizedDrawDate(value: string): string {
+  const raw = String(value || '').trim();
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  const dmy = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
+  if (iso || dmy) {
+    const match = (iso || dmy)!;
+    const year = Number(iso ? match[1] : match[3]);
+    const month = Number(match[2]);
+    const day = Number(iso ? match[3] : match[1]);
+    return `${year >= 2400 ? year - 543 : year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+  const thaiMonths: Record<string, number> = {
+    'มกราคม': 1, 'ม.ค.': 1, 'กุมภาพันธ์': 2, 'ก.พ.': 2,
+    'มีนาคม': 3, 'มี.ค.': 3, 'เมษายน': 4, 'เม.ย.': 4,
+    'พฤษภาคม': 5, 'พ.ค.': 5, 'มิถุนายน': 6, 'มิ.ย.': 6,
+    'กรกฎาคม': 7, 'ก.ค.': 7, 'สิงหาคม': 8, 'ส.ค.': 8,
+    'กันยายน': 9, 'ก.ย.': 9, 'ตุลาคม': 10, 'ต.ค.': 10,
+    'พฤศจิกายน': 11, 'พ.ย.': 11, 'ธันวาคม': 12, 'ธ.ค.': 12,
+  };
+  const parts = raw.split(/\s+/);
+  const day = Number(parts[0]);
+  const month = thaiMonths[parts[1]];
+  const year = Number(parts[2]);
+  return day && month && year
+    ? `${year >= 2400 ? year - 543 : year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    : '';
+}
+
+function hasGovernmentResultToday(item: LotteryItem): boolean {
+  const { top3, bottom2 } = getResultNumbers(item);
+  return item.status === 'announced' && Boolean(top3 && bottom2) &&
+    normalizedDrawDate(item.date) === bangkokCalendarDate(new Date());
+}
 
 interface LiveUpcomingDrawsProps {
   lotteries: LotteryItem[];
@@ -140,6 +182,8 @@ export function LiveUpcomingDraws({
   // Find urgent lottery closing in <= 5 minutes
   const urgentClosingLottery = useMemo(() => {
     for (const item of lotteries) {
+      // A recurring time is not confirmation of a government draw date.
+      if (isGovernmentLottery(item)) continue;
       const closeMin = parseLotteryTimelineMinutes(item.closeTimeStr);
       const diff = closeMin - currentEffectiveMinutes;
       if (diff <= 5 && diff > 0) {
@@ -197,6 +241,11 @@ export function LiveUpcomingDraws({
     const announced: LotteryItem[] = [];
 
     chronoSortedAll.forEach((item) => {
+      if (isGovernmentLottery(item)) {
+        if (hasGovernmentResultToday(item)) announced.push(item);
+        else upcoming.push(item);
+        return;
+      }
       const drawMin = parseLotteryTimelineMinutes(item.drawTimeStr);
       if (drawMin > currentEffectiveMinutes) {
         upcoming.push(item);
@@ -208,8 +257,8 @@ export function LiveUpcomingDraws({
     // In announced list: sort reverse-chronological so the MOST RECENTLY ANNOUNCED comes first!
     announced.sort((a, b) => parseLotteryTimelineMinutes(b.drawTimeStr) - parseLotteryTimelineMinutes(a.drawTimeStr));
 
-    if (upcoming.length > 0) {
-      const next = upcoming[0];
+    const next = upcoming.find((item) => !isGovernmentLottery(item));
+    if (next) {
       const nextDrawMin = parseLotteryTimelineMinutes(next.drawTimeStr);
       const diffTotalSeconds = Math.max(0, (nextDrawMin - currentEffectiveMinutes) * 60 - bangkokTime.seconds);
       const minRem = Math.floor(diffTotalSeconds / 60);
@@ -228,7 +277,7 @@ export function LiveUpcomingDraws({
     return {
       upcomingLotteries: [],
       announcedLotteries: announced,
-      nextLottery: chronoSortedAll[0],
+      nextLottery: chronoSortedAll.find((item) => !isGovernmentLottery(item)) || null,
       minutesRemaining: 0,
       secondsRemaining: 0,
       isTomorrow: true,
@@ -590,6 +639,7 @@ export function LiveUpcomingDraws({
         {displayUpcomingLotteries.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {displayUpcomingLotteries.map((item, idx) => {
+              const awaitingGovernmentDate = isGovernmentLottery(item);
               const isNext = nextLottery?.id === item.id;
               const itemDrawMin = parseLotteryTimelineMinutes(item.drawTimeStr);
               const itemCloseMin = parseLotteryTimelineMinutes(item.closeTimeStr);
@@ -605,7 +655,13 @@ export function LiveUpcomingDraws({
                 dotClass: 'bg-emerald-400',
               };
 
-              if (currentEffectiveMinutes >= itemCloseMin && currentEffectiveMinutes < itemDrawMin) {
+              if (awaitingGovernmentDate) {
+                stageBadge = {
+                  label: 'รอประกาศวันงวด',
+                  className: 'bg-slate-800 text-slate-300 border-slate-700',
+                  dotClass: 'bg-slate-400',
+                };
+              } else if (currentEffectiveMinutes >= itemCloseMin && currentEffectiveMinutes < itemDrawMin) {
                 stageBadge = {
                   label: 'ปิดรับแล้ว รอผล',
                   className: 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse',
@@ -664,6 +720,11 @@ export function LiveUpcomingDraws({
                     </div>
 
                     {/* Time Schedule Row */}
+                    {awaitingGovernmentDate ? (
+                      <p className="text-[11px] text-slate-400 bg-slate-950/60 px-2.5 py-1.5 rounded-xl border border-slate-800/80">
+                        วันออกรางวัลอาจเปลี่ยนแปลง ยึดวันงวดที่แหล่งข้อมูลประกาศ
+                      </p>
+                    ) : (
                     <div className="flex items-center justify-between text-[11px] text-slate-300 font-mono bg-slate-950/60 px-2.5 py-1.5 rounded-xl border border-slate-800/80">
                       <div className="flex items-center gap-1 text-amber-400">
                         <Clock className="w-3.5 h-3.5" />
@@ -674,6 +735,7 @@ export function LiveUpcomingDraws({
                         <span>ออกผล: <strong className="text-white">{item.drawTimeStr}</strong></span>
                       </div>
                     </div>
+                    )}
                   </div>
 
                   {/* Waiting Number Placeholder */}
@@ -696,7 +758,7 @@ export function LiveUpcomingDraws({
                   <div className="flex items-center justify-between pt-1 text-xs">
                     <span className="text-[11px] text-amber-400/90 font-medium flex items-center gap-1">
                       <Hourglass className="w-3 h-3 animate-spin" />
-                      {hoursWait > 0 ? `อีกประมาณ ${hoursWait} ชม. ${minsWait} น.` : `อีกประมาณ ${minsWait} นาที`}
+                      {awaitingGovernmentDate ? 'รอวันงวดจริงจากแหล่งข้อมูล' : hoursWait > 0 ? `อีกประมาณ ${hoursWait} ชม. ${minsWait} น.` : `อีกประมาณ ${minsWait} นาที`}
                     </span>
 
                     <button
@@ -785,13 +847,13 @@ export function LiveUpcomingDraws({
                   <div>
                     <span className="text-[9px] text-slate-400 block">3 ตัวบน</span>
                     <span className="font-mono text-lg font-black text-amber-400">
-                      {item.top3 || '-'}
+                      {getResultNumbers(item).top3 || '---'}
                     </span>
                   </div>
                   <div>
                     <span className="text-[9px] text-slate-400 block">2 ตัวล่าง</span>
                     <span className="font-mono text-lg font-black text-emerald-400">
-                      {item.bottom2 || '-'}
+                      {getResultNumbers(item).bottom2 || '--'}
                     </span>
                   </div>
                 </div>

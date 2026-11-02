@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Clock3, Radio, Trophy } from 'lucide-react';
 import type { LotteryItem } from './DailySummaryTable';
+import { getResultNumbers } from '../utils/lotteryResult';
 
 interface LatestResultRow {
   ชื่อหวย?: string;
@@ -82,7 +83,7 @@ function scheduledTimestamp(row: LatestResultRow, lotteries: LotteryItem[]): num
   const schedule = lotteries.find((item) =>
     [normalizeName(item.name), normalizeName(item.id)].includes(rowName)
   );
-  const date = parseDrawDate(row.วันที่จัดรูปแบบ || row.งวดวันที่);
+  const date = parseDrawDate(row.งวดวันที่) || parseDrawDate(row.วันที่จัดรูปแบบ);
   if (!schedule || !date) return Number.NaN;
 
   const time = String(schedule.drawTimeStr || '').match(/(\d{1,2})[:.](\d{2})/);
@@ -123,10 +124,8 @@ export const LatestThreeResults: React.FC<LatestThreeResultsProps> = ({ results,
         };
       })
       .filter(({ row, timestamp }) => {
-        const hasResult = Boolean(
-          String(row.รางวัลที่_1 || row.เลขบน_3_ตัว || row.top3 || row.firstPrize || '').trim() ||
-          String(row.เลขท้าย_2_ตัว || row.เลขล่าง_2_ตัว || row.bottom2 || '').trim()
-        );
+        const { top3, bottom2 } = getResultNumbers(row);
+        const hasResult = Boolean(top3 || bottom2);
         return hasResult && Number.isFinite(timestamp);
       })
       .sort((a, b) => b.timestamp - a.timestamp)
@@ -158,10 +157,11 @@ export const LatestThreeResults: React.FC<LatestThreeResultsProps> = ({ results,
         <ol className="grid gap-3 md:grid-cols-3">
           {latest.map(({ row, timestamp, timeBasis }, index) => {
             const name = row.ชื่อหวย || row.หวย || row.lotteryName || 'ไม่ระบุชื่อรายการ';
-            const top = row.เลขบน_3_ตัว || row.รางวัลที่_1 || row.top3 || row.firstPrize || '—';
-            const bottom = row.เลขล่าง_2_ตัว || row.เลขท้าย_2_ตัว || row.bottom2 || '—';
+            const { top3, bottom2 } = getResultNumbers(row);
+            const top = top3 || '---';
+            const bottom = bottom2 || '--';
             const source = row.แหล่งข้อมูล || row.source || 'ไม่ระบุแหล่งข้อมูล';
-            const drawDate = row.วันที่จัดรูปแบบ || row.งวดวันที่ || '';
+            const drawDate = row.งวดวันที่ || row.วันที่จัดรูปแบบ || '';
             return (
               <li key={`${normalizeName(name)}-${timestamp}-${index}`} className={`rounded-xl border p-3 ${index === 0 ? 'border-cyan-400/40 bg-cyan-950/30' : 'border-slate-800 bg-slate-900/70'}`}>
                 <div className="mb-3 flex items-center justify-between gap-2">
@@ -172,11 +172,11 @@ export const LatestThreeResults: React.FC<LatestThreeResultsProps> = ({ results,
                 {drawDate && <p className="mt-1 text-[11px] text-slate-500">งวด {drawDate}</p>}
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <div className="rounded-lg bg-slate-950/80 p-2">
-                    <p className="text-[10px] text-slate-500">3 หลัก / รางวัลที่ 1</p>
+                    <p className="text-[10px] text-slate-500">3 ตัวบน</p>
                     <p className="mt-1 font-mono text-xl font-black tracking-wider text-amber-300">{top}</p>
                   </div>
                   <div className="rounded-lg bg-slate-950/80 p-2">
-                    <p className="text-[10px] text-slate-500">2 หลัก</p>
+                    <p className="text-[10px] text-slate-500">2 ตัวล่าง</p>
                     <p className="mt-1 font-mono text-xl font-black tracking-wider text-emerald-300">{bottom}</p>
                   </div>
                 </div>

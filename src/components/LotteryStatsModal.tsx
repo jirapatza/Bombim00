@@ -18,6 +18,40 @@ import {
   Percent,
 } from 'lucide-react';
 import { LotteryItem } from './DailySummaryTable';
+import { getResultNumbers, normalizeLotteryIdentity } from '../utils/lotteryResult';
+
+function statsDrawDate(row: Record<string, unknown>): string {
+  const thaiMonths = [
+    ['มกราคม', 'ม.ค.'], ['กุมภาพันธ์', 'ก.พ.'], ['มีนาคม', 'มี.ค.'],
+    ['เมษายน', 'เม.ย.'], ['พฤษภาคม', 'พ.ค.'], ['มิถุนายน', 'มิ.ย.'],
+    ['กรกฎาคม', 'ก.ค.'], ['สิงหาคม', 'ส.ค.'], ['กันยายน', 'ก.ย.'],
+    ['ตุลาคม', 'ต.ค.'], ['พฤศจิกายน', 'พ.ย.'], ['ธันวาคม', 'ธ.ค.'],
+  ];
+  for (const candidate of [row.งวดวันที่, row.วันที่จัดรูปแบบ, row.date]) {
+    const value = String(candidate ?? '').trim();
+    let year: number;
+    let month: number;
+    let day: number;
+    const iso = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|T)/);
+    const dmy = value.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+    if (iso) {
+      [, year, month, day] = iso.map(Number);
+    } else if (dmy) {
+      [, day, month, year] = dmy.map(Number);
+    } else {
+      const thai = value.match(/^(\d{1,2})\s+(\S+)\s+(\d{4})$/);
+      if (!thai) continue;
+      day = Number(thai[1]);
+      month = thaiMonths.findIndex((names) => names.includes(thai[2])) + 1;
+      year = Number(thai[3]);
+    }
+    if (year >= 2400) year -= 543;
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (month >= 1 && month <= 12 && parsed.getUTCFullYear() === year &&
+      parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day) return value;
+  }
+  return 'ไม่ระบุ';
+}
 
 interface LotteryStatsModalProps {
   isOpen: boolean;
@@ -39,45 +73,40 @@ export const LotteryStatsModal: React.FC<LotteryStatsModalProps> = ({
   const [copiedStats, setCopiedStats] = useState(false);
   const [activeTab, setActiveTab] = useState<'history' | 'frequency' | 'patterns'>('history');
 
-  const normalizeMatchKey = (value: unknown) =>
-    String(value ?? '')
-      .toLocaleLowerCase()
-      .replace(/[\s._#-]+/g, '');
-
   // Extract up to 10 past draws for this specific lottery
   const tenDraws = useMemo(() => {
     if (!lottery) return [];
 
-    const matchedDraws: Array<{ date: string; top3: string; bottom2: string; firstPrize?: string }> = [];
+    const matchedDraws: Array<{ date: string; top3: string; bottom2: string }> = [];
 
     // 1. Gather from results database
-    const idKey = normalizeMatchKey(lottery.id);
-    const nameKey = normalizeMatchKey(lottery.name);
+    const governmentAliases: Record<string, string[]> = {
+      thai_gov: ['thailotto'],
+      gsb: ['gsblotto'],
+      baac: ['baaclotto'],
+    };
+    const lotteryKeys = new Set([
+      lottery.id,
+      lottery.name,
+      ...(governmentAliases[String(lottery.id).toLowerCase()] || []),
+    ].map(normalizeLotteryIdentity).filter(Boolean));
 
     if (Array.isArray(results) && results.length > 0) {
       results.forEach((row) => {
         const rowKeys = [row.หวย, row.lottery, row.lottery_code, row.ชื่อหวย, row.lotteryName]
-          .map(normalizeMatchKey)
+          .map(normalizeLotteryIdentity)
           .filter(Boolean);
 
-        const isMatch = rowKeys.some(
-          (k) =>
-            k === idKey ||
-            k === nameKey ||
-            (nameKey && k.includes(nameKey)) ||
-            (idKey && k.includes(idKey))
-        );
+        const isMatch = rowKeys.some((key) => lotteryKeys.has(key));
 
         if (isMatch) {
-          const top3 = String(row.เลขบน_3_ตัว || row.top3 || (row.รางวัลที่_1 ? String(row.รางวัลที่_1).slice(-3) : '') || '').trim();
-          const bot2 = String(row.เลขล่าง_2_ตัว || row.bottom2 || row.เลขท้าย_2_ตัว || '').trim();
-          const date = String(row.วันที่จัดรูปแบบ || row.งวดวันที่ || row.date || 'ไม่ระบุ').trim();
-          const first = row.รางวัลที่_1 ? String(row.รางวัลที่_1).trim() : undefined;
+          const { top3, bottom2 } = getResultNumbers(row);
+          const date = statsDrawDate(row);
 
-          if (top3 || bot2) {
+          if (top3 || bottom2) {
             // Avoid duplicate dates
             if (!matchedDraws.some((d) => d.date === date)) {
-              matchedDraws.push({ date, top3, bottom2: bot2, firstPrize: first });
+              matchedDraws.push({ date, top3, bottom2 });
             }
           }
         }
@@ -87,25 +116,25 @@ export const LotteryStatsModal: React.FC<LotteryStatsModalProps> = ({
     // 2. Also incorporate item.history if available
     if (Array.isArray(lottery.history)) {
       lottery.history.forEach((h) => {
+        const { top3, bottom2 } = getResultNumbers(h);
         if (!matchedDraws.some((d) => d.date === h.date)) {
           matchedDraws.push({
             date: h.date,
-            top3: h.top3,
-            bottom2: h.bottom2,
+            top3,
+            bottom2,
           });
         }
       });
     }
 
     // 3. If currently announced and not yet in list, prepend current draw
-    if (lottery.top3 && lottery.bottom2) {
+    const currentNumbers = getResultNumbers(lottery);
+    if (currentNumbers.top3 && currentNumbers.bottom2) {
       const currentDate = lottery.date || 'งวดปัจจุบัน';
       if (!matchedDraws.some((d) => d.date === currentDate)) {
         matchedDraws.unshift({
           date: currentDate,
-          top3: lottery.top3,
-          bottom2: lottery.bottom2,
-          firstPrize: lottery.firstPrize,
+          ...currentNumbers,
         });
       }
     }
@@ -444,9 +473,6 @@ export const LotteryStatsModal: React.FC<LotteryStatsModalProps> = ({
                         <th className="py-2.5 px-3">วันที่ออกผล</th>
                         <th className="py-2.5 px-3 text-center">3 ตัวบน</th>
                         <th className="py-2.5 px-3 text-center">2 ตัวล่าง</th>
-                        {tenDraws.some((d) => d.firstPrize) && (
-                          <th className="py-2.5 px-3 text-center hidden sm:table-cell">รางวัลที่ 1</th>
-                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/80 font-mono text-xs sm:text-sm">
@@ -468,11 +494,6 @@ export const LotteryStatsModal: React.FC<LotteryStatsModalProps> = ({
                               {draw.bottom2 || '--'}
                             </span>
                           </td>
-                          {tenDraws.some((d) => d.firstPrize) && (
-                            <td className="py-2.5 px-3 text-center text-slate-400 hidden sm:table-cell">
-                              {draw.firstPrize || '-'}
-                            </td>
-                          )}
                         </tr>
                       ))}
                     </tbody>

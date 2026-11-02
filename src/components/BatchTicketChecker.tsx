@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import * as XLSX from 'xlsx';
 import { apiFetch } from '../utils/api';
+import { getResultNumbers, formatResultPair } from '../utils/lotteryResult';
 import {
   Ticket,
   Search,
@@ -30,15 +31,13 @@ interface BatchProps {
 interface TicketMatch {
   ticketNumber: string;
   isWinner: boolean;
-  prizesWon: Array<{ prizeName: string; amount: number }>;
-  totalPrize: number;
+  prizesWon: Array<{ prizeName: string }>;
+  error?: string;
 }
 
 export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }) => {
-  const [selectedDrawDate, setSelectedDrawDate] = useState<string>(latestDraw?.งวดวันที่ || '16 ตุลาคม 2569');
-  const [rawTicketsInput, setRawTicketsInput] = useState<string>(
-    '289594\n84\n120984\n012425\n318972\n999999\n555555'
-  );
+  const [selectedDrawKey, setSelectedDrawKey] = useState<string>('');
+  const [rawTicketsInput, setRawTicketsInput] = useState<string>('');
   const [checkedResults, setCheckedResults] = useState<TicketMatch[] | null>(null);
   const [copiedSlip, setCopiedSlip] = useState(false);
 
@@ -86,7 +85,7 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
 
       recorder.start();
       setIsRecording(true);
-      setVoiceToast('🎙️ กำลังฟังเสียง... พูดหมายเลขสลาก เช่น "289594" หรือ "แปดสี่"');
+      setVoiceToast('🎙️ กำลังฟังเสียง... พูดเลข 3 ตัวหรือ 2 ตัว เช่น "เจ็ดแปดสอง" หรือ "ห้าสิบเจ็ด"');
     } catch (err: any) {
       setVoiceToast(`❌ ไมโครโฟน: ${err.message || 'ไม่สามารถเปิดไมค์ได้'}`);
       setIsRecording(false);
@@ -115,9 +114,10 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
         });
         const data = await res.json();
         if (res.ok && data.success) {
-          const digits: string[] = data.detectedDigits || [];
+          const digits: string[] = (data.detectedDigits || []).map(String).filter((value: string) => /^\d{2,3}$/.test(value));
           const text = data.transcript || '';
           if (digits.length > 0) {
+            setCheckedResults(null);
             setRawTicketsInput((prev) => {
               const existing = prev.trim();
               return existing ? `${existing}\n${digits.join('\n')}` : digits.join('\n');
@@ -144,7 +144,7 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          lotteryName: 'สลากกินแบ่งรัฐบาลไทย',
+          lotteryName: targetDraw.ชื่อหวย || targetDraw.name || 'หวยที่เลือก',
           drawDate: selectedDrawDate,
         }),
       });
@@ -160,29 +160,32 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
     }
   };
 
-  // Deduplicate available draw dates to prevent duplicate key errors in React
-  const uniqueDrawDates = useMemo(() => {
+  // Select a specific lottery and draw, rather than mixing all lotteries on one date.
+  const uniqueDraws = useMemo(() => {
     const seen = new Set<string>();
-    const list: string[] = [];
-    if (latestDraw?.งวดวันที่) {
-      const d = String(latestDraw.งวดวันที่).trim();
-      if (d) {
-        seen.add(d);
-        list.push(d);
+    const list: Array<{ key: string; row: any }> = [];
+    for (const row of [...(results || []), ...(latestDraw ? [latestDraw] : [])]) {
+      const date = String(row.งวดวันที่ || row.วันที่จัดรูปแบบ || '').trim();
+      const name = String(row.ชื่อหวย || row.name || row.หวย || 'หวย').trim();
+      if (!date) continue;
+      const key = JSON.stringify([name, date, formatResultPair(row)]);
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push({ key, row });
       }
     }
-    (results || []).forEach((r) => {
-      const d = String(r.งวดวันที่ || '').trim();
-      if (d && !seen.has(d)) {
-        seen.add(d);
-        list.push(d);
-      }
-    });
     return list;
   }, [results, latestDraw]);
+  const targetDraw = uniqueDraws.find((draw) => draw.key === selectedDrawKey)?.row || uniqueDraws[0]?.row || {};
+  const activeDrawKey = uniqueDraws.find((draw) => draw.row === targetDraw)?.key || '';
+  const selectedDrawDate = String(targetDraw.งวดวันที่ || targetDraw.วันที่จัดรูปแบบ || '');
+  const selectedLotteryName = String(targetDraw.ชื่อหวย || targetDraw.name || targetDraw.หวย || 'หวย');
+  const selectedPair = getResultNumbers(targetDraw);
 
-  // Find target draw
-  const targetDraw = results.find((r) => r.งวดวันที่ === selectedDrawDate) || latestDraw || {};
+  useEffect(() => {
+    setCheckedResults(null);
+    setGroundingVerifiedText(null);
+  }, [activeDrawKey]);
 
   const handleCheckBatch = () => {
     const lines = rawTicketsInput
@@ -194,62 +197,19 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
 
     const matches: TicketMatch[] = [];
 
-    const firstPrize = targetDraw.รางวัลที่_1 || '';
-    const last2Prize = targetDraw.เลขท้าย_2_ตัว || '';
-    const front3List: string[] = targetDraw.เลขหน้า_3_ตัว || [];
-    const rear3List: string[] = targetDraw.เลขท้าย_3_ตัว || [];
-    const adjacentList: string[] = targetDraw.รางวัลข้างเคียงรางวัลที่_1 || [];
-    const prize2List: string[] = targetDraw.รางวัลที่_2 || [];
-
-    for (const raw of lines) {
-      const ticket = raw.padStart(raw.length < 6 ? raw.length : 6, '0');
-      const wonList: Array<{ prizeName: string; amount: number }> = [];
-
-      // Check 1st Prize
-      if (ticket.length === 6 && ticket === firstPrize) {
-        wonList.push({ prizeName: 'รางวัลที่ 1', amount: 6000000 });
-      }
-
-      // Check Adjacent
-      if (ticket.length === 6 && adjacentList.includes(ticket)) {
-        wonList.push({ prizeName: 'รางวัลข้างเคียงรางวัลที่ 1', amount: 100000 });
-      }
-
-      // Check 2nd Prize
-      if (ticket.length === 6 && prize2List.includes(ticket)) {
-        wonList.push({ prizeName: 'รางวัลที่ 2', amount: 200000 });
-      }
-
-      // Check Last 2 Digits
-      if (ticket.length >= 2) {
-        const last2OfTicket = ticket.slice(-2);
-        if (last2OfTicket === last2Prize) {
-          wonList.push({ prizeName: 'เลขท้าย 2 ตัว', amount: 2000 });
-        }
-      }
-
-      // Check Front 3 Digits (for 6-digit tickets)
-      if (ticket.length === 6) {
-        const front3OfTicket = ticket.slice(0, 3);
-        if (front3List.includes(front3OfTicket)) {
-          wonList.push({ prizeName: 'เลขหน้า 3 ตัว', amount: 4000 });
-        }
-      }
-
-      // Check Rear 3 Digits
-      if (ticket.length >= 3) {
-        const rear3OfTicket = ticket.slice(-3);
-        if (rear3List.includes(rear3OfTicket)) {
-          wonList.push({ prizeName: 'เลขท้าย 3 ตัว', amount: 4000 });
-        }
-      }
-
-      const totalPrize = wonList.reduce((sum, p) => sum + p.amount, 0);
+    const { top3, bottom2 } = getResultNumbers(targetDraw);
+    for (const ticket of lines) {
+      const valid = /^\d{2,3}$/.test(ticket);
+      const expected = ticket.length === 3 ? top3 : bottom2;
+      const error = !valid
+        ? 'กรอกเฉพาะเลข 2 หรือ 3 หลัก'
+        : !expected ? `ยังไม่มีผล ${ticket.length === 3 ? '3 ตัวบน' : '2 ตัวล่าง'} สำหรับงวดนี้` : undefined;
+      const isWinner = !error && ticket === expected;
       matches.push({
-        ticketNumber: raw,
-        isWinner: wonList.length > 0,
-        prizesWon: wonList,
-        totalPrize,
+        ticketNumber: ticket,
+        isWinner,
+        prizesWon: isWinner ? [{ prizeName: ticket.length === 3 ? '3 ตัวบน' : '2 ตัวล่าง' }] : [],
+        error,
       });
     }
 
@@ -270,26 +230,22 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
     }
   };
 
-  const totalPrizeAll = checkedResults
-    ? checkedResults.reduce((sum, item) => sum + item.totalPrize, 0)
-    : 0;
-
   const totalWinnersCount = checkedResults
     ? checkedResults.filter((item) => item.isWinner).length
     : 0;
 
   const generateSlipText = () => {
     if (!checkedResults) return '';
-    let text = `🧾 ใบบันทึกผลการตรวจสลากกินแบ่งรัฐบาล\nงวดวันที่: ${selectedDrawDate}\n`;
-    text += `จำนวนสลากที่ตรวจ: ${checkedResults.length} ใบ\n`;
-    text += `ถูกรางวัล: ${totalWinnersCount} ใบ | รวมเงินรางวัล: ${totalPrizeAll.toLocaleString()} บาท\n`;
+    let text = `🧾 ผลการตรวจ ${selectedLotteryName}\nงวดวันที่: ${selectedDrawDate}\nผล: ${formatResultPair(targetDraw)}\n`;
+    text += `จำนวนเลขที่ตรวจ: ${checkedResults.length} รายการ\n`;
+    text += `ตรงผล: ${totalWinnersCount} รายการ\n`;
     text += `----------------------------------------\n`;
     checkedResults.forEach((t, idx) => {
       if (t.isWinner) {
-        const prizes = t.prizesWon.map((p) => `${p.prizeName} (${p.amount.toLocaleString()} บ.)`).join(', ');
-        text += `${idx + 1}. [เลข ${t.ticketNumber}] 🎉 ถูกรางวัล: ${prizes}\n`;
+        const prizes = t.prizesWon.map((p) => p.prizeName).join(', ');
+        text += `${idx + 1}. [เลข ${t.ticketNumber}] ✅ ตรงผล: ${prizes}\n`;
       } else {
-        text += `${idx + 1}. [เลข ${t.ticketNumber}] ❌ ไม่ถูกรางวัล\n`;
+        text += `${idx + 1}. [เลข ${t.ticketNumber}] ${t.error || 'ไม่ตรงผล'}\n`;
       }
     });
     text += `----------------------------------------\n`;
@@ -310,10 +266,10 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
       const wb = XLSX.utils.book_new();
       const rows = checkedResults.map((t, idx) => ({
         'ลำดับ': idx + 1,
-        'หมายเลขสลาก': t.ticketNumber,
-        'สถานะ': t.isWinner ? '🎉 ถูกรางวัล' : '❌ ไม่ถูกรางวัล',
-        'รางวัลที่ถูก': t.prizesWon.map((p) => p.prizeName).join(', ') || '-',
-        'เงินรางวัลรวม (บาท)': t.totalPrize,
+        'เลขที่ตรวจ': t.ticketNumber,
+        'สถานะ': t.error || (t.isWinner ? 'ตรงผล' : 'ไม่ตรงผล'),
+        'ประเภทเลข': t.prizesWon.map((p) => p.prizeName).join(', ') || '-',
+        'ชื่อหวย': selectedLotteryName,
         'งวดวันที่ตรวจ': selectedDrawDate,
       }));
       const ws = XLSX.utils.json_to_sheet(rows);
@@ -339,10 +295,10 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
         <div>
           <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
             <Ticket className="w-6 h-6 text-amber-400" />
-            ระบบตรวจสลากกินแบ่งแบบชุด (Batch Ticket Checker & Prize Calculator)
+            ตรวจเลข 3 ตัวบน–2 ตัวล่างแบบชุด
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            ตรวจสลากหลายสิบใบพร้อมกันในคลิกเดียว คำนวณสรุปเงินรางวัลรวมทั้งหมดอัตโนมัติ
+            เปรียบเทียบเลข 2 หรือ 3 หลักกับผลของหวยและงวดที่เลือก
           </p>
         </div>
 
@@ -351,7 +307,7 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
           <button
             type="button"
             onClick={handleVerifyCurrentDrawGrounding}
-            disabled={isVerifyingGrounding}
+            disabled={isVerifyingGrounding || !uniqueDraws.length}
             className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <Globe className={`w-3.5 h-3.5 ${isVerifyingGrounding ? 'animate-spin' : 'text-emerald-400'}`} />
@@ -359,15 +315,19 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
           </button>
 
           <div className="flex items-center gap-2">
-            <label className="text-xs text-slate-400 font-semibold">เลือกงวดที่ตรวจ:</label>
+            <label className="text-xs text-slate-400 font-semibold">เลือกหวยและงวด:</label>
             <select
-              value={selectedDrawDate}
-              onChange={(e) => setSelectedDrawDate(e.target.value)}
+              value={activeDrawKey}
+              onChange={(e) => {
+                setSelectedDrawKey(e.target.value);
+                setCheckedResults(null);
+                setGroundingVerifiedText(null);
+              }}
               className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-amber-300 font-semibold focus:outline-none"
             >
-              {uniqueDrawDates.map((date, idx) => (
-                <option key={`draw-date-${date}-${idx}`} value={date}>
-                  {date}
+              {uniqueDraws.map(({ key, row }) => (
+                <option key={key} value={key}>
+                  {row.ชื่อหวย || row.name || row.หวย || 'หวย'} · {row.งวดวันที่ || row.วันที่จัดรูปแบบ}
                 </option>
               ))}
             </select>
@@ -381,7 +341,7 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <span className="font-bold text-emerald-400 flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4" />
-              ผลสลากยืนยันสดจาก Google Search Grounding (gemini-3.8-flash)
+              ข้อมูลอ้างอิงผล 3 ตัวบน–2 ตัวล่าง
             </span>
             <button
               type="button"
@@ -418,7 +378,7 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
         <div className="lg:col-span-1 bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-4">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-200">
-              วางหมายเลขสลาก (1 ใบต่อ 1 บรรทัด)
+              กรอกเลข 2 หรือ 3 หลัก (1 รายการต่อบรรทัด)
             </label>
 
             {/* Voice Input Button */}
@@ -431,10 +391,10 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
                   ? 'bg-rose-600 text-white animate-pulse'
                   : 'bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40'
               } disabled:opacity-50`}
-              title="พูดเลขสลากด้วยเสียงเพื่อถอดความอัตโนมัติ"
+              title="พูดเลข 2–3 ตัวด้วยเสียงเพื่อถอดความอัตโนมัติ"
             >
               {isRecording ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-              <span>{isRecording ? 'หยุดพูด' : '🎙️ พูดเลขสลาก'}</span>
+              <span>{isRecording ? 'หยุดพูด' : '🎙️ พูดเลข 2–3 ตัว'}</span>
             </button>
           </div>
 
@@ -447,18 +407,19 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
           <textarea
             rows={8}
             value={rawTicketsInput}
-            onChange={(e) => setRawTicketsInput(e.target.value)}
-            placeholder="ตัวอย่าง:\n289594\n84\n012425\n318972"
+            onChange={(e) => { setRawTicketsInput(e.target.value); setCheckedResults(null); }}
+            placeholder="ตัวอย่าง:\n782\n57\n007\n09"
             className="w-full p-3.5 rounded-2xl bg-slate-950 border border-slate-700 text-sm font-mono text-amber-300 leading-relaxed focus:outline-none focus:border-amber-400 resize-none"
           />
 
           <button
             type="button"
             onClick={handleCheckBatch}
+            disabled={!uniqueDraws.length || !rawTicketsInput.trim()}
             className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 cursor-pointer transition active:scale-95 flex items-center justify-center gap-2"
           >
             <Search className="w-4 h-4" />
-            ตรวจรางวัลทั้งหมดทันที
+            ตรวจเลขทั้งหมด
           </button>
         </div>
 
@@ -469,16 +430,17 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
             <div className="bg-gradient-to-r from-amber-950/60 via-slate-900 to-emerald-950/60 border border-amber-500/40 p-6 rounded-3xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
               <div>
                 <span className="text-xs uppercase tracking-wider text-amber-400 font-bold block mb-1">
-                  สรุปผลการตรวจรางวัลประจำงวด {selectedDrawDate}
+                  ผล {selectedLotteryName} · งวด {selectedDrawDate}
                 </span>
                 <div className="text-3xl sm:text-4xl font-black text-white font-mono flex items-baseline gap-2">
-                  <span className="text-emerald-400">{totalPrizeAll.toLocaleString()}</span>
-                  <span className="text-sm text-slate-300 font-normal">บาท</span>
+                  <span className="text-amber-300">{selectedPair.top3 || '---'}</span>
+                  <span className="text-sm text-slate-400">-</span>
+                  <span className="text-emerald-400">{selectedPair.bottom2 || '--'}</span>
                 </div>
                 <div className="text-xs text-slate-400 mt-1">
-                  ถูกรางวัลทั้งหมด{' '}
+                  ตรงผลทั้งหมด{' '}
                   <strong className="text-emerald-300 font-bold">{totalWinnersCount}</strong> จาก{' '}
-                  {checkedResults.length} ใบ
+                  {checkedResults.length} รายการ
                 </div>
               </div>
 
@@ -505,9 +467,9 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
           ) : (
             <div className="bg-slate-900/50 border border-slate-800 border-dashed rounded-3xl p-10 text-center text-slate-500 space-y-2">
               <Ticket className="w-10 h-10 mx-auto text-slate-600" />
-              <div className="text-sm font-semibold text-slate-400">ยังไม่ได้เริ่มตรวจสลาก</div>
+              <div className="text-sm font-semibold text-slate-400">ยังไม่ได้เริ่มตรวจเลข</div>
               <p className="text-xs max-w-sm mx-auto">
-                วางหมายเลขสลากกินแบ่งที่ต้องการตรวจทางซ้ายมือ แล้วกดปุ่ม &quot;ตรวจรางวัลทั้งหมดทันที&quot;
+                เลือกหวยและงวด แล้วกรอกเลข 2 หรือ 3 หลักทางซ้ายมือ แล้วกดปุ่ม &quot;ตรวจเลขทั้งหมด&quot;
               </p>
             </div>
           )}
@@ -539,12 +501,12 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
                       {item.isWinner ? (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                          ถูกรางวัล!
+                          ตรงผล
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 flex items-center gap-1">
                           <XCircle className="w-3 h-3 text-slate-500" />
-                          ไม่ถูกรางวัล
+                          {item.error || 'ไม่ตรงผล'}
                         </span>
                       )}
                     </div>
@@ -556,12 +518,10 @@ export const BatchTicketChecker: React.FC<BatchProps> = ({ results, latestDraw }
                           <div className="text-xs font-bold text-amber-300">
                             {item.prizesWon.map((p) => p.prizeName).join(', ')}
                           </div>
-                          <div className="text-sm font-black font-mono text-emerald-400">
-                            +{item.totalPrize.toLocaleString()} บาท
-                          </div>
+
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-500 font-mono">- 0 บ. -</span>
+                        <span className="text-xs text-slate-500">{item.error || 'ไม่ตรงเลขที่ประกาศ'}</span>
                       )}
                     </div>
                   </div>

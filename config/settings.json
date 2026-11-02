@@ -55,13 +55,8 @@
     "notify_on_new_draw": true,
     "notify_on_prize_match": true,
     "notify_prizes": {
-      "first_prize": true,
-      "last_2": true,
-      "front_3": true,
-      "last_3": true,
-      "nearby_first": false,
-      "second_prize": false,
-      "third_prize": false
+      "top3": true,
+      "bottom2": true
     },
     "custom_watched_numbers": [
       "95",
@@ -111,14 +106,14 @@
   "message_template": {
     "preset": "standard",
     "title": "📢 ผล{lottery_name} งวด {draw_date}",
-    "body": "🎯 หวย: {lottery_name}\n🔺 3 ตัวบน: {top3}\n🔻 2 ตัวล่าง: {bottom2}\n📅 งวดวันที่: {draw_date}\n📡 แหล่งข้อมูล: 👑เฮียฮวด พารวย",
-    "speech_script": "ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. รางวัลที่หนึ่ง หรือสามตัวบน ออกเลข {first_prize_spelled}. เลขท้ายสองตัว ออกเลข {last_2_spelled}. {polite_ending}.",
+    "body": "{lottery_name}\n{top3} - {bottom2}",
+    "speech_script": "ประกาศผล {lottery_name} สามตัวบน {first_prize_spelled} สองตัวล่าง {last_2_spelled} {polite_ending}.",
     "polite_particle": "ครับ",
     "font_family": "sans",
     "font_size": "large",
     "modal_theme": "gold",
     "number_display_style": "spacious",
     "include_emojis": true,
-    "include_next_closing": true
+    "include_next_closing": false
   }
 }

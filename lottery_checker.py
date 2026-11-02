@@ -83,14 +83,14 @@ def fetch_from_glo() -> list:
             last2 = prizes.get("last2", {}).get("number", []) if isinstance(prizes.get("last2"), dict) else []
             last2_num = last2[0] if last2 else response_data.get("last2")
 
-            if first_num or last2_num:
+            if sl.result_numbers({"รางวัลที่_1": first_num, "เลขท้าย_2_ตัว": last2_num})[0] and sl.result_numbers({"รางวัลที่_1": first_num, "เลขท้าย_2_ตัว": last2_num})[1] and sl._parse_draw_date({"งวดวันที่": date_thai}) != datetime.date.min:
                 return [{
                     "งวดวันที่": date_thai or "งวดปัจจุบัน",
-                    "วันที่จัดรูปแบบ": datetime.date.today().isoformat(),
+                    "วันที่จัดรูปแบบ": sl._parse_draw_date({"งวดวันที่": date_thai}).isoformat(),
                     "รางวัลที่_1": str(first_num or "").zfill(6),
                     "เลขท้าย_2_ตัว": str(last2_num or "").zfill(2),
-                    "เลขหน้า_3_ตัว": [str(x).zfill(3) for x in prizes.get("first3", {}).get("number", ["000", "000"])],
-                    "เลขท้าย_3_ตัว": [str(x).zfill(3) for x in prizes.get("last3", {}).get("number", ["000", "000"])],
+                    "เลขหน้า_3_ตัว": [str(x).zfill(3) for x in (prizes.get("first3") or {}).get("number", [])],
+                    "เลขท้าย_3_ตัว": [str(x).zfill(3) for x in (prizes.get("last3") or {}).get("number", [])],
                     "รางวัลข้างเคียงรางวัลที่_1": [],
                     "แหล่งข้อมูล": "glo",
                     "เวลาที่ตรวจพบ": datetime.datetime.now().isoformat(),
@@ -302,7 +302,8 @@ def fetch_from_thailottoapi_results() -> list:
                     continue
 
                 draw_date = str(item.get("drawDateDisplay") or item.get("drawDate") or "").strip()
-                if not key or not draw_date:
+                parsed_draw_date = sl._parse_draw_date({"งวดวันที่": draw_date, "วันที่จัดรูปแบบ": item.get("drawDate")})
+                if not key or parsed_draw_date == datetime.date.min:
                     print(f"[WARN] Skipping ThaiLottoAPI item without key/date: {label or 'unknown'}")
                     continue
 
@@ -310,12 +311,15 @@ def fetch_from_thailottoapi_results() -> list:
                 top3 = str(item.get("top3") or "").strip()
                 bottom2 = str(item.get("bottom2") or item.get("last2") or "").strip()
                 first_prize = str(item.get("firstPrize") or item.get("first_prize") or "").strip()
-                if not top3:
-                    top3 = result_value[-3:] if len(result_value) >= 3 else ""
-                if not bottom2 and len(result_value) >= 2:
-                    bottom2 = result_value[-2:]
+                # Do not mistake the tail of an upper/first prize for a lower result.
+                combined = re.fullmatch(r"(\d{3})\s*[-/]\s*(\d{2})", result_value)
+                top3, bottom2 = sl.result_numbers({
+                    "top3": top3 or (combined.group(1) if combined else ""),
+                    "bottom2": bottom2 or (combined.group(2) if combined else ""),
+                    "firstPrize": first_prize or (result_value if result_value.isdigit() else ""),
+                })
 
-                if not top3 and not first_prize:
+                if not top3:
                     print(f"[WARN] Skipping incomplete ThaiLottoAPI result: {key}")
                     continue
                 if not bottom2:
@@ -363,7 +367,7 @@ def fetch_from_thailottoapi_results() -> list:
                     "หวย": key,
                     "หมวดหวย": lottery_category,
                     "งวดวันที่": draw_date,
-                    "วันที่จัดรูปแบบ": str(item.get("drawDate") or today)[:10],
+                    "วันที่จัดรูปแบบ": parsed_draw_date.isoformat(),
                     "รางวัลที่_1": first_prize or top3,
                     "เลขท้าย_2_ตัว": bottom2.zfill(2),
                     "เลขบน_3_ตัว": top3.zfill(3),
@@ -494,6 +498,9 @@ def fetch_from_ranlotto() -> list:
             print("[WARN] RANLOTTO response did not contain both first prize and last two digits.")
             return []
         raw_date = str(payload.get("date") or data.get("facts", {}).get("date") or "").strip()
+        if sl._parse_draw_date({"งวดวันที่": raw_date}) == datetime.date.min:
+            print("[WARN] RANLOTTO result has no valid draw date; skipping.")
+            return []
         draw_date = raw_date
         try:
             parsed = datetime.date.fromisoformat(raw_date[:10])
@@ -505,7 +512,7 @@ def fetch_from_ranlotto() -> list:
         return [{
             "ชื่อหวย": "สลากกินแบ่งรัฐบาล",
             "งวดวันที่": draw_date or "งวดล่าสุด",
-            "วันที่จัดรูปแบบ": raw_date[:10] if len(raw_date) >= 10 else datetime.date.today().isoformat(),
+            "วันที่จัดรูปแบบ": sl._parse_draw_date({"งวดวันที่": raw_date}).isoformat(),
             "รางวัลที่_1": str(first_num).zfill(6),
             "เลขท้าย_2_ตัว": str(last2_num).zfill(2),
             "เลขหน้า_3_ตัว": [str(x).zfill(3) for x in (result.get("front_three") or result.get("front3") or [])],
@@ -528,10 +535,10 @@ def fetch_from_pholhuay() -> list:
     headers = {"User-Agent": "LotteryAlert/1.0", "Accept": "application/json"}
     try:
         data = _http_get_json(url, timeout=timeout, headers=headers)
-        if isinstance(data, dict) and (data.get("first") or data.get("first_prize")):
+        if isinstance(data, dict) and all(sl.result_numbers({"รางวัลที่_1": data.get("first") or data.get("first_prize"), "เลขท้าย_2_ตัว": data.get("last2") or data.get("two_digits")})) and sl._parse_draw_date({"งวดวันที่": data.get("date")}) != datetime.date.min:
             return [{
                 "งวดวันที่": data.get("date", "งวดล่าสุด"),
-                "วันที่จัดรูปแบบ": datetime.date.today().isoformat(),
+                "วันที่จัดรูปแบบ": sl._parse_draw_date({"งวดวันที่": data.get("date")}).isoformat(),
                 "รางวัลที่_1": str(data.get("first") or data.get("first_prize", "")).zfill(6),
                 "เลขท้าย_2_ตัว": str(data.get("last2") or data.get("two_digits", "")).zfill(2),
                 "เลขหน้า_3_ตัว": [str(x).zfill(3) for x in data.get("front3", [])],
@@ -571,40 +578,18 @@ def send_ntfy_notification(row: dict) -> bool:
 
     canonical_name = sl.map_canonical_lottery_name(raw_lottery_name)
     draw_date = row.get("งวดวันที่") or row.get("วันที่จัดรูปแบบ") or "ไม่ระบุวันที่"
-    first_prize = row.get("รางวัลที่_1", "-")
-    last_2 = row.get("เลขท้าย_2_ตัว", "-")
-    front_3 = ", ".join(row.get("เลขหน้า_3_ตัว", [])) or "-"
-    last_3 = ", ".join(row.get("เลขท้าย_3_ตัว", [])) or "-"
+    top3, bottom2 = sl.result_numbers(row)
+    if not top3 or not bottom2:
+        return False
 
     app_url = os.environ.get("APP_URL") or "https://bombim00.onrender.com"
     configured_click = S.get("channels", {}).get("ntfy", {}).get("click_url") or S.get("ntfy", {}).get("click_url") or ""
     click_url = app_url if (not configured_click or "sanook" in configured_click) else configured_click
-
-    category = _lottery_category(row)
     display_name = canonical_name
-    if category not in {"government", "gov_savings"} and not display_name.startswith("หวย"):
+    if _lottery_category(row) not in {"government", "gov_savings"} and not display_name.startswith("หวย"):
         display_name = f"หวย{display_name}"
     title = f"📢 ผล{display_name} งวด {draw_date}"
-    if category in {"government", "gov_savings"}:
-        body = (
-            f"🎯 หวย: {canonical_name}\n"
-            f"🏆 รางวัลที่ 1: {first_prize}\n"
-            f"🔢 เลขท้าย 2 ตัว: {last_2}\n"
-            f"✨ เลขหน้า 3 ตัว: {front_3}\n"
-            f"🌟 เลขท้าย 3 ตัว: {last_3}\n"
-            f"📅 งวดวันที่: {draw_date}\n"
-            f"📡 แหล่งข้อมูล: 👑เฮียฮวด พารวย"
-        )
-    else:
-        top3 = row.get("เลขบน_3_ตัว") or row.get("top3") or first_prize or "-"
-        bottom2 = row.get("เลขล่าง_2_ตัว") or row.get("เลขท้าย_2_ตัว") or row.get("bottom2") or last_2 or "-"
-        body = (
-            f"🎯 หวย: {canonical_name}\n"
-            f"🔺 3 ตัวบน: {top3}\n"
-            f"🔻 2 ตัวล่าง: {bottom2}\n"
-            f"📅 งวดวันที่: {draw_date}\n"
-            f"📡 แหล่งข้อมูล: 👑เฮียฮวด พารวย"
-        )
+    body = f"{canonical_name}\n{top3} - {bottom2}"
 
     # Publish via JSON payload to prevent base64 header encoding bugs on Android
     url = f"{ntfy_server}/{topic}"
@@ -644,34 +629,13 @@ def send_line_notification(row: dict) -> bool:
 
     canonical_name = sl.map_canonical_lottery_name(raw_lottery_name)
     app_url = os.environ.get("APP_URL") or "https://bombim00.onrender.com"
-    category = _lottery_category(row)
-
-    if category in {"government", "gov_savings"}:
-        first_prize = row.get("รางวัลที่_1", "-")
-        last_2 = row.get("เลขท้าย_2_ตัว", "-")
-        front_3 = ", ".join(row.get("เลขหน้า_3_ตัว", [])) or "-"
-        last_3 = ", ".join(row.get("เลขท้าย_3_ตัว", [])) or "-"
-        msg = (
-            f"📢 ผล{canonical_name} งวด {row.get('งวดวันที่', '')}\n"
-            f"━━━━━━━━━━━━━━━━\n"
-            f"🏆 รางวัลที่ 1: {first_prize}\n"
-            f"🔢 เลขท้าย 2 ตัว: {last_2}\n"
-            f"✨ เลขหน้า 3 ตัว: {front_3}\n"
-            f"🌟 เลขท้าย 3 ตัว: {last_3}\n"
-            f"━━━━━━━━━━━━━━━━\n"
-            f"📡 ตรวจผลสด: {app_url}"
-        )
-    else:
-        top3 = row.get("เลขบน_3_ตัว") or row.get("top3") or row.get("รางวัลที่_1", "-")
-        bottom2 = row.get("เลขล่าง_2_ตัว") or row.get("เลขท้าย_2_ตัว") or "-"
-        msg = (
-            f"📢 ผล{canonical_name} งวด {row.get('งวดวันที่', '')}\n"
-            f"━━━━━━━━━━━━━━━━\n"
-            f"🔺 3 ตัวบน: {top3}\n"
-            f"🔻 2 ตัวล่าง: {bottom2}\n"
-            f"━━━━━━━━━━━━━━━━\n"
-            f"📡 ตรวจผลสด: {app_url}"
-        )
+    top3, bottom2 = sl.result_numbers(row)
+    if not top3 or not bottom2:
+        return False
+    msg = (
+        f"📢 ผล{canonical_name} งวด {row.get('งวดวันที่', '')}\n"
+        f"{top3} - {bottom2}"
+    )
 
     try:
         url = "https://api.line.me/v2/bot/message/push"
@@ -691,11 +655,23 @@ def send_line_notification(row: dict) -> bool:
         print(f"[WARN] Failed posting to LINE Messaging API: {e}")
     return False
 
+def active_notification_channels() -> list[str]:
+    channels = S.get("channels", {})
+    return [name for name, default in (("ntfy", True), ("line", False))
+            if channels.get(name, {}).get("enabled", default)]
+
+
 def send_all_notifications(row: dict) -> bool:
-    """Dispatch alert across active channels (LINE & ntfy strictly)."""
-    s1 = send_ntfy_notification(row)
-    s2 = send_line_notification(row)
-    return s1 or s2
+    """Retry only incomplete enabled channels; one success must not hide another failure."""
+    active = active_notification_channels()
+    statuses = dict(row.get("notification_channels") or {})
+    senders = {"ntfy": send_ntfy_notification, "line": send_line_notification}
+    for name in active:
+        if statuses.get(name) == "sent":
+            continue
+        statuses[name] = "sent" if senders[name](row) else "failed"
+    row["notification_channels"] = statuses
+    return bool(active) and all(statuses.get(name) == "sent" for name in active)
 
 
 def main():
@@ -762,6 +738,8 @@ def main():
             unique_rows.append(row)
 
     rows = filter_rows_by_target(unique_rows, lottery_target)
+    for row in rows:
+        row["เลขบน_3_ตัว"], row["เลขล่าง_2_ตัว"] = sl.result_numbers(row)
     source_used = " + ".join(dict.fromkeys(sources_used)) or None
 
     if not rows:
@@ -774,19 +752,33 @@ def main():
     for row in rows:
         row.setdefault("ชื่อหวย", "หวยไม่ระบุชื่อ")
         row.setdefault("แหล่งข้อมูล", source_used or "unknown")
+        active_channels = active_notification_channels()
+        # Preserve delivery history even while notifications/channels are disabled.
+        row["notification_channels"] = sl.previous_notification_channels(
+            row, previous_results, active_channels or ["ntfy", "line"]
+        )
         if not sl.should_notify(S, row):
             row["สถานะการแจ้งเตือน"] = "not_eligible"
             continue
-        if not force_notify and sl.was_already_notified(row, previous_results):
+        if not active_channels:
+            row["สถานะการแจ้งเตือน"] = "disabled"
+            continue
+        if force_notify:
+            row["notification_channels"] = {}
+        if all(row["notification_channels"].get(name) == "sent" for name in active_channels):
             row["สถานะการแจ้งเตือน"] = "sent"
             print(f"[DEDUP] Already delivered; skip {row.get('ชื่อหวย', 'unknown lottery')} / {row.get('งวดวันที่', 'unknown draw')}.")
             continue
-        if send_all_notifications(row):
-            row["สถานะการแจ้งเตือน"] = "sent"
+        previously_sent = set(name for name, state in row["notification_channels"].items() if state == "sent")
+        complete = send_all_notifications(row)
+        newly_sent = any(state == "sent" and name not in previously_sent for name, state in row["notification_channels"].items())
+        if newly_sent:
             delivered.append(row)
+        if complete:
+            row["สถานะการแจ้งเตือน"] = "sent"
         else:
-            row["สถานะการแจ้งเตือน"] = "failed"
-            print(f"[ERROR] Delivery failed for {row.get('ชื่อหวย', 'unknown lottery')}; result remains retryable.")
+            row["สถานะการแจ้งเตือน"] = "partial" if any(state == "sent" for state in row["notification_channels"].values()) else "failed"
+            print(f"[ERROR] Delivery incomplete for {row.get('ชื่อหวย', 'unknown lottery')}; failed channels remain retryable.")
 
     merged, seen = [], set()
     for row in rows + previous_results:

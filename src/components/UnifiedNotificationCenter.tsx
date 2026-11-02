@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiFetch } from '../utils/api';
+import { getResultNumbers } from '../utils/lotteryResult';
 import {
   Volume2,
   Smartphone,
@@ -110,17 +111,28 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
     return onSaveSettings(updated);
   };
 
+  // Keep the lottery identity, draw date and result pair from the same record.
+  const getTestResult = () => {
+    const sampleLottery = allLotteries.find((item) => {
+      const { top3, bottom2 } = getResultNumbers(item);
+      return Boolean(top3 && bottom2);
+    });
+    const source = sampleLottery || latestDraw || allLotteries[0] || {};
+    const { top3, bottom2 } = getResultNumbers(source);
+    return {
+      lotteryName: source.name || source.ชื่อหวย || source.หวย || 'ตัวอย่างหวย',
+      top3: top3 || '---',
+      last2: bottom2 || '--',
+      drawDate: source.date || source.งวดวันที่ || source.วันที่จัดรูปแบบ || 'ตัวอย่างสำหรับทดสอบ',
+    };
+  };
+
   // Test send to mobile app (ntfy)
   const handleTestMobilePush = async () => {
     setIsTestingNtfy(true);
     setNtfyTestResult(null);
 
-    const sampleLottery = allLotteries.find((item) => item.category !== 'gov_savings') || allLotteries[0];
-    const lotteryName = sampleLottery?.name || latestDraw?.ชื่อหวย || 'ตัวอย่างหวย';
-    const top3 = sampleLottery?.top3 || (sampleLottery?.firstPrize ? String(sampleLottery.firstPrize).slice(-3) : '') ||
-      (latestDraw?.รางวัลที่_1 ? String(latestDraw.รางวัลที่_1).slice(-3) : '-') || '-';
-    const last2 = sampleLottery?.bottom2 || latestDraw?.เลขท้าย_2_ตัว || '-';
-    const drawDate = sampleLottery?.date || latestDraw?.งวดวันที่ || 'ตัวอย่างสำหรับทดสอบ';
+    const { lotteryName, top3, last2, drawDate } = getTestResult();
 
     try {
       const topicValue = topic.trim();
@@ -153,12 +165,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
     setIsTestingLine(true);
     setLineTestResult(null);
 
-    const sampleLottery = allLotteries.find((item) => item.category !== 'gov_savings') || allLotteries[0];
-    const lotteryName = sampleLottery?.name || latestDraw?.ชื่อหวย || 'ตัวอย่างหวยหุ้น';
-    const top3 = sampleLottery?.top3 || (sampleLottery?.firstPrize ? String(sampleLottery.firstPrize).slice(-3) : '') ||
-      (latestDraw?.รางวัลที่_1 ? String(latestDraw.รางวัลที่_1).slice(-3) : '-') || '469';
-    const last2 = sampleLottery?.bottom2 || latestDraw?.เลขท้าย_2_ตัว || '63';
-    const drawDate = sampleLottery?.date || latestDraw?.งวดวันที่ || 'ตัวอย่างสำหรับทดสอบ';
+    const { lotteryName, top3, last2, drawDate } = getTestResult();
     const message = `ข้อความทดสอบเท่านั้น (ไม่ใช่ผลหวยจริง)\n📢 ผล${lotteryName} งวด ${drawDate}\n🔺 3 ตัวบน: ${top3}\n🔻 2 ตัวล่าง: ${last2}\nระบบทดสอบผ่าน LINE Messaging API`;
 
     try {
@@ -573,7 +580,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
             <span className="text-[11px] text-slate-400">งวดล่าสุด</span>
             <div className="text-sm font-bold text-amber-300 mt-1 truncate">
-              {status?.latest_draw_detected || latestDraw?.งวดวันที่ || '30.10.2026'}
+              {status?.latest_draw_detected || latestDraw?.งวดวันที่ || 'ยังไม่มีข้อมูล'}
             </div>
           </div>
 

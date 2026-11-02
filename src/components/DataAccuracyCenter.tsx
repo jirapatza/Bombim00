@@ -203,6 +203,7 @@ export const DataAccuracyCenter: React.FC<DataAccuracyCenterProps> = ({
             body: JSON.stringify({
               audioBase64: base64data,
               mimeType: 'audio/webm',
+              lotteryName: selectedLottery,
             }),
           });
 
@@ -212,7 +213,11 @@ export const DataAccuracyCenter: React.FC<DataAccuracyCenterProps> = ({
           }
 
           setTranscriptionText(data.transcript || 'ถอดความเสียงสำเร็จแต่ไม่พบคำพูดที่ชัดเจน');
-          setDetectedDigits(data.detectedDigits || []);
+          // Keep only complete 2/3-digit tokens; never split a six-digit number.
+          const numbers = Array.isArray(data.detectedDigits) ? data.detectedDigits : [];
+          setDetectedDigits([...new Set<string>(numbers
+            .map((number: unknown) => String(number ?? '').trim())
+            .filter((number: string) => /^\d{2,3}$/.test(number)))]);
         } catch (postErr: any) {
           setTranscribeError(postErr.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลเสียง');
         } finally {
@@ -359,10 +364,15 @@ export const DataAccuracyCenter: React.FC<DataAccuracyCenterProps> = ({
                   </label>
                   <select
                     value={selectedLottery}
-                    onChange={(e) => setSelectedLottery(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedLottery(value);
+                      const selected = allLotteries.find((lottery) => `${lottery.name} (${lottery.categoryLabel})` === value);
+                      if (selected) onSelectLottery?.(selected);
+                    }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-semibold"
                   >
-                    <option value="สลากกินแบ่งรัฐบาลไทย">🇹🇭 สลากกินแบ่งรัฐบาลไทย (งวด 1 และ 16)</option>
+                    <option value="สลากกินแบ่งรัฐบาลไทย">🇹🇭 สลากกินแบ่งรัฐบาลไทย (ยึดวันประกาศจริง)</option>
                     <option value="หวยออมสิน และ หวย ธ.ก.ส.">🏦 หวยออมสิน &amp; หวย ธ.ก.ส.</option>
                     <option value="หวยฮานอยปกติ ฮานอยพิเศษ และ ฮานอย VIP">🇻🇳 ฮานอยปกติ / พิเศษ / VIP</option>
                     <option value="หวยลาวพัฒนา ลาวสามัคคี และ ลาวสตาร์">🇱🇦 ลาวพัฒนา / สามัคคี / สตาร์</option>
@@ -384,7 +394,7 @@ export const DataAccuracyCenter: React.FC<DataAccuracyCenterProps> = ({
                     type="text"
                     value={customQuery}
                     onChange={(e) => setCustomQuery(e.target.value)}
-                    placeholder="เช่น งวดวันที่ 16 ตุลาคม 2569 หรือ รางวัลข้างเคียง"
+                    placeholder="เช่น งวดวันที่ 17 ตุลาคม 2569 ตรวจเฉพาะ 3 ตัวบน และ 2 ตัวล่าง"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -614,8 +624,8 @@ export const DataAccuracyCenter: React.FC<DataAccuracyCenterProps> = ({
 
                 <div className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
                   {isRecording
-                    ? 'พูดหมายเลขสลาก เช่น "ตรวจรางวัลสองแปดเก้าห้าเก้าสี่" หรือ "เลขแปดสี่"'
-                    : 'แตะปุ่มไมโครโฟนด้านบนเพื่อเริ่มพูดเลขสลาก หรือค้นหาผลรางวัลด้วยเสียง'}
+                    ? 'พูดเลข 3 ตัวหรือ 2 ตัว เช่น "สามตัวบน เจ็ดแปดสอง สองตัวล่าง ห้าเจ็ด"'
+                    : 'แตะปุ่มไมโครโฟนด้านบนเพื่อเริ่มพูดเลข 3 ตัวบน หรือ 2 ตัวล่าง'}
                 </div>
               </div>
 
@@ -679,7 +689,7 @@ export const DataAccuracyCenter: React.FC<DataAccuracyCenterProps> = ({
                       <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
                         <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
                           <Hash className="w-4 h-4 text-amber-400" />
-                          ตรวจพบตัวเลขสลากจากเสียงพูด:
+                          ตรวจพบเลข 3 ตัว / 2 ตัวจากเสียงพูด:
                         </span>
 
                         <div className="flex flex-wrap gap-2.5">

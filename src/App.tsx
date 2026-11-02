@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import bundledLotteryCatalog from '../data/all_lotteries.json';
 import { apiFetch } from './utils/api';
+import { getResultNumbers, formatResultPair } from './utils/lotteryResult';
 import {
   Bell,
   CheckCircle2,
@@ -68,7 +69,7 @@ const BatchTicketChecker = lazy(() => import('./components/BatchTicketChecker').
 import type { LotteryItem } from './components/DailySummaryTable';
 const DailySummaryTable = lazy(() => import('./components/DailySummaryTable').then((module) => ({ default: module.DailySummaryTable })));
 import { LatestThreeResults } from './components/LatestThreeResults';
-import { filterLotteriesForDrawDate } from './utils/lotterySchedule';
+import { filterLotteriesForDrawDate, isGovernmentLottery } from './utils/lotterySchedule';
 // Local lottery catalog fallback for the web dashboard.
 // The source JSON also contains sample-looking prize fields; never expose those as live results.
 const bundledLotteryFallback: LotteryItem[] = (bundledLotteryCatalog as LotteryItem[]).map((item) => ({
@@ -155,8 +156,9 @@ interface LotteryScheduleItem {
 
 // The catalogue is the single source of truth for names, draw days and closing times.
 const LOTTERY_SCHEDULE: LotteryScheduleItem[] = (bundledLotteryCatalog as LotteryItem[])
+  .filter((item) => !isGovernmentLottery(item))
   .map((item) => {
-    const match = String(item.closeTimeStr || '').match(/(\\d{1,2})[:.](\\d{2})/);
+    const match = String(item.closeTimeStr || '').match(/(\d{1,2})[:.](\d{2})/);
     if (!match) return null;
     const rawHour = Number(match[1]);
     return {
@@ -208,12 +210,93 @@ function selectThaiVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice |
   return undefined;
 }
 
+// Exact canonical keys keep normal, VIP, special and VISA draws separate.
+function normalizeResultLotteryKey(value: unknown): string {
+  const text = String(value ?? '').normalize('NFKC').trim().toLocaleLowerCase();
+  const vip = /vip|วีไอพี/i.test(text);
+  return text
+    .replace(/vip|วีไอพี/gi, '')
+    .replace(/นิคเคอิ/g, 'นิเคอิ')
+    .replace(/^หวยหุ้น|^หวย|^หุ้น/u, '')
+    .replace(/รอบ(?=เช้า|บ่าย)/gu, '')
+    .replace(/\(ไทย\)/gu, '')
+    .replace(/[\s._#()–—-]+/g, '') + (vip ? 'vip' : '');
+}
+
+function providerDrawDateIso(row: any): string {
+  const months: Record<string, number> = {
+    มกราคม: 1, มค: 1, กุมภาพันธ์: 2, กพ: 2, มีนาคม: 3, มีค: 3,
+    เมษายน: 4, เมย: 4, พฤษภาคม: 5, พค: 5, มิถุนายน: 6, มิย: 6,
+    กรกฎาคม: 7, กค: 7, สิงหาคม: 8, สค: 8, กันยายน: 9, กย: 9,
+    ตุลาคม: 10, ตค: 10, พฤศจิกายน: 11, พย: 11, ธันวาคม: 12, ธค: 12,
+  };
+  for (const raw of [row?.งวดวันที่, row?.draw_date, row?.drawDate, row?.date, row?.วันที่จัดรูปแบบ]) {
+    const text = String(raw ?? '').trim();
+    let year = 0, month = 0, day = 0;
+    const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|T|\s)/);
+    const dmy = text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})(?:$|\s)/);
+    const thai = text.match(/^(\d{1,2})\s+([^\s]+)\s+(\d{4})(?:$|\s)/);
+    if (iso) [year, month, day] = [Number(iso[1]), Number(iso[2]), Number(iso[3])];
+    else if (dmy) [year, month, day] = [Number(dmy[3]), Number(dmy[2]), Number(dmy[1])];
+    else if (thai) [year, month, day] = [Number(thai[3]), months[thai[2].replace(/\./g, '')] || 0, Number(thai[1])];
+    if (year >= 2400) year -= 543;
+    if (!year || !month || !day) continue;
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day) {
+      return parsed.toISOString().slice(0, 10);
+    }
+  }
+  return '';
+}
+
+const RESULT_CATALOG_ALIASES: Record<string, string[]> = {
+  thai_gov: ['thailotto', 'หวยรัฐบาลไทย', 'สลากกินแบ่งรัฐบาล'],
+  gsb: ['gsblotto', 'หวยออมสิน'],
+  baac: ['baaclotto', 'หวยธกส', 'หวย ธ.ก.ส.'],
+  nikkei_morning: ['stocknikkei1'],
+  nikkei_afternoon: ['stocknikkei2'],
+  china_morning: ['stockchina1'],
+  china_afternoon: ['stockchina2'],
+  hangseng_morning: ['stockhangseng1'],
+  hangseng_afternoon: ['stockhangseng2'],
+  taiwan: ['stocktaiwan'], korea: ['stockkorea'], singapore: ['stocksingapore'],
+  thai_stock_evening: ['stockthai4'], india: ['stockindia'],
+  lao_patthana: ['lpp', 'laoslotto', 'หวยลาวพัฒนา'],
+  hanoi_special: ['hanoylottospecial'], hanoi_regular: ['hanoylotto'],
+  hanoi_vip: ['hanoylottovip'], malay: ['malaylotto'],
+};
+
+function mergeCatalogWithProviderResults(catalog: LotteryItem[], rows: LotteryResult[], todayIso: string): LotteryItem[] {
+  const actualResults = rows.map((row) => ({ row, date: providerDrawDateIso(row), ...getResultNumbers(row) }))
+    .filter((result) => result.date && result.top3 && result.bottom2)
+    .sort((a, b) => b.date.localeCompare(a.date) ||
+      (Date.parse(b.row.เวลาที่ตรวจพบ || '') || 0) - (Date.parse(a.row.เวลาที่ตรวจพบ || '') || 0));
+  return catalog.map((item) => {
+    const allowedKeys = new Set([item.id, item.name, ...(RESULT_CATALOG_ALIASES[item.id] || [])].map(normalizeResultLotteryKey));
+    const actual = actualResults.find(({ row }) => [row.หวย, row.ชื่อหวย, (row as any).lotteryName, (row as any).lottery_code]
+      .some((value) => value && allowedKeys.has(normalizeResultLotteryKey(value))));
+    if (!actual) {
+      return { ...item, top3: '', bottom2: '', firstPrize: '', date: '', status: 'waiting', source: 'รอผลจริงจากแหล่งข้อมูล' };
+    }
+    return {
+      ...item,
+      // Today's catalog must never reuse an older draw's numbers in live or image views.
+      // The complete historical record remains available in the separate results feed.
+      top3: actual.date === todayIso ? actual.top3 : '',
+      bottom2: actual.date === todayIso ? actual.bottom2 : '',
+      firstPrize: actual.date === todayIso ? actual.row.รางวัลที่_1 || actual.top3 : '',
+      date: actual.row.งวดวันที่ || actual.date,
+      source: actual.row.แหล่งข้อมูล || 'แหล่งข้อมูลผลหวย',
+      status: actual.date === todayIso ? 'announced' : 'waiting',
+    };
+  });
+}
+
 function getLotteryResultFingerprint(row: any): string {
+  const { top3, bottom2 } = getResultNumbers(row);
   return JSON.stringify([
-    String(row?.หวย || row?.ชื่อหวย || row?.lotteryName || '').trim().toLocaleLowerCase(),
-    String(row?.งวดวันที่ || row?.วันที่จัดรูปแบบ || row?.drawDate || '').trim(),
-    String(row?.รางวัลที่_1 || row?.เลขบน_3_ตัว || row?.top3 || row?.firstPrize || '').trim(),
-    String(row?.เลขท้าย_2_ตัว || row?.เลขล่าง_2_ตัว || row?.bottom2 || row?.last2 || '').trim(),
+    normalizeResultLotteryKey(row?.หวย || row?.ชื่อหวย || row?.lotteryName),
+    providerDrawDateIso(row), top3, bottom2,
   ]);
 }
 
@@ -250,8 +333,8 @@ function getNextClosingLottery(currentTime = new Date()): { name: string; closeT
   }
 
   return {
-    name: LOTTERY_SCHEDULE[0].name,
-    closeTimeStr: LOTTERY_SCHEDULE[0].closeTimeStr + ' (รอบเช้า)',
+    name: LOTTERY_SCHEDULE[0]?.name || 'รอประกาศรอบถัดไป',
+    closeTimeStr: LOTTERY_SCHEDULE[0] ? LOTTERY_SCHEDULE[0].closeTimeStr + ' (รอบเช้า)' : 'ไม่ระบุ',
     remainingText: 'รอบเช้าถัดไป',
   };
 }
@@ -308,8 +391,8 @@ const TEMPLATE_PRESETS = {
   standard: {
     name: 'มาตรฐานทางการ (Standard)',
     title: '📢 ผล{lottery_name} งวด {draw_date}',
-    body: '🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n⏰ ปิดรอบถัดไป: {next_closing}\n📡 แหล่งข้อมูล: {source}',
-    speech_script: 'ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. รางวัลที่หนึ่ง ออกเลข {first_prize_spelled}. เลขท้ายสองตัว ออกเลข {last_2_spelled}. และหวยรอบถัดไปที่จะปิดรับคือ {next_closing_name} ปิดรับเวลา {next_closing_time} {polite_ending}.',
+    body: '{top3} - {last_2}',
+    speech_script: 'ประกาศผล {lottery_name}. สามตัวบน {first_prize_spelled}. สองตัวล่าง {last_2_spelled}.',
     polite_particle: 'ครับ',
     font_family: 'sans',
     font_size: 'large',
@@ -318,8 +401,8 @@ const TEMPLATE_PRESETS = {
   compact: {
     name: 'กระชับ ฉับไว (Compact)',
     title: '⚡ ผลด่วน {lottery_name} ({draw_date})',
-    body: '🏆 รางวัลที่ 1: {first_prize} | 2 ตัว: {last_2}\n3 ตัวหน้า: {front_3} | 3 ตัวท้าย: {last_3}\n⏰ รอบถัดไป: {next_closing}',
-    speech_script: 'ผลด่วน {lottery_name} งวดนี้ รางวัลที่หนึ่ง {first_prize_spelled}. เลขสองตัว {last_2_spelled}. หวยถัดไปปิดรับคือ {next_closing_name} เวลา {next_closing_time} {polite_ending}.',
+    body: '{top3} - {last_2}',
+    speech_script: 'ประกาศผล {lottery_name}. สามตัวบน {first_prize_spelled}. สองตัวล่าง {last_2_spelled}.',
     polite_particle: 'ครับ',
     font_family: 'mono',
     font_size: 'medium',
@@ -328,8 +411,8 @@ const TEMPLATE_PRESETS = {
   lucky: {
     name: 'สายมู มหามงคล (Lucky / Fortune)',
     title: '🧧 มหาเฮง! ผล{lottery_name} งวด {draw_date}',
-    body: '💰 เลขรวย รางวัลที่ 1: {first_prize}\n💎 เลขรับทรัพย์ 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n💵 ปิดรอบถัดไป: {next_closing}\nขอให้ทุกท่านเฮงๆ รวยๆ รับโชคใหญ่ครับ!',
-    speech_script: 'ขอแสดงความยินดีกับผู้มีโชคทุกท่าน ประกาศผล {lottery_name} งวดวันที่ {draw_date}. รางวัลที่หนึ่ง ออกเลขมหาเฮง {first_prize_spelled}. เลขท้ายสองตัว ออกเลข {last_2_spelled}. และรอบถัดไปคือ {next_closing_name} ปิดรับเวลา {next_closing_time} ขอให้เฮงๆ รวยๆ {polite_ending}.',
+    body: '{top3} - {last_2}',
+    speech_script: 'ประกาศผล {lottery_name}. สามตัวบน {first_prize_spelled}. สองตัวล่าง {last_2_spelled}.',
     polite_particle: 'ครับ',
     font_family: 'sans',
     font_size: 'xlarge',
@@ -338,8 +421,8 @@ const TEMPLATE_PRESETS = {
   minimal: {
     name: 'มินิมอล เน้นตัวเลข (Minimalist)',
     title: '{lottery_name} • {draw_date}',
-    body: '[1st] {first_prize}\n[2D] {last_2}\n[3F] {front_3}\n[3R] {last_3}\nNext: {next_closing}',
-    speech_script: '{lottery_name} งวดวันที่ {draw_date} รางวัลที่หนึ่ง {first_prize_spelled} สองตัว {last_2_spelled} รอบต่อไป {next_closing_name} ปิดรับ {next_closing_time}.',
+    body: '{top3} - {last_2}',
+    speech_script: 'ประกาศผล {lottery_name}. สามตัวบน {first_prize_spelled}. สองตัวล่าง {last_2_spelled}.',
     polite_particle: '',
     font_family: 'mono',
     font_size: 'large',
@@ -394,8 +477,8 @@ export default function App() {
 
   // ==================== MESSAGE & TYPOGRAPHY CUSTOMIZATION STATE ====================
   const [templateTitle, setTemplateTitle] = useState<string>('📢 ผล{lottery_name} งวด {draw_date}');
-  const [templateBody, setTemplateBody] = useState<string>('🎯 รางวัลที่ 1: {first_prize}\n🔢 เลขท้าย 2 ตัว: {last_2}\n✨ เลขหน้า 3 ตัว: {front_3}\n🌟 เลขท้าย 3 ตัว: {last_3}\n⏰ ปิดรอบถัดไป: {next_closing}\n📡 แหล่งข้อมูล: {source}');
-  const [speechScript, setSpeechScript] = useState<string>('ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. รางวัลที่หนึ่ง ออกเลข {first_prize_spelled}. เลขท้ายสองตัว ออกเลข {last_2_spelled}. และหวยรอบถัดไปที่จะปิดรับคือ {next_closing_name} ปิดรับเวลา {next_closing_time} {polite_ending}.');
+  const [templateBody, setTemplateBody] = useState<string>('{top3} - {last_2}');
+  const [speechScript, setSpeechScript] = useState<string>('ประกาศผล {lottery_name}. สามตัวบน {first_prize_spelled}. สองตัวล่าง {last_2_spelled}.');
   const [politeParticle, setPoliteParticle] = useState<string>('ครับ');
   const [modalTheme, setModalTheme] = useState<string>('gold');
   const [fontSize, setFontSize] = useState<string>('large');
@@ -405,6 +488,7 @@ export default function App() {
   const queueTimeoutRef = useRef<any>(null);
   const announcementQueueRef = useRef<LotteryAnnouncement[]>([]);
   const knownResultsRef = useRef<Set<string> | null>(null);
+  const latestProviderResultsRef = useRef<LotteryResult[]>([]);
   const triggerAnnouncementsRef = useRef<(items: LotteryAnnouncement[]) => void>(() => {});
   const lastClosingAlertKeyRef = useRef<string | null>(null);
 
@@ -439,36 +523,10 @@ export default function App() {
     setCurrentQueueIndex(0);
   };
 
-  // Build speech text from customizable template
+  // Every lottery uses the same concise three-upper/two-lower announcement.
   const buildSpeechText = (item: LotteryAnnouncement): string => {
-    const isGov = /สลากกินแบ่ง|รัฐบาลไทย|ออมสิน|ธ\.?ก\.?ส/i.test(item.lotteryName);
-    let defaultTemplate = isGov
-      ? 'ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. รางวัลที่หนึ่ง ออกเลข {first_prize_spelled}. เลขท้ายสองตัว ออกเลข {last_2_spelled}. และหวยรอบถัดไปที่จะปิดรับคือ {next_closing_name} ปิดรับเวลา {next_closing_time} {polite_ending}.'
-      : 'ประกาศผล {lottery_name} ประจำงวดวันที่ {draw_date}. สามตัวบน ออกเลข {first_prize_spelled}. สองตัวล่าง ออกเลข {last_2_spelled}. และหวยรอบถัดไปที่จะปิดรับคือ {next_closing_name} ปิดรับเวลา {next_closing_time} {polite_ending}.';
-
-    let script = speechScript || defaultTemplate;
-    // If the active script is generic or stock, adapt announcement phrasing to user requirements
-    if (!isGov && script.includes('รางวัลที่หนึ่ง')) {
-      script = script.replace('รางวัลที่หนึ่ง', 'สามตัวบน').replace('เลขท้ายสองตัว', 'สองตัวล่าง');
-    }
-
-    const replacements: Record<string, string> = {
-      '{lottery_name}': item.lotteryName,
-      '{draw_date}': item.drawDate,
-      '{first_prize}': item.firstPrize || '-',
-      '{first_prize_spelled}': spellDigits(item.firstPrize),
-      '{last_2}': item.last2Digits || '-',
-      '{last_2_spelled}': spellDigits(item.last2Digits),
-      '{next_closing_name}': item.nextClosing?.name || 'รอบถัดไป',
-      '{next_closing_time}': item.nextClosing?.closeTimeStr || '',
-      '{polite_ending}': politeParticle || '',
-    };
-
-    for (const [key, val] of Object.entries(replacements)) {
-      script = script.split(key).join(val);
-    }
-
-    return script;
+    const { top3, bottom2 } = getResultNumbers({ firstPrize: item.firstPrize, bottom2: item.last2Digits });
+    return `ประกาศผล ${item.lotteryName}. สามตัวบน ${spellDigits(top3)}. สองตัวล่าง ${spellDigits(bottom2)}.`;
   };
 
   // Speak announcement in Thai and proceed sequentially
@@ -557,6 +615,10 @@ export default function App() {
 
   const triggerAnnouncements = (items: LotteryAnnouncement[]) => {
     if (!items || items.length === 0) return;
+    items = items.map((item) => {
+      const { top3, bottom2 } = getResultNumbers({ firstPrize: item.firstPrize, bottom2: item.last2Digits });
+      return { ...item, firstPrize: top3, last2Digits: bottom2, front3Digits: [], last3Digits: [] };
+    });
 
     stopSpeech();
     if (voiceEnabled) playChime();
@@ -609,33 +671,12 @@ export default function App() {
     stopSpeech();
     playChime();
 
-    const topResult = String(item.top3 || item.firstPrize || '').trim();
-    const bottomResult = String(item.bottom2 || '').trim();
-    if (!topResult && !bottomResult) {
+    const { top3, bottom2 } = getResultNumbers(item);
+    if (!top3 && !bottom2) {
       showToast('ยังไม่มีผลรางวัลจริงสำหรับอ่านประกาศ');
       return;
     }
-
-    let text = `ประกาศผล ${item.name} งวดวันที่ ${item.date}. `;
-    const isThaiGov =
-      item.category === 'gov_savings' ||
-      item.id === 'thai_gov' ||
-      item.id === 'gsb' ||
-      item.id === 'baac' ||
-      /สลากกินแบ่ง|รัฐบาลไทย|ออมสิน|ธ\.?ก\.?ส/i.test(item.name);
-
-    if (isThaiGov && item.firstPrize) {
-      text += `รางวัลที่หนึ่ง ออกเลข ${spellDigits(item.firstPrize)}. `;
-      if (bottomResult) text += `เลขท้ายสองตัว ออกเลข ${spellDigits(bottomResult)}. `;
-    } else {
-      // User requirement: For stock lotteries (regular and VIP) and foreign lotteries, read 3 ตัวบน and 2 ตัวล่าง
-      if (topResult) text += `สามตัวบน ออกเลข ${spellDigits(topResult)}. `;
-      if (bottomResult) text += `สองตัวล่าง ออกเลข ${spellDigits(bottomResult)}. `;
-    }
-    if (item.setIndex) {
-      text += `ดัชนีตลาดปิดที่ ${item.setIndex}. `;
-    }
-    text += `และหวยรอบถัดไปที่จะปิดรับคือ ${nextClosingNow.name} ปิดเวลา ${nextClosingNow.closeTimeStr} ครับ.`;
+    const text = `ประกาศผล ${item.name}. สามตัวบน ${spellDigits(top3)}. สองตัวล่าง ${spellDigits(bottom2)}.`;
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'th-TH';
@@ -848,13 +889,13 @@ export default function App() {
 
       if (Array.isArray(resResults)) {
         safeResults = resResults as LotteryResult[];
+        latestProviderResultsRef.current = safeResults;
         const previousKeys = knownResultsRef.current;
         if (previousKeys) {
           newResults = safeResults.filter((row: any) => {
             const key = getLotteryResultFingerprint(row);
-            const hasTop = Boolean(String(row?.รางวัลที่_1 || row?.เลขบน_3_ตัว || row?.top3 || row?.firstPrize || '').trim());
-            const hasBottom = Boolean(String(row?.เลขท้าย_2_ตัว || row?.เลขล่าง_2_ตัว || row?.bottom2 || row?.last2 || '').trim());
-            return hasTop && hasBottom && !previousKeys.has(key);
+            const { top3, bottom2 } = getResultNumbers(row);
+            return Boolean(top3 && bottom2 && providerDrawDateIso(row) === getBangkokClockParts().dateKey && !previousKeys.has(key));
           });
         }
         knownResultsRef.current = new Set(safeResults.map((row: any) => getLotteryResultFingerprint(row)));
@@ -863,10 +904,9 @@ export default function App() {
       const apiLotteryCatalog = Array.isArray(resAllLotteries) ? resAllLotteries : [];
       const bundledCatalog = bundledLotteryFallback;
       const availableCatalog = apiLotteryCatalog.length > 0 ? apiLotteryCatalog : bundledCatalog;
-      setAllLotteries(availableCatalog);
-      if (!selectedCatalogLottery && availableCatalog.length > 0) {
-        setSelectedCatalogLottery(availableCatalog[0]);
-      }
+      const liveCatalog = mergeCatalogWithProviderResults(availableCatalog, latestProviderResultsRef.current, getBangkokClockParts().dateKey);
+      setAllLotteries(liveCatalog);
+      setSelectedCatalogLottery((selected) => liveCatalog.find((item) => item.id === selected?.id) || liveCatalog[0] || null);
 
       if (newResults.length > 0) {
         const nextClosing = getNextClosingLottery();
@@ -874,8 +914,8 @@ export default function App() {
           id: `live-${getLotteryResultFingerprint(row)}-${index}`,
           lotteryName: row.ชื่อหวย || row.หวย || row.lotteryName || 'หวย',
           drawDate: row.งวดวันที่ || row.วันที่จัดรูปแบบ || row.drawDate || 'งวดล่าสุด',
-          firstPrize: row.รางวัลที่_1 || row.เลขบน_3_ตัว || row.top3 || row.firstPrize || '-',
-          last2Digits: row.เลขท้าย_2_ตัว || row.เลขล่าง_2_ตัว || row.bottom2 || row.last2 || '-',
+          firstPrize: getResultNumbers(row).top3,
+          last2Digits: getResultNumbers(row).bottom2,
           front3Digits: Array.isArray(row.เลขหน้า_3_ตัว) ? row.เลขหน้า_3_ตัว : [],
           last3Digits: Array.isArray(row.เลขท้าย_3_ตัว) ? row.เลขท้าย_3_ตัว : [],
           source: row.แหล่งข้อมูล || row.source || 'แหล่งข้อมูลผลหวย',
@@ -991,13 +1031,12 @@ export default function App() {
       return;
     }
     const nextClosing = getNextClosingLottery();
-    const isGovernment = selected.category === 'gov_savings';
     triggerAnnouncements([{
       id: `demo-${selected.id}-${Date.now()}`,
       lotteryName: selected.name,
       drawDate: selected.date || 'ตัวอย่างสำหรับทดสอบ',
-      firstPrize: (isGovernment ? selected.firstPrize : selected.top3) || selected.firstPrize || '-',
-      last2Digits: selected.bottom2 || '-',
+      firstPrize: getResultNumbers(selected).top3,
+      last2Digits: getResultNumbers(selected).bottom2,
       front3Digits: [],
       last3Digits: [],
       source: 'ตัวอย่างจากแคตตาล็อก (ไม่ใช่การยืนยันผลสด)',
@@ -1017,8 +1056,8 @@ export default function App() {
       id: `simul-${item.id}-${Date.now()}-${index}`,
       lotteryName: item.name,
       drawDate: item.date || 'ตัวอย่างสำหรับทดสอบ',
-      firstPrize: item.top3 || item.firstPrize || '-',
-      last2Digits: item.bottom2 || '-',
+      firstPrize: getResultNumbers(item).top3,
+      last2Digits: getResultNumbers(item).bottom2,
       front3Digits: [],
       last3Digits: [],
       source: 'ตัวอย่างจากแคตตาล็อก (ไม่ใช่การยืนยันผลสด)',
@@ -1033,8 +1072,9 @@ export default function App() {
     const sample = {
       '{lottery_name}': previewLottery?.name || 'ตัวอย่างหวย',
       '{draw_date}': previewLottery?.date || 'ตัวอย่างสำหรับทดสอบ',
-      '{first_prize}': previewLottery?.top3 || previewLottery?.firstPrize || '-',
-      '{last_2}': previewLottery?.bottom2 || '-',
+      '{top3}': getResultNumbers(previewLottery).top3 || '---',
+      '{first_prize}': getResultNumbers(previewLottery).top3 || '---',
+      '{last_2}': getResultNumbers(previewLottery).bottom2 || '--',
       '{front_3}': '-',
       '{last_3}': '-',
       '{source}': 'ตัวอย่างจากแคตตาล็อก (ไม่ใช่ผลสด)',
@@ -1042,7 +1082,7 @@ export default function App() {
     };
 
     let title = templateTitle;
-    let body = templateBody;
+    let body = '{top3} - {last_2}';
     for (const [k, v] of Object.entries(sample)) {
       title = title.split(k).join(v);
       body = body.split(k).join(v);
@@ -1126,29 +1166,14 @@ export default function App() {
     if (!cleanNum || results.length === 0) return;
 
     const latest = results[0];
+    const { top3, bottom2 } = getResultNumbers(latest);
     const wins: string[] = [];
-
-    if (cleanNum === latest.รางวัลที่_1) {
-      wins.push('🏆 ถูกรางวัลที่ 1! (รางวัล 6,000,000 บาท)');
+    if (/^\d{3}$/.test(cleanNum) && top3 && cleanNum === top3) {
+      wins.push(`ตรงเลข 3 ตัวบน: ${top3}`);
     }
-    if (cleanNum.endsWith(latest.เลขท้าย_2_ตัว) || cleanNum === latest.เลขท้าย_2_ตัว) {
-      wins.push(`🎯 ถูกรางวัลเลขท้าย 2 ตัว: ${latest.เลขท้าย_2_ตัว} (รางวัล 2,000 บาท)`);
+    if (/^\d{2}$/.test(cleanNum) && bottom2 && cleanNum === bottom2) {
+      wins.push(`ตรงเลข 2 ตัวล่าง: ${bottom2}`);
     }
-    latest.เลขหน้า_3_ตัว?.forEach((f: string) => {
-      if (cleanNum.startsWith(f) || cleanNum === f) {
-        wins.push(`✨ ถูกรางวัลเลขหน้า 3 ตัว: ${f} (รางวัล 4,000 บาท)`);
-      }
-    });
-    latest.เลขท้าย_3_ตัว?.forEach((r: string) => {
-      if (cleanNum.endsWith(r) || cleanNum === r) {
-        wins.push(`🌟 ถูกรางวัลเลขท้าย 3 ตัว: ${r} (รางวัล 4,000 บาท)`);
-      }
-    });
-    latest.รางวัลข้างเคียงรางวัลที่_1?.forEach((adj: string) => {
-      if (cleanNum === adj) {
-        wins.push(`💎 ถูกรางวัลข้างเคียงรางวัลที่ 1: ${adj} (รางวัล 100,000 บาท)`);
-      }
-    });
 
     if (wins.length > 0) {
       setTicketResult({
@@ -1304,10 +1329,10 @@ export default function App() {
               <div className={`bg-slate-950/90 rounded-2xl p-5 border-2 flex flex-col items-center justify-center text-center shadow-inner ${themeClasses.firstPrizeBox}`}>
                 <span className={`text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5 ${themeClasses.accent}`}>
                   <Sparkles className="w-3.5 h-3.5" />
-                  รางวัลที่ 1
+                  3 ตัวบน
                 </span>
                 <div className={`font-black tracking-widest font-mono ${themeClasses.firstPrizeText} ${sizeClasses.first}`}>
-                  {currentAnnouncement.firstPrize || '------'}
+                  {currentAnnouncement.firstPrize || '---'}
                 </div>
                 <span className="text-[11px] text-slate-400 mt-2 font-mono">
                   {spellDigits(currentAnnouncement.firstPrize)}
@@ -1317,7 +1342,7 @@ export default function App() {
               <div className="bg-slate-950/90 rounded-2xl p-5 border-2 border-emerald-500/50 flex flex-col items-center justify-center text-center shadow-inner">
                 <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1 flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  เลขท้าย 2 ตัว
+                  2 ตัวล่าง
                 </span>
                 <div className={`font-black tracking-widest font-mono text-emerald-300 drop-shadow-[0_0_20px_rgba(52,211,153,0.4)] ${sizeClasses.last2}`}>
                   {currentAnnouncement.last2Digits || '--'}
@@ -1326,30 +1351,6 @@ export default function App() {
                   {spellDigits(currentAnnouncement.last2Digits)}
                 </span>
               </div>
-            </div>
-
-            {/* Next Closing Banner */}
-            <div className="bg-gradient-to-r from-purple-950/70 via-indigo-950/70 to-slate-900 rounded-2xl p-4 border border-purple-500/40 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/30">
-                  <Clock className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wider">
-                    หวยที่ปิดรับรอบต่อไป
-                  </span>
-                  <div className="text-sm font-bold text-white">
-                    {currentAnnouncement.nextClosing.name}
-                  </div>
-                  <div className="text-xs text-purple-200">
-                    ปิดรับเวลา: <span className="font-bold text-amber-300">{currentAnnouncement.nextClosing.closeTimeStr}</span> ({currentAnnouncement.nextClosing.remainingText})
-                  </div>
-                </div>
-              </div>
-
-              <span className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 font-semibold border border-purple-500/30 shrink-0">
-                อ่านในเสียงแล้ว
-              </span>
             </div>
 
             {/* Bottom Controls */}
@@ -1730,29 +1731,13 @@ export default function App() {
                   const term = historySearchTerm.trim().toLowerCase();
                   const nameMatch = (row.ชื่อหวย || '').toLowerCase().includes(term);
                   const dateMatch = (row.งวดวันที่ || '').toLowerCase().includes(term);
-                  const firstMatch = (row.รางวัลที่_1 || '').includes(term);
-                  const last2Match = (row.เลขท้าย_2_ตัว || '').includes(term);
-                  const front3Match = Array.isArray(row.เลขหน้า_3_ตัว) && row.เลขหน้า_3_ตัว.some((n) => n.includes(term));
-                  const last3Match = Array.isArray(row.เลขท้าย_3_ตัว) && row.เลขท้าย_3_ตัว.some((n) => n.includes(term));
-                  const top3Match = (row.เลขบน_3_ตัว || '').includes(term);
-                  if (!nameMatch && !dateMatch && !firstMatch && !last2Match && !front3Match && !last3Match && !top3Match) {
-                    return false;
-                  }
+                  const { top3, bottom2 } = getResultNumbers(row);
+                  if (!nameMatch && !dateMatch && !top3.includes(term) && !bottom2.includes(term)) return false;
                 }
-
-                // Prize type dropdown filter
-                if (historyPrizeFilter === 'first') {
-                  return Boolean(row.รางวัลที่_1 && row.รางวัลที่_1.trim() !== '');
+                if (historyPrizeFilter === 'first' || historyPrizeFilter === '3digits') {
+                  return Boolean(getResultNumbers(row).top3);
                 }
-                if (historyPrizeFilter === 'last2') {
-                  return Boolean(row.เลขท้าย_2_ตัว && row.เลขท้าย_2_ตัว.trim() !== '');
-                }
-                if (historyPrizeFilter === '3digits') {
-                  const hasFront3 = Array.isArray(row.เลขหน้า_3_ตัว) && row.เลขหน้า_3_ตัว.length > 0;
-                  const hasLast3 = Array.isArray(row.เลขท้าย_3_ตัว) && row.เลขท้าย_3_ตัว.length > 0;
-                  const hasTop3 = Boolean(row.เลขบน_3_ตัว && row.เลขบน_3_ตัว.trim() !== '');
-                  return hasFront3 || hasLast3 || hasTop3;
-                }
+                if (historyPrizeFilter === 'last2') return Boolean(getResultNumbers(row).bottom2);
                 if (historyPrizeFilter === 'thai') {
                   const category = String(row.หมวดหวย || '').toLowerCase();
                   const name = String(row.ชื่อหวย || '');
@@ -1817,7 +1802,7 @@ export default function App() {
                       <div className="md:col-span-5 flex flex-col gap-1.5">
                         <label htmlFor="history-prize-filter-select" className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                           <ListFilter className="w-3.5 h-3.5 text-amber-400" />
-                          กรองประเภทรางวัล (Prize Filter):
+                          กรองผลหวย:
                         </label>
                         <div className="relative">
                           <select
@@ -1826,10 +1811,9 @@ export default function App() {
                             onChange={(e) => setHistoryPrizeFilter(e.target.value as any)}
                             className="w-full bg-slate-950 border border-slate-700 hover:border-amber-400 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-medium appearance-none cursor-pointer transition focus:outline-none focus:ring-1 focus:ring-amber-400/50 pr-10 shadow-inner"
                           >
-                            <option value="all">📋 ทุกรางวัล (All Prizes / มุมมองเต็ม)</option>
-                            <option value="first">🏆 เฉพาะรางวัลที่ 1 (Only 1st Prize Focus)</option>
-                            <option value="last2">🟢 เฉพาะเลขท้าย 2 ตัว (Only 2-Digit Prizes Focus)</option>
-                            <option value="3digits">✨ เฉพาะเลข 3 ตัว (Front / Last 3-Digits)</option>
+                            <option value="all">📋 ทุกผลหวย</option>
+                            <option value="first">🔺 มีผล 3 ตัวบน</option>
+                            <option value="last2">🟢 มีผล 2 ตัวล่าง</option>
                             <option value="thai">🇹🇭 เฉพาะสลากกินแบ่งรัฐบาล (Thai Gov Only)</option>
                           </select>
                           <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-400">
@@ -1875,9 +1859,8 @@ export default function App() {
                       </span>
                       {[
                         { id: 'all', label: 'ทั้งหมด (All)', icon: '📋' },
-                        { id: 'first', label: 'เฉพาะรางวัลที่ 1', icon: '🏆' },
-                        { id: 'last2', label: 'เฉพาะเลขท้าย 2 ตัว', icon: '🟢' },
-                        { id: '3digits', label: 'เฉพาะเลข 3 ตัว', icon: '✨' },
+                        { id: 'first', label: 'มีผล 3 ตัวบน', icon: '🔺' },
+                        { id: 'last2', label: 'มีผล 2 ตัวล่าง', icon: '🟢' },
                         { id: 'thai', label: 'สลากกินแบ่งรัฐบาล', icon: '🇹🇭' },
                       ].map((chip) => {
                         const active = historyPrizeFilter === chip.id;
@@ -1899,48 +1882,6 @@ export default function App() {
                       })}
                     </div>
 
-                    {/* Dynamic Insight Banner based on selected filter */}
-                    {historyPrizeFilter === 'first' && (
-                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5 text-xs text-amber-200 flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
-                          <span>
-                            <strong>โหมดเจาะจงรางวัลที่ 1:</strong> ขยายขนาดตัวเลขรางวัลที่ 1 ให้เด่นชัด พร้อมปุ่มลัดคัดลอกเฉพาะเลขรางวัลที่ 1 ทันที
-                          </span>
-                        </div>
-                        <span className="font-mono text-amber-300 font-bold bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/40">
-                          {totalFiltered} งวดที่มีรางวัลที่ 1
-                        </span>
-                      </div>
-                    )}
-
-                    {historyPrizeFilter === 'last2' && (
-                      <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-2.5 text-xs text-emerald-200 flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
-                          <span>
-                            <strong>โหมดเจาะจงเลขท้าย 2 ตัว:</strong> เน้นแสดงผลเลข 2 ตัว พร้อมวิเคราะห์ความถี่เลขคู่/เลขคี่
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 font-mono text-[11px]">
-                          <span className="bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30 text-emerald-300">
-                            เลขคู่: {evenCount} งวด
-                          </span>
-                          <span className="bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30 text-emerald-300">
-                            เลขคี่: {oddCount} งวด
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {historyPrizeFilter === '3digits' && (
-                      <div className="bg-sky-500/10 border border-sky-500/30 rounded-xl px-4 py-2.5 text-xs text-sky-200 flex items-center gap-2">
-                        <Layers className="w-4 h-4 text-sky-400 shrink-0" />
-                        <span>
-                          <strong>โหมดเจาะจงเลข 3 ตัว:</strong> แสดงเลขหน้า 3 ตัว, เลขท้าย 3 ตัว และเลขบน 3 ตัวอย่างชัดเจน
-                        </span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Empty state if no results */}
@@ -1951,7 +1892,7 @@ export default function App() {
                       </div>
                       <h4 className="font-bold text-slate-200">ไม่พบผลรางวัลที่ตรงกับเงื่อนไขการกรอง</h4>
                       <p className="text-xs text-slate-400 max-w-md mx-auto">
-                        ลองเปลี่ยนคำค้นหา หรือเลือกตัวกรองประเภทรางวัลเป็น "ทุกรางวัล (All Prizes)" เพื่อดูข้อมูลทั้งหมด
+                        ลองเปลี่ยนคำค้นหา หรือเลือก "ทุกผลหวย" เพื่อดูข้อมูลทั้งหมด
                       </p>
                       <button
                         type="button"
@@ -1969,9 +1910,7 @@ export default function App() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filteredHistoryResults.map((row, idx) => {
                         const lotteryTitle = row.ชื่อหวย || 'สลากกินแบ่งรัฐบาล (ไทย)';
-                        const hasFront3 = Array.isArray(row.เลขหน้า_3_ตัว) && row.เลขหน้า_3_ตัว.length > 0;
-                        const hasLast3 = Array.isArray(row.เลขท้าย_3_ตัว) && row.เลขท้าย_3_ตัว.length > 0;
-                        const hasTop3 = Boolean(row.เลขบน_3_ตัว && row.เลขบน_3_ตัว.trim() !== '');
+                        const { top3, bottom2 } = getResultNumbers(row);
 
                         // Determine card accent styling based on active prize filter
                         let cardBorder = 'hover:border-slate-700 border-slate-800';
@@ -2005,211 +1944,16 @@ export default function App() {
                                 </span>
                               </div>
 
-                              {/* ADAPTIVE PRIZE VIEW: Mode 1 - Only 1st Prize Focus */}
-                              {historyPrizeFilter === 'first' ? (
-                                <div className="space-y-3">
-                                  <div className="bg-gradient-to-br from-amber-950/40 via-slate-950 to-slate-950 p-4 rounded-xl border border-amber-500/40 shadow-inner">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                      <span className="text-[11px] text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                                        <Trophy className="w-3.5 h-3.5" />
-                                        รางวัลที่ 1 (1st Prize)
-                                      </span>
-                                      <span className="text-[10px] text-amber-300/80 font-mono">
-                                        {row.รางวัลที่_1.length} หลัก
-                                      </span>
-                                    </div>
-                                    <div className="text-3xl sm:text-4xl font-black font-mono text-amber-300 tracking-wider text-center py-2 select-all">
-                                      {row.รางวัลที่_1}
-                                    </div>
-                                    <div className="flex items-center justify-center gap-2 pt-1 border-t border-amber-500/20">
-                                      <button
-                                        type="button"
-                                        onClick={() => copyToClipboard(row.รางวัลที่_1, `first-${idx}`)}
-                                        className="text-[11px] px-2.5 py-1 rounded bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 transition font-semibold cursor-pointer flex items-center gap-1"
-                                      >
-                                        <Copy className="w-3 h-3" />
-                                        คัดลอกเฉพาะรางวัลที่ 1
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Secondary context pill */}
-                                  <div className="flex items-center justify-between px-3 py-2 bg-slate-950/60 rounded-xl border border-slate-800/80 text-xs">
-                                    <span className="text-slate-400">เลขท้าย 2 ตัวประกอบ:</span>
-                                    <span className="font-mono font-bold text-emerald-400">{row.เลขท้าย_2_ตัว}</span>
-                                  </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-slate-950/80 p-3 rounded-xl border border-amber-500/30 text-center">
+                                  <div className="text-[11px] text-amber-400 mb-1">3 ตัวบน</div>
+                                  <div className="text-3xl font-black font-mono text-amber-300 tracking-wider">{top3 || '---'}</div>
                                 </div>
-                              ) : historyPrizeFilter === 'last2' ? (
-                                /* ADAPTIVE PRIZE VIEW: Mode 2 - Only 2-Digit Focus */
-                                <div className="space-y-3">
-                                  <div className="bg-gradient-to-br from-emerald-950/40 via-slate-950 to-slate-950 p-4 rounded-xl border border-emerald-500/40 shadow-inner">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                      <span className="text-[11px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                                        <Sparkles className="w-3.5 h-3.5" />
-                                        เลขท้าย 2 ตัว (2-Digit Prize)
-                                      </span>
-                                      {(() => {
-                                        const num = parseInt(row.เลขท้าย_2_ตัว, 10);
-                                        return !isNaN(num) ? (
-                                          <span className="text-[10px] text-emerald-300/80 font-mono">
-                                            {num % 2 === 0 ? 'เลขคู่' : 'เลขคี่'} • {num >= 50 ? 'สูง' : 'ต่ำ'}
-                                          </span>
-                                        ) : null;
-                                      })()}
-                                    </div>
-                                    <div className="text-4xl sm:text-5xl font-black font-mono text-emerald-400 tracking-wider text-center py-2 select-all">
-                                      {row.เลขท้าย_2_ตัว}
-                                    </div>
-                                    <div className="flex items-center justify-center gap-2 pt-1 border-t border-emerald-500/20">
-                                      <button
-                                        type="button"
-                                        onClick={() => copyToClipboard(row.เลขท้าย_2_ตัว, `last2-${idx}`)}
-                                        className="text-[11px] px-2.5 py-1 rounded bg-emerald-400/20 hover:bg-emerald-400/30 text-emerald-200 transition font-semibold cursor-pointer flex items-center gap-1"
-                                      >
-                                        <Copy className="w-3 h-3" />
-                                        คัดลอกเฉพาะเลข 2 ตัว
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Secondary context pill */}
-                                  <div className="flex items-center justify-between px-3 py-2 bg-slate-950/60 rounded-xl border border-slate-800/80 text-xs">
-                                    <span className="text-slate-400">รางวัลที่ 1 อ้างอิง:</span>
-                                    <span className="font-mono font-bold text-amber-300">{row.รางวัลที่_1}</span>
-                                  </div>
+                                <div className="bg-slate-950/80 p-3 rounded-xl border border-emerald-500/30 text-center">
+                                  <div className="text-[11px] text-emerald-400 mb-1">2 ตัวล่าง</div>
+                                  <div className="text-3xl font-black font-mono text-emerald-300 tracking-wider">{bottom2 || '--'}</div>
                                 </div>
-                              ) : historyPrizeFilter === '3digits' ? (
-                                /* ADAPTIVE PRIZE VIEW: Mode 3 - 3-Digit Focus */
-                                <div className="space-y-3">
-                                  <div className="bg-gradient-to-br from-sky-950/40 via-slate-950 to-slate-950 p-4 rounded-xl border border-sky-500/40 shadow-inner space-y-3">
-                                    <div className="text-[11px] text-sky-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                                      <Layers className="w-3.5 h-3.5" />
-                                      กลุ่มรางวัลเลข 3 ตัว (3-Digits)
-                                    </div>
-
-                                    {/* Front 3 digits */}
-                                    {hasFront3 && (
-                                      <div>
-                                        <div className="text-[10px] text-slate-400 mb-1">เลขหน้า 3 ตัว:</div>
-                                        <div className="flex gap-2">
-                                          {row.เลขหน้า_3_ตัว!.map((n, i) => (
-                                            <span key={i} className="px-3 py-1 bg-sky-900/40 border border-sky-500/30 rounded-lg text-lg font-mono font-bold text-sky-200">
-                                              {n}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {/* Last 3 digits */}
-                                    {hasLast3 && (
-                                      <div>
-                                        <div className="text-[10px] text-slate-400 mb-1">เลขท้าย 3 ตัว:</div>
-                                        <div className="flex gap-2">
-                                          {row.เลขท้าย_3_ตัว!.map((n, i) => (
-                                            <span key={i} className="px-3 py-1 bg-amber-900/40 border border-amber-500/30 rounded-lg text-lg font-mono font-bold text-amber-200">
-                                              {n}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {/* Top 3 (if stock) */}
-                                    {hasTop3 && !hasFront3 && !hasLast3 && (
-                                      <div>
-                                        <div className="text-[10px] text-slate-400 mb-1">เลขบน 3 ตัว (หุ้น/ต่างประเทศ):</div>
-                                        <div className="text-2xl font-mono font-bold text-sky-300">
-                                          {row.เลขบน_3_ตัว}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800 text-center">
-                                      <div className="text-[10px] text-slate-400">รางวัลที่ 1</div>
-                                      <div className="font-mono font-bold text-amber-300">{row.รางวัลที่_1}</div>
-                                    </div>
-                                    <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800 text-center">
-                                      <div className="text-[10px] text-slate-400">เลขท้าย 2 ตัว</div>
-                                      <div className="font-mono font-bold text-emerald-400">{row.เลขท้าย_2_ตัว}</div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ) : (
-                                /* ADAPTIVE PRIZE VIEW: Mode Default - All Prizes Overview */
-                                <div className="space-y-3">
-                                  <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80">
-                                    <div className="flex items-center justify-between mb-1">
-                                      <span className="text-[10px] text-amber-400 font-semibold uppercase flex items-center gap-1">
-                                        <Trophy className="w-3 h-3" />
-                                        รางวัลที่ 1
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => copyToClipboard(row.รางวัลที่_1, `c1-${idx}`)}
-                                        className="text-[10px] text-slate-400 hover:text-amber-300 cursor-pointer"
-                                        title="คัดลอกรางวัลที่ 1"
-                                      >
-                                        <Copy className="w-2.5 h-2.5" />
-                                      </button>
-                                    </div>
-                                    <div className="text-2xl font-black font-mono text-amber-300 tracking-wider">
-                                      {row.รางวัลที่_1}
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80">
-                                      <div className="flex items-center justify-between mb-1">
-                                        <span className="text-[10px] text-emerald-400 font-semibold">เลขท้าย 2 ตัว</span>
-                                        <button
-                                          type="button"
-                                          onClick={() => copyToClipboard(row.เลขท้าย_2_ตัว, `c2-${idx}`)}
-                                          className="text-[10px] text-slate-400 hover:text-emerald-300 cursor-pointer"
-                                          title="คัดลอกเลขท้าย 2 ตัว"
-                                        >
-                                          <Copy className="w-2.5 h-2.5" />
-                                        </button>
-                                      </div>
-                                      <div className="text-xl font-black font-mono text-emerald-300">
-                                        {row.เลขท้าย_2_ตัว}
-                                      </div>
-                                    </div>
-
-                                    <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80">
-                                      <div className="text-[10px] text-slate-400 font-semibold">สถานะแจ้งเตือน</div>
-                                      <div className="text-xs font-bold text-slate-300 mt-1 capitalize flex items-center gap-1">
-                                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                        {row.สถานะการแจ้งเตือน || 'Sent'}
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* 3-Digit chips preview if available */}
-                                  {(hasFront3 || hasLast3) && (
-                                    <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800/60 text-[11px] space-y-1">
-                                      {hasFront3 && (
-                                        <div className="flex items-center gap-1 text-slate-400">
-                                          <span>หน้า 3 ตัว:</span>
-                                          <span className="font-mono font-bold text-slate-200">
-                                            {row.เลขหน้า_3_ตัว!.join(', ')}
-                                          </span>
-                                        </div>
-                                      )}
-                                      {hasLast3 && (
-                                        <div className="flex items-center gap-1 text-slate-400">
-                                          <span>ท้าย 3 ตัว:</span>
-                                          <span className="font-mono font-bold text-slate-200">
-                                            {row.เลขท้าย_3_ตัว!.join(', ')}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                              </div>
                             </div>
 
                             {/* Card Footer: Audio Announcement & Copy Summary Buttons */}
@@ -2223,10 +1967,10 @@ export default function App() {
                                       id: 'hist-' + idx,
                                       lotteryName: row.ชื่อหวย || 'สลากกินแบ่งรัฐบาล',
                                       drawDate: row.งวดวันที่,
-                                      firstPrize: row.รางวัลที่_1,
-                                      last2Digits: row.เลขท้าย_2_ตัว,
-                                      front3Digits: row.เลขหน้า_3_ตัว,
-                                      last3Digits: row.เลขท้าย_3_ตัว,
+                                      firstPrize: top3,
+                                      last2Digits: bottom2,
+                                      front3Digits: [],
+                                      last3Digits: [],
                                       source: row.แหล่งข้อมูล,
                                       nextClosing: nextClosing,
                                     },
@@ -2240,16 +1984,7 @@ export default function App() {
 
                               <button
                                 onClick={() => {
-                                  let copyText = `ผล${lotteryTitle} งวด ${row.งวดวันที่}: `;
-                                  if (historyPrizeFilter === 'first') {
-                                    copyText += `รางวัลที่ 1 = ${row.รางวัลที่_1}`;
-                                  } else if (historyPrizeFilter === 'last2') {
-                                    copyText += `เลขท้าย 2 ตัว = ${row.เลขท้าย_2_ตัว}`;
-                                  } else {
-                                    copyText += `รางวัลที่ 1 = ${row.รางวัลที่_1}, เลขท้าย 2 ตัว = ${row.เลขท้าย_2_ตัว}`;
-                                    if (hasFront3) copyText += `, เลขหน้า 3 ตัว = ${row.เลขหน้า_3_ตัว!.join(' ')}`;
-                                    if (hasLast3) copyText += `, เลขท้าย 3 ตัว = ${row.เลขท้าย_3_ตัว!.join(' ')}`;
-                                  }
+                                  const copyText = `ผล${lotteryTitle} งวด ${row.งวดวันที่}: ${formatResultPair(row)}`;
                                   copyToClipboard(copyText, `row-${idx}`);
                                 }}
                                 className="text-slate-400 hover:text-slate-200 cursor-pointer flex items-center gap-1 transition"

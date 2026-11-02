@@ -24,10 +24,8 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
         "notify_on_new_draw": True,
         "notify_on_prize_match": True,
         "notify_prizes": {
-            "first_prize": True,
-            "last_2": True,
-            "front_3": True,
-            "last_3": True
+            "top3": True,
+            "bottom2": True
         },
         "custom_watched_numbers": []
     },
@@ -137,7 +135,9 @@ def _parse_draw_date(row: Dict[str, Any]) -> datetime.date:
         "กันยายน": 9, "ก.ย": 9, "ตุลาคม": 10, "ต.ค": 10,
         "พฤศจิกายน": 11, "พ.ย": 11, "ธันวาคม": 12, "ธ.ค": 12,
     }
-    for candidate in (row.get("วันที่จัดรูปแบบ"), row.get("งวดวันที่"), row.get("date"), row.get("draw_date")):
+    # The provider's actual draw date wins over a legacy ingestion-date field.
+    # Government draws can move to any announced date, including the 2nd or 17th.
+    for candidate in (row.get("งวดวันที่"), row.get("draw_date"), row.get("date"), row.get("วันที่จัดรูปแบบ")):
         value = str(candidate or "").strip()
         if not value:
             continue
@@ -162,6 +162,20 @@ def _parse_draw_date(row: Dict[str, Any]) -> datetime.date:
     return datetime.date.min
 
 
+def result_numbers(row: Dict[str, Any]) -> tuple[str, str]:
+    """Return only real upper-three and lower-two digits, preserving leading zeros."""
+    def digits(keys, width):
+        for key in keys:
+            value = str(row.get(key) if row.get(key) is not None else "").strip()
+            if value.isascii() and value.isdigit():
+                return value[-width:].zfill(width)
+        return ""
+    return (
+        digits(("เลขบน_3_ตัว", "top3", "รางวัลที่_1", "firstPrize", "first"), 3),
+        digits(("เลขล่าง_2_ตัว", "เลขท้าย_2_ตัว", "bottom2", "last2"), 2),
+    )
+
+
 def result_fingerprint(row: Dict[str, Any]) -> str:
     """Stable identity for one lottery draw, invariant to category and provider tags."""
     raw_name = row.get("ชื่อหวย") or row.get("lottery_name") or row.get("หวย") or row.get("id") or "หวยไม่ระบุชื่อ"
@@ -170,12 +184,7 @@ def result_fingerprint(row: Dict[str, Any]) -> str:
     parsed_date = _parse_draw_date(row)
     date_str = parsed_date.isoformat() if parsed_date != datetime.date.min else str(row.get("งวดวันที่") or row.get("วันที่จัดรูปแบบ") or "").strip()
     
-    top3 = str(row.get("เลขบน_3_ตัว") or row.get("top3") or "").strip()
-    first = str(row.get("รางวัลที่_1") or row.get("firstPrize") or row.get("first") or "").strip()
-    if not top3 and first:
-        top3 = first[-3:] if len(first) >= 3 else first
-        
-    last2 = str(row.get("เลขท้าย_2_ตัว") or row.get("เลขล่าง_2_ตัว") or row.get("bottom2") or row.get("last2") or "").strip()
+    top3, last2 = result_numbers(row)
 
     category = str(row.get("หมวดหวย") or row.get("category") or "").strip().lower()
     category_aliases = {
@@ -222,6 +231,24 @@ def was_already_notified(row: Dict[str, Any], previous: List[Dict[str, Any]]) ->
     return False
 
 
+def previous_notification_channels(row: Dict[str, Any], previous: List[Dict[str, Any]], active_channels: List[str]) -> Dict[str, str]:
+    """Carry successful channels forward without retrying already delivered alerts."""
+    statuses: Dict[str, str] = {}
+    fingerprint = result_fingerprint(row)
+    for old in previous:
+        if result_fingerprint(old) != fingerprint and not was_already_notified(row, [old]):
+            continue
+        recorded = old.get("notification_channels")
+        if isinstance(recorded, dict):
+            for channel, state in recorded.items():
+                if state == "sent":
+                    statuses[channel] = "sent"
+        elif old.get("สถานะการแจ้งเตือน") == "sent":
+            # Older history had one delivery flag. Preserve its deduplication semantics.
+            statuses.update({channel: "sent" for channel in active_channels})
+    return statuses
+
+
 def should_notify(S: Dict[str, Any], row: Dict[str, Any]) -> bool:
     """
     Determine if a lottery draw row should be notified via ntfy.
@@ -240,22 +267,21 @@ def should_notify(S: Dict[str, Any], row: Dict[str, Any]) -> bool:
     if row.get("สถานะการแจ้งเตือน") == "sent":
         return False
 
-    has_result = any(str(row.get(k, "")).strip() for k in ("รางวัลที่_1", "เลขท้าย_2_ตัว", "top3", "bottom2"))
-    if not has_result:
+    top3, bottom2 = result_numbers(row)
+    if not top3 or not bottom2:
         return False
     if notifications.get("notify_on_new_draw", True):
         return True
-    watched = [str(w).strip() for w in notifications.get("custom_watched_numbers", []) if str(w).strip()]
+    if not notifications.get("notify_on_prize_match", True):
+        return False
+    watched = [str(w).strip() for w in notifications.get("custom_watched_numbers", [])]
+    enabled_prizes = notifications.get("notify_prizes", {})
     numbers = []
-    for key in ("รางวัลที่_1", "เลขท้าย_2_ตัว", "top3", "bottom2"):
-        value = row.get(key)
-        if value not in (None, ""):
-            numbers.append(str(value).replace(",", "").strip())
-    for key in ("เลขหน้า_3_ตัว", "เลขท้าย_3_ตัว"):
-        value = row.get(key, [])
-        if isinstance(value, list):
-            numbers.extend(str(x).strip() for x in value)
-    return any(w in number for w in watched for number in numbers) if watched else False
+    if enabled_prizes.get("top3", enabled_prizes.get("first_prize", True)):
+        numbers.append(top3)
+    if enabled_prizes.get("bottom2", enabled_prizes.get("last_2", True)):
+        numbers.append(bottom2)
+    return any(w in numbers for w in watched if len(w) in (2, 3) and w.isascii() and w.isdigit())
 
 def write_status(
     rows: List[Dict[str, Any]], 
@@ -285,6 +311,8 @@ def write_status(
 
     total_checks = existing.get("total_checks", 0) + 1
     recent_logs = existing.get("recent_logs", [])
+    latest_row = max(rows, key=_parse_draw_date) if rows else {}
+    failed_deliveries = sum(row.get("สถานะการแจ้งเตือน") in {"failed", "partial"} for row in rows)
 
     if error:
         system_status = "error"
@@ -304,13 +332,14 @@ def write_status(
             "message": status_message
         })
     else:
-        system_status = "healthy"
-        latest_row = max(rows, key=_parse_draw_date)
+        system_status = "degraded" if failed_deliveries else "healthy"
         latest_draw = latest_row.get("งวดวันที่") or latest_row.get("วันที่จัดรูปแบบ") or "ไม่ระบุ"
-        status_message = f"ตรวจพบผลสดงวดล่าสุด {latest_draw} ผ่านแหล่ง {source_used or 'auto'}"
+        status_message = f"ตรวจพบผลงวดล่าสุด {latest_draw} ผ่านแหล่ง {source_used or 'auto'}"
+        if failed_deliveries:
+            status_message += f" แต่ส่งแจ้งเตือนยังไม่ครบ {failed_deliveries} รายการ จะลองช่องที่ล้มเหลวใหม่ในรอบถัดไป"
         recent_logs.insert(0, {
             "timestamp": iso_time,
-            "level": "INFO",
+            "level": "WARNING" if failed_deliveries else "INFO",
             "message": status_message
         })
 
@@ -340,6 +369,7 @@ def write_status(
         ),
         "latest_draw_detected": (latest_row.get("งวดวันที่") or latest_row.get("วันที่จัดรูปแบบ") or "") if rows else existing.get("latest_draw_detected", ""),
         "notifications_sent_today": previous_sent + sent_now,
+        "notification_failures": failed_deliveries,
         "recent_logs": recent_logs
     }
 

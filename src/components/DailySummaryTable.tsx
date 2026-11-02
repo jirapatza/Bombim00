@@ -34,7 +34,8 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { parseLotteryTimelineMinutes } from './LiveUpcomingDraws';
-import { filterLotteriesForDrawDate } from '../utils/lotterySchedule';
+import { filterLotteriesForDrawDate, isGovernmentLottery } from '../utils/lotterySchedule';
+import { getResultNumbers, formatResultPair, normalizeLotteryIdentity } from '../utils/lotteryResult';
 import { EditLotteryModal } from './EditLotteryModal';
 import { SummaryImageModal } from './SummaryImageModal';
 import { LotteryStatsModal } from './LotteryStatsModal';
@@ -177,12 +178,17 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     return '';
   };
 
+  // Provider draw dates take precedence over legacy fetch-date aliases.
+  const getResultDrawDateIso = (row: any) =>
+    [row?.งวดวันที่, row?.draw_date, row?.date, row?.วันที่จัดรูปแบบ]
+      .map(normalizeDateToIso).find(Boolean) || '';
+
   // Collect all available historical draw dates from results feed and history
   const availableHistoricalDates = useMemo(() => {
     const datesSet = new Set<string>();
     if (Array.isArray(results)) {
       results.forEach((row) => {
-        const iso = normalizeDateToIso(row.วันที่จัดรูปแบบ || row.งวดวันที่ || row.date || row.draw_date);
+        const iso = getResultDrawDateIso(row);
         if (iso) datesSet.add(iso);
       });
     }
@@ -224,18 +230,10 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const normalizeMatchKey = (value: unknown) => String(value ?? '').toLocaleLowerCase().replace(/[\s._#-]+/g, '');
+  const normalizeMatchKey = normalizeLotteryIdentity;
   const getResultDateSortValue = (row: any): number => {
-    const raw = String(row?.วันที่จัดรูปแบบ || row?.งวดวันที่ || row?.date || row?.draw_date || '').trim();
-    const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (iso) return Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
-    const dotted = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
-    if (dotted) {
-      const year = Number(dotted[3]) >= 2400 ? Number(dotted[3]) - 543 : Number(dotted[3]);
-      return Date.UTC(year, Number(dotted[2]) - 1, Number(dotted[1]));
-    }
-    const parsed = Date.parse(raw);
-    return Number.isFinite(parsed) ? parsed : 0;
+    const value = Date.parse(getResultDrawDateIso(row));
+    return Number.isFinite(value) ? value : 0;
   };
 
   const resultAliases: Record<string, string[]> = {
@@ -269,6 +267,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   const selectedResult = detailLottery
     ? results
         .filter((row) => {
+          if (isGovernmentLottery(detailLottery) && getResultDrawDateIso(row) !== selectedDate) return false;
           const idKey = normalizeMatchKey(detailLottery.id);
           const nameKey = normalizeMatchKey(detailLottery.name);
           const allowedKeys = [idKey, nameKey, ...(resultAliases[detailLottery.id] || []).map(normalizeMatchKey)].filter(Boolean);
@@ -291,8 +290,31 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   };
   const currentBangkokMinutes = getBangkokMinutes();
 
+  const awaitingGovernmentDraw = (item: LotteryItem) => {
+    if (!isGovernmentLottery(item)) return false;
+    const { top3, bottom2 } = getResultNumbers(item);
+    return normalizeDateToIso(item.date) !== selectedDate || !top3 || !bottom2;
+  };
+
   // Helper to get 4-stage live status for any lottery
   const getItemStage = (item: LotteryItem) => {
+    if (isGovernmentLottery(item)) {
+      if (!awaitingGovernmentDraw(item)) {
+        return {
+          stage: 'announced' as const,
+          label: 'ออกผลแล้ว',
+          badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+          detail: `ออกผลแล้ว (งวด ${item.date})`,
+        };
+      }
+      return {
+        stage: 'closed_waiting' as const,
+        label: 'รอประกาศวันงวด',
+        badgeClass: 'bg-slate-800 text-slate-400 border-slate-700',
+        detail: 'รอผลตามวันงวดจริง ไม่ยืนยันวันออกจากปฏิทิน',
+      };
+    }
+
     if (!isSelectedDateToday || summaryMode === 'daily') {
       if (item.status === 'announced' || (item.top3 && item.bottom2)) {
         return {
@@ -364,40 +386,35 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     // Filter lotteries appropriate for date:
     // - Weekend (Sat & Sun): regular stocks are closed, only VIP stocks and daily lotteries draw
     // - Weekday (Mon - Fri): both regular stocks and VIP stocks draw
-    // - Thai Gov & GSB: only on 1st & 16th
-    // - BAAC: only on 16th
+    // - Government lotteries remain visible; provider results determine the actual draw date.
     const baseList = filterLotteriesForDrawDate(lotteries, targetDateObj);
 
-    if (isSelectedDateToday && summaryMode === 'today') {
-      return baseList;
-    }
-
-    // Daily mode: map each lottery to the historical draw on selectedDate
+    // Historical draws and government rows must match the actual selected draw date.
     return baseList.map((item) => {
+      if (isSelectedDateToday && summaryMode === 'today' && !isGovernmentLottery(item)) return item;
       const idKey = normalizeMatchKey(item.id);
       const nameKey = normalizeMatchKey(item.name);
       const allowedKeys = [idKey, nameKey, ...(resultAliases[item.id] || []).map(normalizeMatchKey)].filter(Boolean);
 
       const matchedRows = results.filter((row) => {
-        const rowDateIso = normalizeDateToIso(row.วันที่จัดรูปแบบ || row.งวดวันที่ || row.date || row.draw_date);
+        const rowDateIso = getResultDrawDateIso(row);
         if (rowDateIso !== selectedDate) return false;
 
         const candidates = [row.หวย, row.lottery, row.lottery_code, row.ชื่อหวย, row.lotteryName]
           .map(normalizeMatchKey)
           .filter(Boolean);
-        return candidates.some((k) => allowedKeys.includes(k) || (k && nameKey && (k.includes(nameKey) || nameKey.includes(k))));
+        return candidates.some((key) => allowedKeys.includes(key));
       });
 
       if (matchedRows.length > 0) {
         const best = matchedRows[0];
-        const top3 = String(best.เลขบน_3_ตัว || best.top3 || (best.รางวัลที่_1 ? String(best.รางวัลที่_1).slice(-3) : '') || '').trim();
-        const bot2 = String(best.เลขล่าง_2_ตัว || best.bottom2 || best.เลขท้าย_2_ตัว || '').trim();
+        const { top3, bottom2 } = getResultNumbers(best);
         return {
           ...item,
           status: 'announced' as const,
-          top3: top3 || item.top3,
-          bottom2: bot2 || item.bottom2,
-          firstPrize: best.รางวัลที่_1 || item.firstPrize,
+          top3,
+          bottom2,
+          firstPrize: best.รางวัลที่_1 || best.firstPrize || '',
           date: best.งวดวันที่ || selectedDate,
           source: best.แหล่งข้อมูล || 'ประวัติผลรางวัล (JSON)',
         };
@@ -412,8 +429,8 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         return {
           ...item,
           status: 'announced' as const,
-          top3: historyMatch.top3,
-          bottom2: historyMatch.bottom2,
+          ...getResultNumbers(historyMatch),
+          firstPrize: '',
           date: historyMatch.date,
           source: 'ประวัติผลรางวัล',
         };
@@ -424,6 +441,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         status: 'waiting' as const,
         top3: '',
         bottom2: '',
+        firstPrize: '',
         date: selectedDate,
       };
     });
@@ -540,10 +558,8 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     text += `━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 
     listToUse.forEach((l, idx) => {
-      const top3 = l.top3 || '---';
-      const bot2 = l.bottom2 || '--';
       text += `${idx + 1}. ${l.flag} ${l.name} ${l.flag}\n`;
-      text += ` 👉 3 บน: ${top3} • 2 ล่าง: ${bot2}\n`;
+      text += `${formatResultPair(l)}\n`;
     });
 
     text += `━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -600,10 +616,8 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
 
   // Copy single lottery result
   const copySingleLottery = async (l: LotteryItem) => {
-    const top3 = l.top3 || '---';
-    const bot2 = l.bottom2 || '--';
     const dateStr = l.date || 'งวดล่าสุด';
-    const text = `${l.flag} ${l.name} ${l.flag} (งวดวันที่ ${dateStr})\n 👉 3 บน: ${top3} • 2 ล่าง: ${bot2}\n📢 อัปเดตเรียลไทม์ผ่าน Lottery Alert Pro\n#ผลหวย #${l.name.replace(/\s+/g, '')}`;
+    const text = `${l.flag} ${l.name} ${l.flag} (งวดวันที่ ${dateStr})\n${formatResultPair(l)}\n📢 อัปเดตเรียลไทม์ผ่าน Lottery Alert Pro\n#ผลหวย #${l.name.replace(/\s+/g, '')}`;
 
     try {
       if (navigator.clipboard?.writeText) {
@@ -624,10 +638,8 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
 
   // Share single lottery result
   const shareSingleLottery = async (l: LotteryItem) => {
-    const top3 = l.top3 || '---';
-    const bot2 = l.bottom2 || '--';
     const dateStr = l.date || 'งวดล่าสุด';
-    const text = `${l.flag} ${l.name} ${l.flag} (งวดวันที่ ${dateStr})\n 👉 3 บน: ${top3} • 2 ล่าง: ${bot2}\n📢 อัปเดตเรียลไทม์ผ่าน Lottery Alert Pro\n#ผลหวย #${l.name.replace(/\s+/g, '')}`;
+    const text = `${l.flag} ${l.name} ${l.flag} (งวดวันที่ ${dateStr})\n${formatResultPair(l)}\n📢 อัปเดตเรียลไทม์ผ่าน Lottery Alert Pro\n#ผลหวย #${l.name.replace(/\s+/g, '')}`;
 
     if (navigator.share) {
       try {
@@ -644,18 +656,9 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     }
   };
 
-  // Pronounce announcement per user instruction:
-  // For Thai Gov Lottery: read full official prizes.
-  // For stock lotteries and others: read 3 ตัว 2 ตัว without saying บน/ล่าง!
+  // Every lottery uses the same upper-three/lower-two announcement.
   const handleCustomSpeakLottery = (item: LotteryItem) => {
-    const isThaiGov =
-      item.category === 'gov_savings' ||
-      item.id === 'thai_gov' ||
-      item.id === 'gsb' ||
-      item.id === 'baac' ||
-      /สลากกินแบ่ง|รัฐบาลไทย|ออมสิน|ธ\.?ก\.?ส/i.test(item.name);
-    const topResult = String(item.top3 || item.firstPrize || '').trim();
-    const bottomResult = String(item.bottom2 || '').trim();
+    const { top3: topResult, bottom2: bottomResult } = getResultNumbers(item);
 
     if (!topResult && !bottomResult) {
       showToast('ยังไม่มีผลรางวัลจริงสำหรับอ่านออกเสียง');
@@ -669,14 +672,8 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     const spell = (str: string) => str.split('').map((c) => thaiNums[c] || c).join(' ');
 
     let speechText = `ประกาศผล ${item.name} งวดวันที่ ${item.date || 'ล่าสุด'}. `;
-    if (isThaiGov && item.firstPrize) {
-      speechText += `รางวัลที่หนึ่ง ออกเลข ${spell(item.firstPrize)}. `;
-      if (bottomResult) speechText += `เลขท้ายสองตัว ออกเลข ${spell(bottomResult)}. `;
-    } else {
-      // User requirement: stocks (regular and VIP) and foreign lotteries read 3 ตัวบน and 2 ตัวล่าง
-      if (topResult) speechText += `สามตัวบน ออกเลข ${spell(topResult)}. `;
-      if (bottomResult) speechText += `สองตัวล่าง ออกเลข ${spell(bottomResult)}. `;
-    }
+    if (topResult) speechText += `สามตัวบน ออกเลข ${spell(topResult)}. `;
+    if (bottomResult) speechText += `สองตัวล่าง ออกเลข ${spell(bottomResult)}. `;
 
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
@@ -739,11 +736,11 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         'หมวดหมู่': item.categoryLabel || item.category,
         'ช่วงเวลา': item.periodLabel || item.period || '-',
         'งวดวันที่': item.date || selectedDate,
-        '3 ตัวบน / รางวัลที่ 1': item.firstPrize || item.top3 || '---',
-        '2 ตัวล่าง': item.bottom2 || '--',
-        'สถานะ': item.status === 'announced' ? 'ออกผลแล้ว' : item.status === 'waiting' ? 'ปิดรับ/รอผล' : 'เปิดรับแทง',
-        'เวลาปิดรับ': item.closeTimeStr || '-',
-        'เวลาออกผล': item.drawTimeStr || '-',
+        '3 ตัวบน': getResultNumbers(item).top3 || '---',
+        '2 ตัวล่าง': getResultNumbers(item).bottom2 || '--',
+        'สถานะ': getItemStage(item).label,
+        'เวลาปิดรับ': awaitingGovernmentDraw(item) ? 'รอประกาศวันงวด' : item.closeTimeStr || '-',
+        'เวลาออกผล': awaitingGovernmentDraw(item) ? 'รอประกาศวันงวด' : item.drawTimeStr || '-',
         'แหล่งข้อมูล': item.source || 'ระบบอัตโนมัติ',
       }));
 
@@ -771,10 +768,8 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
           'รหัสหวย': row.หวย || row.id || '-',
           'หมวดหวย': row.หมวดหวย || row.category || '-',
           'งวดวันที่': row.งวดวันที่ || row.date || '-',
-          'รางวัลที่ 1': row.รางวัลที่_1 || row.firstPrize || '-',
-          'เลขบน 3 ตัว': row.เลขบน_3_ตัว || row.top3 || '-',
-          'เลขท้าย 2 ตัว': row.เลขท้าย_2_ตัว || row.bottom2 || '-',
-          'เลขล่าง 2 ตัว': row.เลขล่าง_2_ตัว || '-',
+          '3 ตัวบน': getResultNumbers(row).top3 || '---',
+          '2 ตัวล่าง': getResultNumbers(row).bottom2 || '--',
           'แหล่งข้อมูล': row.แหล่งข้อมูล || row.source || '-',
           'เวลาที่ตรวจพบ': row.เวลาที่ตรวจพบ || row.timestamp || '-',
         }));
@@ -783,8 +778,6 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
           { wch: 8 },
           { wch: 25 },
           { wch: 18 },
-          { wch: 16 },
-          { wch: 14 },
           { wch: 16 },
           { wch: 14 },
           { wch: 14 },
@@ -812,7 +805,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         return;
       }
 
-      const columns = ['ลำดับ', 'ชื่อหวย', 'หมวดหมู่', 'ช่วงเวลา', 'งวดวันที่', '3 ตัวบน / รางวัลที่ 1', '2 ตัวล่าง', 'สถานะ', 'เวลาปิดรับ', 'เวลาออกผล', 'แหล่งข้อมูล'];
+      const columns = ['ลำดับ', 'ชื่อหวย', 'หมวดหมู่', 'ช่วงเวลา', 'งวดวันที่', '3 ตัวบน', '2 ตัวล่าง', 'สถานะ', 'เวลาปิดรับ', 'เวลาออกผล', 'แหล่งข้อมูล'];
       const csvCell = (value: unknown) => {
         const cell = Array.isArray(value) ? value.join(', ') : String(value ?? '');
         return '"' + cell.replace(/"/g, '""') + '"';
@@ -824,11 +817,11 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         item.categoryLabel || item.category,
         item.periodLabel || item.period || '-',
         item.date || selectedDate,
-        item.firstPrize || item.top3 || '---',
-        item.bottom2 || '--',
-        item.status === 'announced' ? 'ออกผลแล้ว' : item.status === 'waiting' ? 'ปิดรับ/รอผล' : 'เปิดรับแทง',
-        item.closeTimeStr || '-',
-        item.drawTimeStr || '-',
+        getResultNumbers(item).top3 || '---',
+        getResultNumbers(item).bottom2 || '--',
+        getItemStage(item).label,
+        awaitingGovernmentDraw(item) ? 'รอประกาศวันงวด' : item.closeTimeStr || '-',
+        awaitingGovernmentDraw(item) ? 'รอประกาศวันงวด' : item.drawTimeStr || '-',
         item.source || 'ระบบอัตโนมัติ',
       ]);
 
@@ -875,8 +868,15 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
   };
 
   // Dedicated Schedule Tag Helper
-  const renderScheduleBadge = (drawDays: string) => {
-    const raw = String(drawDays || '').trim();
+  const renderScheduleBadge = (item: LotteryItem) => {
+    if (isGovernmentLottery(item)) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+          <span>วันงวดตามประกาศ</span>
+        </span>
+      );
+    }
+    const raw = String(item.drawDays || '').trim();
     if (raw.includes('ทุกวัน') || raw.includes('จันทร์ - อาทิตย์')) {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
@@ -888,20 +888,6 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30">
           <span>📅 จันทร์ - ศุกร์</span>
-        </span>
-      );
-    }
-    if (raw.includes('1 และ 16') || raw.includes('วันที่ 1 และ 16')) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">
-          <span>🏛️ เฉพาะวันที่ 1 และ 16</span>
-        </span>
-      );
-    }
-    if (raw.includes('16')) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-          <span>🏦 เฉพาะวันที่ 16</span>
         </span>
       );
     }
@@ -1497,8 +1483,8 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 <th className="py-3.5 px-4">ชื่อหวย / รอบวันออกสลาก</th>
                 <th className="py-3.5 px-3">เวลาปิดรับ</th>
                 <th className="py-3.5 px-3">หมวดหมู่</th>
-                <th className="py-3.5 px-3 text-center">3 ตัวบน / รางวัลที่ 1</th>
-                <th className="py-3.5 px-3 text-center">2 ตัวล่าง / เลขท้าย</th>
+                <th className="py-3.5 px-3 text-center">3 ตัวบน</th>
+                <th className="py-3.5 px-3 text-center">2 ตัวล่าง</th>
                 <th className="py-3.5 px-3 text-center">สถานะ</th>
                 <th className="py-3.5 px-4 text-right">ปุ่มแชร์ / สถิติ / เครื่องมือ</th>
               </tr>
@@ -1507,12 +1493,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
               {filteredLotteries.length > 0 ? (
                 filteredLotteries.map((item, index) => {
                   const isAnnounced = item.status === 'announced' || (item.top3 && item.bottom2);
-                  const isGov =
-                    item.category === 'gov_savings' ||
-                    item.id === 'thai_gov' ||
-                    item.id === 'gsb' ||
-                    item.id === 'baac' ||
-                    /สลากกินแบ่ง|รัฐบาลไทย|ออมสิน|ธ\.?ก\.?ส/i.test(item.name);
+                  const { top3, bottom2 } = getResultNumbers(item);
 
                   return (
                     <tr
@@ -1532,7 +1513,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                       <td className="py-3.5 px-3 font-semibold text-amber-400">
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                          <span className="font-bold">{item.drawTimeStr}</span>
+                          <span className="font-bold">{awaitingGovernmentDraw(item) ? 'รอประกาศวันงวด' : item.drawTimeStr}</span>
                         </div>
                       </td>
 
@@ -1545,7 +1526,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                               {item.name}
                             </div>
                             <div className="mt-1 flex items-center gap-1.5">
-                              {renderScheduleBadge(item.drawDays)}
+                              {renderScheduleBadge(item)}
                             </div>
                           </div>
                         </div>
@@ -1553,7 +1534,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
 
                       {/* Closing Time */}
                       <td className="py-4 px-3 text-slate-300 text-sm font-semibold">
-                        <span>{item.closeTimeStr}</span>
+                        <span>{awaitingGovernmentDraw(item) ? 'รอประกาศวันงวด' : item.closeTimeStr}</span>
                       </td>
 
                       {/* Category Badge */}
@@ -1567,15 +1548,15 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                         </span>
                       </td>
 
-                      {/* Top 3 / 1st Prize */}
+                      {/* Top 3 */}
                       <td className="py-4 px-3 text-center">
-                        {isAnnounced && (item.top3 || item.firstPrize) ? (
+                        {isAnnounced && top3 ? (
                           <div className="inline-flex flex-col items-center">
                             <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-0.5">
-                              {isGov ? 'รางวัลที่ 1' : '3 ตัวบน'}
+                              3 ตัวบน
                             </span>
                             <span className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 font-black text-base sm:text-lg border border-amber-500/50 shadow-sm inline-block font-mono">
-                              {item.firstPrize || item.top3}
+                              {top3}
                             </span>
                           </div>
                         ) : (
@@ -1587,13 +1568,13 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
 
                       {/* Bottom 2 */}
                       <td className="py-4 px-3 text-center">
-                        {isAnnounced && item.bottom2 ? (
+                        {isAnnounced && bottom2 ? (
                           <div className="inline-flex flex-col items-center">
                             <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-0.5">
-                              {isGov ? 'เลขท้าย 2 ตัว' : '2 ตัวล่าง'}
+                              2 ตัวล่าง
                             </span>
                             <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 font-black text-base sm:text-lg border border-emerald-500/50 shadow-sm inline-block font-mono">
-                              {item.bottom2}
+                              {bottom2}
                             </span>
                           </div>
                         ) : (
@@ -1823,7 +1804,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 </h3>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
                   <span className="text-xs text-slate-400">{detailLottery.categoryLabel}</span>
-                  {renderScheduleBadge(detailLottery.drawDays)}
+                  {renderScheduleBadge(detailLottery)}
                 </div>
               </div>
               <button
@@ -1839,11 +1820,11 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
                 <div className="text-[10px] text-slate-400">เวลาออกตามกำหนด</div>
-                <div className="mt-1 text-lg font-bold text-amber-300">{detailLottery.drawTimeStr}</div>
+                <div className="mt-1 text-lg font-bold text-amber-300">{awaitingGovernmentDraw(detailLottery) ? 'รอประกาศวันงวด' : detailLottery.drawTimeStr}</div>
               </div>
               <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
                 <div className="text-[10px] text-slate-400">เวลาปิดรับตามกำหนด</div>
-                <div className="mt-1 text-lg font-bold text-slate-200">{detailLottery.closeTimeStr}</div>
+                <div className="mt-1 text-lg font-bold text-slate-200">{awaitingGovernmentDraw(detailLottery) ? 'รอประกาศวันงวด' : detailLottery.closeTimeStr}</div>
               </div>
             </div>
 
@@ -1855,15 +1836,15 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-lg bg-slate-950/80 p-3">
-                    <div className="text-[10px] text-amber-400">รางวัลที่ 1 / 3 ตัวบน</div>
+                    <div className="text-[10px] text-amber-400">3 ตัวบน</div>
                     <div className="mt-1 break-all font-mono text-xl font-black text-amber-300">
-                      {selectedResult.รางวัลที่_1 || selectedResult.firstPrize || selectedResult.เลขบน_3_ตัว || selectedResult.top3 || '—'}
+                      {getResultNumbers(selectedResult).top3 || '---'}
                     </div>
                   </div>
                   <div className="rounded-lg bg-slate-950/80 p-3">
-                    <div className="text-[10px] text-emerald-400">เลขท้าย 2 ตัว / 2 ตัวล่าง</div>
+                    <div className="text-[10px] text-emerald-400">2 ตัวล่าง</div>
                     <div className="mt-1 break-all font-mono text-xl font-black text-emerald-300">
-                      {selectedResult.เลขท้าย_2_ตัว || selectedResult.เลขล่าง_2_ตัว || selectedResult.bottom2 || selectedResult.last2 || '—'}
+                      {getResultNumbers(selectedResult).bottom2 || '--'}
                     </div>
                   </div>
                 </div>

@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { assertNoSecretFields, commitGitHubJson, GitHubStorageError, readGitHubJson } from './server/githubStorage.ts';
 import { getOverallHealth } from './server/selfHeal.ts';
+import { getResultNumbers } from './src/utils/lotteryResult.ts';
 import { timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
@@ -776,16 +777,10 @@ async function getLocalVerifiedFallback(prompt: string) {
 
   if (matchedCachedResult) {
     const lotteryName = matchedCachedResult.ชื่อหวย || matchedCachedResult.หวย || 'หวย';
-    const isGovernment = ['government', 'gov_savings'].includes(String(matchedCachedResult.หมวดหวย || '').toLowerCase());
-    const upperNumber = isGovernment
-      ? matchedCachedResult.รางวัลที่_1 || '-'
-      : matchedCachedResult.เลขบน_3_ตัว || matchedCachedResult.รางวัลที่_1 || '-';
-    const lowerNumber = matchedCachedResult.เลขล่าง_2_ตัว || matchedCachedResult.เลขท้าย_2_ตัว || '-';
+    const { top3, bottom2 } = getResultNumbers(matchedCachedResult);
     fallbackText = `ข้อมูลที่บันทึกไว้ล่าสุดของ ${lotteryName} (ข้อมูลย้อนหลังจากแคชระบบ ไว้เป็นข้อมูลสำรอง)\n` +
       `• วันที่งวด: ${matchedCachedResult.งวดวันที่ || matchedCachedResult.วันที่จัดรูปแบบ || 'ไม่ระบุ'}\n` +
-      (isGovernment
-        ? `• รางวัลที่ 1: ${upperNumber}\n• เลขท้าย 2 ตัว: ${lowerNumber}\n`
-        : `• 3 ตัวบน: ${upperNumber}\n• 2 ตัวล่าง: ${lowerNumber}\n`) +
+      `• ${top3 || '---'} - ${bottom2 || '--'}\n` +
       `• แหล่งข้อมูลเดิม: ${matchedCachedResult.แหล่งข้อมูล || 'ไม่ระบุ'}\n` +
       `🛡️ สถานะระบบ: ทำงานผ่านระบบป้องกันระบบล่ม (Circuit Breaker & Fallback Cache) แสดงผลข้อมูลจากแคชระบบเป็นไปอย่างปลอดภัย`;
     fallbackSources.push({ title: 'คลังผลหวยที่ระบบบันทึกไว้', uri: 'https://github.com/jirapatza/Bombim00' });
@@ -862,6 +857,7 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
       model: 'gemini-3.8-flash',
       contents: prompt,
       config: {
+        systemInstruction: 'แสดงผลทุกหวยรวมถึงหวยรัฐบาลเฉพาะชื่อหวย วันงวดจริงตามประกาศ และผลรูปแบบ 782 - 57 (สามตัวบน - สองตัวล่าง) เท่านั้น สามตัวบนของหวยรัฐบาลคือสามหลักท้ายของรางวัลที่หนึ่ง ห้ามแสดงเลขหกหลักหรือรางวัลอื่น ห้ามเดาวันงวดเป็นวันที่ 1 หรือ 16 และห้ามเติมเลขเมื่อไม่มีข้อมูล ให้ระบุว่ายังไม่พบผลยืนยัน',
         tools: [{ googleSearch: {} }],
       },
     });
@@ -952,14 +948,14 @@ app.post('/api/ai/transcribe', async (req, res) => {
             },
           },
           {
-            text: 'ถอดความเสียงนี้เป็นข้อความภาษาไทยอย่างแม่นยำ โดยเฉพาะหากผู้พูดระบุตัวเลขหรือเลขสลาก',
+            text: 'ถอดความเสียงนี้เป็นข้อความภาษาไทยอย่างแม่นยำ เขียนเลขที่ผู้พูดระบุเป็นตัวเลขอารบิก โดยคงเลขศูนย์นำหน้าและแยกแต่ละชุดเลขสองหลักหรือสามหลัก ห้ามแต่งเลขเพิ่ม',
           },
         ],
       },
     });
 
     const transcript = response.text?.trim() || '';
-    const digitMatches = transcript.match(/\b\d{2,6}\b/g) || [];
+    const digitMatches = transcript.match(/(?<!\d)\d{2,3}(?!\d)/g) || [];
 
     return res.json({
       success: true,

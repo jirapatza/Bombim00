@@ -102,21 +102,20 @@ export function isGovernmentLottery(item: ScheduledLottery): boolean {
   const category = String(item.category ?? '').toLowerCase();
   const id = String(item.id ?? '').toLowerCase();
   const name = String(item.name ?? '');
-  return category === 'gov_savings' || ['thai_gov', 'gsb', 'baac'].includes(id) ||
-    /รัฐบาล|สลากกินแบ่ง|ออมสิน|ธ\\s*\\.?\\s*ก\\s*\\.?\\s*ส\\s*\\.?|ธกส/u.test(name);
+  return ['government', 'gov_savings'].includes(category) || ['thai_gov', 'gsb', 'baac'].includes(id) ||
+    /รัฐบาล|สลากกินแบ่ง|ออมสิน|ธ\s*\.?\s*ก\s*\.?\s*ส\s*\.?|ธกส/u.test(name);
 }
 
 export function filterLotteriesForDrawDate<T extends ScheduledLottery>(
   lotteries: T[],
   date: Date = new Date(),
 ): T[] {
-  const { day, weekday } = getBangkokDateParts(date);
+  const { weekday } = getBangkokDateParts(date);
   return lotteries.filter((item) => {
     if (isGovernmentLottery(item)) {
-      const id = String(item.id ?? '').trim().toLowerCase();
-      const name = String(item.name ?? '').trim();
-      const isBaac = id === 'baac' || /ธ\\s*\\.?\\s*ก\\s*\\.?\\s*ส\\s*\\.?|ธกส/u.test(name);
-      return isBaac ? day === 16 : day === 1 || day === 16;
+      // Keep the row available for provider-announced or postponed draws.
+      // Visibility is not proof that a government draw is scheduled today.
+      return true;
     }
     if (isVipLottery(item)) return true;
 

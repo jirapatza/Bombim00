@@ -134,8 +134,8 @@ def test_non_government_ntfy_body_uses_top3_and_bottom2_labels(monkeypatch):
     assert ok is True
     import json
     payload = json.loads(sent["body"])
-    assert "3 ตัวบน: 024" in payload["message"]
-    assert "2 ตัวล่าง: 44" in payload["message"]
+    assert "024 - 44" in payload["message"]
+    assert "024 - 44" in payload["message"]
     assert "รางวัลที่ 1:" not in payload["message"]
     assert payload["title"] == "📢 ผลหวยฮานอยพิเศษ งวด 31 ตุลาคม 2569"
 
@@ -220,8 +220,8 @@ def test_ntfy_template_error_fallback_keeps_non_government_lottery_identity(monk
     import json
     payload = json.loads(sent["body"])
     assert "ผลหวยฮานอยพิเศษ" in payload["title"]
-    assert "3 ตัวบน: 024" in payload["message"]
-    assert "2 ตัวล่าง: 44" in payload["message"]
+    assert "024 - 44" in payload["message"]
+    assert "024 - 44" in payload["message"]
     assert "สลากกินแบ่งรัฐบาล" not in payload["message"]
 
 
@@ -291,4 +291,4 @@ def test_send_line_notification_uses_messaging_api_and_server_secrets(monkeypatc
     assert posted["url"] == "https://api.line.me/v2/bot/message/push"
     assert posted["headers"]["Authorization"] == "Bearer fake-channel-token"
     assert posted["payload"]["to"] == "U1234567890"
-    assert "3 ตัวบน: 024" in posted["payload"]["messages"][0]["text"]
+    assert "024 - 44" in posted["payload"]["messages"][0]["text"]
