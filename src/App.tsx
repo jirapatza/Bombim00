@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import bundledLotteryCatalog from '../data/all_lotteries.json';
-import { apiFetch } from './utils/api';
+import { apiFetch, setDashboardPassword } from './utils/api';
 import { getResultNumbers, formatResultPair } from './utils/lotteryResult';
 import {
   Bell,
@@ -992,11 +992,26 @@ export default function App() {
     setIsTriggering(true);
     try {
       // Choose one backend; retrying on another can run and notify twice.
-      const res = await apiFetch('/api/github/dispatch', {
+      const dispatchOptions = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workflow: 'lottery.yml', inputs: { lottery_target: 'all', force_notify: 'false' } }),
-      });
+      };
+      let res = await apiFetch('/api/github/dispatch', dispatchOptions);
+      if (res.status === 401) {
+        const password = window.prompt('กรุณากรอกรหัส Dashboard ที่ตั้งไว้ใน Render เพื่อสั่งตรวจผล');
+        if (password === null) {
+          showToast('ยกเลิกการตรวจผล: ยังไม่ได้ยืนยันรหัส Dashboard');
+          return;
+        }
+        if (!password.trim()) {
+          showToast('กรุณากรอกรหัส Dashboard ก่อนตรวจผล');
+          return;
+        }
+        setDashboardPassword(password);
+        // The rejected 401 request did not dispatch a workflow; retry only once.
+        res = await apiFetch('/api/github/dispatch', dispatchOptions);
+      }
       const data = await res.json().catch(() => ({}));
 
       if (res.ok && data?.success) {
