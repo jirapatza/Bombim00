@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { apiFetch, setDashboardPassword as setApiDashboardPassword } from '../utils/api';
+import { waitForDispatchedWorkflow } from '../utils/workflowTracking';
 import {
   Activity,
   AlertTriangle,
@@ -16,6 +17,7 @@ import {
 interface GitHubRun {
   id: number;
   name: string;
+  display_title?: string;
   status: string;
   conclusion: string | null;
   html_url: string;
@@ -53,6 +55,8 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
   const [runs, setRuns] = useState<GitHubRun[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [trackedRunUrl, setTrackedRunUrl] = useState<string | null>(null);
+  const trackingControllerRef = useRef<AbortController | null>(null);
 
   const saveDashboardPassword = () => {
     const value = dashboardPassword.trim();
@@ -105,12 +109,18 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
   useEffect(() => {
     void checkConnection();
     void fetchRuns();
+    return () => trackingControllerRef.current?.abort();
   }, []);
 
   const dispatchWorkflow = async () => {
     setIsDispatching(true);
     setError(null);
     setMessage(null);
+    setTrackedRunUrl(null);
+    let acceptedByGitHub = false;
+    const controller = new AbortController();
+    trackingControllerRef.current = controller;
+
     try {
       const response = await apiFetch('/api/github/dispatch', {
         method: 'POST',
@@ -125,15 +135,48 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success || !data.queued) {
-        throw new Error(data.error || `ส่งคำสั่งตรวจผลไม่สำเร็จ (HTTP ${response.status})`);
+        throw new Error(data.error || 'ส่งคำสั่งตรวจผลไม่สำเร็จ (HTTP ' + response.status + ')');
       }
-      setMessage('ส่งคำสั่งไป GitHub Actions แล้ว กำลังรอผลการตรวจสอบ');
-      onRefreshStatus?.();
-      window.setTimeout(() => { void fetchRuns(); }, 2500);
+
+      acceptedByGitHub = true;
+      if (!data.request_id) {
+        setMessage('GitHub รับคำสั่งแล้ว แต่เซิร์ฟเวอร์ยังไม่ส่งรหัสติดตามงาน กรุณาตรวจสอบประวัติด้านล่าง');
+        await fetchRuns();
+        return;
+      }
+
+      setMessage('GitHub รับคำสั่งแล้ว กำลังค้นหางานที่ตรงกับคำสั่งนี้...');
+      const run = await waitForDispatchedWorkflow(String(data.request_id), {
+        signal: controller.signal,
+        onProgress: (progress, matchedRun) => {
+          if (controller.signal.aborted) return;
+          if (matchedRun?.html_url) setTrackedRunUrl(matchedRun.html_url);
+          if (progress === 'queued') setMessage('GitHub Actions อยู่ในคิว กำลังรอเริ่มทำงาน');
+          if (progress === 'in_progress') setMessage('GitHub Actions กำลังทำงาน...');
+        },
+      });
+      if (controller.signal.aborted) return;
+
+      await fetchRuns();
+      if (!run) {
+        setMessage('GitHub รับคำสั่งแล้ว แต่ยังยืนยันผลการรันไม่ได้ภายใน 3 นาที กรุณาเปิดประวัติ GitHub Actions');
+        return;
+      }
+      if (run.html_url) setTrackedRunUrl(run.html_url);
+
+      if (run.conclusion === 'success') {
+        setMessage('GitHub Actions ทำงานสำเร็จแล้ว กำลังโหลดข้อมูลล่าสุดบนเว็บไซต์');
+        onRefreshStatus?.();
+      } else {
+        setMessage(null);
+        setError('GitHub Actions จบการทำงานด้วยสถานะ: ' + (run.conclusion || 'ไม่ทราบสาเหตุ') + ' กรุณาเปิดบันทึกการรัน');
+      }
     } catch (err: any) {
-      setError(err?.message || 'ส่งคำสั่งตรวจผลไม่สำเร็จ');
+      if (controller.signal.aborted) return;
+      setError((acceptedByGitHub ? 'ส่งคำสั่งแล้ว แต่ติดตามผลไม่สำเร็จ: ' : '') + (err?.message || 'เชื่อมต่อ GitHub ไม่สำเร็จ'));
     } finally {
-      setIsDispatching(false);
+      if (trackingControllerRef.current === controller) trackingControllerRef.current = null;
+      if (!controller.signal.aborted) setIsDispatching(false);
     }
   };
 
@@ -237,6 +280,7 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
           {isDispatching ? 'กำลังส่งคำสั่ง...' : 'สั่งตรวจผลผ่าน GitHub Actions'}
         </button>
         {message && <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">{message}</p>}
+        {trackedRunUrl && <a href={trackedRunUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-sky-300 underline">ดูสถานะงานนี้ใน GitHub <ExternalLink className="h-3 w-3" /></a>}
         {error && <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">{error}</p>}
       </section>
 
@@ -263,7 +307,7 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
             {runs.map((run) => (
               <a key={run.id} href={run.html_url} target="_blank" rel="noreferrer" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/70 p-3 hover:border-purple-500/40">
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-bold text-slate-100">{run.name} · #{run.run_number}</p>
+                  <p className="truncate text-xs font-bold text-slate-100">{run.display_title || run.name} · #{run.run_number}</p>
                   <p className="mt-1 text-[11px] text-slate-500">{formatTime(run.created_at)} · {run.head_branch} · {run.event}</p>
                 </div>
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${run.status === 'completed' && run.conclusion === 'success' ? 'bg-emerald-500/10 text-emerald-300' : run.status === 'in_progress' ? 'bg-amber-500/10 text-amber-300' : 'bg-slate-800 text-slate-300'}`}>
