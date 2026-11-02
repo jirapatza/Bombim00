@@ -566,8 +566,16 @@ app.get('/api/system/monitor', async (_req, res) => {
     }));
 
     const sourceChecks = await Promise.all(monitoredSources.map(checkExternalSource));
+    const supabaseEnabled = process.env.SUPABASE_STORAGE_ENABLED === 'true';
+    const supabaseHealth = supabaseEnabled
+      ? await probeSupabase().then(() => ({ enabled: true, reachable: true })).catch((err: any) => ({
+          enabled: true,
+          reachable: false,
+          error: err?.message || 'Supabase connectivity check failed',
+        }))
+      : { enabled: false, reachable: false };
     const hasMissingCriticalFiles = filesHealth.some((file) => file.critical && (!file.exists || !file.validJson));
-    const overallStatus = hasMissingCriticalFiles
+    const overallStatus = hasMissingCriticalFiles || (supabaseEnabled && !supabaseHealth.reachable)
       ? 'error'
       : sourceChecks.some((source) => source.status !== 'healthy') ? 'degraded' : 'healthy';
 
@@ -585,8 +593,10 @@ app.get('/api/system/monitor', async (_req, res) => {
         totalHeapMB: Math.round(memory.heapTotal / 1024 / 1024),
         backgroundRunnerActive: false,
         lotteryRunner: 'GitHub Actions only',
-        durableStorage: 'GitHub repository JSON',
+        durableStorage: supabaseEnabled ? 'Supabase primary; GitHub JSON recovery mirror' : 'GitHub repository JSON',
+        activeDataSource: supabaseEnabled ? 'supabase' : 'github-json',
       },
+      supabaseHealth,
       filesHealth,
       sourceChecks,
     });
