@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import bundledLotteryCatalog from '../data/all_lotteries.json';
 import { apiFetch } from './utils/api';
 import {
@@ -64,7 +64,7 @@ import {
   Mic,
 } from 'lucide-react';
 
-import { BatchTicketChecker } from './components/BatchTicketChecker';
+const BatchTicketChecker = lazy(() => import('./components/BatchTicketChecker').then((module) => ({ default: module.BatchTicketChecker })));
 import { DailySummaryTable, LotteryItem } from './components/DailySummaryTable';
 import { LatestThreeResults } from './components/LatestThreeResults';
 import { filterLotteriesForDrawDate } from './utils/lotterySchedule';
@@ -81,14 +81,14 @@ const bundledLotteryFallback: LotteryItem[] = (bundledLotteryCatalog as LotteryI
 }));
 
 
-import { GitHubAppRunner } from './components/GitHubAppRunner';
+const GitHubAppRunner = lazy(() => import('./components/GitHubAppRunner').then((module) => ({ default: module.GitHubAppRunner })));
 import { LiveUpcomingDraws } from './components/LiveUpcomingDraws';
 import { SettingsCenter } from './components/SettingsCenter';
-import { DataAccuracyCenter } from './components/DataAccuracyCenter';
-import { SystemMonitorKiosk } from './components/SystemMonitorKiosk';
+const DataAccuracyCenter = lazy(() => import('./components/DataAccuracyCenter').then((module) => ({ default: module.DataAccuracyCenter })));
+const SystemMonitorKiosk = lazy(() => import('./components/SystemMonitorKiosk').then((module) => ({ default: module.SystemMonitorKiosk })));
 import { CrashShieldErrorBoundary } from './components/CrashShieldErrorBoundary';
 import { ShieldCheck } from 'lucide-react';
-import { AdminBackOfficeModal } from './components/AdminBackOfficeModal';
+const AdminBackOfficeModal = lazy(() => import('./components/AdminBackOfficeModal').then((module) => ({ default: module.AdminBackOfficeModal })));
 
 interface LotteryResult {
   ชื่อหวย?: string;
@@ -1693,8 +1693,9 @@ export default function App() {
                   ภาพรวมสถานะและปัญหาระบบ
                 </h2>
                 <p className="text-xs text-slate-400">ตรวจสุขภาพระบบและดูรายละเอียดข้อผิดพลาดจากหน้าจอเดียว</p>
+                <button type="button" onClick={() => setIsAdminBackOfficeOpen(true)} className="mt-2 inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/20">เปิดศูนย์หลังบ้านและเครื่องมือดูแลระบบ</button>
               </div>
-              <SystemMonitorKiosk />
+              <Suspense fallback={<div className="rounded-2xl border border-slate-800 p-4 text-sm text-slate-400">กำลังโหลดข้อมูลตรวจสุขภาพระบบ...</div>}><SystemMonitorKiosk /></Suspense>
             </section>
             <div className="border-t border-slate-800" />
             <section className="space-y-2">
@@ -1705,11 +1706,9 @@ export default function App() {
                 </h2>
                 <p className="text-xs text-slate-400">ตรวจสอบ workflow และสั่งรันงานตรวจหวยเมื่อจำเป็น</p>
               </div>
-              <GitHubAppRunner
-                onRefreshStatus={fetchData}
-                systemStatus={status}
-                allLotteriesCount={allLotteries.length}
-              />
+              <Suspense fallback={<div className="rounded-2xl border border-slate-800 p-4 text-sm text-slate-400">กำลังโหลด GitHub Actions...</div>}>
+                <GitHubAppRunner onRefreshStatus={fetchData} systemStatus={status} allLotteriesCount={allLotteries.length} />
+              </Suspense>
             </section>
           </div>
         )}
@@ -1779,26 +1778,27 @@ export default function App() {
             {/* Subtab 1: AI Search Grounding & Voice Verification */}
             {checkerSubTab === 'accuracy' && (
               <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันการตรวจสอบข้อมูลขัดข้อง (AI Accuracy Shield)">
-                <DataAccuracyCenter
-                  allLotteries={allLotteries}
-                  latestDraw={latestDraw}
-                  onApplyTicketCheck={(numbers) => {
-                    setTicketInput(numbers[0] || '');
-                    setCheckerSubTab('batch');
-                    showToast(`นำหมายเลข [${numbers.join(', ')}] เข้าสู่ระบบตรวจรางวัลเรียบร้อยแล้ว`);
-                  }}
-                  onSelectLottery={(item) => setSelectedCatalogLottery(item)}
-                />
+                <Suspense fallback={<div className="p-4 text-sm text-slate-400">กำลังโหลดศูนย์ตรวจสอบความแม่นยำ...</div>}>
+                  <DataAccuracyCenter
+                    allLotteries={allLotteries}
+                    latestDraw={latestDraw}
+                    onApplyTicketCheck={(numbers) => {
+                      setTicketInput(numbers[0] || '');
+                      setCheckerSubTab('batch');
+                      showToast(`นำหมายเลข [${numbers.join(', ')}] เข้าสู่ระบบตรวจรางวัลเรียบร้อยแล้ว`);
+                    }}
+                    onSelectLottery={(item) => setSelectedCatalogLottery(item)}
+                  />
+                </Suspense>
               </CrashShieldErrorBoundary>
             )}
 
             {/* Subtab 2: Single & Batch Ticket Checker */}
             {checkerSubTab === 'batch' && (
               <CrashShieldErrorBoundary isolateScope fallbackTitle="ระบบป้องกันเครื่องตรวจสลากขัดข้อง (Checker Shield)">
-                <BatchTicketChecker
-                  results={results}
-                  latestDraw={latestDraw}
-                />
+                <Suspense fallback={<div className="p-4 text-sm text-slate-400">กำลังโหลดเครื่องตรวจสลาก...</div>}>
+                  <BatchTicketChecker results={results} latestDraw={latestDraw} />
+                </Suspense>
               </CrashShieldErrorBoundary>
             )}
 
@@ -2357,6 +2357,7 @@ export default function App() {
       </footer>
 
       {/* Admin & Back-Office Control Center Modal */}
+      {isAdminBackOfficeOpen && <Suspense fallback={<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 text-sm text-slate-200">กำลังโหลดศูนย์หลังบ้าน...</div>}>
       <AdminBackOfficeModal
         isOpen={isAdminBackOfficeOpen}
         onClose={() => setIsAdminBackOfficeOpen(false)}
@@ -2398,6 +2399,7 @@ export default function App() {
           onTestAnnouncement: testSingleAnnouncement,
         }}
       />
+      </Suspense>}
     </div>
   );
 }
