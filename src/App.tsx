@@ -1506,11 +1506,13 @@ export default function App() {
             {/* Primary Back-Office & Settings Button */}
             <button
               type="button"
-              onClick={() => setIsAdminBackOfficeOpen(true)}
+              onClick={() => setActiveTab('settings')}
+              aria-label="เปิดหน้าตั้งค่า"
+              aria-current={activeTab === 'settings' ? 'page' : undefined}
               className="px-4 py-2.5 sm:px-5 sm:py-3 text-sm sm:text-base font-black rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 transition flex items-center gap-2 shadow-lg shadow-amber-500/25 cursor-pointer active:scale-95"
             >
               <Settings className="w-5 h-5 text-slate-950" />
-              <span>⚙️ ระบบหลังบ้าน &amp; ตั้งค่า</span>
+              <span>ตั้งค่า</span>
             </button>
 
             <button
@@ -1559,7 +1561,6 @@ export default function App() {
               { id: 'checker', label: '🎫 ตรวจสลากรางวัล', icon: Search },
               { id: 'live', label: '⏱️ รอบหวยสด & นับถอยหลัง', icon: Radio },
               { id: 'history', label: '📊 สถิติ & ประวัติย้อนหลัง', icon: History },
-              { id: 'settings', label: '⚙️ ตั้งค่าระบบ', icon: Settings },
             ].map((tab) => {
               const Icon = tab.icon;
               const selected = activeTab === tab.id ||
