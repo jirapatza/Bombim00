@@ -35,7 +35,6 @@ def test_migration_requires_all_legacy_sources():
 
 
 def test_importer_uses_correct_auth_headers_for_modern_secret(monkeypatch):
-    from io import BytesIO
     import scripts.migrate_legacy_to_supabase as migration
 
     seen = {}
