@@ -70,7 +70,8 @@ def _request(path: str, method: str = "GET", body: Any = None, prefer: str | Non
 
 def _rows(table: str) -> list[dict[str, Any]]:
     encoded = urllib.parse.quote(table, safe="")
-    data = _request(f"{encoded}?select=payload&limit=1000")
+    ordering = "&order=created_at.desc" if table == TABLES["results"] else ""
+    data = _request(f"{encoded}?select=payload&limit=1000{ordering}")
     if not isinstance(data, list) or any(not isinstance(row, dict) or "payload" not in row for row in data):
         raise SupabaseStorageError(f"Supabase returned an invalid {table} payload.")
     return [row["payload"] for row in data]
