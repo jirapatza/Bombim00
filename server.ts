@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { assertNoSecretFields, commitGitHubJson, GitHubStorageError, readGitHubJson } from './server/githubStorage.ts';
-import { probeSupabase, SupabaseStorageError } from './server/supabaseStorage.ts';
+import { probeSupabase, readSupabaseCatalog, readSupabaseResults, readSupabaseSingleton, SupabaseStorageError, writeSupabaseCatalog, writeSupabaseSingleton } from './server/supabaseStorage.ts';
 import { getOverallHealth } from './server/selfHeal.ts';
 import { timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
@@ -156,13 +156,13 @@ const ai = new GoogleGenAI({
 app.get('/api/supabase/health', async (_req, res) => {
   try {
     const result = await probeSupabase();
-    return res.json({ ...result, activeDataSource: 'github-json' });
+    return res.json({ ...result, activeDataSource: process.env.SUPABASE_STORAGE_ENABLED === 'true' ? 'supabase' : 'github-json' });
   } catch (err: any) {
     const status = err instanceof SupabaseStorageError ? err.status : 502;
     return res.status(status).json({
       configured: err?.code !== 'SUPABASE_NOT_CONFIGURED',
       reachable: false,
-      activeDataSource: 'github-json',
+      activeDataSource: process.env.SUPABASE_STORAGE_ENABLED === 'true' ? 'supabase' : 'github-json',
       error: err?.message || 'Supabase connectivity check failed',
       code: err?.code || 'SUPABASE_PROBE_FAILED',
     });
@@ -174,8 +174,9 @@ app.get('/api/health', (req, res) => {
     res.json({
       ok: true,
       status: 'healthy',
-      storage: process.env.GITHUB_TOKEN ? 'configured' : 'read_only',
-      writesEnabled: Boolean(process.env.GITHUB_TOKEN),
+      storage: process.env.SUPABASE_STORAGE_ENABLED === 'true' ? 'supabase' : (process.env.GITHUB_TOKEN ? 'configured' : 'read_only'),
+      activeDataSource: process.env.SUPABASE_STORAGE_ENABLED === 'true' ? 'supabase' : 'github-json',
+      writesEnabled: Boolean(process.env.GITHUB_TOKEN) || process.env.SUPABASE_STORAGE_ENABLED === 'true',
       githubTokenConfigured: Boolean(process.env.GITHUB_TOKEN),
       dashboardAuthConfigured: Boolean(process.env.DASH_PASSWORD),
       timestamp: new Date().toISOString(),
@@ -190,7 +191,9 @@ app.get('/api/health', (req, res) => {
 // 1. GET /api/status - Read the latest status written by GitHub Actions.
 app.get('/api/status', async (req, res) => {
   try {
-    const data = await readGitHubJson<Record<string, any>>('status/status.json');
+    const data = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseSingleton('system_status')
+      : await readGitHubJson<Record<string, any>>('status/status.json');
     return res.json(data);
   } catch (err: any) {
     const status = err instanceof GitHubStorageError ? err.status : 502;
@@ -201,7 +204,9 @@ app.get('/api/status', async (req, res) => {
 // 2. GET /api/settings - Read the canonical, durable settings file from GitHub.
 app.get('/api/settings', async (req, res) => {
   try {
-    const data = await readGitHubJson<Record<string, any>>('config/settings.json');
+    const data = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseSingleton('app_settings')
+      : await readGitHubJson<Record<string, any>>('config/settings.json');
     return res.json(data);
   } catch (err: any) {
     const status = err instanceof GitHubStorageError ? err.status : 502;
@@ -217,6 +222,9 @@ app.post('/api/settings', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Settings must be a JSON object.' });
     }
     assertNoSecretFields(updated);
+    if (process.env.SUPABASE_STORAGE_ENABLED === 'true') {
+      await writeSupabaseSingleton('app_settings', updated);
+    }
     const commit = await commitGitHubJson(
       'config/settings.json',
       updated,
@@ -233,7 +241,9 @@ app.post('/api/settings', async (req, res) => {
 // 4. GET /api/results - Read the latest results committed by GitHub Actions.
 app.get('/api/results', async (req, res) => {
   try {
-    const data = await readGitHubJson<any[]>('lottery_previous_results.json');
+    const data = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseResults()
+      : await readGitHubJson<any[]>('lottery_previous_results.json');
     return res.json(data);
   } catch (err: any) {
     const status = err instanceof GitHubStorageError ? err.status : 502;
@@ -295,7 +305,9 @@ app.post('/api/lotteries/cleanup-history', async (req, res) => {
 // 4.1 GET /api/all-lotteries - Read the canonical lottery catalog from GitHub.
 app.get('/api/all-lotteries', async (req, res) => {
   try {
-    const data = await readGitHubJson<any[]>('data/all_lotteries.json');
+    const data = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseCatalog()
+      : await readGitHubJson<any[]>('data/all_lotteries.json');
     return res.json(data);
   } catch (err: any) {
     const status = err instanceof GitHubStorageError ? err.status : 502;
@@ -309,6 +321,9 @@ app.post('/api/all-lotteries', async (req, res) => {
     const updated = req.body;
     if (!Array.isArray(updated)) {
       return res.status(400).json({ success: false, error: 'Lottery catalog must be a JSON array.' });
+    }
+    if (process.env.SUPABASE_STORAGE_ENABLED === 'true') {
+      await writeSupabaseCatalog(updated);
     }
     const commit = await commitGitHubJson(
       'data/all_lotteries.json',
