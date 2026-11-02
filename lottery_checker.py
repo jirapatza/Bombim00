@@ -805,7 +805,8 @@ def main():
         if not sl.should_notify(S, row):
             row["สถานะการแจ้งเตือน"] = "not_eligible"
             continue
-        if not force_notify and sl.was_already_notified(row, previous_results):
+        supabase_mode = os.environ.get("SUPABASE_CHECKER_ENABLED", "").strip().lower() == "true"
+        if not force_notify and not supabase_mode and sl.was_already_notified(row, previous_results):
             row["สถานะการแจ้งเตือน"] = "sent"
             print(f"[DEDUP] Already delivered; skip {row.get('ชื่อหวย', 'unknown lottery')} / {row.get('งวดวันที่', 'unknown draw')}.")
             continue
