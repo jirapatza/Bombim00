@@ -6,6 +6,8 @@ import {
   readSupabaseResults,
   readSupabaseSingleton,
   SupabaseStorageError,
+  writeSupabaseCatalog,
+  writeSupabaseSingleton,
 } from '../server/supabaseStorage.ts';
 
 const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -81,4 +83,23 @@ test('probe checks a server-side table without returning credentials', async () 
   assert.equal(result.reachable, true);
   assert.match(requestUrl, /app_settings\?select=id/);
   assert.equal(JSON.stringify(result).includes('sb_secret'), false);
+});
+
+test('singleton and catalog writes use idempotent PostgREST upserts', async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url: String(url), method: init.method, headers: new Headers(init.headers), body: init.body });
+    return new Response(null, { status: 204 });
+  };
+  await writeSupabaseSingleton('app_settings', { enabled: true }, {
+    url: 'https://project.supabase.co', key: 'sb_secret_test', fetchImpl,
+  });
+  await writeSupabaseCatalog([{ id: 'hanoi-vip', name: 'Hanoi VIP' }], {
+    url: 'https://project.supabase.co', key: 'sb_secret_test', fetchImpl,
+  });
+  assert.match(calls[0].url, /app_settings\?on_conflict=id/);
+  assert.equal(calls[0].headers.get('prefer'), 'resolution=merge-duplicates,return=minimal');
+  assert.deepEqual(JSON.parse(calls[0].body), [{ id: 'main', payload: { enabled: true } }]);
+  assert.match(calls[1].url, /lottery_catalog\?on_conflict=lottery_id/);
+  assert.deepEqual(JSON.parse(calls[1].body), [{ lottery_id: 'hanoi-vip', payload: { id: 'hanoi-vip', name: 'Hanoi VIP' } }]);
 });
