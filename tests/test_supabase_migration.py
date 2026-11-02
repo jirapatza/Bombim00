@@ -39,22 +39,27 @@ def test_importer_uses_correct_auth_headers_for_modern_secret(monkeypatch):
 
     seen = {}
     class FakeResponse:
+        def __init__(self, body):
+            self.body = body
         def __enter__(self):
             return self
         def __exit__(self, *_args):
             return False
         def read(self):
-            return b'{"status":"imported"}'
+            return self.body
 
     def fake_urlopen(request, timeout):
         seen["headers"] = {key.lower(): value for key, value in request.header_items()}
         seen["timeout"] = timeout
-        return FakeResponse()
+        if "sync_bombim00_legacy_suppressions" in request.full_url:
+            return FakeResponse(b"2")
+        return FakeResponse(b'{"status":"imported"}')
 
     monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
     monkeypatch.setenv("SUPABASE_SECRET_KEY", "sb_secret_example")
     monkeypatch.setattr(migration.urllib.request, "urlopen", fake_urlopen)
-    assert migration.import_snapshot({}, "a" * 64) == {"status": "imported"}
+    result = migration.import_snapshot({}, "a" * 64)
+    assert result == {"status": "imported", "legacy_suppressions_added": 2}
     assert seen["headers"]["apikey"] == "sb_secret_example"
     assert "authorization" not in seen["headers"]
 
@@ -64,20 +69,25 @@ def test_importer_adds_bearer_for_legacy_service_role_jwt(monkeypatch):
 
     seen = {}
     class FakeResponse:
+        def __init__(self, body):
+            self.body = body
         def __enter__(self):
             return self
         def __exit__(self, *_args):
             return False
         def read(self):
-            return b'{"status":"imported"}'
+            return self.body
 
     def fake_urlopen(request, timeout):
         seen["headers"] = {key.lower(): value for key, value in request.header_items()}
-        return FakeResponse()
+        if "sync_bombim00_legacy_suppressions" in request.full_url:
+            return FakeResponse(b"1")
+        return FakeResponse(b'{"status":"imported"}')
 
     monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
     monkeypatch.setenv("SUPABASE_SECRET_KEY", "legacy-service-role-jwt")
     monkeypatch.setattr(migration.urllib.request, "urlopen", fake_urlopen)
-    assert migration.import_snapshot({}, "b" * 64) == {"status": "imported"}
+    result = migration.import_snapshot({}, "b" * 64)
+    assert result == {"status": "imported", "legacy_suppressions_added": 1}
     assert seen["headers"]["apikey"] == "legacy-service-role-jwt"
     assert seen["headers"]["authorization"] == "Bearer legacy-service-role-jwt"
