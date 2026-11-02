@@ -47,6 +47,21 @@ python scripts/migrate_legacy_to_supabase.py --apply
 
 The importer sends modern `sb_secret_...` keys in the `apikey` header only; legacy service-role JWT keys are sent in both the `apikey` and server-side `Authorization: Bearer` headers. Never put the secret key in source control, browser code, logs, or chat.
 
+## Read-only source parity verification
+
+After the import, run the verifier from the repository root using the same
+server-only Supabase environment variables:
+
+```bash
+python scripts/verify_supabase_migration.py
+```
+
+It compares the complete result fingerprint set and every JSONB payload,
+catalog IDs and payloads, settings, system status, self-healing history, and
+the import-batch SHA-256/counts. It is read-only and exits non-zero on any
+mismatch. Do not enable either runtime feature flag unless this verifier
+returns `"status": "verified"`.
+
 ## Opt-in application integration (disabled by default)
 
 The server adapter and Python checker now support Supabase behind separate,
