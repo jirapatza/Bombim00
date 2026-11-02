@@ -47,43 +47,57 @@ python scripts/migrate_legacy_to_supabase.py --apply
 
 The importer sends modern `sb_secret_...` keys in the `apikey` header only; legacy service-role JWT keys are sent in both the `apikey` and server-side `Authorization: Bearer` headers. Never put the secret key in source control, browser code, logs, or chat.
 
-## Read-only source parity verification
+## Safe staged rollout
 
-After the import, run the verifier from the repository root using the same
-server-only Supabase environment variables:
+Use shadow-write mode to keep Supabase synchronized while GitHub JSON remains
+the source of truth. This avoids a stale database snapshot while the live
+5-minute checker continues to run.
 
-```bash
-python scripts/verify_supabase_migration.py
-```
+1. Keep `SUPABASE_STORAGE_ENABLED` and `SUPABASE_CHECKER_ENABLED` false.
+2. Configure `SUPABASE_URL` and `SUPABASE_SECRET_KEY` in Render and GitHub
+   Actions. Set `SUPABASE_SHADOW_WRITE=true` on Render and repository variable
+   `SUPABASE_SHADOW_WRITE=true` in GitHub Actions. The server and checker
+   continue reading GitHub JSON but mirror writes to Supabase.
+3. Wait for any currently running lottery-checker job to finish. Run the
+   manual workflow **Import GitHub JSON snapshot into Supabase** against this
+   branch. It shares the lottery checker's concurrency group, imports all five
+   files atomically using upserts, then syncs suppression markers for every
+   legacy result marked `sent`.
+4. Run the manual workflow **Verify Supabase migration parity** against the
+   same branch. It uses the same concurrency group and is read-only.
+5. Continue only if it returns `"status": "verified"`. It compares the complete
+   result fingerprint set and every JSONB payload, catalog IDs/payloads,
+   settings, status, self-healing history, import SHA/counts, and legacy
+   notification suppressions. Any mismatch blocks cutover; keep shadow mode
+   enabled, correct/re-import, and verify again.
+6. Only after parity passes, set Render `SUPABASE_STORAGE_ENABLED=true` and
+   GitHub Actions repository variable `SUPABASE_CHECKER_ENABLED=true`.
+   Turn `SUPABASE_SHADOW_WRITE` back off. The API and checker then read from
+   Supabase; GitHub JSON remains the recovery mirror.
 
-It compares the complete result fingerprint set and every JSONB payload,
-catalog IDs and payloads, settings, system status, self-healing history, and
-the import-batch SHA-256/counts. It is read-only and exits non-zero on any
-mismatch. Do not enable either runtime feature flag unless this verifier
-returns `"status": "verified"`. The same read-only check is available as the
-manual GitHub Actions workflow **Verify Supabase migration parity**; run it
-against this branch with the two Supabase secrets configured.
+The importer sends modern `sb_secret_...` keys in the `apikey` header only;
+legacy service-role JWT keys are sent in both the `apikey` and server-side
+`Authorization: Bearer` headers. Never put the secret key in source control,
+browser code, logs, or chat.
+
+The manual workflows are available in GitHub Actions as
+**Import GitHub JSON snapshot into Supabase** and
+**Verify Supabase migration parity**. Choose the same branch for both and use
+the two Supabase repository secrets.
 
 ## Opt-in application integration (disabled by default)
 
-The server adapter and Python checker now support Supabase behind separate,
-explicit feature flags. Neither flag is enabled by this PR.
+The Node API and Python checker have independent primary-read feature flags,
+plus a shared shadow-write flag:
 
-- Render: set `SUPABASE_STORAGE_ENABLED=true` only after the database import
-  and validation gates pass. Add `SUPABASE_URL` and `SUPABASE_SECRET_KEY`
-  as private Render environment variables. The API then reads results,
-  catalog, settings, and status from Supabase; settings/catalog writes are
-  committed to Supabase first and mirrored to GitHub JSON.
-- GitHub Actions: set repository variable `SUPABASE_CHECKER_ENABLED=true`
-  only after the same validation gates pass. Add `SUPABASE_URL` and
-  `SUPABASE_SECRET_KEY` as Actions secrets. The checker reads settings and
-  prior results from Supabase, writes results/status to Supabase, and retains
-  the JSON files as a GitHub backup mirror.
-- Both flags must remain false until the exact same project has the validated
-  legacy import and the SQL migrations have been applied. If enabled but
-  credentials or database access fail, the checker fails closed; it does not
-  silently fall back to JSON and send duplicate alerts.
-- The history cleanup API is deliberately blocked while Supabase is primary
+- Render: `SUPABASE_STORAGE_ENABLED=true` switches API reads to Supabase.
+  `SUPABASE_SHADOW_WRITE=true` mirrors writes while GitHub JSON remains primary.
+- GitHub Actions: `SUPABASE_CHECKER_ENABLED=true` switches checker reads and
+  notification reservations to Supabase. `SUPABASE_SHADOW_WRITE=true` mirrors
+  result/status writes while JSON remains primary.
+- If a primary or shadow flag is enabled but credentials or database access
+  fail, the operation fails closed; it does not silently fall back.
+- The history cleanup API is blocked during either primary or shadow mode
   until a transactional maintenance RPC is available.
 
 Apply the notification idempotency migration
