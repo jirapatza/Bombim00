@@ -124,9 +124,18 @@ use a verified snapshot and compare fingerprints first.
 ## Backup destination
 
 Use a separate **private** GitHub repository for GPG AES-256 encrypted database dumps.
-The workflow removes the plaintext dump before uploading. Keep the decryption passphrase
-in a password manager separate from GitHub. Never place raw production dumps in the
-public application repository.
+The workflow removes the plaintext dump before uploading. Configure these exact
+GitHub Actions values before running **Supabase encrypted backup to private GitHub repository**:
+
+- Repository secrets: `SUPABASE_DB_URL`, `BACKUP_REPO_TOKEN`,
+  `BACKUP_ENCRYPTION_PASSPHRASE`.
+- Repository variable: `BACKUP_REPOSITORY` in `owner/repository` format.
+
+The backup token needs write access only to that private destination repository.
+Keep the decryption passphrase in a password manager separate from GitHub. Never
+place raw production dumps in the public application repository. Until these
+values are configured and a backup plus test restore have passed, automated
+database backup is not considered active.
 
 
 ## Restore a backup safely
