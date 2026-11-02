@@ -124,6 +124,8 @@ Do not switch production reads/writes until all of these pass:
 - Supabase result count equals the source result count (175 at the last audit).
 - Supabase catalog count equals the source catalog count (54 at the last audit).
 - Every imported fingerprint exists exactly once.
+- Every legacy result marked `sent` has a global suppression marker; no
+  historical channel delivery is invented.
 - Settings, system status, and self-healing history match the source JSON exactly.
 - A test write/read and a repeat import are successful.
 - The result checker uses Supabase for both reading and writing; no mixed GitHub/Supabase
