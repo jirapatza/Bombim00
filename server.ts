@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { assertNoSecretFields, commitGitHubJson, GitHubStorageError, readGitHubJson } from './server/githubStorage.ts';
+import { probeSupabase, readSupabaseCatalog, readSupabaseResults, readSupabaseSingleton, SupabaseStorageError, writeSupabaseCatalog, writeSupabaseSingleton } from './server/supabaseStorage.ts';
 import { getOverallHealth } from './server/selfHeal.ts';
 import { timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
@@ -16,6 +17,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const supabaseStorageEnabled = () => process.env.SUPABASE_STORAGE_ENABLED === 'true';
+const supabaseShadowWriteEnabled = () => process.env.SUPABASE_SHADOW_WRITE === 'true';
+const supabaseWriteEnabled = () => supabaseStorageEnabled() || supabaseShadowWriteEnabled();
 
 function pruneApiRateMap() {
   const now = Date.now();
@@ -31,6 +35,7 @@ app.use(express.json({ limit: '25mb' }));
 // Protect known state-changing API routes only. Unknown/removed paths must reach
 // Express' JSON 404 handler instead of being masked by an authentication error.
 const protectedApiRoutes = new Set([
+  'GET /api/supabase/health',
   'POST /api/settings',
   'POST /api/lotteries/cleanup-history',
   'POST /api/all-lotteries',
@@ -154,13 +159,37 @@ const ai = geminiApiKey
   : null;
 
 
+// Server-only Supabase connectivity probe. This does not change the active data source.
+app.get('/api/supabase/health', async (_req, res) => {
+  try {
+    const result = await probeSupabase();
+    return res.json({
+      ...result,
+      activeDataSource: supabaseStorageEnabled() ? 'supabase' : 'github-json',
+      shadowWrite: supabaseShadowWriteEnabled(),
+    });
+  } catch (err: any) {
+    const status = err instanceof SupabaseStorageError ? err.status : 502;
+    return res.status(status).json({
+      configured: err?.code !== 'SUPABASE_NOT_CONFIGURED',
+      reachable: false,
+      activeDataSource: supabaseStorageEnabled() ? 'supabase' : 'github-json',
+      shadowWrite: supabaseShadowWriteEnabled(),
+      error: err?.message || 'Supabase connectivity check failed',
+      code: err?.code || 'SUPABASE_PROBE_FAILED',
+    });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   try {
     res.json({
       ok: true,
       status: 'healthy',
-      storage: process.env.GITHUB_TOKEN ? 'configured' : 'read_only',
-      writesEnabled: Boolean(process.env.GITHUB_TOKEN),
+      storage: supabaseStorageEnabled() ? 'supabase' : (supabaseShadowWriteEnabled() ? 'github-json+supabase-shadow' : (process.env.GITHUB_TOKEN ? 'configured' : 'read_only')),
+      activeDataSource: supabaseStorageEnabled() ? 'supabase' : 'github-json',
+      shadowWrite: supabaseShadowWriteEnabled(),
+      writesEnabled: Boolean(process.env.GITHUB_TOKEN) || supabaseWriteEnabled(),
       githubTokenConfigured: Boolean(process.env.GITHUB_TOKEN),
       dashboardAuthConfigured: Boolean(process.env.DASH_PASSWORD),
       geminiConfigured: Boolean(geminiApiKey),
@@ -176,7 +205,9 @@ app.get('/api/health', (req, res) => {
 // 1. GET /api/status - Read the latest status written by GitHub Actions.
 app.get('/api/status', async (req, res) => {
   try {
-    const data = await readGitHubJson<Record<string, any>>('status/status.json');
+    const data = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseSingleton('system_status')
+      : await readGitHubJson<Record<string, any>>('status/status.json');
     return res.json(data);
   } catch (err: any) {
     const status = err instanceof GitHubStorageError ? err.status : 502;
@@ -187,7 +218,9 @@ app.get('/api/status', async (req, res) => {
 // 2. GET /api/settings - Read the canonical, durable settings file from GitHub.
 app.get('/api/settings', async (req, res) => {
   try {
-    const data = await readGitHubJson<Record<string, any>>('config/settings.json');
+    const data = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseSingleton('app_settings')
+      : await readGitHubJson<Record<string, any>>('config/settings.json');
     return res.json(data);
   } catch (err: any) {
     const status = err instanceof GitHubStorageError ? err.status : 502;
@@ -203,6 +236,9 @@ app.post('/api/settings', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Settings must be a JSON object.' });
     }
     assertNoSecretFields(updated);
+    if (supabaseWriteEnabled()) {
+      await writeSupabaseSingleton('app_settings', updated);
+    }
     const commit = await commitGitHubJson(
       'config/settings.json',
       updated,
@@ -219,7 +255,9 @@ app.post('/api/settings', async (req, res) => {
 // 4. GET /api/results - Read the latest results committed by GitHub Actions.
 app.get('/api/results', async (req, res) => {
   try {
-    const data = await readGitHubJson<any[]>('lottery_previous_results.json');
+    const data = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseResults()
+      : await readGitHubJson<any[]>('lottery_previous_results.json');
     return res.json(data);
   } catch (err: any) {
     const status = err instanceof GitHubStorageError ? err.status : 502;
@@ -230,6 +268,12 @@ app.get('/api/results', async (req, res) => {
 // 4.0 POST /api/lotteries/cleanup-history - Purge unrequested LIW/pingpong and duplicate entries
 app.post('/api/lotteries/cleanup-history', async (req, res) => {
   try {
+    if (supabaseWriteEnabled()) {
+      return res.status(409).json({
+        success: false,
+        error: 'History cleanup is temporarily disabled in Supabase mode until the database maintenance RPC is enabled.',
+      });
+    }
     const raw = await readGitHubJson<any[]>('lottery_previous_results.json');
     if (!Array.isArray(raw)) {
       return res.json({ success: true, removedCount: 0, totalAfter: 0 });
@@ -281,7 +325,9 @@ app.post('/api/lotteries/cleanup-history', async (req, res) => {
 // 4.1 GET /api/all-lotteries - Read the canonical lottery catalog from GitHub.
 app.get('/api/all-lotteries', async (req, res) => {
   try {
-    const data = await readGitHubJson<any[]>('data/all_lotteries.json');
+    const data = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseCatalog()
+      : await readGitHubJson<any[]>('data/all_lotteries.json');
     return res.json(data);
   } catch (err: any) {
     const status = err instanceof GitHubStorageError ? err.status : 502;
@@ -295,6 +341,9 @@ app.post('/api/all-lotteries', async (req, res) => {
     const updated = req.body;
     if (!Array.isArray(updated)) {
       return res.status(400).json({ success: false, error: 'Lottery catalog must be a JSON array.' });
+    }
+    if (supabaseWriteEnabled()) {
+      await writeSupabaseCatalog(updated);
     }
     const commit = await commitGitHubJson(
       'data/all_lotteries.json',
@@ -563,8 +612,18 @@ app.get('/api/system/monitor', async (_req, res) => {
     }));
 
     const sourceChecks = await Promise.all(monitoredSources.map(checkExternalSource));
+    const supabaseEnabled = supabaseStorageEnabled();
+    const supabaseWriteEnabledNow = supabaseWriteEnabled();
+    const supabaseHealth = supabaseWriteEnabledNow
+      ? await probeSupabase().then(() => ({ enabled: true, reachable: true, shadowWrite: !supabaseEnabled })).catch((err: any) => ({
+          enabled: true,
+          reachable: false,
+          shadowWrite: !supabaseEnabled,
+          error: err?.message || 'Supabase connectivity check failed',
+        }))
+      : { enabled: false, reachable: false, shadowWrite: false };
     const hasMissingCriticalFiles = filesHealth.some((file) => file.critical && (!file.exists || !file.validJson));
-    const overallStatus = hasMissingCriticalFiles
+    const overallStatus = hasMissingCriticalFiles || (supabaseWriteEnabledNow && !supabaseHealth.reachable)
       ? 'error'
       : sourceChecks.some((source) => source.status !== 'healthy') ? 'degraded' : 'healthy';
 
@@ -582,8 +641,14 @@ app.get('/api/system/monitor', async (_req, res) => {
         totalHeapMB: Math.round(memory.heapTotal / 1024 / 1024),
         backgroundRunnerActive: false,
         lotteryRunner: 'GitHub Actions only',
-        durableStorage: 'GitHub repository JSON',
+        durableStorage: supabaseEnabled
+          ? 'Supabase primary; GitHub JSON recovery mirror'
+          : supabaseShadowWriteEnabled()
+            ? 'GitHub JSON primary; Supabase shadow mirror'
+            : 'GitHub repository JSON',
+        activeDataSource: supabaseEnabled ? 'supabase' : 'github-json',
       },
+      supabaseHealth,
       filesHealth,
       sourceChecks,
     });
@@ -688,8 +753,13 @@ app.post('/api/system/self-heal', async (req, res) => {
       actions,
     };
 
-    const previous = await readGitHubJson<any[]>('status/self_healing_history.json').catch(() => []);
+    const previous = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseSingleton('self_healing_history')
+      : await readGitHubJson<any[]>('status/self_healing_history.json').catch(() => []);
     const history = [session, ...(Array.isArray(previous) ? previous : [])].slice(0, 50);
+    if (supabaseWriteEnabled()) {
+      await writeSupabaseSingleton('self_healing_history', history);
+    }
     const commit = await commitGitHubJson(
       'status/self_healing_history.json',
       history,
@@ -717,7 +787,9 @@ app.post('/api/system/self-heal', async (req, res) => {
 
 app.get('/api/system/self-heal-history', async (_req, res) => {
   try {
-    const history = await readGitHubJson<any[]>('status/self_healing_history.json');
+    const history = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseSingleton('self_healing_history')
+      : await readGitHubJson<any[]>('status/self_healing_history.json');
     return res.json({ success: true, history: Array.isArray(history) ? history : [] });
   } catch (err: any) {
     if (err instanceof GitHubStorageError && err.status === 404) {
@@ -730,6 +802,9 @@ app.get('/api/system/self-heal-history', async (_req, res) => {
 
 app.delete('/api/system/self-heal-history', async (_req, res) => {
   try {
+    if (supabaseWriteEnabled()) {
+      await writeSupabaseSingleton('self_healing_history', []);
+    }
     const commit = await commitGitHubJson(
       'status/self_healing_history.json',
       [],
@@ -750,13 +825,19 @@ app.delete('/api/system/self-heal-history', async (_req, res) => {
 async function getLocalVerifiedFallback(prompt: string) {
   let previousResults: any[] = [];
   try {
-    previousResults = await readGitHubJson<any[]>('lottery_previous_results.json');
+    previousResults = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseResults()
+      : await readGitHubJson<any[]>('lottery_previous_results.json');
   } catch {
     previousResults = [];
   }
 
   let allLotteriesList: any[] = [];
-  try { allLotteriesList = await readGitHubJson<any[]>('data/all_lotteries.json'); } catch { allLotteriesList = []; }
+  try {
+    allLotteriesList = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseCatalog()
+      : await readGitHubJson<any[]>('data/all_lotteries.json');
+  } catch { allLotteriesList = []; }
 
   const normalizedPrompt = String(prompt || '').toLocaleLowerCase('th-TH');
   const matchedLottery = allLotteriesList.find((item: any) => {

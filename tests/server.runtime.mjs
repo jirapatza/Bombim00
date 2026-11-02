@@ -42,6 +42,14 @@ test('production API protects writes and exposes only the single GitHub Actions 
     });
 
     assert.equal((await post('/api/settings', {}, false)).status, 401);
+    assert.equal((await fetch(`${base}/api/supabase/health`)).status, 401);
+    const supabaseProbe = await fetch(`${base}/api/supabase/health`, {
+      headers: { Authorization: 'Bearer test-secret' },
+    });
+    assert.equal(supabaseProbe.status, 503);
+    const supabaseProbeBody = await supabaseProbe.json();
+    assert.equal(supabaseProbeBody.activeDataSource, 'github-json');
+    assert.equal(supabaseProbeBody.reachable, false);
     assert.equal((await post('/api/settings', {})).status, 503);
     assert.equal((await post('/api/github/dispatch', {})).status, 503);
     assert.equal((await post('/api/test-line', {})).status, 503);

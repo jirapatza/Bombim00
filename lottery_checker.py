@@ -691,11 +691,39 @@ def send_line_notification(row: dict) -> bool:
         print(f"[WARN] Failed posting to LINE Messaging API: {e}")
     return False
 
-def send_all_notifications(row: dict) -> bool:
-    """Dispatch alert across active channels (LINE & ntfy strictly)."""
-    s1 = send_ntfy_notification(row)
-    s2 = send_line_notification(row)
-    return s1 or s2
+def send_all_notifications(row: dict, force: bool = False) -> bool:
+    """Dispatch per-channel alerts with database idempotency when Supabase mode is enabled."""
+    if os.environ.get("SUPABASE_CHECKER_ENABLED", "").strip().lower() != "true":
+        s1 = send_ntfy_notification(row)
+        s2 = send_line_notification(row)
+        return s1 or s2
+
+    import supabase_storage
+    fingerprint = sl.result_fingerprint(row)
+    any_success_or_existing = False
+    for channel, sender in (("ntfy", send_ntfy_notification), ("line", send_line_notification)):
+        claimed = supabase_storage.claim_notification(
+            fingerprint,
+            channel,
+            {"lottery": row.get("ชื่อหวย"), "draw_date": row.get("งวดวันที่")},
+            force=force,
+        )
+        if not claimed:
+            print(f"[DEDUP] Supabase already has a sent or active {channel} reservation for this draw.")
+            any_success_or_existing = True
+            continue
+        try:
+            success = bool(sender(row))
+        except Exception:
+            supabase_storage.complete_notification(fingerprint, channel, False)
+            raise
+        completed = supabase_storage.complete_notification(fingerprint, channel, success)
+        if not completed:
+            raise supabase_storage.SupabaseStorageError(
+                f"Could not finalize {channel} notification reservation; stopping this run safely."
+            )
+        any_success_or_existing = any_success_or_existing or success
+    return any_success_or_existing
 
 
 def main():
@@ -777,11 +805,12 @@ def main():
         if not sl.should_notify(S, row):
             row["สถานะการแจ้งเตือน"] = "not_eligible"
             continue
-        if not force_notify and sl.was_already_notified(row, previous_results):
+        supabase_mode = os.environ.get("SUPABASE_CHECKER_ENABLED", "").strip().lower() == "true"
+        if not force_notify and not supabase_mode and sl.was_already_notified(row, previous_results):
             row["สถานะการแจ้งเตือน"] = "sent"
             print(f"[DEDUP] Already delivered; skip {row.get('ชื่อหวย', 'unknown lottery')} / {row.get('งวดวันที่', 'unknown draw')}.")
             continue
-        if send_all_notifications(row):
+        if send_all_notifications(row, force=force_notify):
             row["สถานะการแจ้งเตือน"] = "sent"
             delivered.append(row)
         else:

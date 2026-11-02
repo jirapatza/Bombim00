@@ -40,7 +40,10 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
 
 
 def load(path: str = DEFAULT_SETTINGS_PATH) -> Dict[str, Any]:
-    """Load settings from config/settings.json or fallback to defaults."""
+    """Load settings from Supabase only when the checker feature flag is explicitly enabled."""
+    if os.environ.get("SUPABASE_CHECKER_ENABLED", "").strip().lower() == "true":
+        import supabase_storage
+        return supabase_storage.load_settings()
     if not os.path.exists(path):
         return DEFAULT_SETTINGS.copy()
     
@@ -276,7 +279,12 @@ def write_status(
 
     # Read existing status to preserve counters and logs
     existing: Dict[str, Any] = {}
-    if os.path.exists(status_path):
+    supabase_read_mode = os.environ.get("SUPABASE_CHECKER_ENABLED", "").strip().lower() == "true"
+    supabase_write_mode = supabase_read_mode or os.environ.get("SUPABASE_SHADOW_WRITE", "").strip().lower() == "true"
+    if supabase_read_mode:
+        import supabase_storage
+        existing = supabase_storage.load_status()
+    elif os.path.exists(status_path):
         try:
             with open(status_path, "r", encoding="utf-8") as f:
                 existing = json.load(f)
@@ -344,16 +352,24 @@ def write_status(
     }
 
     try:
+        if supabase_write_mode:
+            import supabase_storage
+            # In shadow mode JSON remains primary; in checker mode Supabase is primary.
+            supabase_storage.save_singleton("system_status", status_data)
         with open(status_path, "w", encoding="utf-8") as f:
             json.dump(status_data, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"[ERROR] Failed to write status to {status_path}: {e}")
+        raise
 
     return status_data
 
 
 def load_previous_results(path: str = DEFAULT_RESULTS_PATH) -> List[Dict[str, Any]]:
-    """Load previously saved lottery results with Thai keys."""
+    """Load previous results from the explicitly selected durable store."""
+    if os.environ.get("SUPABASE_CHECKER_ENABLED", "").strip().lower() == "true":
+        import supabase_storage
+        return supabase_storage.load_results()
     if not os.path.exists(path):
         return []
     try:
@@ -365,10 +381,20 @@ def load_previous_results(path: str = DEFAULT_RESULTS_PATH) -> List[Dict[str, An
 
 
 def save_results(rows: List[Dict[str, Any]], path: str = DEFAULT_RESULTS_PATH) -> None:
-    """Save lottery results to lottery_previous_results.json."""
+    """Save results to the explicitly selected durable store."""
+    supabase_write_mode = (
+        os.environ.get("SUPABASE_CHECKER_ENABLED", "").strip().lower() == "true"
+        or os.environ.get("SUPABASE_SHADOW_WRITE", "").strip().lower() == "true"
+    )
+    if supabase_write_mode:
+        import supabase_storage
+        # Mirror writes in shadow mode; Supabase is primary only when checker mode is enabled.
+        supabase_storage.save_results(rows)
     os.makedirs(os.path.dirname(path) if os.path.dirname(path) else ".", exist_ok=True)
     try:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(rows, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"[ERROR] Failed to save results to {path}: {e}")
+        if supabase_write_mode:
+            raise

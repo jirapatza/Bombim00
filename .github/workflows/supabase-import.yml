@@ -1,0 +1,38 @@
+name: Import GitHub JSON snapshot into Supabase
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize the snapshot import with the 5-minute lottery checker workflow.
+concurrency:
+  group: bombim00-lottery-alert
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout selected repository revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - name: Checkout latest main JSON snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-snapshot
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Import the current five-file JSON snapshot (upsert only)
+        env:
+          BOMBIM00_SOURCE_ROOT: ${{ github.workspace }}/main-snapshot
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          python scripts/migrate_legacy_to_supabase.py --apply

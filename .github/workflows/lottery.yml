@@ -116,6 +116,11 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_TARGET_ID: ${{ secrets.LINE_TARGET_ID }}
+          # Supabase remains disabled unless the repository variable is explicitly set to "true".
+          SUPABASE_CHECKER_ENABLED: ${{ vars.SUPABASE_CHECKER_ENABLED || 'false' }}
+          SUPABASE_SHADOW_WRITE: ${{ vars.SUPABASE_SHADOW_WRITE || 'false' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           FORCE_NOTIFY: ${{ github.event.inputs.force_notify || 'false' }}
           LOTTERY_TARGET: ${{ github.event.inputs.lottery_target || 'all' }}
         run: |

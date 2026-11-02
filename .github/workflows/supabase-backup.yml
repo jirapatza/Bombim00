@@ -1,0 +1,108 @@
+name: Supabase encrypted backup to private GitHub repository
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bombim00-supabase-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate backup configuration
+        id: config
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_REPOSITORY: ${{ vars.BACKUP_REPOSITORY }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ] || [ -z "${BACKUP_REPOSITORY:-}" ] || [ -z "${BACKUP_REPO_TOKEN:-}" ] || [ -z "${BACKUP_ENCRYPTION_PASSPHRASE:-}" ]; then
+            echo "::warning::Backup is not configured. Set SUPABASE_DB_URL, BACKUP_REPOSITORY, BACKUP_REPO_TOKEN, and BACKUP_ENCRYPTION_PASSPHRASE."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ ! "$BACKUP_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "::error::BACKUP_REPOSITORY must use owner/repository format."
+            exit 1
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install PostgreSQL client
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Create database dump
+        if: steps.config.outputs.configured == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p backup
+          export PGSSLMODE=require
+          FILE="bombim00-$(date -u +%Y%m%dT%H%M%SZ).dump"
+          pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-acl --file "backup/$FILE"
+          printf '%s' "$BACKUP_ENCRYPTION_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric --cipher-algo AES256 --output "backup/$FILE.gpg" "backup/$FILE"
+          shred -u "backup/$FILE"
+          sha256sum "backup/$FILE.gpg" > "backup/$FILE.gpg.sha256"
+          echo "BACKUP_FILE=$FILE.gpg" >> "$GITHUB_ENV"
+
+      - name: Push dump to separate private repository
+        if: steps.config.outputs.configured == 'true'
+        env:
+          BACKUP_REPOSITORY: ${{ vars.BACKUP_REPOSITORY }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Askpass keeps the token out of the remote URL and .git/config.
+          cat > "$RUNNER_TEMP/git-askpass.sh" <<'ASKPASS'
+          #!/bin/sh
+          case "$1" in
+            *Username*) printf '%s\n' "x-access-token" ;;
+            *) printf '%s\n' "$BACKUP_REPO_TOKEN" ;;
+          esac
+          ASKPASS
+          chmod 700 "$RUNNER_TEMP/git-askpass.sh"
+          export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
+          export GIT_TERMINAL_PROMPT=0
+          git clone "https://github.com/$BACKUP_REPOSITORY.git" backup-repo
+
+          # Support both an existing repository and a newly-created empty private repository.
+          if ! git -C backup-repo rev-parse --verify HEAD >/dev/null 2>&1; then
+            git -C backup-repo switch --orphan main
+          fi
+
+          install -m 600 "backup/$BACKUP_FILE" "backup-repo/$BACKUP_FILE"
+          install -m 600 "backup/$BACKUP_FILE.sha256" "backup-repo/$BACKUP_FILE.sha256"
+
+          # Git checkout resets filesystem mtimes, so retention must use the UTC
+          # timestamp embedded in each backup filename rather than find -mtime.
+          cutoff="$(date -u -d '30 days ago' +%Y%m%d)"
+          for file in backup-repo/bombim00-*.dump.gpg; do
+            [ -f "$file" ] || continue
+            stamp="${file##*/}"
+            stamp="${stamp#bombim00-}"
+            stamp="${stamp%%T*}"
+            if [[ "$stamp" =~ ^[0-9]{8}$ ]] && [[ "$stamp" < "$cutoff" ]]; then
+              rm -f -- "$file" "$file.sha256"
+            fi
+          done
+
+          cd backup-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- .
+          git commit -m "backup: Bombim00 Supabase snapshot $BACKUP_FILE"
+          git push --set-upstream origin HEAD
