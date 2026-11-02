@@ -139,6 +139,12 @@ def save_results(rows: list[dict[str, Any]]) -> None:
         })
     if records:
         _request("lottery_results?on_conflict=fingerprint", "POST", records, "resolution=merge-duplicates,return=minimal")
+        shadow_mode = (
+            os.environ.get("SUPABASE_SHADOW_WRITE", "").strip().lower() == "true"
+            and os.environ.get("SUPABASE_CHECKER_ENABLED", "").strip().lower() != "true"
+        )
+        if shadow_mode and any(row.get("สถานะการแจ้งเตือน") == "sent" for row in rows):
+            _request("rpc/sync_bombim00_legacy_suppressions", "POST", {})
 
 
 def save_catalog(rows: list[dict[str, Any]]) -> None:
