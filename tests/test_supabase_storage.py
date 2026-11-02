@@ -33,9 +33,12 @@ def test_claim_and_complete_use_atomic_rpc(monkeypatch):
     assert ss.complete_notification("fingerprint", "ntfy", True, "provider-id")
     assert calls[0][0] == "rpc/claim_bombim00_notification"
     assert calls[0][2]["p_fingerprint"] == "fingerprint"
+    assert calls[0][2]["p_force"] is False
     assert calls[1][0] == "rpc/complete_bombim00_notification"
     assert calls[1][2]["p_success"] is True
     assert calls[1][2]["p_provider_reference"] == "provider-id"
+    assert ss.claim_notification("fingerprint", "ntfy", {}, force=True)
+    assert calls[2][2]["p_force"] is True
 
 
 def test_save_results_uses_canonical_fingerprint_and_preserves_payload(monkeypatch):
