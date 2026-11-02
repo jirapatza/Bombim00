@@ -25,6 +25,6 @@ test('recent dispatch guard refreshes the cooldown after a new accepted dispatch
   guard.markAccepted('["all","false"]', 1000);
   guard.markAccepted('["all","false"]', 5000);
 
-  assert.equal(guard.remainingMs('["all","false"]', 9001), 0);
+  assert.equal(guard.remainingMs('["all","false"]', 9001), 3999);
   assert.equal(guard.remainingMs('["all","false"]', 5001), 7999);
 });
