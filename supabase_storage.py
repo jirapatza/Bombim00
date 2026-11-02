@@ -71,7 +71,7 @@ def _request(path: str, method: str = "GET", body: Any = None, prefer: str | Non
 
 def _rows(table: str) -> list[dict[str, Any]]:
     encoded = urllib.parse.quote(table, safe="")
-    ordering = "&order=updated_at.desc" if table == TABLES["results"] else ""
+    ordering = "&order=updated_at.desc,id.asc" if table == TABLES["results"] else ""
     collected: list[dict[str, Any]] = []
     offset = 0
     page_size = 1000
