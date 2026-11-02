@@ -391,3 +391,5 @@ def save_results(rows: List[Dict[str, Any]], path: str = DEFAULT_RESULTS_PATH) -
             json.dump(rows, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"[ERROR] Failed to save results to {path}: {e}")
+        if supabase_mode:
+            raise
