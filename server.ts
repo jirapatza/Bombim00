@@ -386,8 +386,10 @@ const LOTTERY_WORKFLOW = 'lottery.yml';
 const LOTTERY_REPOSITORY = 'jirapatza/Bombim00';
 const LOTTERY_BRANCH = 'main';
 const LOTTERY_TARGETS = new Set(['all', 'vip', 'foreign_stock', 'hanoi', 'lao', 'thai_stock', 'government', 'malay']);
+let lotteryDispatchInFlight = false;
 
 app.post('/api/github/dispatch', async (req, res) => {
+  let acquiredDispatchLock = false;
   try {
     const ghToken = (process.env.GITHUB_TOKEN || '').trim();
     if (!ghToken) {
@@ -399,6 +401,19 @@ app.post('/api/github/dispatch', async (req, res) => {
     if (!LOTTERY_TARGETS.has(target) || !['true', 'false'].includes(forceNotify)) {
       return res.status(400).json({ success: false, error: 'ค่ากลุ่มหวยหรือ Force Notify ไม่ถูกต้อง' });
     }
+    // Both dashboard entry points share this server-side lock. This closes the
+    // race that separate component-level loading flags cannot prevent.
+    if (lotteryDispatchInFlight) {
+      return res.status(409).json({
+        success: false,
+        queued: false,
+        code: 'DISPATCH_ALREADY_IN_FLIGHT',
+        error: 'มีคำสั่งตรวจผลกำลังส่งไป GitHub อยู่ กรุณารอสักครู่',
+      });
+    }
+    lotteryDispatchInFlight = true;
+    acquiredDispatchLock = true;
+
     const dispatchUrl = 'https://api.github.com/repos/' + LOTTERY_REPOSITORY + '/actions/workflows/' + LOTTERY_WORKFLOW + '/dispatches';
     const ghRes = await fetch(dispatchUrl, {
       method: 'POST',
@@ -419,6 +434,8 @@ app.post('/api/github/dispatch', async (req, res) => {
     return res.status(502).json({ success: false, error: 'GitHub ปฏิเสธคำสั่ง (HTTP ' + ghRes.status + '): ' + detail.slice(0, 300) });
   } catch (err: any) {
     return res.status(502).json({ success: false, error: err?.name === 'TimeoutError' ? 'GitHub ตอบกลับช้าเกินกำหนด' : err.message });
+  } finally {
+    if (acquiredDispatchLock) lotteryDispatchInFlight = false;
   }
 });
 
