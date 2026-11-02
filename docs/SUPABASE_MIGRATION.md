@@ -45,7 +45,7 @@ does not connect to Supabase.
 python scripts/migrate_legacy_to_supabase.py --apply
 ```
 
-The importer sends the modern `sb_secret_...` key in the `apikey` header only; it does not send it as a Bearer JWT. Never put the secret key in source control, browser code, logs, or chat.
+The importer sends modern `sb_secret_...` keys in the `apikey` header only; legacy service-role JWT keys are sent in both the `apikey` and server-side `Authorization: Bearer` headers. Never put the secret key in source control, browser code, logs, or chat.
 
 ## Opt-in application integration (disabled by default)
 
@@ -76,6 +76,9 @@ the reservation before sending, then records sent/failed. Failed reservations
 and reservations older than 10 minutes may be retried. This materially reduces
 concurrent duplicate sends; no remote messaging provider can guarantee
 exactly-once delivery if it accepts a message but the network response is lost.
+The explicit `FORCE_NOTIFY=true` workflow input intentionally reclaims an
+existing reservation and can send a duplicate by operator request. Failed
+channels can be retried independently even if another channel already sent.
 
 The GitHub JSON mirror remains the recovery copy. A failed mirror write causes
 the checker run to fail rather than claiming a fully backed-up run.
