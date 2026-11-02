@@ -13,6 +13,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+import urllib.parse
 from pathlib import Path
 from typing import Any
 
@@ -87,8 +88,21 @@ def import_snapshot(snapshot: dict[str, Any], source_sha256: str) -> dict[str, A
     secret_key = os.environ.get("SUPABASE_SECRET_KEY", "")
     if not project_url or not secret_key:
         raise RuntimeError("Set SUPABASE_URL and SUPABASE_SECRET_KEY in the secure environment.")
-    if not project_url.startswith("https://"):
-        raise ValueError("SUPABASE_URL must use HTTPS.")
+    parsed_url = urllib.parse.urlparse(project_url)
+    if (parsed_url.scheme != "https" or not parsed_url.netloc or parsed_url.username
+            or parsed_url.password or parsed_url.path not in ("", "/")
+            or parsed_url.query or parsed_url.fragment):
+        raise ValueError("SUPABASE_URL must be an HTTPS project origin.")
+
+    headers = {
+        "apikey": secret_key,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    # Modern sb_secret keys are API keys, not JWTs. Legacy service_role JWTs
+    # must also be supplied as the PostgREST Authorization bearer token.
+    if not secret_key.startswith("sb_secret_"):
+        headers["Authorization"] = f"Bearer {secret_key}"
 
     body = json.dumps(
         {"p_snapshot": snapshot, "p_source_sha256": source_sha256},
@@ -99,11 +113,7 @@ def import_snapshot(snapshot: dict[str, Any], source_sha256: str) -> dict[str, A
         f"{project_url}/rest/v1/rpc/import_bombim00_legacy_snapshot",
         data=body,
         method="POST",
-        headers={
-            "apikey": secret_key,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        },
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(request, timeout=90) as response:
