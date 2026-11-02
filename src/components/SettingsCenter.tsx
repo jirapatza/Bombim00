@@ -6,6 +6,7 @@ import { UnifiedNotificationCenter } from './UnifiedNotificationCenter';
 interface SettingsCenterProps {
   settings: any;
   onSaveSettings: (newSettings: any) => Promise<boolean>;
+  onOpenAdminBackOffice?: () => void;
   status?: any;
   latestDraw?: any;
   allLotteries?: any[];
@@ -42,6 +43,7 @@ interface SettingsCenterProps {
 export function SettingsCenter({
   settings,
   onSaveSettings,
+  onOpenAdminBackOffice,
   status,
   latestDraw,
   allLotteries = [],
@@ -75,9 +77,21 @@ export function SettingsCenter({
             </div>
           </div>
 
-          <span className="text-[11px] px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 font-bold border border-emerald-500/20">
-            ตั้งค่าการใช้งาน
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 font-bold border border-emerald-500/20">
+              ตั้งค่าการใช้งาน
+            </span>
+            {onOpenAdminBackOffice && (
+              <button
+                type="button"
+                onClick={onOpenAdminBackOffice}
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+              >
+                <Settings className="h-4 w-4" />
+                เครื่องมือหลังบ้าน
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Sub-tab Navigation Pills */}
