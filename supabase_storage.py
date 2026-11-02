@@ -36,7 +36,8 @@ def _config() -> tuple[str, str]:
     if not url or not key:
         raise SupabaseStorageError("Supabase checker mode requires SUPABASE_URL and SUPABASE_SECRET_KEY.")
     parsed = urllib.parse.urlparse(url)
-    if parsed.scheme != "https" or not parsed.netloc or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+    if (parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password
+            or parsed.path not in ("", "/") or parsed.query or parsed.fragment):
         raise SupabaseStorageError("SUPABASE_URL must be an HTTPS project origin.")
     return url, key
 
