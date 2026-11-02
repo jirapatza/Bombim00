@@ -57,10 +57,10 @@ export function isVipLottery(item: ScheduledLottery): boolean {
   const category = String(item.category ?? '').toLowerCase();
   const id = String(item.id ?? '').toLowerCase();
   const name = String(item.name ?? '');
-  return category === 'vip' || /(?:^|[_\s-])(vip|star)(?:$|[_\s-])/i.test(id) || /vip|สตาร์|star/i.test(name);
+  return category === 'vip' || /(?:^|[_\\s-])(vip|star)(?:$|[_\\s-])/i.test(id) || /vip|สตาร์|star/i.test(name);
 }
 
-/** Regular, non-VIP stock draws are hidden on weekends. */
+/** Regular, non-VIP stock draws use their explicit schedule when one is configured. */
 export function isRegularStockLottery(item: ScheduledLottery): boolean {
   if (isVipLottery(item)) return false;
   const category = String(item.category ?? '').toLowerCase();
@@ -77,13 +77,13 @@ export function isGovernmentLottery(item: ScheduledLottery): boolean {
   const id = String(item.id ?? '').toLowerCase();
   const name = String(item.name ?? '');
   return category === 'gov_savings' || ['thai_gov', 'gsb', 'baac'].includes(id) ||
-    /รัฐบาล|สลากกินแบ่ง|ออมสิน|ธ\s*\.?\s*ก\s*\.?\s*ส\s*\.?|ธกส/u.test(name);
+    /รัฐบาล|สลากกินแบ่ง|ออมสิน|ธ\\s*\\.?\\s*ก\\s*\\.?\\s*ส\\s*\\.?|ธกส/u.test(name);
 }
 
 /**
  * Filters the summary table by the selected Bangkok calendar date.
- * Regular stock rows are weekday-only; VIP and daily draws remain visible every day.
- * Other published draw-day rules (for example Lao Development) are read from drawDays.
+ * VIP products are always visible; all other configured draw-day rules take priority.
+ * Regular stocks without an explicit rule fall back to weekdays only.
  */
 export function filterLotteriesForDrawDate<T extends ScheduledLottery>(
   lotteries: T[],
@@ -95,22 +95,21 @@ export function filterLotteriesForDrawDate<T extends ScheduledLottery>(
     if (isGovernmentLottery(item)) {
       const id = String(item.id ?? '').trim().toLowerCase();
       const name = String(item.name ?? '').trim();
-      const isBaac = id === 'baac' || /ธ\s*\.?\s*ก\s*\.?\s*ส\s*\.?|ธกส/u.test(name);
+      const isBaac = id === 'baac' || /ธ\\s*\\.?\\s*ก\\s*\\.?\\s*ส\\s*\\.?|ธกส/u.test(name);
       return isBaac ? day === 16 : day === 1 || day === 16;
     }
 
-    if (isRegularStockLottery(item)) {
-      return weekday !== 'Sat' && weekday !== 'Sun';
-    }
-
-    // VIP products and explicitly daily lotteries are available all week.
+    // VIP variants are explicitly configured as daily in this application.
     if (isVipLottery(item)) return true;
 
+    // A configured schedule is authoritative, including exceptional Saturday draws.
     const days = scheduledWeekdays(item.drawDays || '');
     if (days) return days.includes(weekday);
 
-    // A known daily category without a schedule is treated as daily. Unknown
-    // categories with no schedule are hidden to avoid displaying false draws.
+    // Without an explicit schedule, regular stocks default to weekdays only.
+    if (isRegularStockLottery(item)) return weekday !== 'Sat' && weekday !== 'Sun';
+
+    // Known daily categories without a schedule remain daily; unknown categories hide.
     const category = String(item.category ?? '').toLowerCase();
     if (['hanoi', 'lao'].includes(category)) return true;
     return false;
