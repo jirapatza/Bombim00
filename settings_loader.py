@@ -352,10 +352,10 @@ def write_status(
 
     try:
         if supabase_mode:
+            # Supabase is primary; the checked-in JSON file remains the GitHub backup mirror.
             supabase_storage.save_singleton("system_status", status_data)
-        else:
-            with open(status_path, "w", encoding="utf-8") as f:
-                json.dump(status_data, f, ensure_ascii=False, indent=2)
+        with open(status_path, "w", encoding="utf-8") as f:
+            json.dump(status_data, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"[ERROR] Failed to write status to {status_path}: {e}")
         raise
@@ -380,10 +380,11 @@ def load_previous_results(path: str = DEFAULT_RESULTS_PATH) -> List[Dict[str, An
 
 def save_results(rows: List[Dict[str, Any]], path: str = DEFAULT_RESULTS_PATH) -> None:
     """Save results to the explicitly selected durable store."""
-    if os.environ.get("SUPABASE_CHECKER_ENABLED", "").strip().lower() == "true":
+    supabase_mode = os.environ.get("SUPABASE_CHECKER_ENABLED", "").strip().lower() == "true"
+    if supabase_mode:
         import supabase_storage
+        # Commit to the primary database first; retain the JSON mirror for GitHub backup/recovery.
         supabase_storage.save_results(rows)
-        return
     os.makedirs(os.path.dirname(path) if os.path.dirname(path) else ".", exist_ok=True)
     try:
         with open(path, "w", encoding="utf-8") as f:
