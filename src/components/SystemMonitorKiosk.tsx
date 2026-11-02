@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/api';
 import {
   Activity,
@@ -114,6 +114,7 @@ export function SystemMonitorKiosk() {
   const [clientSpeechReady, setClientSpeechReady] = useState<boolean>(true);
   const [clientOnline, setClientOnline] = useState<boolean>(navigator.onLine);
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
+  const monitorFetchInFlightRef = useRef<boolean>(false);
 
   // No remote shell commands are executed by this dashboard.
   const getDefaultShellCommand = (code: string): string => {
@@ -163,6 +164,9 @@ export function SystemMonitorKiosk() {
   }, []);
 
   const fetchMonitorStatus = async () => {
+    // Skip a tick if the previous status request is still running.
+    if (monitorFetchInFlightRef.current) return;
+    monitorFetchInFlightRef.current = true;
     setIsLoading(true);
     try {
       const res = await apiFetch('/api/system/monitor');
@@ -173,6 +177,7 @@ export function SystemMonitorKiosk() {
     } catch (err) {
       console.error('Failed to fetch system monitor status:', err);
     } finally {
+      monitorFetchInFlightRef.current = false;
       setIsLoading(false);
     }
   };

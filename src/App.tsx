@@ -444,6 +444,7 @@ export default function App() {
   const [selectedCatalogLottery, setSelectedCatalogLottery] = useState<LotteryItem | null>(null);
   const [selectedFile, setSelectedFile] = useState<string>('lottery_checker.py');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const fetchDataInFlightRef = useRef<boolean>(false);
   const [isTriggering, setIsTriggering] = useState<boolean>(false);
   const [notificationToast, setNotificationToast] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -883,6 +884,9 @@ export default function App() {
 
   // Fetch initial data
   const fetchData = async (): Promise<{ results: LotteryResult[]; newResults: LotteryResult[] }> => {
+    // A slow request must not overlap the 15-second poll, visibility refresh, or manual refresh.
+    if (fetchDataInFlightRef.current) return { results: [], newResults: [] };
+    fetchDataInFlightRef.current = true;
     setIsLoading(true);
     let safeResults: LotteryResult[] = [];
     let newResults: LotteryResult[] = [];
@@ -965,6 +969,7 @@ export default function App() {
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
+      fetchDataInFlightRef.current = false;
       setIsLoading(false);
     }
     return { results: safeResults, newResults };
