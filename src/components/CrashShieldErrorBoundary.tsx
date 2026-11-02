@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { trackDiagnostic } from '../utils/siteDiagnostics';
 import {
   ShieldAlert,
   RotateCcw,
@@ -54,7 +55,8 @@ export class CrashShieldErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.log('[CRASH-SHIELD] Caught client-side runtime error:', error.message);
+    console.log('[CRASH-SHIELD] Caught client-side runtime error');
+    trackDiagnostic('frontend_render_error', this.props.isolateScope ? 'widget' : 'app');
     this.setState({ errorInfo });
 
     // Optional auto-recover countdown for isolated widgets
