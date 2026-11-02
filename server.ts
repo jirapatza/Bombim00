@@ -16,6 +16,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const supabaseStorageEnabled = () => process.env.SUPABASE_STORAGE_ENABLED === 'true';
+const supabaseShadowWriteEnabled = () => process.env.SUPABASE_SHADOW_WRITE === 'true';
+const supabaseWriteEnabled = () => supabaseStorageEnabled() || supabaseShadowWriteEnabled();
 
 function pruneApiRateMap() {
   const now = Date.now();
@@ -156,13 +159,18 @@ const ai = new GoogleGenAI({
 app.get('/api/supabase/health', async (_req, res) => {
   try {
     const result = await probeSupabase();
-    return res.json({ ...result, activeDataSource: process.env.SUPABASE_STORAGE_ENABLED === 'true' ? 'supabase' : 'github-json' });
+    return res.json({
+      ...result,
+      activeDataSource: supabaseStorageEnabled() ? 'supabase' : 'github-json',
+      shadowWrite: supabaseShadowWriteEnabled(),
+    });
   } catch (err: any) {
     const status = err instanceof SupabaseStorageError ? err.status : 502;
     return res.status(status).json({
       configured: err?.code !== 'SUPABASE_NOT_CONFIGURED',
       reachable: false,
-      activeDataSource: process.env.SUPABASE_STORAGE_ENABLED === 'true' ? 'supabase' : 'github-json',
+      activeDataSource: supabaseStorageEnabled() ? 'supabase' : 'github-json',
+      shadowWrite: supabaseShadowWriteEnabled(),
       error: err?.message || 'Supabase connectivity check failed',
       code: err?.code || 'SUPABASE_PROBE_FAILED',
     });
@@ -174,9 +182,10 @@ app.get('/api/health', (req, res) => {
     res.json({
       ok: true,
       status: 'healthy',
-      storage: process.env.SUPABASE_STORAGE_ENABLED === 'true' ? 'supabase' : (process.env.GITHUB_TOKEN ? 'configured' : 'read_only'),
-      activeDataSource: process.env.SUPABASE_STORAGE_ENABLED === 'true' ? 'supabase' : 'github-json',
-      writesEnabled: Boolean(process.env.GITHUB_TOKEN) || process.env.SUPABASE_STORAGE_ENABLED === 'true',
+      storage: supabaseStorageEnabled() ? 'supabase' : (supabaseShadowWriteEnabled() ? 'github-json+supabase-shadow' : (process.env.GITHUB_TOKEN ? 'configured' : 'read_only')),
+      activeDataSource: supabaseStorageEnabled() ? 'supabase' : 'github-json',
+      shadowWrite: supabaseShadowWriteEnabled(),
+      writesEnabled: Boolean(process.env.GITHUB_TOKEN) || supabaseWriteEnabled(),
       githubTokenConfigured: Boolean(process.env.GITHUB_TOKEN),
       dashboardAuthConfigured: Boolean(process.env.DASH_PASSWORD),
       timestamp: new Date().toISOString(),
@@ -222,7 +231,7 @@ app.post('/api/settings', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Settings must be a JSON object.' });
     }
     assertNoSecretFields(updated);
-    if (process.env.SUPABASE_STORAGE_ENABLED === 'true') {
+    if (supabaseWriteEnabled()) {
       await writeSupabaseSingleton('app_settings', updated);
     }
     const commit = await commitGitHubJson(
@@ -254,7 +263,7 @@ app.get('/api/results', async (req, res) => {
 // 4.0 POST /api/lotteries/cleanup-history - Purge unrequested LIW/pingpong and duplicate entries
 app.post('/api/lotteries/cleanup-history', async (req, res) => {
   try {
-    if (process.env.SUPABASE_STORAGE_ENABLED === 'true') {
+    if (supabaseWriteEnabled()) {
       return res.status(409).json({
         success: false,
         error: 'History cleanup is temporarily disabled in Supabase mode until the database maintenance RPC is enabled.',
@@ -328,7 +337,7 @@ app.post('/api/all-lotteries', async (req, res) => {
     if (!Array.isArray(updated)) {
       return res.status(400).json({ success: false, error: 'Lottery catalog must be a JSON array.' });
     }
-    if (process.env.SUPABASE_STORAGE_ENABLED === 'true') {
+    if (supabaseWriteEnabled()) {
       await writeSupabaseCatalog(updated);
     }
     const commit = await commitGitHubJson(
@@ -566,16 +575,18 @@ app.get('/api/system/monitor', async (_req, res) => {
     }));
 
     const sourceChecks = await Promise.all(monitoredSources.map(checkExternalSource));
-    const supabaseEnabled = process.env.SUPABASE_STORAGE_ENABLED === 'true';
-    const supabaseHealth = supabaseEnabled
-      ? await probeSupabase().then(() => ({ enabled: true, reachable: true })).catch((err: any) => ({
+    const supabaseEnabled = supabaseStorageEnabled();
+    const supabaseWriteEnabledNow = supabaseWriteEnabled();
+    const supabaseHealth = supabaseWriteEnabledNow
+      ? await probeSupabase().then(() => ({ enabled: true, reachable: true, shadowWrite: !supabaseEnabled })).catch((err: any) => ({
           enabled: true,
           reachable: false,
+          shadowWrite: !supabaseEnabled,
           error: err?.message || 'Supabase connectivity check failed',
         }))
-      : { enabled: false, reachable: false };
+      : { enabled: false, reachable: false, shadowWrite: false };
     const hasMissingCriticalFiles = filesHealth.some((file) => file.critical && (!file.exists || !file.validJson));
-    const overallStatus = hasMissingCriticalFiles || (supabaseEnabled && !supabaseHealth.reachable)
+    const overallStatus = hasMissingCriticalFiles || (supabaseWriteEnabledNow && !supabaseHealth.reachable)
       ? 'error'
       : sourceChecks.some((source) => source.status !== 'healthy') ? 'degraded' : 'healthy';
 
@@ -593,7 +604,11 @@ app.get('/api/system/monitor', async (_req, res) => {
         totalHeapMB: Math.round(memory.heapTotal / 1024 / 1024),
         backgroundRunnerActive: false,
         lotteryRunner: 'GitHub Actions only',
-        durableStorage: supabaseEnabled ? 'Supabase primary; GitHub JSON recovery mirror' : 'GitHub repository JSON',
+        durableStorage: supabaseEnabled
+          ? 'Supabase primary; GitHub JSON recovery mirror'
+          : supabaseShadowWriteEnabled()
+            ? 'GitHub JSON primary; Supabase shadow mirror'
+            : 'GitHub repository JSON',
         activeDataSource: supabaseEnabled ? 'supabase' : 'github-json',
       },
       supabaseHealth,
@@ -705,7 +720,7 @@ app.post('/api/system/self-heal', async (req, res) => {
       ? await readSupabaseSingleton('self_healing_history')
       : await readGitHubJson<any[]>('status/self_healing_history.json').catch(() => []);
     const history = [session, ...(Array.isArray(previous) ? previous : [])].slice(0, 50);
-    if (process.env.SUPABASE_STORAGE_ENABLED === 'true') {
+    if (supabaseWriteEnabled()) {
       await writeSupabaseSingleton('self_healing_history', history);
     }
     const commit = await commitGitHubJson(
@@ -750,7 +765,7 @@ app.get('/api/system/self-heal-history', async (_req, res) => {
 
 app.delete('/api/system/self-heal-history', async (_req, res) => {
   try {
-    if (process.env.SUPABASE_STORAGE_ENABLED === 'true') {
+    if (supabaseWriteEnabled()) {
       await writeSupabaseSingleton('self_healing_history', []);
     }
     const commit = await commitGitHubJson(
