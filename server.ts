@@ -691,8 +691,13 @@ app.post('/api/system/self-heal', async (req, res) => {
       actions,
     };
 
-    const previous = await readGitHubJson<any[]>('status/self_healing_history.json').catch(() => []);
+    const previous = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseSingleton('self_healing_history').catch(() => [])
+      : await readGitHubJson<any[]>('status/self_healing_history.json').catch(() => []);
     const history = [session, ...(Array.isArray(previous) ? previous : [])].slice(0, 50);
+    if (process.env.SUPABASE_STORAGE_ENABLED === 'true') {
+      await writeSupabaseSingleton('self_healing_history', history);
+    }
     const commit = await commitGitHubJson(
       'status/self_healing_history.json',
       history,
@@ -720,7 +725,9 @@ app.post('/api/system/self-heal', async (req, res) => {
 
 app.get('/api/system/self-heal-history', async (_req, res) => {
   try {
-    const history = await readGitHubJson<any[]>('status/self_healing_history.json');
+    const history = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseSingleton('self_healing_history')
+      : await readGitHubJson<any[]>('status/self_healing_history.json');
     return res.json({ success: true, history: Array.isArray(history) ? history : [] });
   } catch (err: any) {
     if (err instanceof GitHubStorageError && err.status === 404) {
@@ -733,6 +740,9 @@ app.get('/api/system/self-heal-history', async (_req, res) => {
 
 app.delete('/api/system/self-heal-history', async (_req, res) => {
   try {
+    if (process.env.SUPABASE_STORAGE_ENABLED === 'true') {
+      await writeSupabaseSingleton('self_healing_history', []);
+    }
     const commit = await commitGitHubJson(
       'status/self_healing_history.json',
       [],
@@ -753,13 +763,19 @@ app.delete('/api/system/self-heal-history', async (_req, res) => {
 async function getLocalVerifiedFallback(prompt: string) {
   let previousResults: any[] = [];
   try {
-    previousResults = await readGitHubJson<any[]>('lottery_previous_results.json');
+    previousResults = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseResults()
+      : await readGitHubJson<any[]>('lottery_previous_results.json');
   } catch {
     previousResults = [];
   }
 
   let allLotteriesList: any[] = [];
-  try { allLotteriesList = await readGitHubJson<any[]>('data/all_lotteries.json'); } catch { allLotteriesList = []; }
+  try {
+    allLotteriesList = process.env.SUPABASE_STORAGE_ENABLED === 'true'
+      ? await readSupabaseCatalog()
+      : await readGitHubJson<any[]>('data/all_lotteries.json');
+  } catch { allLotteriesList = []; }
 
   const normalizedPrompt = String(prompt || '').toLocaleLowerCase('th-TH');
   const matchedLottery = allLotteriesList.find((item: any) => {
