@@ -1,8 +1,8 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-02T17:55:56.156223+07:00",
-  "last_run_date_thai": "02/11/2026 17:55:56 น.",
-  "total_checks": 422,
+  "last_run_timestamp": "2026-11-02T17:58:11.901507+07:00",
+  "last_run_date_thai": "02/11/2026 17:58:11 น.",
+  "total_checks": 423,
   "last_source_used": "ThaiLottoAPI + ผลหวย.com stock groups",
   "status_message": "ตรวจพบผลงวดล่าสุด 02.11.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups",
   "active_sources_count": 2,
@@ -10,6 +10,11 @@
   "notifications_sent_today": 40,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-02T17:58:11.901507+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลงวดล่าสุด 02.11.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
+    },
     {
       "timestamp": "2026-11-02T17:55:56.156223+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-02T09:52:16.885920+07:00",
       "level": "INFO",
       "message": "ตรวจพบผลสดงวดล่าสุด 02.11.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
-    },
-    {
-      "timestamp": "2026-11-02T09:31:55.454747+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลสดงวดล่าสุด 2 พฤศจิกายน 2569 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups"
     }
   ]
 }
