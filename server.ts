@@ -1,4 +1,5 @@
 import express from 'express';
+import { createRecentDispatchGuard } from './src/utils/recentDispatchGuard.ts';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -389,8 +390,7 @@ const LOTTERY_TARGETS = new Set(['all', 'vip', 'foreign_stock', 'hanoi', 'lao', 
 let lotteryDispatchInFlight = false;
 // Suppress accidental sequential double-clicks for the same dispatch inputs.
 // This is deliberately short so an operator can retry a failed/manual run promptly.
-const recentLotteryDispatches = new Map<string, number>();
-const LOTTERY_DISPATCH_DEDUP_MS = 8000;
+const recentLotteryDispatches = createRecentDispatchGuard(8000);
 
 app.post('/api/github/dispatch', async (req, res) => {
   let acquiredDispatchLock = false;
@@ -405,18 +405,14 @@ app.post('/api/github/dispatch', async (req, res) => {
     if (!LOTTERY_TARGETS.has(target) || !['true', 'false'].includes(forceNotify)) {
       return res.status(400).json({ success: false, error: 'ค่ากลุ่มหวยหรือ Force Notify ไม่ถูกต้อง' });
     }
-    // Prune expired successful dispatch fingerprints to keep memory bounded.
-    const now = Date.now();
-    for (const [fingerprint, expiresAt] of recentLotteryDispatches) {
-      if (expiresAt <= now) recentLotteryDispatches.delete(fingerprint);
-    }
+    // Suppress rapid retries of an identical dispatch after GitHub accepted it.
     const dispatchFingerprint = JSON.stringify([target, forceNotify]);
-    if ((recentLotteryDispatches.get(dispatchFingerprint) || 0) > now) {
+    if (recentLotteryDispatches.isDuplicate(dispatchFingerprint)) {
       return res.status(409).json({
         success: false,
         queued: false,
         code: 'DISPATCH_RECENTLY_ACCEPTED',
-        retryAfterMs: recentLotteryDispatches.get(dispatchFingerprint)! - now,
+        retryAfterMs: recentLotteryDispatches.remainingMs(dispatchFingerprint),
         error: 'คำสั่งชุดเดียวกันเพิ่งถูกส่งไปแล้ว กรุณารอสักครู่ก่อนส่งซ้ำ',
       });
     }
@@ -447,7 +443,7 @@ app.post('/api/github/dispatch', async (req, res) => {
       signal: AbortSignal.timeout(10000),
     });
     if (ghRes.status === 204 || ghRes.status === 200) {
-      recentLotteryDispatches.set(dispatchFingerprint, Date.now() + LOTTERY_DISPATCH_DEDUP_MS);
+      recentLotteryDispatches.markAccepted(dispatchFingerprint);
       return res.json({ success: true, queued: true, workflow_dispatched: true, message: 'ส่งคำสั่งตรวจผลไปยัง GitHub Actions แล้ว' });
     }
     const detail = await ghRes.text().catch(() => '');
