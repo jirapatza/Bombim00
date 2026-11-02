@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: bombim00-supabase-parity-check
+  group: bombim00-lottery-alert
   cancel-in-progress: false
 
 jobs:
