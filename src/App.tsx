@@ -1564,6 +1564,7 @@ export default function App() {
           <SettingsCenter
             settings={settings}
             onSaveSettings={handleSaveMultiChannelSettings}
+            onOpenAdminBackOffice={() => setIsAdminBackOfficeOpen(true)}
             status={status}
             latestDraw={latestDraw}
             allLotteries={allLotteries}
@@ -1613,7 +1614,6 @@ export default function App() {
                   ภาพรวมสถานะและปัญหาระบบ
                 </h2>
                 <p className="text-xs text-slate-400">ตรวจสุขภาพระบบและดูรายละเอียดข้อผิดพลาดจากหน้าจอเดียว</p>
-                <button type="button" onClick={() => setIsAdminBackOfficeOpen(true)} className="mt-2 inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/20">เปิดศูนย์หลังบ้านและเครื่องมือดูแลระบบ</button>
               </div>
               <Suspense fallback={<div className="rounded-2xl border border-slate-800 p-4 text-sm text-slate-400">กำลังโหลดข้อมูลตรวจสุขภาพระบบ...</div>}><SystemMonitorKiosk /></Suspense>
             </section>
