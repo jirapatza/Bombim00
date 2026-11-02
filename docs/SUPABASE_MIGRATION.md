@@ -60,7 +60,9 @@ It compares the complete result fingerprint set and every JSONB payload,
 catalog IDs and payloads, settings, system status, self-healing history, and
 the import-batch SHA-256/counts. It is read-only and exits non-zero on any
 mismatch. Do not enable either runtime feature flag unless this verifier
-returns `"status": "verified"`.
+returns `"status": "verified"`. The same read-only check is available as the
+manual GitHub Actions workflow **Verify Supabase migration parity**; run it
+against this branch with the two Supabase secrets configured.
 
 ## Opt-in application integration (disabled by default)
 
