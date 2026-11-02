@@ -59,10 +59,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Refresh main with latest deduplication history
+      - name: Load runtime data without replacing reviewed application code
         run: |
-          git fetch origin main
-          git checkout -B main origin/main
+          set -euo pipefail
+          git fetch origin runtime-live
+          git checkout FETCH_HEAD -- config/settings.json data/all_lotteries.json lottery_previous_results.json status/status.json
+
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -127,29 +129,34 @@ jobs:
         run: |
           python lottery_checker.py
 
-      - name: Commit and Push Status & Results
+      - name: Commit only results to the runtime data branch
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          git add status/status.json lottery_previous_results.json || true
-          
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          DATA_DIR="$(mktemp -d)"
+          trap 'git worktree remove --force "$DATA_DIR" 2>/dev/null || true' EXIT
+          git fetch origin runtime-live
+          git worktree add --detach "$DATA_DIR" origin/runtime-live
+          mkdir -p "$DATA_DIR/status"
+          cp status/status.json "$DATA_DIR/status/status.json"
+          cp lottery_previous_results.json "$DATA_DIR/lottery_previous_results.json"
+          cd "$DATA_DIR"
+          git add -- status/status.json lottery_previous_results.json
           if git diff --staged --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "chore(bot): update lottery results and status [skip ci] [skip render]"
-            for attempt in 1 2 3; do
-              if git push; then
-                exit 0
-              fi
-              echo "Push raced with another run; rebasing on latest main (attempt $attempt/3)."
-              git fetch origin main
-              if ! git rebase origin/main; then
-                git rebase --abort || true
-                echo "Cannot safely merge concurrent result-history updates; refusing to overwrite deduplication history." >&2
-                exit 1
-              fi
-            done
-            echo "Push failed after 3 attempts." >&2
-            exit 1
+            echo "No runtime data changes to commit."
+            exit 0
           fi
+          git commit -m "chore(bot): update lottery results and status [skip ci] [skip render]"
+          for attempt in 1 2 3; do
+            if git push origin HEAD:refs/heads/runtime-live; then
+              exit 0
+            fi
+            git fetch origin runtime-live
+            if ! git rebase origin/runtime-live; then
+              git rebase --abort || true
+              echo "Concurrent result changes conflict; refusing to overwrite notification history." >&2
+              exit 1
+            fi
+          done
+          exit 1

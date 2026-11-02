@@ -1,0 +1,8 @@
+# Human review for code and automation. Branch rules enforce approval.
+* @jirapatza
+/.github/ @jirapatza
+/AGENTS.md @jirapatza
+/server/ @jirapatza
+/server.ts @jirapatza
+/lottery_checker.py @jirapatza
+/settings_loader.py @jirapatza

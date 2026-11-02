@@ -21,7 +21,7 @@ type StorageOptions = {
 
 function resolveRepository(options: StorageOptions) {
   const repo = options.repo || process.env.GITHUB_REPOSITORY || 'jirapatza/Bombim00';
-  const branch = options.branch || process.env.GITHUB_BRANCH || 'main';
+  const branch = options.branch || process.env.GITHUB_DATA_BRANCH || 'runtime-live';
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) {
     throw new GitHubStorageError('GITHUB_REPOSITORY must use owner/repository format.', 500, 'INVALID_REPOSITORY');
   }

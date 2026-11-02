@@ -4,17 +4,6 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
-    paths:
-      - "server.ts"
-      - "server/**"
-      - "package-lock.json"
-      - "Dockerfile"
-      - "package.json"
-      - "requirements.txt"
-      - "lottery_checker.py"
-      - "settings_loader.py"
-      - "tests/**"
-      - ".github/workflows/runtime-smoke.yml"
   push:
     branches: [main]
     paths:
