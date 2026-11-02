@@ -104,6 +104,7 @@ plus a shared shadow-write flag:
 Apply the notification idempotency migration
 `20261102000200_notification_idempotency.sql` and the legacy suppression
 migration `20261102000300_legacy_notification_suppressions.sql` after the core schema. It adds
+  and `20261102000400_updated_at_triggers.sql` to keep ordering accurate after upserts.
 one unique reservation per result fingerprint and channel. The checker checks legacy suppressions and claims
 a per-channel reservation before sending, then records sent/failed. Failed reservations
 and reservations older than 10 minutes may be retried. This materially reduces
