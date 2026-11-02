@@ -3,10 +3,13 @@
 create unique index if not exists notification_events_fingerprint_channel_uidx
   on public.notification_events (fingerprint, channel);
 
+drop function if exists public.claim_bombim00_notification(text, text, jsonb);
+
 create or replace function public.claim_bombim00_notification(
   p_fingerprint text,
   p_channel text,
-  p_payload jsonb default '{}'::jsonb
+  p_payload jsonb default '{}'::jsonb,
+  p_force boolean default false
 ) returns boolean
 language plpgsql
 security definer
@@ -32,7 +35,8 @@ begin
         provider_reference = null,
         sent_at = null,
         created_at = now()
-    where public.notification_events.delivery_status = 'failed'
+    where p_force
+       or public.notification_events.delivery_status = 'failed'
        or (public.notification_events.delivery_status = 'reserved'
            and public.notification_events.created_at < now() - interval '10 minutes');
 
@@ -66,7 +70,7 @@ begin
 end;
 $$;
 
-revoke all on function public.claim_bombim00_notification(text, text, jsonb) from public, anon, authenticated;
+revoke all on function public.claim_bombim00_notification(text, text, jsonb, boolean) from public, anon, authenticated;
 revoke all on function public.complete_bombim00_notification(text, text, boolean, text) from public, anon, authenticated;
-grant execute on function public.claim_bombim00_notification(text, text, jsonb) to service_role;
+grant execute on function public.claim_bombim00_notification(text, text, jsonb, boolean) to service_role;
 grant execute on function public.complete_bombim00_notification(text, text, boolean, text) to service_role;
