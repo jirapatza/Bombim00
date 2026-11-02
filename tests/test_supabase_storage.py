@@ -117,8 +117,8 @@ def test_load_results_paginates_past_postgrest_default_limit(monkeypatch):
     monkeypatch.setattr(ss, "_request", fake_request)
     rows = ss.load_results()
     assert len(rows) == 1002
-    assert calls[0].endswith("offset=0&order=updated_at.desc")
-    assert calls[1].endswith("offset=1000&order=updated_at.desc")
+    assert calls[0].endswith("offset=0&order=updated_at.desc,id.asc")
+    assert calls[1].endswith("offset=1000&order=updated_at.desc,id.asc")
 
 
 def test_shadow_result_write_syncs_legacy_suppression_without_enabling_primary_reads(monkeypatch):
