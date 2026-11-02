@@ -141,14 +141,17 @@ function tripGeminiCircuit(reason: string, cooldownMs = 60000) {
 // In-memory verification cache (TTL: 1 hour)
 const verificationCache = new Map<string, { data: any; expiresAt: number }>();
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    },
-  },
-});
+const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
+const ai = geminiApiKey
+  ? new GoogleGenAI({
+      apiKey: geminiApiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    })
+  : null;
 
 
 app.get('/api/health', (req, res) => {
@@ -160,6 +163,7 @@ app.get('/api/health', (req, res) => {
       writesEnabled: Boolean(process.env.GITHUB_TOKEN),
       githubTokenConfigured: Boolean(process.env.GITHUB_TOKEN),
       dashboardAuthConfigured: Boolean(process.env.DASH_PASSWORD),
+      geminiConfigured: Boolean(geminiApiKey),
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
@@ -835,6 +839,23 @@ app.post('/api/ai/verify-grounding', async (req, res) => {
     });
   }
 
+  // Do not call the Gemini SDK when its server-side key is absent.
+  if (!ai) {
+    const { fallbackText, fallbackSources } = await getLocalVerifiedFallback(prompt);
+    return res.json({
+      success: true,
+      query: prompt,
+      verifiedText: fallbackText,
+      sources: fallbackSources,
+      webSearchQueries: [prompt],
+      isFallback: true,
+      circuitBreakerActive: false,
+      geminiConfigured: false,
+      fallbackReason: 'ยังไม่ได้ตั้งค่า Gemini API Key จึงใช้ข้อมูลสำรองที่ตรวจสอบในระบบ',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   // 3. Attempt live Gemini API call
   try {
     const response = await ai.models.generateContent({
@@ -912,6 +933,13 @@ app.post('/api/ai/transcribe', async (req, res) => {
     }
 
     const cleanBase64 = audioBase64.replace(/^data:[^;]+;base64,/, '');
+    if (!ai) {
+      return res.status(503).json({
+        success: false,
+        geminiConfigured: false,
+        error: 'ยังไม่ได้ตั้งค่า Gemini API Key สำหรับถอดเสียง',
+      });
+    }
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.5-transcribe',
@@ -955,6 +983,7 @@ app.get('/api/system/crash-shield-status', (req, res) => {
   return res.json({
     success: true,
     status: 'active',
+    geminiConfigured: Boolean(geminiApiKey),
     shieldName: 'Lottery Alert Crash Shield & Circuit Breaker',
     circuitBreaker: {
       isOpen: !circuit.available,
