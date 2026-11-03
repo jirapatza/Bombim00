@@ -27,5 +27,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify today's public Lao and Hanoi responses without notifications
+      - name: Verify latest public Lao and Hanoi contracts without notifications
         run: python scripts/probe_lotterychecks.py
