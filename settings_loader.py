@@ -89,6 +89,8 @@ def map_canonical_lottery_name(name: str) -> str:
             
     # Lao mappings
     if "ลาว" in s or "lao" in lower:
+        if "extra" in lower or "เอ็กซ์ตร้า" in s or "เอ็กตร้า" in s:
+            return "ลาว EXTRA"
         if "20:30" in s or "20.30" in s or "พัฒนา" in s:
             return "หวยลาวพัฒนา"
         if "21:30" in s or "21.30" in s or "vip" in lower or "วีไอพี" in s:
