@@ -1,5 +1,86 @@
 [
   {
+    "sessionId": "audit-1793712474440",
+    "triggeredAt": "2026-11-03T13:27:53.226Z",
+    "triggeredAtThai": "3/11/2569 20:27:53",
+    "triggerType": "manual_user_click",
+    "triggeredByDevice": "All Services",
+    "triggerReason": "ผู้ใช้สั่งตรวจสอบระบบทั้งหมด",
+    "overallResult": "partial",
+    "totalActionsCount": 5,
+    "successCount": 4,
+    "warningCount": 1,
+    "failedCount": 0,
+    "executionDurationTotalMs": 1214,
+    "actions": [
+      {
+        "id": "act-1793712473709-config/settings.json",
+        "commandCode": "VERIFY_REPOSITORY_DATA",
+        "targetDevice": "config/settings.json",
+        "description": "ตรวจสอบไฟล์ข้อมูลหลักจาก GitHub repository",
+        "triggerReason": "ตรวจสอบความสมบูรณ์ของข้อมูลที่จัดเก็บถาวร",
+        "timestamp": "2026-11-03T13:27:53.709Z",
+        "timestampThai": "3/11/2569 20:27:53",
+        "status": "success",
+        "executionTimeMs": 14,
+        "details": "อ่านข้อมูลสำเร็จ",
+        "shellCommand": ""
+      },
+      {
+        "id": "act-1793712473708-status/status.json",
+        "commandCode": "VERIFY_REPOSITORY_DATA",
+        "targetDevice": "status/status.json",
+        "description": "ตรวจสอบไฟล์ข้อมูลหลักจาก GitHub repository",
+        "triggerReason": "ตรวจสอบความสมบูรณ์ของข้อมูลที่จัดเก็บถาวร",
+        "timestamp": "2026-11-03T13:27:53.708Z",
+        "timestampThai": "3/11/2569 20:27:53",
+        "status": "success",
+        "executionTimeMs": 13,
+        "details": "อ่านข้อมูลสำเร็จ",
+        "shellCommand": ""
+      },
+      {
+        "id": "act-1793712473711-data/all_lotteries.json",
+        "commandCode": "VERIFY_REPOSITORY_DATA",
+        "targetDevice": "data/all_lotteries.json",
+        "description": "ตรวจสอบไฟล์ข้อมูลหลักจาก GitHub repository",
+        "triggerReason": "ตรวจสอบความสมบูรณ์ของข้อมูลที่จัดเก็บถาวร",
+        "timestamp": "2026-11-03T13:27:53.711Z",
+        "timestampThai": "3/11/2569 20:27:53",
+        "status": "success",
+        "executionTimeMs": 15,
+        "details": "อ่านข้อมูลสำเร็จ; จำนวน 54 รายการ",
+        "shellCommand": ""
+      },
+      {
+        "id": "act-1793712473715-lottery_previous_results.json",
+        "commandCode": "VERIFY_REPOSITORY_DATA",
+        "targetDevice": "lottery_previous_results.json",
+        "description": "ตรวจสอบไฟล์ข้อมูลหลักจาก GitHub repository",
+        "triggerReason": "ตรวจสอบความสมบูรณ์ของข้อมูลที่จัดเก็บถาวร",
+        "timestamp": "2026-11-03T13:27:53.715Z",
+        "timestampThai": "3/11/2569 20:27:53",
+        "status": "success",
+        "executionTimeMs": 19,
+        "details": "อ่านข้อมูลสำเร็จ; จำนวน 297 รายการ",
+        "shellCommand": ""
+      },
+      {
+        "id": "act-1793712474439-gateways",
+        "commandCode": "VERIFY_GATEWAYS_REACHABILITY",
+        "targetDevice": "External Feeds & Notification Gateways",
+        "description": "ตรวจสอบการตอบสนองของบริการภายนอกด้วยคำขอจริง",
+        "triggerReason": "ตรวจสอบการเชื่อมต่อไปยังบริการภายนอก",
+        "timestamp": "2026-11-03T13:27:54.439Z",
+        "timestampThai": "3/11/2569 20:27:54",
+        "status": "warning",
+        "executionTimeMs": 725,
+        "details": "[{\"id\":\"glo\",\"name\":\"สำนักงานสลากกินแบ่งรัฐบาล (GLO Official)\",\"status\":\"healthy\",\"reason\":\"host-only\",\"dataValidated\":null,\"validationScope\":\"host-only\",\"latencyMs\":724,\"statusCode\":200,\"lastChecked\":\"2026-11-03T13:27:54.439Z\"},{\"id\":\"ranlotto\",\"name\":\"RANLOTTO Lottery Service\",\"status\":\"degraded\",\"reason\":\"access-denied\",\"dataValidated\":null,\"validationScope\":\"government-result-schema\",\"latencyMs\":220,\"statusCode\":403,\"lastChecked\":\"2026-11-03T13:27:53.936Z\"},{\"id\":\"ntfy\",\"name\":\"ntfy.sh Push Notification Server\",\"status\":\"healthy\",\"reason\":\"host-only\",\"dataValidated\":null,\"validationScope\":\"host-only\",\"latencyMs\":307,\"statusCode\":200,\"lastChecked\":\"2026-11-03T13:27:54.023Z\"},{\"id\":\"github\",\"name\":\"GitHub API\",\"status\":\"healthy\",\"reason\":\"host-only\",\"dataValidated\":null,\"validationScope\":\"host-only\",\"latencyMs\":75,\"statusCode\":200,\"lastChecked\":\"2026-11-03T13:27:53.792Z\"}]",
+        "shellCommand": ""
+      }
+    ]
+  },
+  {
     "sessionId": "audit-1793695698487",
     "triggeredAt": "2026-11-03T08:48:17.685Z",
     "triggeredAtThai": "3/11/2569 15:48:17",
