@@ -1,3 +1,4 @@
+import { matchesLottery } from '../utils/lotteryResult';
 import React, { useState, useMemo } from 'react';
 import {
   Calendar,
@@ -274,7 +275,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
           const candidates = [row.หวย, row.lottery, row.lottery_code, row.ชื่อหวย, row.lotteryName]
             .map(normalizeMatchKey)
             .filter(Boolean);
-          return candidates.some((key) => allowedKeys.includes(key));
+          return matchesLottery(detailLottery, row) || candidates.some((key) => allowedKeys.includes(key));
         })
         .sort((a, b) => getResultDateSortValue(b) - getResultDateSortValue(a))[0]
     : null;
@@ -387,7 +388,10 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
     // - Weekend (Sat & Sun): regular stocks are closed, only VIP stocks and daily lotteries draw
     // - Weekday (Mon - Fri): both regular stocks and VIP stocks draw
     // - Government lotteries remain visible; provider results determine the actual draw date.
-    const baseList = filterLotteriesForDrawDate(lotteries, targetDateObj);
+    const baseList = filterLotteriesForDrawDate(lotteries, targetDateObj).filter(item =>
+      !isGovernmentLottery(item) || results.some(row => matchesLottery(item,row) && getResultDrawDateIso(row) === selectedDate) ||
+      (normalizeDateToIso(item.date) === selectedDate && Boolean(getResultNumbers(item).top3 && getResultNumbers(item).bottom2))
+    );
 
     // Historical draws and government rows must match the actual selected draw date.
     return baseList.map((item) => {
@@ -403,7 +407,7 @@ export const DailySummaryTable: React.FC<DailySummaryProps> = ({
         const candidates = [row.หวย, row.lottery, row.lottery_code, row.ชื่อหวย, row.lotteryName]
           .map(normalizeMatchKey)
           .filter(Boolean);
-        return candidates.some((key) => allowedKeys.includes(key));
+        return matchesLottery(item, row) || candidates.some((key) => allowedKeys.includes(key));
       });
 
       if (matchedRows.length > 0) {

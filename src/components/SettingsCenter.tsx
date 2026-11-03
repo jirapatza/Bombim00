@@ -59,7 +59,7 @@ export function SettingsCenter({
   const [subTab, setSubTab] = useState<'unified' | 'template'>('unified');
 
   return (
-    <div className="space-y-6">
+    <div className="settings-center space-y-6">
       {/* Header with Sub-tab Navigation */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
@@ -69,10 +69,10 @@ export function SettingsCenter({
             </div>
             <div>
               <h2 className="text-lg font-bold text-white tracking-tight">
-                ตั้งค่าเว็บไซต์
+                ตั้งค่าแจ้งเตือนและเสียง
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                เลือกหัวข้อย่อยเพื่อปรับการแจ้งเตือน ข้อความ และเสียงประกาศ
+                เลือกช่องทางรับผล หรือปรับเสียงประกาศบนเครื่องนี้
               </p>
             </div>
           </div>
@@ -88,7 +88,7 @@ export function SettingsCenter({
                 className="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
               >
                 <Settings className="h-4 w-4" />
-                เครื่องมือหลังบ้าน
+                ดูสถานะระบบ
               </button>
             )}
           </div>
@@ -115,7 +115,7 @@ export function SettingsCenter({
             onClick={() => setSubTab('template')}
             className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
               subTab === 'template'
-                ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-600/20'
+                ? 'bg-blue-600 text-white font-bold'
                 : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >

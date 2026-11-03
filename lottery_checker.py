@@ -643,11 +643,12 @@ def send_ntfy_notification(row: dict) -> bool:
     if _lottery_category(row) not in {"government", "gov_savings"} and not display_name.startswith("หวย"):
         display_name = f"หวย{display_name}"
     title = f"📢 ผล{display_name} งวด {draw_date}"
-    body = f"{canonical_name}\n{top3} - {bottom2}"
+    body = f"{canonical_name}\nงวด {draw_date}\n{top3} - {bottom2}"
 
     # Publish via JSON payload to prevent base64 header encoding bugs on Android
-    url = f"{ntfy_server}/{topic}"
+    url = f"{ntfy_server}/"
     payload = {
+        "topic": topic,
         "title": title,
         "message": body,
         "priority": 4,
@@ -660,7 +661,7 @@ def send_ntfy_notification(row: dict) -> bool:
         headers = {"Content-Type": "application/json; charset=utf-8"}
         success = _http_post(url, data=data_bytes, headers=headers, timeout=10)
         if success:
-            print(f"[SUCCESS] Sent clean UTF-8 ntfy notification to topic '{topic}' via {ntfy_server}")
+            print("[SUCCESS] ntfy accepted a structured UTF-8 notification.")
             return True
         else:
             print(f"[ERROR] Failed posting JSON to ntfy.")

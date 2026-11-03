@@ -5,7 +5,7 @@ import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import bundledLotteryCatalog from '../data/all_lotteries.json';
 import { apiFetch, loginDashboard } from './utils/api';
 import { waitForDispatchedWorkflow } from './utils/workflowTracking';
-import { getResultNumbers, formatResultPair } from './utils/lotteryResult';
+import { getResultNumbers, formatResultPair, matchesLottery } from './utils/lotteryResult';
 import {
   Bell,
   CheckCircle2,
@@ -253,22 +253,6 @@ function providerDrawDateIso(row: any): string {
   return '';
 }
 
-const RESULT_CATALOG_ALIASES: Record<string, string[]> = {
-  thai_gov: ['thailotto', 'หวยรัฐบาลไทย', 'สลากกินแบ่งรัฐบาล'],
-  gsb: ['gsblotto', 'หวยออมสิน'],
-  baac: ['baaclotto', 'หวยธกส', 'หวย ธ.ก.ส.'],
-  nikkei_morning: ['stocknikkei1'],
-  nikkei_afternoon: ['stocknikkei2'],
-  china_morning: ['stockchina1'],
-  china_afternoon: ['stockchina2'],
-  hangseng_morning: ['stockhangseng1'],
-  hangseng_afternoon: ['stockhangseng2'],
-  taiwan: ['stocktaiwan'], korea: ['stockkorea'], singapore: ['stocksingapore'],
-  thai_stock_evening: ['stockthai4'], india: ['stockindia'],
-  lao_patthana: ['lpp', 'laoslotto', 'หวยลาวพัฒนา'],
-  hanoi_special: ['hanoylottospecial'], hanoi_regular: ['hanoylotto'],
-  hanoi_vip: ['hanoylottovip'], malay: ['malaylotto'],
-};
 
 function mergeCatalogWithProviderResults(catalog: LotteryItem[], rows: LotteryResult[], todayIso: string): LotteryItem[] {
   const actualResults = rows.map((row) => ({ row, date: providerDrawDateIso(row), ...getResultNumbers(row) }))
@@ -276,9 +260,7 @@ function mergeCatalogWithProviderResults(catalog: LotteryItem[], rows: LotteryRe
     .sort((a, b) => b.date.localeCompare(a.date) ||
       (Date.parse(b.row.เวลาที่ตรวจพบ || '') || 0) - (Date.parse(a.row.เวลาที่ตรวจพบ || '') || 0));
   return catalog.map((item) => {
-    const allowedKeys = new Set([item.id, item.name, ...(RESULT_CATALOG_ALIASES[item.id] || [])].map(normalizeResultLotteryKey));
-    const actual = actualResults.find(({ row }) => [row.หวย, row.ชื่อหวย, (row as any).lotteryName, (row as any).lottery_code]
-      .some((value) => value && allowedKeys.has(normalizeResultLotteryKey(value))));
+    const actual = actualResults.find(({ row }) => matchesLottery(item, row));
     if (!actual) {
       return { ...item, top3: '', bottom2: '', firstPrize: '', date: '', status: 'waiting', source: 'รอผลจริงจากแหล่งข้อมูล' };
     }
@@ -1518,15 +1500,13 @@ export default function App() {
           <nav id="bombim-main-nav" aria-label="เมนูหลัก" className="flex gap-2 sm:gap-3 border-t border-slate-800/80 overflow-x-auto py-3 text-sm sm:text-base font-black no-scrollbar">
             {[
               { id: 'live', label: 'หน้าหลัก', icon: Layers },
-              { id: 'stats', label: 'สถิติ', icon: BarChart3 },
-              { id: 'history', label: 'ประวัติผล', icon: History },
-              { id: 'notifications', label: 'แจ้งเตือน', icon: Bell },
+                            { id: 'history', label: 'ผลย้อนหลัง / สถิติ', icon: History },
               { id: 'settings', label: 'ตั้งค่า', icon: Settings },
               { id: 'summary', label: 'ตารางผลและภาพแชร์', icon: TableProperties },
               { id: 'checker', label: 'ตรวจสลากรางวัล', icon: Search },
             ].map((tab) => {
               const Icon = tab.icon;
-              const selected = activeTab === tab.id ||
+              const selected = activeTab === tab.id || (tab.id === 'settings' && activeTab === 'notifications') ||
                 (tab.id === 'checker' && ['accuracy', 'batch', 'results'].includes(activeTab));
               return (
                 <button
@@ -1557,7 +1537,7 @@ export default function App() {
       <main id="bombim-main-content" className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
         {/* ==================== TAB 1: LIVE UPCOMING DRAWS (WAITING & ABOUT-TO-DRAW) ==================== */}
         {activeTab === 'live' && <ResultsOverview lotteries={allLotteries} results={results} onSettings={() => setActiveTab('notifications')} onRefresh={fetchData} lastUpdated={status?.last_run_date_thai} />}
-        {activeTab === 'history' && <IndividualHistory lotteries={allLotteries} results={results} />}
+        {(activeTab === 'history' || activeTab === 'stats') && <IndividualHistory lotteries={allLotteries} results={results} showStats={activeTab === 'stats'} />}
 
         {/* ==================== TAB 2: DAILY SUMMARY TABLE (FULL 51 LOTTERIES MATRIX) ==================== */}
         {activeTab === 'summary' && (
@@ -1650,7 +1630,7 @@ export default function App() {
         )}
 
         {/* ==================== TAB 3: SMART TICKET CHECKER & AI ACCURACY CENTER ==================== */}
-        {(activeTab === 'checker' || activeTab === 'accuracy' || activeTab === 'batch' || activeTab === 'results' || activeTab === 'stats') && (
+        {(activeTab === 'checker' || activeTab === 'accuracy' || activeTab === 'batch' || activeTab === 'results') && (
           <div className="space-y-6">
             {/* Sub-navigation bar with larger fonts */}
             <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-3 sm:p-4 shadow-xl flex flex-wrap items-center justify-between gap-3">
@@ -1662,12 +1642,12 @@ export default function App() {
                     setActiveTab('checker');
                   }}
                   className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-sm sm:text-base font-black transition cursor-pointer flex items-center gap-2 ${
-                    checkerSubTab === 'batch' && activeTab !== 'stats'
+                    checkerSubTab === 'batch'
                       ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25 scale-[1.02]'
                       : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
                   }`}
                 >
-                  <Ticket className={`w-5 h-5 ${checkerSubTab === 'batch' && activeTab !== 'stats' ? 'text-slate-950' : 'text-amber-400'}`} />
+                  <Ticket className={`w-5 h-5 ${checkerSubTab === 'batch' ? 'text-slate-950' : 'text-amber-400'}`} />
                   <span>🎯 ตรวจรางวัลสลาก (เดี่ยว &amp; ชุดหลายใบ)</span>
                 </button>
 
@@ -1678,7 +1658,7 @@ export default function App() {
                     setActiveTab('history');
                   }}
                   className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-sm sm:text-base font-black transition cursor-pointer flex items-center gap-2 ${
-                    checkerSubTab === 'history' || activeTab === 'stats'
+                    checkerSubTab === 'history'
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 scale-[1.02]'
                       : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
                   }`}
@@ -1694,12 +1674,12 @@ export default function App() {
                     setActiveTab('checker');
                   }}
                   className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-sm sm:text-base font-black transition cursor-pointer flex items-center gap-2 ${
-                    checkerSubTab === 'accuracy' && activeTab !== 'stats'
+                    checkerSubTab === 'accuracy'
                       ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25 scale-[1.02]'
                       : 'bg-slate-950/70 text-slate-300 hover:text-white border border-slate-800'
                   }`}
                 >
-                  <Globe className={`w-5 h-5 ${checkerSubTab === 'accuracy' && activeTab !== 'stats' ? 'text-slate-950' : 'text-emerald-400'}`} />
+                  <Globe className={`w-5 h-5 ${checkerSubTab === 'accuracy' ? 'text-slate-950' : 'text-emerald-400'}`} />
                   <span>🛡️ ตรวจความแม่นยำ AI</span>
                 </button>
               </div>
@@ -1739,283 +1719,8 @@ export default function App() {
             )}
 
             {/* Subtab 3: Past Results History with Prize Filter Dropdown */}
-            {checkerSubTab === 'history' && (() => {
-              const filteredHistoryResults = results.filter((row) => {
-                // Search query filter (matches prize number, draw date, or lottery name)
-                if (historySearchTerm.trim()) {
-                  const term = historySearchTerm.trim().toLowerCase();
-                  const nameMatch = (row.ชื่อหวย || '').toLowerCase().includes(term);
-                  const dateMatch = (row.งวดวันที่ || '').toLowerCase().includes(term);
-                  const { top3, bottom2 } = getResultNumbers(row);
-                  if (!nameMatch && !dateMatch && !top3.includes(term) && !bottom2.includes(term)) return false;
-                }
-                if (historyPrizeFilter === 'first' || historyPrizeFilter === '3digits') {
-                  return Boolean(getResultNumbers(row).top3);
-                }
-                if (historyPrizeFilter === 'last2') return Boolean(getResultNumbers(row).bottom2);
-                if (historyPrizeFilter === 'thai') {
-                  const category = String(row.หมวดหวย || '').toLowerCase();
-                  const name = String(row.ชื่อหวย || '');
-                  return (
-                    ['thai', 'government', 'gov_savings'].includes(category) ||
-                    name.includes('สลากกินแบ่ง') ||
-                    name.includes('ออมสิน') ||
-                    name.includes('ธ.ก.ส.')
-                  );
-                }
-                return true;
-              });
+            {checkerSubTab === 'history' && <IndividualHistory lotteries={allLotteries} results={results} />}
 
-              // Statistics calculation
-              const totalFiltered = filteredHistoryResults.length;
-              const evenCount = filteredHistoryResults.filter((r) => {
-                const n = parseInt(r.เลขท้าย_2_ตัว, 10);
-                return !isNaN(n) && n % 2 === 0;
-              }).length;
-              const oddCount = filteredHistoryResults.filter((r) => {
-                const n = parseInt(r.เลขท้าย_2_ตัว, 10);
-                return !isNaN(n) && n % 2 !== 0;
-              }).length;
-
-              return (
-                <div className="space-y-5">
-                  {/* Filter Toolbar Card */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                          <History className="w-5 h-5 text-amber-400" />
-                          ประวัติผลสลากและหวยย้อนหลัง (Results History)
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          ค้นหาและกรองผลรางวัลย้อนหลังจากฐานข้อมูล <code className="text-amber-300 font-mono">lottery_previous_results.json</code>
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                          แสดง <strong className="text-amber-400">{totalFiltered}</strong> / {results.length} งวด
-                        </span>
-                        {(historyPrizeFilter !== 'all' || historySearchTerm) && (
-                          <button
-                            onClick={() => {
-                              setHistoryPrizeFilter('all');
-                              setHistorySearchTerm('');
-                            }}
-                            className="text-xs px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-300 border border-rose-500/20 hover:bg-rose-500/20 transition flex items-center gap-1 cursor-pointer"
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                            ล้างตัวกรอง
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Controls row: Dropdown Filter + Search Box */}
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2 border-t border-slate-800/80">
-                      {/* Dropdown Selector */}
-                      <div className="md:col-span-5 flex flex-col gap-1.5">
-                        <label htmlFor="history-prize-filter-select" className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                          <ListFilter className="w-3.5 h-3.5 text-amber-400" />
-                          กรองผลหวย:
-                        </label>
-                        <div className="relative">
-                          <select
-                            id="history-prize-filter-select"
-                            value={historyPrizeFilter}
-                            onChange={(e) => setHistoryPrizeFilter(e.target.value as any)}
-                            className="w-full bg-slate-950 border border-slate-700 hover:border-amber-400 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-medium appearance-none cursor-pointer transition focus:outline-none focus:ring-1 focus:ring-amber-400/50 pr-10 shadow-inner"
-                          >
-                            <option value="all">📋 ทุกผลหวย</option>
-                            <option value="first">🔺 มีผล 3 ตัวบน</option>
-                            <option value="last2">🟢 มีผล 2 ตัวล่าง</option>
-                            <option value="thai">🇹🇭 เฉพาะสลากกินแบ่งรัฐบาล (Thai Gov Only)</option>
-                          </select>
-                          <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-400">
-                            <SlidersHorizontal className="w-4 h-4 text-amber-400" />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Search Input Box */}
-                      <div className="md:col-span-7 flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                          <Search className="w-3.5 h-3.5 text-emerald-400" />
-                          ค้นหาตัวเลข / งวด / ชื่อหวย:
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={historySearchTerm}
-                            onChange={(e) => setHistorySearchTerm(e.target.value)}
-                            placeholder="พิมพ์เลขรางวัล เช่น 781, 69 หรือชื่อหวย เช่น นิเคอิ, ฮานอย..."
-                            className="w-full bg-slate-950 border border-slate-700 hover:border-slate-600 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 transition focus:outline-none focus:ring-1 focus:ring-emerald-400/50 pr-8 shadow-inner"
-                          />
-                          {historySearchTerm ? (
-                            <button
-                              onClick={() => setHistorySearchTerm('')}
-                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 cursor-pointer"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-500">
-                              <Search className="w-4 h-4" />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Quick Filter Chips (1-tap pill selectors) */}
-                    <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                      <span className="text-[11px] text-slate-400 mr-1 flex items-center gap-1">
-                        เลือกด่วน:
-                      </span>
-                      {[
-                        { id: 'all', label: 'ทั้งหมด (All)', icon: '📋' },
-                        { id: 'first', label: 'มีผล 3 ตัวบน', icon: '🔺' },
-                        { id: 'last2', label: 'มีผล 2 ตัวล่าง', icon: '🟢' },
-                        { id: 'thai', label: 'สลากกินแบ่งรัฐบาล', icon: '🇹🇭' },
-                      ].map((chip) => {
-                        const active = historyPrizeFilter === chip.id;
-                        return (
-                          <button
-                            key={chip.id}
-                            type="button"
-                            onClick={() => setHistoryPrizeFilter(chip.id as any)}
-                            className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition flex items-center gap-1.5 ${
-                              active
-                                ? 'bg-amber-400 text-slate-950 shadow-md font-bold'
-                                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60'
-                            }`}
-                          >
-                            <span>{chip.icon}</span>
-                            <span>{chip.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                  </div>
-
-                  {/* Empty state if no results */}
-                  {filteredHistoryResults.length === 0 ? (
-                    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-10 text-center space-y-3">
-                      <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
-                        <Search className="w-6 h-6" />
-                      </div>
-                      <h4 className="font-bold text-slate-200">ไม่พบผลรางวัลที่ตรงกับเงื่อนไขการกรอง</h4>
-                      <p className="text-xs text-slate-400 max-w-md mx-auto">
-                        ลองเปลี่ยนคำค้นหา หรือเลือก "ทุกผลหวย" เพื่อดูข้อมูลทั้งหมด
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setHistoryPrizeFilter('all');
-                          setHistorySearchTerm('');
-                        }}
-                        className="px-4 py-2 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs hover:bg-amber-300 transition cursor-pointer"
-                      >
-                        ล้างเงื่อนไขการค้นหาทั้งหมด
-                      </button>
-                    </div>
-                  ) : (
-                    /* History Cards Grid */
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {filteredHistoryResults.map((row, idx) => {
-                        const lotteryTitle = row.ชื่อหวย || 'สลากกินแบ่งรัฐบาล (ไทย)';
-                        const { top3, bottom2 } = getResultNumbers(row);
-
-                        // Determine card accent styling based on active prize filter
-                        let cardBorder = 'hover:border-slate-700 border-slate-800';
-                        if (historyPrizeFilter === 'first') {
-                          cardBorder = 'border-amber-500/40 hover:border-amber-400/70 shadow-amber-950/20';
-                        } else if (historyPrizeFilter === 'last2') {
-                          cardBorder = 'border-emerald-500/40 hover:border-emerald-400/70 shadow-emerald-950/20';
-                        } else if (historyPrizeFilter === '3digits') {
-                          cardBorder = 'border-sky-500/40 hover:border-sky-400/70 shadow-sky-950/20';
-                        }
-
-                        return (
-                          <div
-                            key={idx}
-                            className={`bg-slate-900/90 border rounded-2xl p-5 transition flex flex-col justify-between shadow-lg relative overflow-hidden group ${cardBorder}`}
-                          >
-                            {/* Card Top: Lottery Title & Date */}
-                            <div>
-                              <div className="flex items-start justify-between gap-2 mb-3">
-                                <div>
-                                  <div className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                                    {lotteryTitle}
-                                  </div>
-                                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                                    งวด {row.งวดวันที่}
-                                  </div>
-                                </div>
-                                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase font-mono border border-slate-700/60 shrink-0">
-                                  {row.แหล่งข้อมูล || 'glo'}
-                                </span>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-slate-950/80 p-3 rounded-xl border border-amber-500/30 text-center">
-                                  <div className="text-[11px] text-amber-400 mb-1">3 ตัวบน</div>
-                                  <div className="text-3xl font-black font-mono text-amber-300 tracking-wider">{top3 || '---'}</div>
-                                </div>
-                                <div className="bg-slate-950/80 p-3 rounded-xl border border-emerald-500/30 text-center">
-                                  <div className="text-[11px] text-emerald-400 mb-1">2 ตัวล่าง</div>
-                                  <div className="text-3xl font-black font-mono text-emerald-300 tracking-wider">{bottom2 || '--'}</div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Card Footer: Audio Announcement & Copy Summary Buttons */}
-                            <div className="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-500">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const nextClosing = getNextClosingLottery();
-                                  triggerAnnouncements([
-                                    {
-                                      id: 'hist-' + idx,
-                                      lotteryName: row.ชื่อหวย || 'สลากกินแบ่งรัฐบาล',
-                                      drawDate: row.งวดวันที่,
-                                      firstPrize: top3,
-                                      last2Digits: bottom2,
-                                      front3Digits: [],
-                                      last3Digits: [],
-                                      source: row.แหล่งข้อมูล,
-                                      nextClosing: nextClosing,
-                                    },
-                                  ]);
-                                }}
-                                className="text-amber-400 hover:text-amber-300 cursor-pointer flex items-center gap-1 font-semibold transition"
-                              >
-                                <Volume2 className="w-3.5 h-3.5" />
-                                เปิดเสียงอ่านงวดนี้
-                              </button>
-
-                              <button
-                                onClick={() => {
-                                  const copyText = `ผล${lotteryTitle} งวด ${row.งวดวันที่}: ${formatResultPair(row)}`;
-                                  copyToClipboard(copyText, `row-${idx}`);
-                                }}
-                                className="text-slate-400 hover:text-slate-200 cursor-pointer flex items-center gap-1 transition"
-                              >
-                                <Copy className="w-3 h-3" />
-                                คัดลอกสรุป
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
           </div>
         )}
 

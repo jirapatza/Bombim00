@@ -40,3 +40,29 @@ export function normalizeLotteryIdentity(value: unknown): string {
     .replace(/\(ไทย\)/gu, '')
     .replace(/[\s._#()–—-]+/g, '') + (vip ? 'vip' : '');
 }
+
+/** Explicit provider aliases; no substring matching across draw variants. */
+export const RESULT_ALIASES: Record<string, string[]> = {
+  thai_gov: ['thailotto', 'หวยรัฐบาลไทย', 'สลากกินแบ่งรัฐบาล'],
+  gsb: ['gsblotto', 'หวยออมสิน'], baac: ['baaclotto', 'หวยธกส', 'หวย ธ.ก.ส.'],
+  nikkei_morning: ['stocknikkei1'], nikkei_afternoon: ['stocknikkei2'],
+  china_morning: ['stockchina1'], china_afternoon: ['stockchina2'],
+  hangseng_morning: ['stockhangseng1'], hangseng_afternoon: ['stockhangseng2'],
+  taiwan: ['stocktaiwan'], korea: ['stockkorea'], singapore: ['stocksingapore'],
+  thai_stock_evening: ['stockthai4'], india: ['stockindia'],
+  lao_patthana: ['laoslotto', 'หวยลาวพัฒนา'],
+  hanoi_special: ['hanoylottospecial'], hanoi_regular: ['hanoylotto'], hanoi_vip: ['hanoylottovip'],
+  malay: ['malaylotto'], lao_extra: ['laoslottoextra'],
+  hanoi_patthana: [], hanoi_samakki: [], hanoi_extra: [], hanoi_hd: [], hanoi_tv: [], hanoi_star: [],
+  lao_samakki: [], lao_samakki_vip: [], lao_star_vip: [], lao_vip: [],
+};
+export function matchesLottery(item: {id?: string; name?: string}, row: Record<string, any>): boolean {
+  const code = String(row.หวย || row.lottery_code || '').toLowerCase();
+  if (/^[a-z0-9_]+$/.test(code)) {
+    const knownId = Object.keys(RESULT_ALIASES).find(id => [id, ...RESULT_ALIASES[id]].some(alias => alias.toLowerCase() === code));
+    if (knownId) return item.id === knownId;
+  }
+  const names = [item.id, item.name, ...(RESULT_ALIASES[item.id || ''] || [])].filter(Boolean).map(normalizeLotteryIdentity);
+  return [row.หวย, row.ชื่อหวย, row.lotteryName, row.name, row.lottery_code, row.lottery]
+    .filter(Boolean).some(value => names.includes(normalizeLotteryIdentity(value)));
+}

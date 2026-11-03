@@ -220,7 +220,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400 flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              ตรวจผลอัตโนมัติ: <strong>ทุก 5 นาทีโดยประมาณ</strong>
+              ตรวจผลตามรอบอัตโนมัติ · อาจล่าช้าจากต้นทาง
             </span>
           </div>
         </div>
@@ -398,7 +398,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
               )}
 
               <div className="text-[11px] text-slate-400 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80">
-                📲 <em>ติดตั้งแอป <strong>ntfy</strong> บนมือถือ แล้วกด Subscribe ห้อง <strong>{topic}</strong> ก็จะได้รับเตือนทันที</em>
+                📲 <em>ติดตั้งแอป <strong>ntfy</strong> บนมือถือ แล้วกด Subscribe ห้อง <strong>{topic}</strong> เพื่อรับผลใหม่ที่ระบบตรวจพบ</em>
               </div>
             </div>
           </div>
@@ -550,7 +550,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
                 </span>
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                เมื่อผลหวยออก ระบบจะส่งเตือนเข้า LINE และ ntfy มือถือทันที
+                เมื่อระบบตรวจพบผลใหม่ จะส่งผ่านช่องทางที่เปิดไว้ เสียงพูดทำงานขณะเปิดหน้าเว็บและอนุญาตเสียงแล้ว
               </p>
             </div>
           </div>

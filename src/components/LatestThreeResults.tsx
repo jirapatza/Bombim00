@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Clock3, Radio, Trophy } from 'lucide-react';
 import type { LotteryItem } from './DailySummaryTable';
 import { getResultNumbers } from '../utils/lotteryResult';
+import { latestPublishedResults } from '../utils/overviewResults';
 
 interface LatestResultRow {
   ชื่อหวย?: string;
@@ -30,75 +31,7 @@ interface LatestThreeResultsProps {
   lotteries: LotteryItem[];
 }
 
-function parseTimestamp(value?: string): number {
-  if (!value) return Number.NaN;
-  const raw = value.trim();
-  const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw) &&
-    !/(Z|[+-]\d{2}:?\d{2})$/i.test(raw)
-    ? `${raw}+07:00`
-    : raw;
-  const parsed = Date.parse(normalized);
-  return Number.isFinite(parsed) ? parsed : Number.NaN;
-}
-
-function normalizeName(value?: string): string {
-  return String(value || '').toLocaleLowerCase().replace(/[\s._#-]+/g, '');
-}
-
-function parseDrawDate(value?: string): string {
-  const raw = String(value || '').trim();
-  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (iso) {
-    const year = Number(iso[1]) > 2400 ? Number(iso[1]) - 543 : Number(iso[1]);
-    return `${year}-${String(iso[2]).padStart(2, '0')}-${String(iso[3]).padStart(2, '0')}`;
-  }
-  const dmy = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
-  if (dmy) {
-    const year = Number(dmy[3]) > 2400 ? Number(dmy[3]) - 543 : Number(dmy[3]);
-    return `${year}-${String(dmy[2]).padStart(2, '0')}-${String(dmy[1]).padStart(2, '0')}`;
-  }
-  const months: Record<string, string> = {
-    'มกราคม': '01', 'ม.ค.': '01', 'กุมภาพันธ์': '02', 'ก.พ.': '02',
-    'มีนาคม': '03', 'มี.ค.': '03', 'เมษายน': '04', 'เม.ย.': '04',
-    'พฤษภาคม': '05', 'พ.ค.': '05', 'มิถุนายน': '06', 'มิ.ย.': '06',
-    'กรกฎาคม': '07', 'ก.ค.': '07', 'สิงหาคม': '08', 'ส.ค.': '08',
-    'กันยายน': '09', 'ก.ย.': '09', 'ตุลาคม': '10', 'ต.ค.': '10',
-    'พฤศจิกายน': '11', 'พ.ย.': '11', 'ธันวาคม': '12', 'ธ.ค.': '12',
-  };
-  const day = raw.match(/(\d{1,2})/);
-  const year = raw.match(/(\d{4})/);
-  const month = Object.entries(months).find(([name]) => raw.includes(name))?.[1];
-  if (day && year && month) {
-    const y = Number(year[1]) > 2400 ? Number(year[1]) - 543 : Number(year[1]);
-    return `${y}-${month}-${String(day[1]).padStart(2, '0')}`;
-  }
-  return '';
-}
-
-function scheduledTimestamp(row: LatestResultRow, lotteries: LotteryItem[]): number {
-  const explicit = parseTimestamp(row.เวลาประกาศผล || row.announcedAt || row.publishedAt);
-  if (Number.isFinite(explicit)) return explicit;
-
-  const rowName = normalizeName(row.ชื่อหวย || row.หวย || row.lotteryName);
-  const schedule = lotteries.find((item) =>
-    [normalizeName(item.name), normalizeName(item.id)].includes(rowName)
-  );
-  const date = parseDrawDate(row.งวดวันที่) || parseDrawDate(row.วันที่จัดรูปแบบ);
-  if (!schedule || !date) return Number.NaN;
-
-  const time = String(schedule.drawTimeStr || '').match(/(\d{1,2})[:.](\d{2})/);
-  if (!time) return Number.NaN;
-  const hour = Number(time[1]);
-  const minute = Number(time[2]);
-  // Overnight rounds (00:00-06:59) belong to the next calendar day
-  // when the source's draw date is the evening session date.
-  const dateObj = new Date(`${date}T00:00:00+07:00`);
-  if (hour < 7) dateObj.setUTCDate(dateObj.getUTCDate() + 1);
-  const [year, month, day] = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(dateObj).split('-').map(Number);
-  return Date.parse(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+07:00`);
-}
+function normalizeName(value?:string) { return String(value||'').replace(/\s+/g,''); }
 
 function formatBangkokTime(timestamp: number): string {
   return new Intl.DateTimeFormat('th-TH', {
@@ -112,25 +45,9 @@ function formatBangkokTime(timestamp: number): string {
 }
 
 export const LatestThreeResults: React.FC<LatestThreeResultsProps> = ({ results, lotteries }) => {
-  const latest = useMemo(() => {
-    return (Array.isArray(results) ? results : [])
-      .map((row) => {
-        const officialOrScheduled = scheduledTimestamp(row, lotteries);
-        const detected = parseTimestamp(row.เวลาที่ตรวจพบ || row.detectedAt);
-        return {
-          row,
-          timestamp: Number.isFinite(officialOrScheduled) ? officialOrScheduled : detected,
-          timeBasis: Number.isFinite(officialOrScheduled) ? 'เวลาประกาศ/เวลาออกรอบ' : 'เวลาที่ระบบตรวจพบ',
-        };
-      })
-      .filter(({ row, timestamp }) => {
-        const { top3, bottom2 } = getResultNumbers(row);
-        const hasResult = Boolean(top3 || bottom2);
-        return hasResult && Number.isFinite(timestamp);
-      })
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 3);
-  }, [results, lotteries]);
+  const latest = useMemo(() => latestPublishedResults(results, lotteries).map(result => ({
+    ...result, timeBasis: 'เวลาประกาศหรือเวลาออกตามตาราง',
+  })), [results, lotteries]);
 
   return (
     <section className="rounded-2xl border border-cyan-500/20 bg-slate-950/90 p-4 sm:p-5 shadow-xl shadow-cyan-950/20" aria-labelledby="latest-three-heading">

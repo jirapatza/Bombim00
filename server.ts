@@ -331,10 +331,11 @@ app.post('/api/test-ntfy', async (req, res) => {
       return res.status(400).json({ success: false, error: 'หัวข้อต้องไม่เกิน 100 และข้อความต้องไม่เกิน 4,000 ตัวอักษร' });
     }
 
-    const ntfyRes = await fetch(serverUrl.origin + '/' + encodeURIComponent(cleanTopic), {
+    const ntfyRes = await fetch(serverUrl.origin + '/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({
+        topic: cleanTopic,
         title,
         message,
         priority: 4,
