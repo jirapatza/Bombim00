@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import QRCode from 'qrcode';
 import {
   X,
@@ -191,11 +191,13 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
   const hasAutoSharedRef = useRef(false);
 
   // Filter announced or valid lotteries
-  const displayLotteries = lotteries.filter((l) => {
+  const targetLotteries = useMemo(() => {
+    const displayLotteries = lotteries.filter((l) => {
     const { top3, bottom2 } = getResultNumbers(l);
     return l.status === 'announced' || Boolean(top3 && bottom2);
   });
-  const targetLotteries = displayLotteries.length > 0 ? displayLotteries : lotteries.slice(0, 15);
+    return displayLotteries.length > 0 ? displayLotteries : lotteries.slice(0, 15);
+  }, [lotteries]);
 
   const appShareUrl =
     typeof window !== 'undefined'
@@ -306,19 +308,24 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
     }
   }, [dateStr, generateSummaryText, handleDownload, imageUrl, title]);
 
+  const shareImageRef = useRef(handleShareImage);
+  shareImageRef.current = handleShareImage;
+
   // Main Canvas Render Effect
   useEffect(() => {
     if (!isOpen) {
       hasAutoSharedRef.current = false;
       return;
     }
+    let cancelled = false;
+    let shareTimer: ReturnType<typeof setTimeout> | undefined;
     setIsRendering(true);
 
     const renderCard = async () => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) { setIsRendering(false); return; }
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) { setIsRendering(false); return; }
 
       const theme = THEMES[selectedTheme];
       const scale = 2; // 2x Retina
@@ -532,6 +539,7 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
             qrImg.src = qrDataUrl;
           });
 
+          if (cancelled) return;
           const qrSize = 90;
           const qrX = 55;
           const qrY = footerY + 20;
@@ -577,26 +585,32 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
         ctx.fillText(`สร้างเมื่อ: ${dateStr} เวลา ${timeNow} น.`, width / 2, footerY + 88);
       }
 
+      if (cancelled) return;
       try {
         const url = canvas.toDataURL('image/png');
         setImageUrl(url);
 
         if (autoShare && !hasAutoSharedRef.current) {
           hasAutoSharedRef.current = true;
-          setTimeout(() => {
-            handleShareImage();
+          shareTimer = setTimeout(() => {
+            if (!cancelled) void shareImageRef.current();
           }, 200);
         }
       } catch (err) {
         console.error('Canvas export error:', err);
       } finally {
-        setIsRendering(false);
+        if (!cancelled) setIsRendering(false);
       }
     };
 
-    const timer = setTimeout(renderCard, 80);
-    return () => clearTimeout(timer);
-  }, [isOpen, title, dateStr, targetLotteries, periodLabel, autoShare, selectedTheme, includeQr, appShareUrl, handleShareImage]);
+    const timer = setTimeout(() => {
+      void renderCard().catch((error) => {
+        if (!cancelled) { setImageUrl(null); setIsRendering(false); }
+        console.error('Summary render failed:', error);
+      });
+    }, 80);
+    return () => { cancelled = true; clearTimeout(timer); clearTimeout(shareTimer); };
+  }, [isOpen, title, dateStr, targetLotteries, periodLabel, autoShare, selectedTheme, includeQr, appShareUrl]);
 
   const handleCopyImage = async () => {
     if (!canvasRef.current) return;
@@ -762,6 +776,7 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
             <button
               type="button"
               onClick={handleCopyImage}
+              disabled={isRendering || !imageUrl}
               className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
             >
               {copiedImage ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <ImageIcon className="w-3.5 h-3.5" />}
@@ -773,7 +788,7 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
             <button
               type="button"
               onClick={handleShareImage}
-              disabled={isSharing}
+              disabled={isSharing || isRendering || !imageUrl}
               className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
             >
               <Share2 className="w-3.5 h-3.5" />
@@ -783,6 +798,7 @@ export const SummaryImageModal: React.FC<SummaryImageModalProps> = ({
             <button
               type="button"
               onClick={handleDownload}
+              disabled={isRendering || !imageUrl}
               className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5 cursor-pointer active:scale-95"
             >
               <Download className="w-3.5 h-3.5" />
