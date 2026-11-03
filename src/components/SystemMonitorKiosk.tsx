@@ -1,3 +1,4 @@
+import { describeWorkflowHealth, type WorkflowRunStatus } from '../utils/workflowHealth';
 import React, { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/api';
 import {
@@ -64,6 +65,8 @@ interface MonitorData {
     latencyMs: number;
     statusCode: number;
     lastChecked: string;
+    reason?: string;
+    dataValidated?: boolean | null;
   }>;
 }
 
@@ -99,6 +102,8 @@ export interface SelfHealingSession {
 }
 
 export function SystemMonitorKiosk() {
+  const [workflowRuns, setWorkflowRuns] = useState<WorkflowRunStatus[] | null>(null);
+  const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [monitorData, setMonitorData] = useState<MonitorData | null>(null);
   const [healingHistory, setHealingHistory] = useState<SelfHealingSession[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -169,11 +174,21 @@ export function SystemMonitorKiosk() {
     monitorFetchInFlightRef.current = true;
     setIsLoading(true);
     try {
-      const res = await apiFetch('/api/system/monitor');
-      if (res.ok) {
-        const data = await res.json();
-        setMonitorData(data);
-      }
+      const [monitorResult, runsResult] = await Promise.allSettled([
+        apiFetch('/api/system/monitor', { signal: AbortSignal.timeout(15000) }).then(async (res) => {
+          if (!res.ok) throw new Error('ตรวจแผงระบบไม่สำเร็จ (HTTP ' + res.status + ')');
+          return res.json();
+        }),
+        apiFetch('/api/github/runs', { signal: AbortSignal.timeout(15000) }).then(async (res) => {
+          const data = await res.json();
+          if (!res.ok || !data.success || !Array.isArray(data.workflow_runs)) throw new Error(data.error || 'อ่าน Workflow ไม่สำเร็จ');
+          return data.workflow_runs;
+        }),
+      ]);
+      if (monitorResult.status === 'fulfilled') setMonitorData(monitorResult.value);
+      else setMonitorData(null);
+      if (runsResult.status === 'fulfilled') { setWorkflowRuns(runsResult.value); setWorkflowError(null); }
+      else { setWorkflowRuns(null); setWorkflowError(runsResult.reason?.message || 'อ่าน Workflow ไม่สำเร็จ'); }
     } catch (err) {
       console.error('Failed to fetch system monitor status:', err);
     } finally {
@@ -318,6 +333,7 @@ export function SystemMonitorKiosk() {
   const statusFile = monitorData?.filesHealth.find((f) => f.name === 'status/status.json');
   const gloCheck = monitorData?.sourceChecks.find((s) => s.id === 'glo');
   const ranlottoCheck = monitorData?.sourceChecks.find((s) => s.id === 'ranlotto');
+  const runnerHealth = describeWorkflowHealth(workflowRuns || []);
   const ntfyCheck = monitorData?.sourceChecks.find((s) => s.id === 'ntfy');
   const githubCheck = monitorData?.sourceChecks.find((s) => s.id === 'github');
 
@@ -340,10 +356,10 @@ export function SystemMonitorKiosk() {
       name: 'GitHub Actions Lottery Runner',
       category: 'Automation Engine',
       icon: GitBranch,
-      status: 'degraded',
-      statusText: 'กำหนดให้ GitHub Actions เป็นตัวตรวจเพียงจุดเดียว แต่ยังไม่ได้ตรวจสถานะ Workflow ล่าสุดในแผงนี้',
+      status: workflowError ? 'error' : runnerHealth.status,
+      statusText: workflowError || (workflowRuns === null ? 'ยังไม่ได้ตรวจประวัติ Workflow' : runnerHealth.message),
       latency: null,
-      details: 'Render ทำหน้าที่เว็บ/API เท่านั้น ไม่มี Python checker หรือ scheduler ซ้ำในเว็บเซิร์ฟเวอร์',
+      details: 'GitHub Actions เป็นตัวตรวจจุดเดียว • ขณะเปิดเว็บจะช่วยเรียกทุก 5 นาทีและกันคำสั่งซ้ำหลายเครื่อง • เมื่อปิดทุกเครื่องใช้ตาราง GitHub ซึ่งอาจล่าช้า',
       easyFix: 'ตรวจสอบประวัติ Workflow ในหน้า GitHub Actions',
     },
     {
@@ -387,15 +403,19 @@ export function SystemMonitorKiosk() {
     },
     {
       id: 'ranlotto_feed',
-      name: 'RANLOTTO Host Reachability',
+      name: 'RANLOTTO Government Result API',
       category: 'External Data Source',
       icon: Globe,
       status: ranlottoCheck?.status || 'degraded',
-      statusText: !ranlottoCheck ? 'ยังไม่ได้ตรวจสอบ' : ranlottoCheck.status === 'healthy'
-        ? `เข้าถึงโดเมนได้ (HTTP ${ranlottoCheck.statusCode})`
-        : `การตรวจเข้าถึงโดเมนไม่ผ่าน (HTTP ${ranlottoCheck.statusCode || 'ไม่มีการตอบกลับ'})`,
+      statusText: !ranlottoCheck ? 'ยังไม่ได้ตรวจสอบ' : ranlottoCheck.statusCode === 403
+        ? 'API ปฏิเสธการเข้าถึง (HTTP 403) • ไม่ใช่ค่าความหน่วงของผลหวย'
+        : ranlottoCheck.dataValidated === true
+        ? 'API ตอบกลับและผ่านการตรวจรูปแบบเลขรางวัล/วันที่'
+        : ranlottoCheck.reason === 'result-schema-invalid-or-unpublished'
+        ? 'API ตอบกลับ แต่รูปแบบผลไม่ครบหรือยังไม่เผยแพร่'
+        : `ตรวจ API ไม่สำเร็จ (HTTP ${ranlottoCheck.statusCode || 'ไม่มีการตอบกลับ'})`,
       latency: ranlottoCheck?.latencyMs ?? null,
-      details: 'ตรวจสอบการเข้าถึง host เท่านั้น ไม่ได้ยืนยันความครบถ้วนของผลหวยแต่ละหมวด',
+      details: 'ตรวจ GET endpoint ผลรัฐบาลและรูปแบบ JSON เท่านั้น ไม่รับรองความถูกต้องหรือความสดของผลทุกหมวด',
       easyFix: 'ทดสอบ API endpoint จริงและตรวจ schema ของผลตอบกลับ',
     },
     {
@@ -835,7 +855,7 @@ export function SystemMonitorKiosk() {
                         isError ? 'bg-white' : isDegraded ? 'bg-amber-400' : 'bg-emerald-400'
                       }`}
                     />
-                    {isError ? 'เสีย / ERROR' : isDegraded ? 'หน่วง / DEGRADED' : 'ปกติ / HEALTHY'}
+                    {isError ? 'เสีย / ERROR' : isDegraded ? 'ต้องตรวจสอบ / DEGRADED' : 'ปกติ / HEALTHY'}
                   </span>
                 </div>
 
