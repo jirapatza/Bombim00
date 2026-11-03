@@ -64,12 +64,13 @@ test('production API protects writes and exposes only the single GitHub Actions 
       assert.match(response.headers.get('content-type'), /json/);
     }
 
-    const health = await (await fetch(`${base}/api/health`)).json();
+    const health = await (await fetch(`${base}/api/health`, { headers: { Authorization: 'Bearer test-secret' } })).json();
     assert.equal(health.ok, true);
     assert.equal(health.writesEnabled, false);
     assert.equal(health.githubTokenConfigured, false);
     assert.equal(health.dashboardAuthConfigured, true);
-    assert.match(await (await fetch(base)).text(), /<div id="root">/);
+    assert.match(await (await fetch(base)).text(), /เว็บไซต์ส่วนตัว/);
+    assert.equal((await fetch(`${base}/api/status`)).status, 401);
   } finally {
     if (server.exitCode === null) {
       server.kill();
