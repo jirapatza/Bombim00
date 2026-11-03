@@ -62,6 +62,12 @@ test('private website requires login, remembers across server instances, blocks 
     assert.match(await (await fetch(base)).text(), /เว็บไซต์ส่วนตัว/);
     for (let i = 0; i < 10; i++) assert.equal((await login('wrong')).status, 401);
     assert.equal((await login('test-password')).status, 429);
+    let limited;
+    for (let i = 0; i < 301; i++) {
+      limited = await fetch(`${base}/api/auth/session`);
+      if (limited.status === 429) break;
+    }
+    assert.equal(limited.status, 429, 'global limiter must run before authentication routes');
   } finally {
     await new Promise(resolve => server.close(resolve));
     delete process.env.DASH_PASSWORD;
