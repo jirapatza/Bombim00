@@ -1729,6 +1729,7 @@ export default function App() {
       {/* Footer */}
       <footer id="bombim-footer" className="border-t border-slate-900 bg-slate-950 py-4 text-center text-xs text-slate-500">
         Lottery Alert System • ระบบแจ้งเตือนผลหวยพร้อมเสียงพูดไทย & ตัวปรับแต่งรูปแบบข้อความตัวหนังสือ
+        <div className="mt-2">แหล่งข้อมูลสำรอง: <a href="https://lotterychecks.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-300">LotteryChecks</a></div>
       </footer>
 
       {/* Admin & Back-Office Control Center Modal */}
