@@ -56,3 +56,12 @@ def test_extra_backfills_without_old_pushes_and_preserves_delivery_dedup(monkeyp
     monkeypatch.setenv('FORCE_NOTIFY', 'true')
     lc.main()
     assert sent == [today.isoformat(), today.isoformat()]
+
+
+def test_named_rounds_are_never_collapsed_just_because_their_times_match():
+    assert sl.map_canonical_lottery_name('หวยลาวสามัคคี VIP เวลา 21:30') == 'หวยลาวสามัคคี VIP'
+    assert sl.map_canonical_lottery_name('ลาวสตาร์ VIP') != sl.map_canonical_lottery_name('ลาว VIP')
+    assert sl.map_canonical_lottery_name('ลาวพัฒนาพิเศษ') != sl.map_canonical_lottery_name('ลาวพัฒนา')
+    assert sl.map_canonical_lottery_name('ฮานอยพัฒนา เวลา 19:30') == 'ฮานอยพัฒนา'
+    assert sl.map_canonical_lottery_name('ฮานอยสามัคคี เวลา 17:30') == 'ฮานอยสามัคคี'
+    assert sl.map_canonical_lottery_name('ฮานอยกาชาด เวลา 16:30') == 'ฮานอยกาชาด'
