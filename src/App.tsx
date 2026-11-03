@@ -699,6 +699,13 @@ export default function App() {
     });
   };
 
+  const handleToggleVoice = (enabled: boolean) => {
+    voiceEnabledRef.current = enabled;
+    setVoiceEnabled(enabled);
+    if (enabled) speakCustomText('เปิดเสียงแจ้งเตือนแล้วครับ', true);
+    else { stopSpeech(); setAudioReady(false); }
+  };
+
   // Apply a template preset
   const applyPreset = (presetKey: keyof typeof TEMPLATE_PRESETS) => {
     const p = TEMPLATE_PRESETS[presetKey];
@@ -923,7 +930,7 @@ export default function App() {
           nextClosing,
           note: 'ตรวจพบผลใหม่จากแหล่งข้อมูล',
         })));
-        showToast(`พบผลหวยใหม่ ${newResults.length} รายการ กำลังอ่านประกาศเสียง`);
+        showToast(`พบผลหวยใหม่ ${newResults.length} รายการ${voiceEnabledRef.current && audioUnlockedRef.current ? ' กำลังเตรียมอ่านประกาศ' : ' — แตะเปิดและทดสอบเสียงเพื่อฟังประกาศ'}`);
       }
     } catch (err) {
       console.error('Fetch error:', err);
@@ -1582,11 +1589,7 @@ export default function App() {
             latestDraw={latestDraw}
             allLotteries={allLotteries}
             voiceEnabled={voiceEnabled}
-            onToggleVoice={(v) => {
-              setVoiceEnabled(v);
-              if (!v) stopSpeech();
-              showToast(v ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
-            }}
+            onToggleVoice={handleToggleVoice}
             onStopSpeech={stopSpeech}
             isSpeaking={isSpeaking}
             onTriggerCheck={handleTriggerCheck}
@@ -2034,11 +2037,7 @@ export default function App() {
         latestDraw={latestDraw}
         allLotteries={allLotteries}
         voiceEnabled={voiceEnabled}
-        onToggleVoice={(v) => {
-          setVoiceEnabled(v);
-          if (!v) stopSpeech();
-          showToast(v ? 'เปิดเสียงประกาศภาษาไทย 🔊' : 'ปิดเสียงประกาศ 🔇');
-        }}
+        onToggleVoice={handleToggleVoice}
         onStopSpeech={stopSpeech}
         isSpeaking={isSpeaking}
         onTriggerCheck={handleTriggerCheck}
