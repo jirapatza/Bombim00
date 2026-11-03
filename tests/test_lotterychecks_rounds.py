@@ -30,7 +30,7 @@ def test_explicit_prizes_and_round_identity_preserve_zeroes():
         assert (row['หวย'], row['ชื่อหวย'], row['หมวดหวย']) == (key, name, category)
         assert sl.result_numbers(row) == ('007', '90')
         assert row['วันที่จัดรูปแบบ'] == today.isoformat()
-        assert 'lotterychecks.com' in row['แหล่งข้อมูล']
+        assert row['แหล่งข้อมูล'] == 'LotteryChecks (https://lotterychecks.com)'
 
 
 def test_rejects_wrong_round_old_future_pending_and_malformed_prizes():
