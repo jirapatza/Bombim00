@@ -2,7 +2,7 @@ import './overview.css';
 import { ResultsOverview, IndividualHistory } from './components/ResultsOverview';
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import bundledLotteryCatalog from '../data/all_lotteries.json';
-import { apiFetch, setDashboardPassword } from './utils/api';
+import { apiFetch, loginDashboard } from './utils/api';
 import { waitForDispatchedWorkflow } from './utils/workflowTracking';
 import { getResultNumbers, formatResultPair } from './utils/lotteryResult';
 import {
@@ -1011,7 +1011,12 @@ export default function App() {
           showToast('กรุณากรอกรหัส Dashboard ก่อนตรวจผล');
           return;
         }
-        setDashboardPassword(password);
+        try {
+          await loginDashboard(password);
+        } catch (error: any) {
+          showToast(error?.message || 'เข้าสู่ระบบไม่สำเร็จ');
+          return;
+        }
         // The rejected 401 request did not dispatch a workflow; retry only once.
         res = await apiFetch('/api/github/dispatch', dispatchOptions);
       }
@@ -1457,6 +1462,13 @@ export default function App() {
           <div className="overview-brand"><h1>BOMBIM<span>00</span></h1><p>LIVE RESULTS</p></div>
           <div className="overview-header-actions">
             <button onClick={fetchData} disabled={isLoading}><RefreshCw size={18} className={isLoading ? 'animate-spin' : ''}/> รีเฟรชข้อมูล</button>
+            <button onClick={async () => {
+              try {
+                const response = await apiFetch('/api/auth/logout', { method: 'POST' });
+                if (!response.ok) throw new Error();
+                window.location.reload();
+              } catch { showToast('ออกจากระบบไม่สำเร็จ กรุณาลองอีกครั้ง'); }
+            }}>ออกจากระบบ</button>
             <span className="live-pill">● LIVE</span>
             <button onClick={() => { const enabled = !voiceEnabled; setVoiceEnabled(enabled); if (!enabled) stopSpeech(); }} aria-label={voiceEnabled ? 'ปิดเสียงอ่าน' : 'เปิดเสียงอ่าน'}>{voiceEnabled ? <Volume2 size={19}/> : <VolumeX size={19}/>}</button>
             <button onClick={handleTriggerCheck} disabled={isTriggering}><Play size={17}/>{isTriggering ? 'กำลังตรวจ...' : 'ตรวจผลทันที'}</button>
