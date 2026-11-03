@@ -6,7 +6,8 @@ import { fileURLToPath } from 'url';
 import { assertNoSecretFields, commitGitHubJson, GitHubStorageError, readGitHubJson } from './server/githubStorage.ts';
 import { getOverallHealth } from './server/selfHeal.ts';
 import { getResultNumbers } from './src/utils/lotteryResult.ts';
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { installDashboardAuth } from './server/dashboardAuth.ts';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 
@@ -29,43 +30,8 @@ function pruneApiRateMap() {
 
 app.use(express.json({ limit: '25mb' }));
 
-// Protect known state-changing API routes only. Unknown/removed paths must reach
-// Express' JSON 404 handler instead of being masked by an authentication error.
-const protectedApiRoutes = new Set([
-  'POST /api/settings',
-  'POST /api/lotteries/cleanup-history',
-  'POST /api/all-lotteries',
-  'POST /api/test-line',
-  'POST /api/test-ntfy',
-  'POST /api/github/dispatch',
-  'POST /api/system/self-heal',
-  'DELETE /api/system/self-heal-history',
-  'POST /api/ai/verify-grounding',
-  'POST /api/ai/transcribe',
-]);
-
-// Production must configure DASH_PASSWORD; development remains usable without it.
-app.use('/api', (req, res, next) => {
-  if (!protectedApiRoutes.has(`${req.method} ${req.baseUrl}${req.path}`)) return next();
-
-  const expectedPassword = process.env.DASH_PASSWORD || '';
-  if (!expectedPassword) {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(503).json({ error: 'Dashboard API is locked: configure DASH_PASSWORD on the server.' });
-    }
-    return next();
-  }
-
-  const authorization = req.get('Authorization') || '';
-  const bearerPassword = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
-  const suppliedPassword = bearerPassword || req.get('X-Dashboard-Password') || '';
-  const expected = Buffer.from(expectedPassword);
-  const supplied = Buffer.from(suppliedPassword);
-  const valid = supplied.length === expected.length && timingSafeEqual(supplied, expected);
-
-  if (!valid) return res.status(401).json({ error: 'Unauthorized: valid dashboard password required.' });
-  return next();
-});
+// Every dashboard page and API requires authentication; only the health probe is public.
+installDashboardAuth(app, express.urlencoded({ extended: false, limit: '4kb' }));
 
 // -------------------------------------------------------------
 // ระบบป้องกันระบบล่มระดับโปรเซส (Process Crash Shield & Fault Tolerance)

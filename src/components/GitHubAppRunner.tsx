@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { apiFetch, setDashboardPassword as setApiDashboardPassword } from '../utils/api';
+import { apiFetch, loginDashboard } from '../utils/api';
 import { waitForDispatchedWorkflow } from '../utils/workflowTracking';
 import {
   Activity,
@@ -58,11 +58,15 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
   const [trackedRunUrl, setTrackedRunUrl] = useState<string | null>(null);
   const trackingControllerRef = useRef<AbortController | null>(null);
 
-  const saveDashboardPassword = () => {
-    const value = dashboardPassword.trim();
-    setDashboardPassword(value);
-    setApiDashboardPassword(value);
-    setMessage(value ? 'ใช้รหัสผ่านในหน่วยความจำของหน้านี้แล้ว (ไม่บันทึกลงอุปกรณ์)' : 'ลบรหัสผ่านออกจากหน่วยความจำแล้ว');
+  const saveDashboardPassword = async () => {
+    setError(null);
+    try {
+      await loginDashboard(dashboardPassword);
+      setDashboardPassword('');
+      setMessage('เข้าสู่ระบบแล้ว จำการเข้าสู่ระบบบนเครื่องนี้ 30 วัน');
+    } catch (error: any) {
+      setError(error?.message || 'เข้าสู่ระบบไม่สำเร็จ');
+    }
   };
 
   const fetchRuns = async () => {
@@ -227,10 +231,10 @@ export function GitHubAppRunner({ onRefreshStatus, allLotteriesCount = 54 }: Git
               onClick={saveDashboardPassword}
               className="rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-black text-slate-950 hover:bg-amber-400"
             >
-              ใช้รหัสผ่านนี้
+              เข้าสู่ระบบ
             </button>
           </div>
-          <p className="text-[11px] text-slate-500">รหัสผ่านอยู่ในหน่วยความจำของหน้านี้เท่านั้น ไม่บันทึกลงอุปกรณ์หรือ GitHub และต้องกรอกใหม่เมื่อรีเฟรชหน้า</p>
+          <p className="text-[11px] text-slate-500">จำการเข้าสู่ระบบ 30 วันด้วยคุกกี้ที่ปลอดภัย โดยไม่บันทึกรหัสผ่านบนอุปกรณ์</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
