@@ -292,3 +292,16 @@ def test_send_line_notification_uses_messaging_api_and_server_secrets(monkeypatc
     assert posted["headers"]["Authorization"] == "Bearer fake-channel-token"
     assert posted["payload"]["to"] == "U1234567890"
     assert "024 - 44" in posted["payload"]["messages"][0]["text"]
+
+def test_ntfy_json_uses_root_endpoint_topic_and_shareable_message(monkeypatch):
+    import json
+    posted = {}
+    monkeypatch.setattr(lc, 'NTFY_TOPIC', '')
+    monkeypatch.setattr(lc, 'S', {'channels': {'ntfy': {'enabled': True, 'server': 'https://ntfy.sh', 'topic': 'test-topic'}}})
+    monkeypatch.setattr(lc, '_http_post', lambda url, data, headers, timeout=10: posted.update(url=url,payload=json.loads(data)) or True)
+    assert lc.send_ntfy_notification({'ชื่อหวย':'ลาวพัฒนา','งวดวันที่':'03.11.2026','top3':'007','bottom2':'00'})
+    assert posted['url']=='https://ntfy.sh/'
+    assert posted['payload']['topic']=='test-topic'
+    assert '03.11.2026' in posted['payload']['message']
+    assert '007 - 00' in posted['payload']['message']
+    assert '\\n' not in posted['payload']['message']
