@@ -64,3 +64,8 @@ test('a recognized provider code overrides a conflicting legacy display name',()
  assert.equal(matchesLottery({id:'hanoi_vip',name:'ฮานอย VIP'},old),false);
  assert.equal(matchesLottery({id:'hanoi_patthana',name:'ฮานอยพัฒนา'},old),true);
 });
+
+test('republishing a previous government draw today cannot make it a latest draw today',()=>{
+ const old=result('สลากกินแบ่งรัฐบาล','01.11.2026',{publishedAt:'2026-11-03T20:59:00+07:00'});
+ assert.equal(latestPublishedResults([old],catalog,now).length,0);
+});
