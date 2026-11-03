@@ -36,7 +36,13 @@ export function publishedTime(row:Row,item?:Row):number {
 export function latestPublishedResults(results:Row[],catalog:Row[],now=new Date()) {
   const today=thaiToday(now);const seen=new Set<string>();
   return results.filter(complete).map(row=>{const item=catalog.find(item=>matchesLottery(item,row));return {row,item,timestamp:publishedTime(row,item)};})
-    .filter(r=>Number.isFinite(r.timestamp)&&r.timestamp<=now.getTime()&&thaiToday(new Date(r.timestamp))===today)
+    .filter(r=>{
+      if(!Number.isFinite(r.timestamp)||r.timestamp>now.getTime()||thaiToday(new Date(r.timestamp))!==today)return false;
+      const drawDay=dayKey(rowDate(r.row));
+      if(drawDay===today)return true;
+      const time=minutes(r.item?.drawTimeStr||'');
+      return time!==null&&time<7*60&&Boolean(drawDay)&&thaiToday(new Date(Date.parse(drawDay+'T00:00:00+07:00')+86400000))===today;
+    })
     .sort((a,b)=>b.timestamp-a.timestamp||String(a.item?.id||rowName(a.row)).localeCompare(String(b.item?.id||rowName(b.row))))
     .filter(r=>{const id=r.item?.id||rowName(r.row);if(seen.has(id))return false;seen.add(id);return true;}).slice(0,3);
 }
