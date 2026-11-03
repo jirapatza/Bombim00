@@ -1,8 +1,12 @@
 import type express from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createSession, validSession, readSessionCookie, sessionCookieName, SESSION_SECONDS } from './dashboardSession.ts';
 
 export function installDashboardAuth(app: express.Express, formParser: express.RequestHandler) {
+  // This single-user dashboard shares a quota across clients, so forwarded IP
+  // headers cannot bypass the limit. Run it before every authentication handler.
+  app.use(rateLimit({ windowMs: 60_000, limit: 300, keyGenerator: () => 'private-dashboard', standardHeaders: 'draft-8', legacyHeaders: false }));
   const production = process.env.NODE_ENV === 'production';
   const cookieName = sessionCookieName(production);
   const cookieOptions = { httpOnly: true, secure: production, sameSite: 'strict' as const, path: '/' };
