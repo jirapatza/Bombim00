@@ -73,32 +73,41 @@ def map_canonical_lottery_name(name: str) -> str:
     if not s:
         return "หวยไม่ระบุชื่อ"
     
-    # Hanoi specific round mappings (e.g. 17:30 is ฮานอยพิเศษ)
+    # Preserve named rounds before considering time aliases: several rounds share a time.
     lower = s.lower()
     if "ฮานอย" in s or "hanoi" in lower:
-        if "17:30" in s or "17.30" in s or "พิเศษ" in s:
+        named = [("พัฒนา", "ฮานอยพัฒนา"), ("สามัคคี", "ฮานอยสามัคคี"),
+                 ("กาชาด", "ฮานอยกาชาด"), ("อาเซียน", "ฮานอยอาเซียน"),
+                 ("svip", "ฮานอย SVIP"), ("extra", "ฮานอย EXTRA"),
+                 ("star", "ฮานอย STAR"), ("สตาร์", "ฮานอย STAR"),
+                 ("hd", "ฮานอย HD"), ("tv", "ฮานอย TV"), ("ทีวี", "ฮานอย TV")]
+        for token, canonical in named:
+            if token in lower:
+                return canonical
+        if "พิเศษ" in s or "17:30" in s or "17.30" in s:
             return "ฮานอยพิเศษ"
-        if "18:30" in s or "18.30" in s or ("ปกติ" in s and "vip" not in lower):
+        if "ปกติ" in s or "18:30" in s or "18.30" in s:
             return "ฮานอยปกติ"
-        if "19:30" in s or "19.30" in s or "vip" in lower or "วีไอพี" in s:
+        if "vip" in lower or "วีไอพี" in s or "19:30" in s or "19.30" in s:
             return "ฮานอย VIP"
-        if "16:30" in s or "16.30" in s or "เฉพาะกิจ" in s:
+        if "เฉพาะกิจ" in s:
             return "ฮานอยเฉพาะกิจ"
-        if "11:30" in s or "11.30" in s or "กาชาด" in s:
-            return "ฮานอยกาชาด"
-            
-    # Lao mappings
+
     if "ลาว" in s or "lao" in lower:
+        vip = "vip" in lower or "วีไอพี" in s
         if "extra" in lower or "เอ็กซ์ตร้า" in s or "เอ็กตร้า" in s:
             return "ลาว EXTRA"
-        if "20:30" in s or "20.30" in s or "พัฒนา" in s:
-            return "หวยลาวพัฒนา"
-        if "21:30" in s or "21.30" in s or "vip" in lower or "วีไอพี" in s:
-            return "หวยลาว VIP"
-        if "สตาร์" in s or "star" in lower:
-            return "หวยลาวสตาร์"
         if "สามัคคี" in s:
-            return "หวยลาวสามัคคี"
+            return "หวยลาวสามัคคี VIP" if vip else "หวยลาวสามัคคี"
+        if "สตาร์" in s or "star" in lower:
+            return "หวยลาวสตาร์ VIP" if vip else "หวยลาวสตาร์"
+        # Do not turn development special/morning/noon rounds into the main draw.
+        if "พัฒนา" in s and any(token in s for token in ("พิเศษ", "เช้า", "เที่ยง")):
+            return s
+        if "พัฒนา" in s:
+            return "หวยลาวพัฒนา VIP" if vip else "หวยลาวพัฒนา"
+        if vip:
+            return "หวยลาว VIP"
 
     # Thai Government & Savings
     if any(k in s for k in ("สลากกินแบ่งรัฐบาล", "หวยรัฐบาล", "รัฐบาลไทย")):
