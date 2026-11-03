@@ -1,8 +1,18 @@
-"""Synthetic contract fixtures, not captured live provider responses."""
+"""Captured public responses plus synthetic edge cases; never runtime history."""
 import copy
 import datetime
+import json
+from pathlib import Path
 import lottery_checker as lc
 import settings_loader as sl
+
+
+def test_captured_live_responses_from_github_runner():
+    fixture = json.loads((Path(__file__).parent / 'fixtures/lotterychecks-2026-11-03.json').read_text())
+    expected = {'lao-union': ('853', '08'), 'hanoi-develop': ('910', '09')}
+    for slug, numbers in expected.items():
+        row, = lc.parse_lotterychecks_round(fixture['responses'][slug], slug, datetime.date(2026, 11, 3))
+        assert sl.result_numbers(row) == numbers
 
 
 def envelope(slug='lao-union', date='2026-11-03'):
