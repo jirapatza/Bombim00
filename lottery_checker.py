@@ -10,6 +10,7 @@ import base64
 import json
 import re
 import datetime
+from concurrent.futures import ThreadPoolExecutor
 from html import unescape
 
 try:
@@ -481,6 +482,89 @@ def filter_rows_by_target(rows: list, target: str = "all") -> list:
     print(f"[FILTER] LOTTERY_TARGET={target}: kept {len(filtered)} of {len(rows)} result(s).")
     return filtered
 
+LOTTERYCHECKS_ROUNDS = {
+    "lao-union": ("lao_samakki", "ลาวสามัคคี", "lao"),
+    "hanoi-develop": ("hanoi_patthana", "ฮานอยพัฒนา", "hanoi"),
+}
+
+
+def parse_lotterychecks_round(data: dict, slug: str, today: datetime.date) -> list:
+    """Fail closed unless the requested round explicitly supplies today's upper/lower prizes."""
+    if slug not in LOTTERYCHECKS_ROUNDS or not isinstance(data, dict) or data.get("success") is not True:
+        return []
+    records = data.get("data")
+    if not isinstance(records, list):
+        return []
+    lottery_id, name, category = LOTTERYCHECKS_ROUNDS[slug]
+    valid = []
+    for record in records:
+        if not isinstance(record, dict) or record.get("lottery") != slug or record.get("status") != "complete":
+            continue
+        if record.get("drawDate") != today.isoformat() or record.get("pendingPrizes"):
+            continue
+        prizes = record.get("prizes")
+        if not isinstance(prizes, list):
+            continue
+        # Read explicit named prize columns; never derive the lower prize from the full number.
+        found = {"3ตัวบน": set(), "2ตัวล่าง": set()}
+        for prize in prizes:
+            if not isinstance(prize, dict):
+                continue
+            label = re.sub(r"\s+", "", str(prize.get("name") or ""))
+            if label not in found:
+                continue
+            numbers = prize.get("numbers")
+            size = 3 if label == "3ตัวบน" else 2
+            if not isinstance(numbers, list) or len(numbers) != 1 or not isinstance(numbers[0], str) or not re.fullmatch(r"[0-9]{%d}" % size, numbers[0]):
+                return []
+            found[label].add(numbers[0])
+        if any(len(values) != 1 for values in found.values()):
+            continue
+        top, bottom = next(iter(found["3ตัวบน"])), next(iter(found["2ตัวล่าง"]))
+        valid.append({
+            "หวย": lottery_id, "ชื่อหวย": name, "หมวดหวย": category,
+            "งวดวันที่": today.isoformat(), "วันที่จัดรูปแบบ": today.isoformat(),
+            "เลขบน_3_ตัว": top, "เลขล่าง_2_ตัว": bottom,
+            "รางวัลที่_1": top, "เลขท้าย_2_ตัว": bottom,
+            "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+            "เวลาที่ตรวจพบ": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "สถานะการแจ้งเตือน": "pending",
+        })
+    # Conflicting records for one draw must not produce two different alerts.
+    if len({sl.result_numbers(row) for row in valid}) > 1:
+        return []
+    return valid[:1]
+
+
+def fetch_missing_lotterychecks_rounds(existing: list, target: str = "all") -> list:
+    """Query each missing supported round independently, with at most two concurrent requests."""
+    if not sl.source_enabled(S, "lotterychecks") or target not in {"all", "lao", "hanoi"}:
+        return []
+    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date()
+    complete = [row for row in existing if sl._parse_draw_date(row) == today and all(sl.result_numbers(row))]
+    supported_ids = {entry[0] for entry in LOTTERYCHECKS_ROUNDS.values()}
+    known_ids = {row.get("หวย") for row in complete if row.get("หวย") in supported_ids}
+    known_names = {sl.normalize_lottery_name(row.get("ชื่อหวย") or "") for row in complete
+                   if row.get("หวย") not in supported_ids}
+    missing = [slug for slug, (lottery_id, name, category) in LOTTERYCHECKS_ROUNDS.items()
+               if target in {"all", category} and lottery_id not in known_ids
+               and sl.normalize_lottery_name(name) not in known_names]
+    if not missing:
+        return []
+    def fetch_round(slug):
+        url = f"https://lotterychecks.com/api/public/results?lottery={slug}&date={today.isoformat()}&limit=1"
+        try:
+            rows = parse_lotterychecks_round(_http_get_json(url, timeout=10), slug, today)
+            if not rows:
+                print(f"[WARN] LotteryChecks {slug}: no complete, valid result for {today}; retaining missing status.")
+            return rows
+        except Exception as error:
+            print(f"[WARN] LotteryChecks {slug} unavailable: {type(error).__name__}")
+            return []
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        return [row for batch in pool.map(fetch_round, missing) for row in batch]
+
+
 def fetch_from_lotterychecks() -> list:
     """Fetch latest Thai government lottery results from LotteryChecks public API."""
     source = S.get("sources", {}).get("lotterychecks", {})
@@ -778,6 +862,11 @@ def main():
         rows.extend(row for row in extra_rows if sl._parse_draw_date(row) not in extra_dates)
         if extra_rows:
             sources_used.append("ผลหวย.com Lao EXTRA")
+
+    supplementary_rows = fetch_missing_lotterychecks_rounds(rows, lottery_target)
+    if supplementary_rows:
+        rows.extend(supplementary_rows)
+        sources_used.append("LotteryChecks Lao/Hanoi")
 
     # Government feeds are checked independently when requested, not only when every other lottery fails.
     if lottery_target in government_targets and not any(_lottery_category(row) == "government" for row in rows):
