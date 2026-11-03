@@ -378,26 +378,27 @@ async function readLotteryWorkflowRuns() {
 }
 
 
-app.post('/api/github/dispatch', async (req, res) => {
+async function dispatchLotteryCheck(body: any) {
+  const reply = (status: number, body: Record<string, unknown>) => ({ status, body });
   let acquiredDispatchLock = false;
   try {
     const ghToken = (process.env.GITHUB_TOKEN || '').trim();
     if (!ghToken) {
-      return res.status(503).json({ success: false, error: 'ยังไม่ได้ตั้งค่า GITHUB_TOKEN ใน Render Environment' });
+      return reply(503, { success: false, error: 'ยังไม่ได้ตั้งค่า GITHUB_TOKEN ใน Render Environment' });
     }
-    const automatic = req.body?.automatic === true;
-    const inputs = req.body?.inputs || {};
+    const automatic = body?.automatic === true;
+    const inputs = body?.inputs || {};
     const target = String(inputs.lottery_target || 'all');
     const forceNotify = String(inputs.force_notify || 'false');
     if (!LOTTERY_TARGETS.has(target) || !['true', 'false'].includes(forceNotify)) {
-      return res.status(400).json({ success: false, error: 'ค่ากลุ่มหวยหรือ Force Notify ไม่ถูกต้อง' });
+      return reply(400, { success: false, error: 'ค่ากลุ่มหวยหรือ Force Notify ไม่ถูกต้อง' });
     }
-    if (automatic && (target !== 'all' || forceNotify !== 'false')) return res.status(400).json({ success: false, error: 'คำขออัตโนมัติตรวจได้เฉพาะทุกรายการโดยไม่บังคับแจ้งซ้ำ' });
-    if (automatic && automaticLotteryDispatches.isDuplicate('all')) return res.json({ success: true, queued: false, skipped: true, reason: 'automatic-check-recently-requested' });
+    if (automatic && (target !== 'all' || forceNotify !== 'false')) return reply(400, { success: false, error: 'คำขออัตโนมัติตรวจได้เฉพาะทุกรายการโดยไม่บังคับแจ้งซ้ำ' });
+    if (automatic && automaticLotteryDispatches.isDuplicate('all')) return reply(200, { success: true, queued: false, skipped: true, reason: 'automatic-check-recently-requested' });
     // Suppress rapid retries of an identical dispatch after GitHub accepted it.
     const dispatchFingerprint = JSON.stringify([target, forceNotify]);
     if (recentLotteryDispatches.isDuplicate(dispatchFingerprint)) {
-      return res.status(409).json({
+      return reply(409, {
         success: false,
         queued: false,
         code: 'DISPATCH_RECENTLY_ACCEPTED',
@@ -408,7 +409,7 @@ app.post('/api/github/dispatch', async (req, res) => {
     // Both dashboard entry points share this server-side lock. This closes the
     // race that separate component-level loading flags cannot prevent.
     if (lotteryDispatchInFlight) {
-      return res.status(409).json({
+      return reply(409, {
         success: false,
         queued: false,
         code: 'DISPATCH_ALREADY_IN_FLIGHT',
@@ -420,7 +421,7 @@ app.post('/api/github/dispatch', async (req, res) => {
 
     if (automatic) {
       const runs = await readLotteryWorkflowRuns();
-      if (!shouldDispatchForegroundCheck(runs)) return res.json({ success: true, queued: false, skipped: true, reason: 'workflow-active-or-recent' });
+      if (!shouldDispatchForegroundCheck(runs)) return reply(200, { success: true, queued: false, skipped: true, reason: 'workflow-active-or-recent' });
     }
     const requestId = randomUUID();
     const dispatchUrl = 'https://api.github.com/repos/' + LOTTERY_REPOSITORY + '/actions/workflows/' + LOTTERY_WORKFLOW + '/dispatches';
@@ -440,16 +441,36 @@ app.post('/api/github/dispatch', async (req, res) => {
       recentLotteryDispatches.markAccepted(dispatchFingerprint);
       // Manual checks also postpone automatic requests, including the visibility refresh.
       automaticLotteryDispatches.markAccepted('all');
-      return res.json({ success: true, queued: true, workflow_dispatched: true, request_id: requestId, message: 'ส่งคำสั่งตรวจผลไปยัง GitHub Actions แล้ว' });
+      return reply(200, { success: true, queued: true, workflow_dispatched: true, request_id: requestId, message: 'ส่งคำสั่งตรวจผลไปยัง GitHub Actions แล้ว' });
     }
     const detail = await ghRes.text().catch(() => '');
-    return res.status(502).json({ success: false, error: 'GitHub ปฏิเสธคำสั่ง (HTTP ' + ghRes.status + '): ' + detail.slice(0, 300) });
+    return reply(502, { success: false, error: 'GitHub ปฏิเสธคำสั่ง (HTTP ' + ghRes.status + '): ' + detail.slice(0, 300) });
   } catch (err: any) {
-    return res.status(502).json({ success: false, error: err?.name === 'TimeoutError' ? 'GitHub ตอบกลับช้าเกินกำหนด' : err.message });
+    return reply(502, { success: false, error: err?.name === 'TimeoutError' ? 'GitHub ตอบกลับช้าเกินกำหนด' : err.message });
   } finally {
     if (acquiredDispatchLock) lotteryDispatchInFlight = false;
   }
+}
+
+app.post('/api/github/dispatch', async (req, res) => {
+  const result = await dispatchLotteryCheck(req.body);
+  return res.status(result.status).json(result.body);
 });
+
+// Request the existing GitHub checker while this web process is awake.
+// Free Render services can sleep: this is assistance, not an always-on scheduler.
+function startServerDispatchAssistance() {
+  if (process.env.NODE_ENV !== 'production' || !process.env.GITHUB_TOKEN?.trim() ||
+      process.env.LOTTERY_DISPATCH_ASSIST_ENABLED === 'false') return;
+  const tick = async () => {
+    const result = await dispatchLotteryCheck({ automatic: true, inputs: { lottery_target: 'all', force_notify: 'false' } });
+    if (result.body.queued) console.log('[DISPATCH_ASSIST] Requested GitHub lottery check.');
+    else if (result.status >= 500) console.warn('[DISPATCH_ASSIST] GitHub check request failed; will retry.');
+  };
+  void tick();
+  const timer = setInterval(() => { void tick(); }, 60_000);
+  timer.unref();
+}
 
 app.get('/api/github/runs', async (_req, res) => {
   try { return res.json({ success: true, workflow_runs: await readLotteryWorkflowRuns() }); }
@@ -1026,6 +1047,7 @@ async function startServer() {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Lottery Alert Dashboard server running on http://0.0.0.0:${PORT}`);
     console.log('[RUNNER] Lottery checks are executed only by GitHub Actions.');
+    startServerDispatchAssistance();
   });
 }
 

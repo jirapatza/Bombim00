@@ -24,7 +24,7 @@ test('foreground assistance checks real run state and prevents duplicate dispatc
   `;
   const server = spawn(process.execPath, ['--import', 'data:text/javascript,' + encodeURIComponent(fixture), 'server.js'], {
     cwd: new URL('..', import.meta.url),
-    env: { ...process.env, PORT: String(port), NODE_ENV: 'production', DASH_PASSWORD: 'test-secret', GITHUB_TOKEN: 'fixture-token', PATH: '' },
+    env: { ...process.env, PORT: String(port), NODE_ENV: 'production', DASH_PASSWORD: 'test-secret', GITHUB_TOKEN: 'fixture-token', LOTTERY_DISPATCH_ASSIST_ENABLED: 'false', PATH: '' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = ''; server.stdout.on('data', data => { output += data; }); server.stderr.on('data', data => { output += data; });
@@ -129,5 +129,39 @@ test('production API protects writes and exposes only the single GitHub Actions 
       server.kill();
       await once(server, 'exit');
     }
+  }
+});
+
+test('awake server requests one stale check without a browser and shares the client guard', { timeout: 15000 }, async () => {
+  const port = 30000 + Math.floor(Math.random() * 20000);
+  const base = `http://127.0.0.1:${port}`;
+  const fixture = `
+    globalThis.fetch = async (url) => {
+      if (String(url).endsWith('/dispatches')) { console.log('ASSIST_DISPATCH'); return new Response(null, { status: 204 }); }
+      if (String(url).includes('/actions/workflows/lottery.yml/runs')) return Response.json({ workflow_runs: [] });
+      throw new Error('Unexpected network call');
+    };
+  `;
+  const server = spawn(process.execPath, ['--import', 'data:text/javascript,' + encodeURIComponent(fixture), 'server.js'], {
+    cwd: new URL('..', import.meta.url),
+    env: { ...process.env, PORT: String(port), NODE_ENV: 'production', DASH_PASSWORD: 'test-secret', GITHUB_TOKEN: 'fixture-token', LOTTERY_DISPATCH_ASSIST_ENABLED: 'true', PATH: '' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = ''; server.stdout.on('data', data => { output += data; }); server.stderr.on('data', data => { output += data; });
+  try {
+    for (let i = 0; i < 100 && !output.includes('[DISPATCH_ASSIST] Requested'); i++) {
+      if (server.exitCode !== null) throw new Error(output);
+      await delay(50);
+    }
+    assert.ok(output.includes('[DISPATCH_ASSIST] Requested'), output);
+    const response = await fetch(base + '/api/github/dispatch', {
+      method: 'POST', headers: { Authorization: 'Bearer test-secret', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ automatic: true }),
+    });
+    assert.equal((await response.json()).skipped, true);
+    assert.equal((output.match(/ASSIST_DISPATCH/g) || []).length, 1);
+    assert.equal((await fetch(base + '/api/github/dispatch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 401);
+  } finally {
+    if (server.exitCode === null) { server.kill(); await once(server, 'exit'); }
   }
 });
