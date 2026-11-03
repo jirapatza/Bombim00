@@ -123,6 +123,7 @@ def test_checker_persists_partial_delivery_and_does_not_repeat_successes(monkeyp
            "รางวัลที่_1": "123782", "เลขท้าย_2_ตัว": "57", "สถานะการแจ้งเตือน": "pending"}
     monkeypatch.setattr(lc, "fetch_from_thailottoapi_results", lambda: [copy.deepcopy(row)])
     monkeypatch.setattr(lc, "fetch_from_pholhuay_stock_groups", lambda: [])
+    monkeypatch.setattr(lc, "fetch_from_pholhuay_lao_extra", lambda: [])
     history, summaries, calls = [], [], []
     monkeypatch.setattr(sl, "load_previous_results", lambda: copy.deepcopy(history))
     monkeypatch.setattr(sl, "save_results", lambda rows: history.__setitem__(slice(None), copy.deepcopy(rows)))
