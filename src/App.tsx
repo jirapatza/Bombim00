@@ -1506,7 +1506,7 @@ export default function App() {
               { id: 'checker', label: 'ตรวจสลากรางวัล', icon: Search },
             ].map((tab) => {
               const Icon = tab.icon;
-              const selected = activeTab === tab.id ||
+              const selected = activeTab === tab.id || (tab.id === 'settings' && activeTab === 'notifications') ||
                 (tab.id === 'checker' && ['accuracy', 'batch', 'results'].includes(activeTab));
               return (
                 <button
