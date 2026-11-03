@@ -24,7 +24,7 @@
       "priority": 3
     },
     "ranlotto": {
-      "enabled": true,
+      "enabled": false,
       "name": "RANLOTTO public API (Thai government results fallback)",
       "url": "https://api.ranlotto.com/api/public/v1/lottery/result/latest",
       "timeout_sec": 10,
