@@ -10,6 +10,7 @@ import base64
 import json
 import re
 import datetime
+from html import unescape
 
 try:
     import requests
@@ -224,6 +225,59 @@ def fetch_from_pholhuay_stock_groups() -> list:
         return unique
     except Exception as e:
         print(f"[WARN] Failed fetching separated stock groups: {e}")
+        return []
+
+
+def parse_lao_extra_history(html: str, today: datetime.date = None) -> list:
+    """Read explicit prize columns only from the dedicated Lao EXTRA page."""
+    today = today or datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date()
+    def text(value):
+        return re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]*>", " ", value))).strip()
+    headings = re.findall(r"<h1\b[^>]*>(.*?)</h1>", html, re.I | re.S)
+    if not any(re.search(r"ลาว\s*extra", text(h), re.I) for h in headings):
+        return []
+    rows, seen = [], set()
+    for table in re.findall(r"<table\b[^>]*>(.*?)</table>", html, re.I | re.S):
+        table_rows = re.findall(r"<tr\b[^>]*>(.*?)</tr>", table, re.I | re.S)
+        headers = None
+        for tr in table_rows:
+            cells = [text(c) for c in re.findall(r"<t[dh]\b[^>]*>(.*?)</t[dh]>", tr, re.I | re.S)]
+            if headers is None:
+                if cells == ["งวดวันที่", "รางวัลพิเศษ", "3 ตัวบน", "2 ตัวล่าง"]:
+                    headers = cells
+                continue
+            if len(cells) != 4:
+                continue
+            date_label, full, top3, bottom2 = cells
+            date_label = re.sub(r"^งวด(?:วันที่)?\s*", "", date_label)
+            date = sl._parse_draw_date({"งวดวันที่": date_label})
+            if date == datetime.date.min or date > today or date in seen:
+                continue
+            if not (re.fullmatch(r"[0-9]{5}", full) and re.fullmatch(r"[0-9]{3}", top3)
+                    and re.fullmatch(r"[0-9]{2}", bottom2) and full[-3:] == top3):
+                continue
+            seen.add(date)
+            rows.append({
+                "ชื่อหวย": "ลาว EXTRA", "หวย": "lao_extra", "หมวดหวย": "lao",
+                "งวดวันที่": date_label, "วันที่จัดรูปแบบ": date.isoformat(),
+                "รางวัลที่_1": top3, "เลขบน_3_ตัว": top3,
+                "เลขท้าย_2_ตัว": bottom2, "เลขล่าง_2_ตัว": bottom2,
+                "แหล่งข้อมูล": "ผลหวย.com (ลาว EXTRA)",
+                "เวลาที่ตรวจพบ": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "สถานะการแจ้งเตือน": "pending",
+            })
+    return sorted(rows, key=lambda row: row["วันที่จัดรูปแบบ"], reverse=True)[:15]
+
+
+def fetch_from_pholhuay_lao_extra() -> list:
+    try:
+        rows = parse_lao_extra_history(_http_get_text("https://xn--t3cmiit.com/lao-lottery/extra", timeout=15))
+        print(f"[INFO] Lao EXTRA dedicated feed returned {len(rows)} validated draw(s).")
+        if not rows:
+            print("[WARN] Lao EXTRA page has no valid prize table; no result will be invented.")
+        return rows
+    except Exception as error:
+        print(f"[WARN] Lao EXTRA source unavailable: {type(error).__name__}")
         return []
 
 
@@ -710,6 +764,20 @@ def main():
                 known.add(key)
         sources_used.append("ผลหวย.com stock groups")
 
+    # This round is absent from the general API/stock feed. Read its dedicated history.
+    if lottery_target in {"all", "lao"}:
+        extra_rows = fetch_from_pholhuay_lao_extra()
+        extra_dates = {sl._parse_draw_date(row) for row in rows
+                       if sl.normalize_lottery_name(row.get("ชื่อหวย", "")) == sl.normalize_lottery_name("ลาว EXTRA")}
+        today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date()
+        # Existing archived rows keep their original delivery history unchanged.
+        extra_dates.update(sl._parse_draw_date(row) for row in previous_results
+                           if sl.normalize_lottery_name(row.get("ชื่อหวย", "")) == sl.normalize_lottery_name("ลาว EXTRA")
+                           and sl._parse_draw_date(row) < today)
+        rows.extend(row for row in extra_rows if sl._parse_draw_date(row) not in extra_dates)
+        if extra_rows:
+            sources_used.append("ผลหวย.com Lao EXTRA")
+
     # Government feeds are checked independently when requested, not only when every other lottery fails.
     if lottery_target in government_targets and not any(_lottery_category(row) == "government" for row in rows):
         for source_name, fetcher, source_label in (
@@ -757,6 +825,10 @@ def main():
         row["notification_channels"] = sl.previous_notification_channels(
             row, previous_results, active_channels or ["ntfy", "line"]
         )
+        # Backfill history for summaries, but never push old EXTRA draws (even with force).
+        if row.get("หวย") == "lao_extra" and sl._parse_draw_date(row) < datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date():
+            row["สถานะการแจ้งเตือน"] = "history_only"
+            continue
         if not sl.should_notify(S, row):
             row["สถานะการแจ้งเตือน"] = "not_eligible"
             continue
