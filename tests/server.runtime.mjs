@@ -165,3 +165,18 @@ test('awake server requests one stale check without a browser and shares the cli
     if (server.exitCode === null) { server.kill(); await once(server, 'exit'); }
   }
 });
+
+test('ntfy test API publishes structured JSON at root instead of displaying JSON as text', {timeout:15000}, async()=>{
+ const port=30000+Math.floor(Math.random()*20000);const base=`http://127.0.0.1:${port}`;
+ const fixture=`globalThis.fetch=async(url,init)=>{console.log('NTFY_CAPTURE '+JSON.stringify({url:String(url),payload:JSON.parse(init.body)}));return Response.json({id:'fixture'});};`;
+ const server=spawn(process.execPath,['--import','data:text/javascript,'+encodeURIComponent(fixture),'server.js'],{
+  cwd:new URL('..',import.meta.url),env:{...process.env,PORT:String(port),NODE_ENV:'production',DASH_PASSWORD:'test-secret',GITHUB_TOKEN:'',NTFY_SERVER:'https://ntfy.sh',PATH:''},stdio:['ignore','pipe','pipe']});
+ let output='';server.stdout.on('data',data=>output+=data);server.stderr.on('data',data=>output+=data);
+ try{
+  let ready=false;for(let i=0;i<100;i++){ready=await fetch(base+'/api/health').then(r=>r.ok).catch(()=>false);if(ready)break;await delay(50);}assert.ok(ready,output);
+  const response=await fetch(base+'/api/test-ntfy',{method:'POST',headers:{Authorization:'Bearer test-secret','Content-Type':'application/json'},body:JSON.stringify({topic:'test-topic',title:'ผลทดสอบ',message:'ลาวพัฒนา\n007 - 00'})});
+  assert.equal(response.status,200,await response.text());
+  const captured=JSON.parse(output.split('\n').find(line=>line.startsWith('NTFY_CAPTURE ')).slice('NTFY_CAPTURE '.length));
+  assert.equal(captured.url,'https://ntfy.sh/');assert.equal(captured.payload.topic,'test-topic');assert.equal(captured.payload.message,'ลาวพัฒนา\n007 - 00');
+ }finally{if(server.exitCode===null){server.kill();await once(server,'exit');}}
+});
