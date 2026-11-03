@@ -1,3 +1,4 @@
+import { startSpeechPlayback, playNotificationChime } from './utils/speechPlayback';
 import './overview.css';
 import { ResultsOverview, IndividualHistory } from './components/ResultsOverview';
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
@@ -342,30 +343,7 @@ function getNextClosingLottery(currentTime = new Date()): { name: string; closeT
   };
 }
 
-function playChime() {
-  try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
-
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.55);
-  } catch (e) {
-    // Ignore audio context errors if browser blocked
-  }
-}
+function playChime() { void playNotificationChime(); }
 
 const THAI_NUMBER_WORDS: Record<string, string> = {
   '0': 'ศูนย์',
@@ -474,6 +452,13 @@ export default function App() {
   const [announcementQueue, setAnnouncementQueue] = useState<LotteryAnnouncement[]>([]);
   const [currentQueueIndex, setCurrentQueueIndex] = useState<number>(0);
   const [voiceEnabled, setVoiceEnabled] = useState<boolean>(true);
+  const [audioReady, setAudioReady] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
+  const audioUnlockedRef = useRef(false);
+  const voiceEnabledRef = useRef(true);
+  voiceEnabledRef.current = voiceEnabled;
+  const speechCleanupRef = useRef<(() => void) | null>(null);
+  const [foregroundWarning, setForegroundWarning] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [speechRate, setSpeechRate] = useState<number>(0.95);
   const [isTransitioningQueue, setIsTransitioningQueue] = useState<boolean>(false);
@@ -508,6 +493,8 @@ export default function App() {
   };
 
   const stopSpeech = () => {
+    speechCleanupRef.current?.();
+    speechCleanupRef.current = null;
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
@@ -534,12 +521,17 @@ export default function App() {
 
   // Speak announcement in Thai and proceed sequentially
   const speakCurrentAnnouncement = (item: LotteryAnnouncement, index: number, total: number) => {
-    if (!voiceEnabled || !('speechSynthesis' in window)) {
+    if (!voiceEnabledRef.current || !('speechSynthesis' in window)) {
       setIsSpeaking(false);
       return;
     }
 
+    if (!audioUnlockedRef.current) {
+      setSpeechError('แตะฟังซ้ำหรือเปิดและทดสอบเสียง เพื่ออนุญาตเสียงบนเครื่องนี้');
+      return;
+    }
     stopSpeech();
+    setSpeechError(null);
 
     const speechText = buildSpeechText(item);
 
@@ -575,23 +567,28 @@ export default function App() {
       }, 1200);
     };
 
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-      setIsTransitioningQueue(false);
-    };
-
-    // Advance outside React state updater callbacks to prevent duplicate speech in Strict Mode.
-    utterance.onend = advanceQueue;
-    utterance.onerror = (e) => {
-      console.warn('Speech error; skipping to next queued lottery:', e);
-      advanceQueue();
-    };
-
     activeUtteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
+    speechCleanupRef.current = startSpeechPlayback(window.speechSynthesis, utterance, {
+      onStart: () => { setIsSpeaking(true); setAudioReady(true); setSpeechError(null); },
+      onEnd: advanceQueue,
+      onError: (reason) => {
+        stopSpeech();
+        setIsSpeaking(false);
+        setIsTransitioningQueue(false);
+        setAudioReady(false);
+        audioUnlockedRef.current = false;
+        const message = reason === 'not-allowed' || reason === 'start-timeout'
+          ? 'เสียงยังไม่เริ่มเล่น กรุณาแตะฟังซ้ำ และตรวจระดับเสียงสื่อของเครื่อง'
+          : 'อ่านเสียงไม่สำเร็จ กรุณาแตะฟังซ้ำหรือตรวจเสียงภาษาไทยในเครื่อง';
+        setSpeechError(message);
+        showToast(message);
+      },
+    });
   };
 
-  const speakCustomText = (text: string) => {
+  const speakCustomText = (text: string, fromGesture = false) => {
+    if (fromGesture) { audioUnlockedRef.current = true; voiceEnabledRef.current = true; setVoiceEnabled(true); }
+    if (!audioUnlockedRef.current) { setSpeechError('แตะเปิดและทดสอบเสียงก่อน'); return; }
     if (!('speechSynthesis' in window)) {
       showToast('อุปกรณ์นี้ไม่รองรับการอ่านออกเสียง');
       return;
@@ -605,18 +602,18 @@ export default function App() {
     const voices = window.speechSynthesis.getVoices();
     const thaiVoice = selectThaiVoice(voices);
     if (thaiVoice) utterance.voice = thaiVoice;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      showToast('ระบบเสียงอ่านไม่สำเร็จ ตรวจสอบเสียงภาษาไทยใน Android');
-    };
     activeUtteranceRef.current = utterance;
-    window.speechSynthesis.resume();
-    window.speechSynthesis.speak(utterance);
+    speechCleanupRef.current = startSpeechPlayback(window.speechSynthesis, utterance, {
+      onStart: () => { setIsSpeaking(true); setAudioReady(true); setSpeechError(null); },
+      onEnd: () => setIsSpeaking(false),
+      onError: () => { stopSpeech(); setIsSpeaking(false); setAudioReady(false); audioUnlockedRef.current = false;
+        setSpeechError('เสียงไม่พร้อม กรุณาตรวจเสียงภาษาไทยและระดับเสียงสื่อ แล้วกดทดสอบอีกครั้ง');
+        showToast('เสียงไม่พร้อม กรุณาตรวจเสียงภาษาไทยและระดับเสียงสื่อของเครื่อง'); },
+    });
   };
 
-  const triggerAnnouncements = (items: LotteryAnnouncement[]) => {
+  const triggerAnnouncements = (items: LotteryAnnouncement[], fromGesture = false) => {
+    if (fromGesture) { audioUnlockedRef.current = true; voiceEnabledRef.current = true; setVoiceEnabled(true); }
     if (!items || items.length === 0) return;
     items = items.map((item) => {
       const { top3, bottom2 } = getResultNumbers({ firstPrize: item.firstPrize, bottom2: item.last2Digits });
@@ -630,8 +627,9 @@ export default function App() {
     setCurrentQueueIndex(0);
     setIsModalOpen(true);
 
-    if (voiceEnabled) {
-      setTimeout(() => {
+    if (voiceEnabledRef.current) {
+      if (fromGesture) { speakCurrentAnnouncement(items[0], 0, items.length); return; }
+      queueTimeoutRef.current = setTimeout(() => {
         speakCurrentAnnouncement(items[0], 0, items.length);
       }, 400);
     }
@@ -639,6 +637,8 @@ export default function App() {
   triggerAnnouncementsRef.current = triggerAnnouncements;
 
   const handleReplay = () => {
+    audioUnlockedRef.current = true; voiceEnabledRef.current = true; setVoiceEnabled(true);
+    playChime();
     const current = announcementQueue[currentQueueIndex];
     if (current) {
       speakCurrentAnnouncement(current, currentQueueIndex, announcementQueue.length);
@@ -667,6 +667,7 @@ export default function App() {
 
   // Speak announcement for any specific lottery item in the catalog or summary table
   const handleSpeakSpecificLottery = (item: LotteryItem) => {
+    audioUnlockedRef.current = true; voiceEnabledRef.current = true; setVoiceEnabled(true);
     if (!('speechSynthesis' in window)) {
       showToast('เบราว์เซอร์ไม่รองรับ Speech Synthesis');
       return;
@@ -688,18 +689,14 @@ export default function App() {
     const thaiVoice = selectThaiVoice(voices);
     if (thaiVoice) utterance.voice = thaiVoice;
 
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = (event) => {
-      setIsSpeaking(false);
-      console.warn('Specific lottery speech failed:', event);
-      showToast('อ่านเสียงไม่สำเร็จ ตรวจสอบเครื่องมือ Text-to-Speech ภาษาไทยใน Android');
-    };
-
     activeUtteranceRef.current = utterance;
-    window.speechSynthesis.resume();
-    window.speechSynthesis.speak(utterance);
-    showToast(`กำลังอ่านประกาศผล ${item.name}`);
+    speechCleanupRef.current = startSpeechPlayback(window.speechSynthesis, utterance, {
+      onStart: () => { setIsSpeaking(true); setAudioReady(true); setSpeechError(null); },
+      onEnd: () => setIsSpeaking(false),
+      onError: () => { stopSpeech(); setIsSpeaking(false); setAudioReady(false); audioUnlockedRef.current = false;
+        setSpeechError('อ่านเสียงไม่สำเร็จ กรุณาตรวจเสียงภาษาไทยในเครื่อง');
+        showToast('อ่านเสียงไม่สำเร็จ กรุณาตรวจเสียงภาษาไทยและระดับเสียงสื่อ'); },
+    });
   };
 
   // Apply a template preset
@@ -857,7 +854,8 @@ export default function App() {
       const fetchJsonWithFallback = async (primaryUrl: string, fallbackUrl?: string) => {
         const request = async (url: string) => {
           try {
-            const response = url.startsWith('/api/') ? await apiFetch(url, { cache: 'no-store' }) : await fetch(url, { cache: 'no-store' });
+            const options = { cache: 'no-store' as const, signal: AbortSignal.timeout(10000) };
+            const response = url.startsWith('/api/') ? await apiFetch(url, options) : await fetch(url, options);
             return response.ok ? await response.json() : null;
           } catch {
             return null;
@@ -959,6 +957,32 @@ export default function App() {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
+  }, []);
+
+  // Foreground assistance requests the existing GitHub runner; it never runs a checker here.
+  useEffect(() => {
+    let disposed = false;
+    let inFlight = false;
+    const controller = new AbortController();
+    const ensureCheck = async () => {
+      if (inFlight || document.visibilityState !== 'visible' || !navigator.onLine) return;
+      inFlight = true;
+      try {
+        const response = await apiFetch('/api/github/dispatch', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ automatic: true, inputs: { lottery_target: 'all', force_notify: 'false' } }),
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!disposed) setForegroundWarning(response.ok || response.status === 409 ? null : data.error || 'เรียกตัวตรวจอัตโนมัติไม่สำเร็จ กรุณาดูสถานะ GitHub Actions');
+      } catch {
+        if (!disposed) setForegroundWarning('เชื่อมต่อตัวตรวจอัตโนมัติไม่ได้ จะลองใหม่เมื่อเว็บเปิดอยู่');
+      } finally { inFlight = false; }
+    };
+    void ensureCheck();
+    const timer = window.setInterval(ensureCheck, 60000);
+    document.addEventListener('visibilitychange', ensureCheck);
+    return () => { disposed = true; controller.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', ensureCheck); };
   }, []);
 
   // Announce each scheduled lottery closing once at its configured closing minute.
@@ -1099,7 +1123,7 @@ export default function App() {
       source: 'ตัวอย่างจากแคตตาล็อก (ไม่ใช่การยืนยันผลสด)',
       nextClosing,
       note: 'ทดสอบเสียงเท่านั้น ไม่ใช่ผลหวยจริง',
-    }]);
+    }], true);
   };
 
   const testDualSimultaneousAnnouncements = () => {
@@ -1120,7 +1144,7 @@ export default function App() {
       source: 'ตัวอย่างจากแคตตาล็อก (ไม่ใช่การยืนยันผลสด)',
       nextClosing,
       note: `ทดสอบเสียงรายการที่ ${index + 1} ไม่ใช่ผลหวยจริง`,
-    })));
+    })), true);
   };
 
   // Preview uses the currently selected catalog lottery, not a hard-coded Thai government example.
@@ -1334,7 +1358,7 @@ export default function App() {
                     const nextState = !voiceEnabled;
                     setVoiceEnabled(nextState);
                     if (!nextState) stopSpeech();
-                    else handleReplay();
+                    else { voiceEnabledRef.current = true; handleReplay(); }
                   }}
                   title={voiceEnabled ? 'ปิดเสียงพูด' : 'เปิดเสียงพูด'}
                   className={`p-2 rounded-xl border transition cursor-pointer ${
@@ -1365,7 +1389,7 @@ export default function App() {
                     ? '🔊 กำลังอ่านผลรางวัลด้วยเสียงภาษาไทย...'
                     : isTransitioningQueue
                     ? '⏳ อ่านรายการนี้จบแล้ว • กำลังเตรียมอ่านรายการถัดไป...'
-                    : 'เสียงอ่านพร้อมใช้งาน'}
+                    : speechError || (audioReady ? 'อ่านเสียงจบแล้ว' : 'แตะฟังซ้ำเพื่อเปิดเสียงบนเครื่องนี้')}
                 </span>
               </div>
 
@@ -1470,12 +1494,19 @@ export default function App() {
               } catch { showToast('ออกจากระบบไม่สำเร็จ กรุณาลองอีกครั้ง'); }
             }}>ออกจากระบบ</button>
             <span className="live-pill">● LIVE</span>
-            <button onClick={() => { const enabled = !voiceEnabled; setVoiceEnabled(enabled); if (!enabled) stopSpeech(); }} aria-label={voiceEnabled ? 'ปิดเสียงอ่าน' : 'เปิดเสียงอ่าน'}>{voiceEnabled ? <Volume2 size={19}/> : <VolumeX size={19}/>}</button>
+            <button onClick={() => {
+              if (!audioReady || !voiceEnabled) { speakCustomText('เปิดเสียงแจ้งเตือนแล้วครับ', true); }
+              else { voiceEnabledRef.current = false; setVoiceEnabled(false); stopSpeech(); }
+            }} aria-label={!audioReady || !voiceEnabled ? 'เปิดและทดสอบเสียง' : 'ปิดเสียงอ่าน'}>
+              {voiceEnabled && audioReady ? <Volume2 size={19}/> : <VolumeX size={19}/>}
+              {!audioReady || !voiceEnabled ? 'เปิดและทดสอบเสียง' : 'ปิดเสียงอ่าน'}
+            </button>
             <button onClick={handleTriggerCheck} disabled={isTriggering}><Play size={17}/>{isTriggering ? 'กำลังตรวจ...' : 'ตรวจผลทันที'}</button>
           </div>
         </div>
 
-        {/* Main User Navigation: Clean, Clear, Large Font for General Users */}
+        {(speechError || foregroundWarning) && <p role="status" className="px-4 py-2 text-sm text-amber-200">{speechError || foregroundWarning}</p>}
+      {/* Main User Navigation: Clean, Clear, Large Font for General Users */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <nav id="bombim-main-nav" aria-label="เมนูหลัก" className="flex gap-2 sm:gap-3 border-t border-slate-800/80 overflow-x-auto py-3 text-sm sm:text-base font-black no-scrollbar">
             {[

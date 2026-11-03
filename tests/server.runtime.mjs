@@ -4,6 +4,59 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
 
+test('foreground assistance checks real run state and prevents duplicate dispatch across clients', { timeout: 15000 }, async () => {
+  const port = 30000 + Math.floor(Math.random() * 20000);
+  const base = `http://127.0.0.1:${port}`;
+  const fixture = `
+    let reads = 0;
+    globalThis.fetch = async (url, init) => {
+      if (String(url).endsWith('/dispatches')) { console.log('FIXTURE_DISPATCH'); return new Response(null, { status: 204 }); }
+      if (String(url).includes('/actions/workflows/lottery.yml/runs')) {
+        reads++;
+        if (reads === 1) return new Response('{}', { status: 503 });
+        const recent = { id: 1, status: 'completed', conclusion: 'success', created_at: new Date().toISOString() };
+        const runs = reads === 2 ? [{ ...recent, status: 'in_progress' }] : reads === 3 ? [recent] : [];
+        await new Promise(resolve => setTimeout(resolve, 50));
+        return Response.json({ workflow_runs: runs });
+      }
+      throw new Error('Unexpected network call in isolated fixture');
+    };
+  `;
+  const server = spawn(process.execPath, ['--import', 'data:text/javascript,' + encodeURIComponent(fixture), 'server.js'], {
+    cwd: new URL('..', import.meta.url),
+    env: { ...process.env, PORT: String(port), NODE_ENV: 'production', DASH_PASSWORD: 'test-secret', GITHUB_TOKEN: 'fixture-token', PATH: '' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = ''; server.stdout.on('data', data => { output += data; }); server.stderr.on('data', data => { output += data; });
+  try {
+    let ready = false;
+    for (let i = 0; i < 100; i++) {
+      if (server.exitCode !== null) throw new Error(output);
+      ready = await fetch(base + '/api/health').then(r => r.ok).catch(() => false);
+      if (ready) break;
+      await delay(50);
+    }
+    assert.ok(ready, output);
+    const post = (extra = {}) => fetch(base + '/api/github/dispatch', {
+      method: 'POST', headers: { Authorization: 'Bearer test-secret', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ automatic: true, inputs: { lottery_target: 'all', force_notify: 'false' }, ...extra }),
+    });
+    assert.equal((await post()).status, 502, 'unknown run state must not trigger a job');
+    assert.equal((await (await post()).json()).skipped, true, 'active job must not be queued twice');
+    assert.equal((await (await post()).json()).skipped, true, 'recent completed job must not be repeated');
+    const responses = await Promise.all([post(), post()]);
+    assert.deepEqual(responses.map(r => r.status).sort(), [200, 409]);
+    const accepted = await responses.find(r => r.status === 200).json();
+    assert.equal(accepted.queued, true);
+    assert.ok(accepted.request_id);
+    assert.equal((await (await post()).json()).skipped, true, 'shared guard must cover other clients');
+    assert.equal((output.match(/FIXTURE_DISPATCH/g) || []).length, 1);
+    assert.equal((await post({ inputs: { lottery_target: 'all', force_notify: 'true' } })).status, 400);
+  } finally {
+    if (server.exitCode === null) { server.kill(); await once(server, 'exit'); }
+  }
+});
+
 test('production API protects writes and exposes only the single GitHub Actions runner', { timeout: 15000 }, async () => {
   const port = 30000 + Math.floor(Math.random() * 20000);
   const base = `http://127.0.0.1:${port}`;

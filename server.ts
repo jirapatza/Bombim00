@@ -1,3 +1,5 @@
+import { shouldDispatchForegroundCheck } from './src/utils/workflowHealth.ts';
+import { validateRanlottoResponse } from './server/sourceValidation.ts';
 import express from 'express';
 import { createRecentDispatchGuard } from './src/utils/recentDispatchGuard.ts';
 import fs from 'fs';
@@ -362,6 +364,19 @@ let lotteryDispatchInFlight = false;
 // Suppress accidental sequential double-clicks for the same dispatch inputs.
 // This is deliberately short so an operator can retry a failed/manual run promptly.
 const recentLotteryDispatches = createRecentDispatchGuard(8000);
+// All signed-in phones/PCs share a five-minute automatic-dispatch guard.
+const automaticLotteryDispatches = createRecentDispatchGuard(5 * 60 * 1000);
+async function readLotteryWorkflowRuns() {
+  const headers: Record<string, string> = { 'User-Agent': 'Bombim00-Render/1.0', Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  const token = (process.env.GITHUB_TOKEN || '').trim();
+  if (token) headers.Authorization = 'Bearer ' + token;
+  const response = await fetch('https://api.github.com/repos/' + LOTTERY_REPOSITORY + '/actions/workflows/' + LOTTERY_WORKFLOW + '/runs?per_page=30', { headers, signal: AbortSignal.timeout(10000) });
+  if (!response.ok) throw new Error('อ่านประวัติ GitHub Actions ไม่สำเร็จ (HTTP ' + response.status + ')');
+  const data = await response.json() as { workflow_runs?: any[] };
+  if (!Array.isArray(data.workflow_runs)) throw new Error('รูปแบบประวัติ GitHub Actions ไม่ถูกต้อง');
+  return data.workflow_runs;
+}
+
 
 app.post('/api/github/dispatch', async (req, res) => {
   let acquiredDispatchLock = false;
@@ -370,12 +385,15 @@ app.post('/api/github/dispatch', async (req, res) => {
     if (!ghToken) {
       return res.status(503).json({ success: false, error: 'ยังไม่ได้ตั้งค่า GITHUB_TOKEN ใน Render Environment' });
     }
+    const automatic = req.body?.automatic === true;
     const inputs = req.body?.inputs || {};
     const target = String(inputs.lottery_target || 'all');
     const forceNotify = String(inputs.force_notify || 'false');
     if (!LOTTERY_TARGETS.has(target) || !['true', 'false'].includes(forceNotify)) {
       return res.status(400).json({ success: false, error: 'ค่ากลุ่มหวยหรือ Force Notify ไม่ถูกต้อง' });
     }
+    if (automatic && (target !== 'all' || forceNotify !== 'false')) return res.status(400).json({ success: false, error: 'คำขออัตโนมัติตรวจได้เฉพาะทุกรายการโดยไม่บังคับแจ้งซ้ำ' });
+    if (automatic && automaticLotteryDispatches.isDuplicate('all')) return res.json({ success: true, queued: false, skipped: true, reason: 'automatic-check-recently-requested' });
     // Suppress rapid retries of an identical dispatch after GitHub accepted it.
     const dispatchFingerprint = JSON.stringify([target, forceNotify]);
     if (recentLotteryDispatches.isDuplicate(dispatchFingerprint)) {
@@ -400,6 +418,10 @@ app.post('/api/github/dispatch', async (req, res) => {
     lotteryDispatchInFlight = true;
     acquiredDispatchLock = true;
 
+    if (automatic) {
+      const runs = await readLotteryWorkflowRuns();
+      if (!shouldDispatchForegroundCheck(runs)) return res.json({ success: true, queued: false, skipped: true, reason: 'workflow-active-or-recent' });
+    }
     const requestId = randomUUID();
     const dispatchUrl = 'https://api.github.com/repos/' + LOTTERY_REPOSITORY + '/actions/workflows/' + LOTTERY_WORKFLOW + '/dispatches';
     const ghRes = await fetch(dispatchUrl, {
@@ -416,6 +438,8 @@ app.post('/api/github/dispatch', async (req, res) => {
     });
     if (ghRes.status === 204 || ghRes.status === 200) {
       recentLotteryDispatches.markAccepted(dispatchFingerprint);
+      // Manual checks also postpone automatic requests, including the visibility refresh.
+      automaticLotteryDispatches.markAccepted('all');
       return res.json({ success: true, queued: true, workflow_dispatched: true, request_id: requestId, message: 'ส่งคำสั่งตรวจผลไปยัง GitHub Actions แล้ว' });
     }
     const detail = await ghRes.text().catch(() => '');
@@ -428,25 +452,8 @@ app.post('/api/github/dispatch', async (req, res) => {
 });
 
 app.get('/api/github/runs', async (_req, res) => {
-  try {
-    const ghToken = (process.env.GITHUB_TOKEN || '').trim();
-    const headers: Record<string, string> = {
-      'User-Agent': 'Bombim00-Render/1.0',
-      'Accept': 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    };
-    if (ghToken) headers.Authorization = 'Bearer ' + ghToken;
-    const runsUrl = 'https://api.github.com/repos/' + LOTTERY_REPOSITORY + '/actions/workflows/' + LOTTERY_WORKFLOW + '/runs?per_page=30';
-    const ghRes = await fetch(runsUrl, { headers, signal: AbortSignal.timeout(10000) });
-    if (!ghRes.ok) {
-      const detail = await ghRes.text().catch(() => '');
-      return res.status(502).json({ success: false, error: 'อ่านประวัติ GitHub Actions ไม่สำเร็จ (HTTP ' + ghRes.status + '): ' + detail.slice(0, 300), workflow_runs: [] });
-    }
-    const data = await ghRes.json() as { workflow_runs?: unknown[] };
-    return res.json({ success: true, workflow_runs: data.workflow_runs || [] });
-  } catch (err: any) {
-    return res.status(502).json({ success: false, error: err?.message || 'อ่านประวัติการทำงานไม่สำเร็จ', workflow_runs: [] });
-  }
+  try { return res.json({ success: true, workflow_runs: await readLotteryWorkflowRuns() }); }
+  catch (err: any) { return res.status(502).json({ success: false, error: err?.message || 'อ่านประวัติไม่สำเร็จ', workflow_runs: [] }); }
 });
 
 // Lottery checks run only in GitHub Actions; this service never starts a second checker.
@@ -462,7 +469,7 @@ const monitoredFiles = [
 
 const monitoredSources = [
   { id: 'glo', name: 'สำนักงานสลากกินแบ่งรัฐบาล (GLO Official)', url: 'https://www.glo.or.th' },
-  { id: 'ranlotto', name: 'RANLOTTO Lottery Service', url: 'https://api.ranlotto.com' },
+  { id: 'ranlotto', name: 'RANLOTTO Lottery Service', url: 'https://api.ranlotto.com/api/public/v1/lottery/result/latest' },
   { id: 'ntfy', name: 'ntfy.sh Push Notification Server', url: 'https://ntfy.sh' },
   { id: 'github', name: 'GitHub API', url: 'https://api.github.com' },
 ];
@@ -473,14 +480,25 @@ async function checkExternalSource(source: { id: string; name: string; url: stri
   const timeout = setTimeout(() => controller.abort(), 3500);
   try {
     const response = await fetch(source.url, {
-      method: 'HEAD',
+      method: source.id === 'ranlotto' ? 'GET' : 'HEAD',
+      headers: source.id === 'ranlotto' ? { Accept: 'application/json' } : {},
       redirect: 'error',
       signal: controller.signal,
     });
+    let dataValidated: boolean | null = null;
+    let reason = response.status === 403 ? 'access-denied' : !response.ok ? 'http-error' : 'host-only';
+    if (source.id === 'ranlotto' && response.ok) {
+      const data = await response.json().catch(() => null);
+      dataValidated = validateRanlottoResponse(data);
+      reason = dataValidated ? 'result-schema-valid' : 'result-schema-invalid-or-unpublished';
+    }
     return {
       id: source.id,
       name: source.name,
-      status: response.ok ? 'healthy' : 'degraded',
+      status: response.ok && dataValidated !== false ? 'healthy' : 'degraded',
+      reason,
+      dataValidated,
+      validationScope: source.id === 'ranlotto' ? 'government-result-schema' : 'host-only',
       latencyMs: Date.now() - startedAt,
       statusCode: response.status,
       lastChecked: new Date().toISOString(),
