@@ -14,7 +14,6 @@ import {
   Zap,
   Copy,
   Check,
-  MessageCircle,
   Cpu,
 } from 'lucide-react';
 
@@ -60,12 +59,6 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
   const [ntfyTestResult, setNtfyTestResult] = useState<{ success?: boolean; message?: string } | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
-  // LINE config
-  const lineConfig = settings?.channels?.line || {};
-  const [isLineEnabled, setIsLineEnabled] = useState<boolean>(lineConfig.enabled === true);
-  const [isTestingLine, setIsTestingLine] = useState<boolean>(false);
-  const [lineTestResult, setLineTestResult] = useState<{ success?: boolean; message?: string } | null>(null);
-
   const ntfyServer = ntfyConfig.server || 'https://ntfy.sh';
   const cleanServer = ntfyServer.replace(/\/+$/, '');
   const subscribeUrl = `${cleanServer}/${encodeURIComponent(topic)}`;
@@ -90,22 +83,6 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
         enabled,
         topic: newTopic.trim(),
         server: cleanServer,
-      },
-    };
-    return onSaveSettings(updated);
-  };
-
-  // Save changes to settings for LINE
-  const handleSaveLineConfig = async (enabled: boolean): Promise<boolean> => {
-    const updated = {
-      ...settings,
-      channels: {
-        ...(settings?.channels || {}),
-        line: {
-          ...(settings?.channels?.line || {}),
-          enabled,
-          mode: 'messaging_api',
-        },
       },
     };
     return onSaveSettings(updated);
@@ -160,33 +137,6 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
     }
   };
 
-  // Test send through the LINE Messaging API configured on the server.
-  const handleTestLineMessagingApi = async () => {
-    setIsTestingLine(true);
-    setLineTestResult(null);
-
-    const { lotteryName, top3, last2, drawDate } = getTestResult();
-    const message = `ข้อความทดสอบเท่านั้น (ไม่ใช่ผลหวยจริง)\n📢 ผล${lotteryName} งวด ${drawDate}\n🔺 3 ตัวบน: ${top3}\n🔻 2 ตัวล่าง: ${last2}\nระบบทดสอบผ่าน LINE Messaging API`;
-
-    try {
-      const res = await apiFetch('/api/test-line', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        setLineTestResult({ success: true, message: 'เซิร์ฟเวอร์ส่งคำขอทดสอบผ่าน LINE Messaging API แล้ว' });
-      } else {
-        throw new Error(data.error || `HTTP ${res.status}: ส่ง LINE ไม่สำเร็จ`);
-      }
-    } catch (err: any) {
-      setLineTestResult({ success: false, message: `ส่ง LINE ไม่สำเร็จ: ${err.message}` });
-    } finally {
-      setIsTestingLine(false);
-    }
-  };
-
   const handleCopyLink = () => {
     navigator.clipboard?.writeText(subscribeUrl);
     setCopiedLink(true);
@@ -205,14 +155,14 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                  ระบบแจ้งเตือนหลัก (LINE &amp; ntfy Push)
+                  ระบบแจ้งเตือนหลัก (ntfy Push)
                 </h2>
                 <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                   เฉพาะช่องทางที่ใช้งานจริง
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                ระบบถูกปรับให้ส่งแจ้งเตือนผ่าน <strong>LINE OA / กลุ่ม</strong> และ <strong>แอป ntfy บนมือถือ</strong> พร้อมระบบอ่านเสียงภาษาไทย
+                ส่งแจ้งเตือนผ่าน <strong>แอป ntfy บนมือถือ</strong> พร้อมตัวเลือกอ่านผลด้วยเสียงภาษาไทยบนเว็บ
               </p>
             </div>
           </div>
@@ -226,91 +176,9 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
         </div>
       </div>
 
-      {/* 2. THE 3 CHANNELS (LINE, NTFY, VOICE) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* ==================== CHANNEL 1: LINE MESSAGING API ==================== */}
-        <div className={`rounded-3xl border transition-all duration-300 p-5 flex flex-col justify-between shadow-xl ${
-          isLineEnabled
-            ? 'bg-gradient-to-br from-emerald-500/10 via-slate-900 to-slate-900 border-emerald-500/40 shadow-emerald-500/5'
-            : 'bg-slate-900/80 border-slate-800'
-        }`}>
-          <div>
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                  isLineEnabled ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20' : 'bg-slate-800 text-slate-500'
-                }`}>
-                  <MessageCircle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-white">
-                    1. LINE Official Account / กลุ่ม
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    แจ้งเตือนผ่าน LINE Messaging API
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  const nextState = !isLineEnabled;
-                  if (await handleSaveLineConfig(nextState)) setIsLineEnabled(nextState);
-                }}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                  isLineEnabled ? 'bg-emerald-500' : 'bg-slate-800'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    isLineEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 text-xs text-slate-300 leading-relaxed">
-                <p className="font-bold text-emerald-300 mb-1">เชื่อมต่อ LINE Official Account</p>
-                <p>ระบบนี้ใช้ LINE Messaging API (ไม่ใช่ LINE Notify ซึ่งยุติบริการแล้ว)</p>
-                <p className="mt-2">ตั้งค่า Secret ต่อไปนี้ใน GitHub Actions และ Render Environment:</p>
-                <ul className="list-disc pl-5 mt-1 space-y-1">
-                  <li><code>LINE_CHANNEL_ACCESS_TOKEN</code></li>
-                  <li><code>LINE_TARGET_ID</code> (User ID หรือ Group ID)</li>
-                </ul>
-                <a href="https://developers.line.biz/console/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 mt-2 text-emerald-400 underline">
-                  เปิด LINE Developers Console <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-
-              {lineTestResult && (
-                <div className={`p-2.5 rounded-xl border text-[11px] flex items-center gap-1.5 ${
-                  lineTestResult.success
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                    : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                }`}>
-                  {lineTestResult.success ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
-                  <span>{lineTestResult.message}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="pt-4">
-            <button
-              type="button"
-              onClick={handleTestLineMessagingApi}
-              disabled={isTestingLine}
-              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-40 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-            >
-              <Send className={`w-3.5 h-3.5 ${isTestingLine ? 'animate-spin' : ''}`} />
-              <span>{isTestingLine ? 'กำลังส่งเข้า LINE...' : '🟢 ทดสอบส่งเข้า LINE ทันที'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* ==================== CHANNEL 2: MOBILE NTFY PUSH ==================== */}
+      {/* 2. NTFY PUSH AND WEB VOICE */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* ==================== MOBILE NTFY PUSH ==================== */}
         <div className={`rounded-3xl border transition-all duration-300 p-5 flex flex-col justify-between shadow-xl ${
           isNtfyEnabled
             ? 'bg-gradient-to-br from-indigo-500/10 via-slate-900 to-slate-900 border-indigo-500/40 shadow-indigo-500/5'
@@ -326,7 +194,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-white">
-                    2. แอปมือถือ (ntfy)
+                    แอปมือถือ (ntfy)
                   </h3>
                   <p className="text-[11px] text-slate-400">
                     เด้งเตือนบน Android &amp; iOS
@@ -424,7 +292,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
           </div>
         </div>
 
-        {/* ==================== CHANNEL 3: THAI VOICE ANNOUNCEMENT ==================== */}
+        {/* ====================  THAI VOICE ANNOUNCEMENT ==================== */}
         <div className={`rounded-3xl border transition-all duration-300 p-5 flex flex-col justify-between shadow-xl ${
           voiceEnabled
             ? 'bg-gradient-to-br from-amber-500/10 via-slate-900 to-slate-900 border-amber-500/40 shadow-amber-500/5'
@@ -440,7 +308,7 @@ export const UnifiedNotificationCenter: React.FC<UnifiedNotificationCenterProps>
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-white">
-                    3. เสียงพูดภาษาไทย (TTS)
+                    เสียงพูดภาษาไทย (TTS)
                   </h3>
                   <p className="text-[11px] text-slate-400">
                     อ่านประกาศรางวัลภาษาไทยแท้
