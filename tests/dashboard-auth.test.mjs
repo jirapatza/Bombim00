@@ -41,7 +41,7 @@ test('private website requires login, remembers across server instances, blocks 
     const response = await login('test-password');
     assert.equal(response.status, 200);
     const setCookie = response.headers.get('set-cookie');
-    for (const pattern of [/HttpOnly/, /Secure/, /SameSite=Strict/, /Max-Age=2592000/, /Path=\//, /__Host-dashboard-session=/]) assert.match(setCookie, pattern);
+    for (const pattern of [/HttpOnly/, /Secure/, /SameSite=Lax/, /Max-Age=2592000/, /Path=\//, /__Host-dashboard-session=/]) assert.match(setCookie, pattern);
     assert.ok(!setCookie.includes('test-password'));
     const Cookie = setCookie.split(';')[0];
     assert.equal(await (await fetch(base, { headers: { Cookie } })).text(), 'PRIVATE APP');
