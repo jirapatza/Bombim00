@@ -1,5 +1,86 @@
 [
   {
+    "sessionId": "audit-1793773956377",
+    "triggeredAt": "2026-11-04T06:32:35.177Z",
+    "triggeredAtThai": "4/11/2569 13:32:35",
+    "triggerType": "device_error_diagnostic",
+    "triggeredByDevice": "RANLOTTO Government Result API",
+    "triggerReason": "สั่งตรวจสอบและตรวจสอบเฉพาะอุปกรณ์: RANLOTTO Government Result API (สถานะ: API ปฏิเสธการเข้าถึง (HTTP 403) • ไม่ใช่ค่าความหน่วงของผลหวย)",
+    "overallResult": "partial",
+    "totalActionsCount": 5,
+    "successCount": 4,
+    "warningCount": 1,
+    "failedCount": 0,
+    "executionDurationTotalMs": 1200,
+    "actions": [
+      {
+        "id": "act-1793773955508-config/settings.json",
+        "commandCode": "VERIFY_REPOSITORY_DATA",
+        "targetDevice": "config/settings.json",
+        "description": "ตรวจสอบไฟล์ข้อมูลหลักจาก GitHub repository",
+        "triggerReason": "สั่งตรวจสอบและตรวจสอบเฉพาะอุปกรณ์: RANLOTTO Government Result API (สถานะ: API ปฏิเสธการเข้าถึง (HTTP 403) • ไม่ใช่ค่าความหน่วงของผลหวย)",
+        "timestamp": "2026-11-04T06:32:35.508Z",
+        "timestampThai": "4/11/2569 13:32:35",
+        "status": "success",
+        "executionTimeMs": 177,
+        "details": "อ่านข้อมูลสำเร็จ",
+        "shellCommand": ""
+      },
+      {
+        "id": "act-1793773955509-status/status.json",
+        "commandCode": "VERIFY_REPOSITORY_DATA",
+        "targetDevice": "status/status.json",
+        "description": "ตรวจสอบไฟล์ข้อมูลหลักจาก GitHub repository",
+        "triggerReason": "สั่งตรวจสอบและตรวจสอบเฉพาะอุปกรณ์: RANLOTTO Government Result API (สถานะ: API ปฏิเสธการเข้าถึง (HTTP 403) • ไม่ใช่ค่าความหน่วงของผลหวย)",
+        "timestamp": "2026-11-04T06:32:35.509Z",
+        "timestampThai": "4/11/2569 13:32:35",
+        "status": "success",
+        "executionTimeMs": 177,
+        "details": "อ่านข้อมูลสำเร็จ",
+        "shellCommand": ""
+      },
+      {
+        "id": "act-1793773955515-data/all_lotteries.json",
+        "commandCode": "VERIFY_REPOSITORY_DATA",
+        "targetDevice": "data/all_lotteries.json",
+        "description": "ตรวจสอบไฟล์ข้อมูลหลักจาก GitHub repository",
+        "triggerReason": "สั่งตรวจสอบและตรวจสอบเฉพาะอุปกรณ์: RANLOTTO Government Result API (สถานะ: API ปฏิเสธการเข้าถึง (HTTP 403) • ไม่ใช่ค่าความหน่วงของผลหวย)",
+        "timestamp": "2026-11-04T06:32:35.515Z",
+        "timestampThai": "4/11/2569 13:32:35",
+        "status": "success",
+        "executionTimeMs": 181,
+        "details": "อ่านข้อมูลสำเร็จ; จำนวน 54 รายการ",
+        "shellCommand": ""
+      },
+      {
+        "id": "act-1793773955610-lottery_previous_results.json",
+        "commandCode": "VERIFY_REPOSITORY_DATA",
+        "targetDevice": "lottery_previous_results.json",
+        "description": "ตรวจสอบไฟล์ข้อมูลหลักจาก GitHub repository",
+        "triggerReason": "สั่งตรวจสอบและตรวจสอบเฉพาะอุปกรณ์: RANLOTTO Government Result API (สถานะ: API ปฏิเสธการเข้าถึง (HTTP 403) • ไม่ใช่ค่าความหน่วงของผลหวย)",
+        "timestamp": "2026-11-04T06:32:35.610Z",
+        "timestampThai": "4/11/2569 13:32:35",
+        "status": "success",
+        "executionTimeMs": 274,
+        "details": "อ่านข้อมูลสำเร็จ; จำนวน 332 รายการ",
+        "shellCommand": ""
+      },
+      {
+        "id": "act-1793773956376-gateways",
+        "commandCode": "VERIFY_GATEWAYS_REACHABILITY",
+        "targetDevice": "External Feeds & Notification Gateways",
+        "description": "ตรวจสอบการตอบสนองของบริการภายนอกด้วยคำขอจริง",
+        "triggerReason": "สั่งตรวจสอบและตรวจสอบเฉพาะอุปกรณ์: RANLOTTO Government Result API (สถานะ: API ปฏิเสธการเข้าถึง (HTTP 403) • ไม่ใช่ค่าความหน่วงของผลหวย)",
+        "timestamp": "2026-11-04T06:32:36.376Z",
+        "timestampThai": "4/11/2569 13:32:36",
+        "status": "warning",
+        "executionTimeMs": 767,
+        "details": "[{\"id\":\"glo\",\"name\":\"สำนักงานสลากกินแบ่งรัฐบาล (GLO Official)\",\"status\":\"healthy\",\"reason\":\"host-only\",\"dataValidated\":null,\"validationScope\":\"host-only\",\"latencyMs\":752,\"statusCode\":200,\"lastChecked\":\"2026-11-04T06:32:36.362Z\"},{\"id\":\"ranlotto\",\"name\":\"RANLOTTO Lottery Service\",\"status\":\"degraded\",\"reason\":\"access-denied\",\"dataValidated\":null,\"validationScope\":\"government-result-schema\",\"latencyMs\":762,\"statusCode\":403,\"lastChecked\":\"2026-11-04T06:32:36.376Z\"},{\"id\":\"ntfy\",\"name\":\"ntfy.sh Push Notification Server\",\"status\":\"healthy\",\"reason\":\"host-only\",\"dataValidated\":null,\"validationScope\":\"host-only\",\"latencyMs\":324,\"statusCode\":200,\"lastChecked\":\"2026-11-04T06:32:35.943Z\"},{\"id\":\"github\",\"name\":\"GitHub API\",\"status\":\"healthy\",\"reason\":\"host-only\",\"dataValidated\":null,\"validationScope\":\"host-only\",\"latencyMs\":321,\"statusCode\":200,\"lastChecked\":\"2026-11-04T06:32:35.945Z\"}]",
+        "shellCommand": ""
+      }
+    ]
+  },
+  {
     "sessionId": "audit-1793766423224",
     "triggeredAt": "2026-11-04T04:27:01.648Z",
     "triggeredAtThai": "4/11/2569 11:27:01",
