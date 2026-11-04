@@ -1488,7 +1488,7 @@ export default function App() {
               else { voiceEnabledRef.current = false; setVoiceEnabled(false); stopSpeech(); }
             }} aria-label={!audioReady || !voiceEnabled ? 'เปิดและทดสอบเสียง' : 'ปิดเสียงอ่าน'}>
               {voiceEnabled && audioReady ? <Volume2 size={19}/> : <VolumeX size={19}/>}
-              {!audioReady || !voiceEnabled ? 'เปิดและทดสอบเสียง' : 'ปิดเสียงอ่าน'}
+              <span>{!audioReady || !voiceEnabled ? 'เปิดและทดสอบเสียง' : 'ปิดเสียงอ่าน'}</span>
             </button>
             <button onClick={handleTriggerCheck} disabled={isTriggering}><Play size={17}/>{isTriggering ? 'กำลังตรวจ...' : 'ตรวจผลทันที'}</button>
           </div>
