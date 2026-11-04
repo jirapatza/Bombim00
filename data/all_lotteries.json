@@ -10,12 +10,12 @@
     "drawTimeStr": "08:30 น.",
     "closeTimeStr": "08:20 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "473",
+    "bottom2": "25",
+    "firstPrize": "473",
+    "date": "4 พฤศจิกายน 2569",
+    "source": "ผลหวย.com (ลาว EXTRA)"
   },
   {
     "id": "nikkei_vip_morning",
@@ -28,12 +28,12 @@
     "drawTimeStr": "09:05 น.",
     "closeTimeStr": "08:55 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "507",
+    "bottom2": "97",
+    "firstPrize": "507",
+    "date": "4 พฤศจิกายน 2569",
+    "source": "ผลหวย.com (หน้าหุ้นแยกหมวด)"
   },
   {
     "id": "hanoi_asean",
@@ -50,8 +50,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "nikkei_morning",
@@ -64,12 +64,12 @@
     "drawTimeStr": "09:30 น.",
     "closeTimeStr": "09:20 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "536",
+    "bottom2": "50",
+    "firstPrize": "536",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "china_vip_morning",
@@ -82,12 +82,12 @@
     "drawTimeStr": "10:05 น.",
     "closeTimeStr": "09:55 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "923",
+    "bottom2": "59",
+    "firstPrize": "923",
+    "date": "4 พฤศจิกายน 2569",
+    "source": "ผลหวย.com (หน้าหุ้นแยกหมวด)"
   },
   {
     "id": "china_morning",
@@ -100,12 +100,12 @@
     "drawTimeStr": "10:30 น.",
     "closeTimeStr": "10:15 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "191",
+    "bottom2": "92",
+    "firstPrize": "191",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "lao_tv",
@@ -122,8 +122,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hangseng_vip_morning",
@@ -136,12 +136,12 @@
     "drawTimeStr": "10:35 น.",
     "closeTimeStr": "10:25 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "991",
+    "bottom2": "77",
+    "firstPrize": "991",
+    "date": "4 พฤศจิกายน 2569",
+    "source": "ผลหวย.com (หน้าหุ้นแยกหมวด)"
   },
   {
     "id": "hangseng_morning",
@@ -154,12 +154,12 @@
     "drawTimeStr": "11:00 น.",
     "closeTimeStr": "10:50 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "966",
+    "bottom2": "69",
+    "firstPrize": "966",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "hanoi_hd",
@@ -176,8 +176,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "taiwan_vip",
@@ -190,12 +190,12 @@
     "drawTimeStr": "11:35 น.",
     "closeTimeStr": "11:25 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "423",
+    "bottom2": "53",
+    "firstPrize": "423",
+    "date": "4 พฤศจิกายน 2569",
+    "source": "ผลหวย.com (หน้าหุ้นแยกหมวด)"
   },
   {
     "id": "hanoi_star",
@@ -212,8 +212,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "taiwan",
@@ -226,12 +226,12 @@
     "drawTimeStr": "12:35 น.",
     "closeTimeStr": "12:05 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "891",
+    "bottom2": "63",
+    "firstPrize": "891",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "korea_vip",
@@ -244,12 +244,12 @@
     "drawTimeStr": "12:35 น.",
     "closeTimeStr": "12:25 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "022",
+    "bottom2": "21",
+    "firstPrize": "022",
+    "date": "4 พฤศจิกายน 2569",
+    "source": "ผลหวย.com (หน้าหุ้นแยกหมวด)"
   },
   {
     "id": "korea",
@@ -262,12 +262,12 @@
     "drawTimeStr": "13:40 น.",
     "closeTimeStr": "12:40 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "943",
+    "bottom2": "17",
+    "firstPrize": "943",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "nikkei_afternoon",
@@ -280,12 +280,12 @@
     "drawTimeStr": "13:30 น.",
     "closeTimeStr": "12:50 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "863",
+    "bottom2": "23",
+    "firstPrize": "863",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "nikkei_vip_afternoon",
@@ -298,12 +298,12 @@
     "drawTimeStr": "13:25 น.",
     "closeTimeStr": "13:15 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "382",
+    "bottom2": "52",
+    "firstPrize": "382",
+    "date": "4 พฤศจิกายน 2569",
+    "source": "ผลหวย.com (หน้าหุ้นแยกหมวด)"
   },
   {
     "id": "lao_hd",
@@ -320,8 +320,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "china_afternoon",
@@ -334,12 +334,12 @@
     "drawTimeStr": "14:00 น.",
     "closeTimeStr": "13:40 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "569",
+    "bottom2": "70",
+    "firstPrize": "569",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "hanoi_tv",
@@ -356,8 +356,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "china_vip_afternoon",
@@ -370,12 +370,12 @@
     "drawTimeStr": "14:25 น.",
     "closeTimeStr": "14:15 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "875",
+    "bottom2": "87",
+    "firstPrize": "875",
+    "date": "4 พฤศจิกายน 2569",
+    "source": "ผลหวย.com (หน้าหุ้นแยกหมวด)"
   },
   {
     "id": "hangseng_afternoon",
@@ -388,12 +388,12 @@
     "drawTimeStr": "15:10 น.",
     "closeTimeStr": "14:50 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "950",
+    "bottom2": "53",
+    "firstPrize": "950",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "hangseng_vip_afternoon",
@@ -406,12 +406,12 @@
     "drawTimeStr": "15:25 น.",
     "closeTimeStr": "15:15 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "857",
+    "bottom2": "78",
+    "firstPrize": "857",
+    "date": "4 พฤศจิกายน 2569",
+    "source": "ผลหวย.com (หน้าหุ้นแยกหมวด)"
   },
   {
     "id": "lao_star",
@@ -428,8 +428,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "singapore",
@@ -442,12 +442,12 @@
     "drawTimeStr": "16:25 น.",
     "closeTimeStr": "15:50 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "863",
+    "bottom2": "66",
+    "firstPrize": "863",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "thai_stock_evening",
@@ -460,12 +460,12 @@
     "drawTimeStr": "16:45 น.",
     "closeTimeStr": "16:00 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "909",
+    "bottom2": "08",
+    "firstPrize": "909",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "hanoi_redcross",
@@ -482,8 +482,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "india",
@@ -496,12 +496,12 @@
     "drawTimeStr": "17:05 น.",
     "closeTimeStr": "16:45 น.",
     "drawDays": "จันทร์ - ศุกร์",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "140",
+    "bottom2": "55",
+    "firstPrize": "140",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "singapore_vip",
@@ -514,12 +514,12 @@
     "drawTimeStr": "17:05 น.",
     "closeTimeStr": "16:55 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "377",
+    "bottom2": "42",
+    "firstPrize": "377",
+    "date": "4 พฤศจิกายน 2569",
+    "source": "ผลหวย.com (หน้าหุ้นแยกหมวด)"
   },
   {
     "id": "hanoi_samakki",
@@ -536,8 +536,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_special",
@@ -550,12 +550,12 @@
     "drawTimeStr": "17:30 น.",
     "closeTimeStr": "17:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "015",
+    "bottom2": "40",
+    "firstPrize": "015",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "hanoi_regular",
@@ -568,12 +568,12 @@
     "drawTimeStr": "18:30 น.",
     "closeTimeStr": "18:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "046",
+    "bottom2": "75",
+    "firstPrize": "046",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "hanoi_vip",
@@ -586,12 +586,12 @@
     "drawTimeStr": "19:30 น.",
     "closeTimeStr": "19:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "396",
+    "bottom2": "79",
+    "firstPrize": "396",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "hanoi_patthana",
@@ -604,30 +604,30 @@
     "drawTimeStr": "19:30 น.",
     "closeTimeStr": "19:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "102",
+    "bottom2": "50",
+    "firstPrize": "102",
+    "date": "2026-11-04",
+    "source": "LotteryChecks (https://lotterychecks.com)"
   },
   {
     "id": "lao_patthana",
     "name": "ลาวพัฒนา",
-    "category": "lao",
-    "categoryLabel": "หวยลาว",
+    "closeTimeStr": "20:15 น.",
+    "drawTimeStr": "20:30 น.",
     "period": "evening",
     "periodLabel": "หวยเย็น",
+    "category": "lao",
+    "categoryLabel": "หวยลาว",
     "flag": "🇱🇦",
-    "drawTimeStr": "20:30 น.",
-    "closeTimeStr": "20:15 น.",
-    "drawDays": "จันทร์, พุธ, ศุกร์",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "drawDays": "จันทร์- ศุกร์",
+    "status": "announced",
+    "top3": "808",
+    "bottom2": "88",
+    "date": "04.11.2026",
+    "source": "👑เฮียฮวด พารวย",
+    "firstPrize": "808"
   },
   {
     "id": "lao_samakki",
@@ -644,8 +644,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "2026-11-03",
+    "source": "LotteryChecks (https://lotterychecks.com)"
   },
   {
     "id": "lao_asean",
@@ -662,8 +662,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_vip",
@@ -680,8 +680,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_samakki_vip",
@@ -698,8 +698,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "england_vip",
@@ -716,8 +716,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_star_vip",
@@ -734,8 +734,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "hanoi_extra",
@@ -752,8 +752,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "england",
@@ -770,8 +770,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "02.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "germany",
@@ -788,8 +788,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "russia",
@@ -806,8 +806,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "28 กันยายน 2569",
+    "source": "ผลหวย.com (หน้าหุ้นแยกหมวด)"
   },
   {
     "id": "germany_vip",
@@ -824,8 +824,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "lao_redcross",
@@ -842,8 +842,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "russia_vip",
@@ -860,8 +860,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "dowjones_vip",
@@ -878,8 +878,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "dowjones_star",
@@ -896,8 +896,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "",
+    "source": "รอผลจริงจากแหล่งข้อมูล"
   },
   {
     "id": "dowjones",
@@ -914,8 +914,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "3 พฤศจิกายน 2569",
+    "source": "ผลหวย.com (หน้าหุ้นแยกหมวด)"
   },
   {
     "id": "thai_gov",
@@ -932,8 +932,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "01.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "gsb",
@@ -950,8 +950,8 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "01.11.2026",
+    "source": "👑เฮียฮวด พารวย"
   },
   {
     "id": "baac",
@@ -968,7 +968,7 @@
     "top3": "",
     "bottom2": "",
     "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "date": "16.10.2026",
+    "source": "👑เฮียฮวด พารวย"
   }
 ]
