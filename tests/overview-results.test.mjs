@@ -59,6 +59,23 @@ test('history matches aliases and deduplicates dates without mixing rounds or lo
  assert.ok(Number.isNaN(publishedTime(result('unknown'))));
 });
 
+test('today table includes complete results missing from the catalog as separate draws', () => {
+  const rows = todayLotteryRows(catalog, [
+    result('หวยหุ้นจีน VISA เช้า', '3 พฤศจิกายน 2569'),
+    result('จีน VISA เช้า'),
+    result('หวยหุ้นจีน VISA บ่าย'),
+    result('จีนพิเศษ เช้า', '02.11.2026'),
+    result('จีนพิเศษ บ่าย', undefined, { bottom2: '' }),
+    result('หวยหุ้นนิคเคอิ VIP เช้า'),
+  ], now);
+  const announced = rows.filter(row => row.state === 'announced');
+  assert.deepEqual(announced.map(row => row.item.name), [
+    'นิเคอิเช้า VIP', 'หวยหุ้นจีน VISA เช้า', 'หวยหุ้นจีน VISA บ่าย',
+  ]);
+  assert.equal(announced[1].item.bottom2, '00');
+  assert.equal(announced[1].draw, null);
+});
+
 test('a recognized provider code overrides a conflicting legacy display name',()=>{
  const old={หวย:'hanoi_patthana',ชื่อหวย:'ฮานอย VIP',งวดวันที่:'03.11.2026',top3:'007',bottom2:'00'};
  assert.equal(matchesLottery({id:'hanoi_vip',name:'ฮานอย VIP'},old),false);
