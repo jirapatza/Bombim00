@@ -14,13 +14,14 @@ test('session expires, rejects tampering and is invalidated by password rotation
   assert.equal(validSession('malformed', 'test-password', now), false);
 });
 
-test('private website requires login, remembers across server instances, blocks CSRF and logs out', async () => {
+test('public results keep admin sessions, CSRF protection, and logout', async () => {
   process.env.NODE_ENV = 'production';
   process.env.DASH_PASSWORD = 'test-password';
   const app = express();
   app.use(express.json());
   installDashboardAuth(app, express.urlencoded({ extended: false }));
   app.get('/api/health', (_req, res) => res.json({ ok: true, private: true }));
+  app.get('/api/results', (_req, res) => res.json([]));
   app.get('/api/status', (_req, res) => res.json({ private: true }));
   app.post('/api/settings', (_req, res) => res.json({ success: true }));
   app.get('*', (_req, res) => res.send('PRIVATE APP'));
@@ -32,9 +33,12 @@ test('private website requires login, remembers across server instances, blocks 
     method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin, ...extra }, body: JSON.stringify({ password }),
   });
   try {
-    assert.match(await (await fetch(base)).text(), /เว็บไซต์ส่วนตัว/);
+    assert.equal(await (await fetch(base)).text(), 'PRIVATE APP');
+    assert.match(await (await fetch(`${base}/admin/login`)).text(), /เว็บไซต์ส่วนตัว/);
     assert.equal((await fetch(`${base}/api/status`)).status, 401);
-    assert.match(await (await fetch(`${base}/assets/private.js`)).text(), /เว็บไซต์ส่วนตัว/);
+    assert.equal(await (await fetch(`${base}/assets/app.js`)).text(), 'PRIVATE APP');
+    assert.deepEqual(await (await fetch(`${base}/api/results`)).json(), []);
+    assert.equal((await fetch(`${base}/api/settings`, { method: 'POST' })).status, 401);
     assert.deepEqual(await (await fetch(`${base}/api/health`)).json(), { ok: true, status: 'locked' });
     assert.equal((await login('wrong')).status, 401);
     assert.equal((await login('test-password', { Origin: 'https://evil.example' })).status, 403);
@@ -59,7 +63,8 @@ test('private website requires login, remembers across server instances, blocks 
     } finally { await new Promise(resolve => secondServer.close(resolve)); }
     const logout = await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { Cookie, Origin: origin } });
     assert.match(logout.headers.get('set-cookie'), /Expires=Thu, 01 Jan 1970/);
-    assert.match(await (await fetch(base)).text(), /เว็บไซต์ส่วนตัว/);
+    assert.equal(await (await fetch(base)).text(), 'PRIVATE APP');
+    assert.match(await (await fetch(`${base}/admin/login`)).text(), /เว็บไซต์ส่วนตัว/);
     for (let i = 0; i < 10; i++) assert.equal((await login('wrong')).status, 401);
     assert.equal((await login('test-password')).status, 429);
     let limited;
