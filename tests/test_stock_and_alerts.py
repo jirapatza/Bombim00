@@ -268,31 +268,6 @@ def test_stock_group_scraper_ignores_faq_headings(monkeypatch):
     assert rows[0]["เลขล่าง_2_ตัว"] == "53"
 
 
-def test_send_line_notification_uses_messaging_api_and_server_secrets(monkeypatch):
-    import json
-
-    posted = {}
-    monkeypatch.setenv("LINE_CHANNEL_ACCESS_TOKEN", "fake-channel-token")
-    monkeypatch.setenv("LINE_TARGET_ID", "U1234567890")
-    monkeypatch.setattr(lc, "S", {
-        "channels": {"line": {"enabled": True}}
-    })
-    monkeypatch.setattr(lc, "_http_post", lambda url, data, headers, timeout=10: posted.update(
-        url=url, payload=json.loads(data.decode("utf-8")), headers=headers
-    ) or True)
-
-    ok = lc.send_line_notification({
-        "ชื่อหวย": "หวยฮานอยพิเศษ",
-        "งวดวันที่": "31 ตุลาคม 2569",
-        "เลขบน_3_ตัว": "024",
-        "เลขล่าง_2_ตัว": "44",
-    })
-    assert ok is True
-    assert posted["url"] == "https://api.line.me/v2/bot/message/push"
-    assert posted["headers"]["Authorization"] == "Bearer fake-channel-token"
-    assert posted["payload"]["to"] == "U1234567890"
-    assert "024 - 44" in posted["payload"]["messages"][0]["text"]
-
 def test_ntfy_json_uses_root_endpoint_topic_and_shareable_message(monkeypatch):
     import json
     posted = {}

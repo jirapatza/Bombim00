@@ -48,40 +48,21 @@ def test_glo_rejects_missing_lower_result_or_unknown_date(monkeypatch, data):
     assert lc.fetch_from_glo() == []
 
 
-def test_government_ntfy_and_line_only_announce_upper_three_lower_two(monkeypatch):
+def test_government_ntfy_only_announce_upper_three_lower_two(monkeypatch):
     monkeypatch.setattr(lc, "S", {"channels": {
-        "ntfy": {"enabled": True, "topic": "local-test"}, "line": {"enabled": True},
+        "ntfy": {"enabled": True, "topic": "local-test"},
     }})
     monkeypatch.setattr(lc, "NTFY_TOPIC", "")
-    monkeypatch.setenv("LINE_CHANNEL_ACCESS_TOKEN", "fake")
-    monkeypatch.setenv("LINE_TARGET_ID", "fake-target")
     posted = []
     monkeypatch.setattr(lc, "_http_post", lambda url, data, **kw: posted.append(json.loads(data)) or True)
     row = {"ชื่อหวย": "สลากกินแบ่งรัฐบาล", "หมวดหวย": "government",
            "งวดวันที่": "17 พฤศจิกายน 2569", "รางวัลที่_1": "123782", "เลขท้าย_2_ตัว": "57"}
     assert lc.send_ntfy_notification(row)
-    assert lc.send_line_notification(row)
-    for body in (posted[0]["message"], posted[1]["messages"][0]["text"]):
+    for body in [posted[0]["message"]]:
         assert "782 - 57" in body
         assert "123782" not in body
         assert "รางวัลที่ 1" not in body
         assert "เลขหน้า" not in body
-
-
-def test_channel_retry_preserves_success_and_retries_only_failed_channel(monkeypatch):
-    monkeypatch.setattr(lc, "S", {"channels": {"ntfy": {"enabled": True}, "line": {"enabled": True}}})
-    calls = []
-    monkeypatch.setattr(lc, "send_ntfy_notification", lambda row: calls.append("ntfy") or True)
-    monkeypatch.setattr(lc, "send_line_notification", lambda row: calls.append("line") or False)
-    row = {"ชื่อหวย": "สลากกินแบ่งรัฐบาล", "งวดวันที่": "2026-11-17", "top3": "007", "bottom2": "00"}
-    assert lc.send_all_notifications(row) is False
-    assert calls == ["ntfy", "line"]
-    row["สถานะการแจ้งเตือน"] = "partial"
-    next_row = {k: v for k, v in row.items() if k not in {"notification_channels", "สถานะการแจ้งเตือน"}}
-    next_row["notification_channels"] = sl.previous_notification_channels(next_row, [row], ["ntfy", "line"])
-    monkeypatch.setattr(lc, "send_line_notification", lambda row: calls.append("line") or True)
-    assert lc.send_all_notifications(next_row) is True
-    assert calls == ["ntfy", "line", "line"]
 
 
 @pytest.mark.parametrize("state", ["failed", "partial"])
@@ -113,7 +94,7 @@ def test_disabled_match_notifications_and_prize_switches_are_honored():
     assert not sl.should_notify(config, row)  # An upper substring is not a lower-two result.
 
 
-def test_checker_persists_partial_delivery_and_does_not_repeat_successes(monkeypatch):
+def test_checker_retries_failed_ntfy_delivery_and_does_not_repeat_successes(monkeypatch):
     import copy
     settings = {"sources": {"thailottoapi": {"enabled": True}},
                 "channels": {"ntfy": {"enabled": True}, "line": {"enabled": True}},
@@ -128,33 +109,30 @@ def test_checker_persists_partial_delivery_and_does_not_repeat_successes(monkeyp
     monkeypatch.setattr(sl, "load_previous_results", lambda: copy.deepcopy(history))
     monkeypatch.setattr(sl, "save_results", lambda rows: history.__setitem__(slice(None), copy.deepcopy(rows)))
     monkeypatch.setattr(sl, "write_status", lambda rows, **kw: summaries.append(copy.deepcopy(rows)))
-    monkeypatch.setattr(lc, "send_ntfy_notification", lambda row: calls.append("ntfy") or True)
-    line_ready = [False]
-    monkeypatch.setattr(lc, "send_line_notification", lambda row: calls.append("line") or line_ready[0])
+    ntfy_ready = [False]
+    monkeypatch.setattr(lc, "send_ntfy_notification", lambda row: calls.append("ntfy") or ntfy_ready[0])
     monkeypatch.setenv("LOTTERY_TARGET", "all")
     monkeypatch.delenv("FORCE_NOTIFY", raising=False)
     lc.main()
-    assert history[0]["สถานะการแจ้งเตือน"] == "partial"
-    line_ready[0] = True
+    assert history[0]["สถานะการแจ้งเตือน"] == "failed"
+    ntfy_ready[0] = True
     lc.main()
     assert history[0]["สถานะการแจ้งเตือน"] == "sent"
     lc.main()
-    assert calls == ["ntfy", "line", "line"]
+    assert calls == ["ntfy", "ntfy"]
     assert len(history) == 1
     monkeypatch.setenv("FORCE_NOTIFY", "true")
     lc.main()
-    assert calls == ["ntfy", "line", "line", "ntfy", "line"]
+    assert calls == ["ntfy", "ntfy", "ntfy"]
     # Temporarily disabling alerts must not erase the delivery history.
     monkeypatch.delenv("FORCE_NOTIFY", raising=False)
     settings["notifications"]["enabled"] = False
     lc.main()
     settings["notifications"]["enabled"] = True
     lc.main()
-    assert calls == ["ntfy", "line", "line", "ntfy", "line"]
+    assert calls == ["ntfy", "ntfy", "ntfy"]
     settings["channels"]["ntfy"]["enabled"] = False
-    settings["channels"]["line"]["enabled"] = False
     lc.main()
     settings["channels"]["ntfy"]["enabled"] = True
-    settings["channels"]["line"]["enabled"] = True
     lc.main()
-    assert calls == ["ntfy", "line", "line", "ntfy", "line"]
+    assert calls == ["ntfy", "ntfy", "ntfy"]
