@@ -755,56 +755,16 @@ def send_ntfy_notification(row: dict) -> bool:
     return False
 
 
-def send_line_notification(row: dict) -> bool:
-    """Send alerts through LINE Messaging API using server-side channel secrets."""
-    token = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
-    target_id = os.environ.get("LINE_TARGET_ID", "").strip()
-    if not token or not target_id or not S.get("channels", {}).get("line", {}).get("enabled", False):
-        return False
-
-    raw_lottery_name = row.get("ชื่อหวย") or row.get("หวย") or "หวยไม่ระบุชื่อ"
-    if sl.is_disallowed_lottery(raw_lottery_name):
-        return False
-
-    canonical_name = sl.map_canonical_lottery_name(raw_lottery_name)
-    app_url = os.environ.get("APP_URL") or "https://bombim00.onrender.com"
-    top3, bottom2 = sl.result_numbers(row)
-    if not top3 or not bottom2:
-        return False
-    msg = (
-        f"📢 ผล{canonical_name} งวด {row.get('งวดวันที่', '')}\n"
-        f"{top3} - {bottom2}"
-    )
-
-    try:
-        url = "https://api.line.me/v2/bot/message/push"
-        payload = json.dumps({
-            "to": target_id,
-            "messages": [{"type": "text", "text": msg[:5000]}],
-        }, ensure_ascii=False).encode("utf-8")
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        }
-        success = _http_post(url, data=payload, headers=headers, timeout=10)
-        if success:
-            print("[SUCCESS] LINE Messaging API accepted the push message.")
-            return True
-    except Exception as e:
-        print(f"[WARN] Failed posting to LINE Messaging API: {e}")
-    return False
-
 def active_notification_channels() -> list[str]:
     channels = S.get("channels", {})
-    return [name for name, default in (("ntfy", True), ("line", False))
-            if channels.get(name, {}).get("enabled", default)]
+    return ["ntfy"] if channels.get("ntfy", {}).get("enabled", True) else []
 
 
 def send_all_notifications(row: dict) -> bool:
     """Retry only incomplete enabled channels; one success must not hide another failure."""
     active = active_notification_channels()
     statuses = dict(row.get("notification_channels") or {})
-    senders = {"ntfy": send_ntfy_notification, "line": send_line_notification}
+    senders = {"ntfy": send_ntfy_notification}
     for name in active:
         if statuses.get(name) == "sent":
             continue
@@ -913,7 +873,7 @@ def main():
         active_channels = active_notification_channels()
         # Preserve delivery history even while notifications/channels are disabled.
         row["notification_channels"] = sl.previous_notification_channels(
-            row, previous_results, active_channels or ["ntfy", "line"]
+            row, previous_results, active_channels or ["ntfy"]
         )
         # Backfill history for summaries, but never push old EXTRA draws (even with force).
         if row.get("หวย") == "lao_extra" and sl._parse_draw_date(row) < datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date():
