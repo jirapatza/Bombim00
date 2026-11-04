@@ -9,7 +9,7 @@ export function installDashboardAuth(app: express.Express, formParser: express.R
   app.use(rateLimit({ windowMs: 60_000, limit: 300, keyGenerator: () => 'private-dashboard', standardHeaders: 'draft-8', legacyHeaders: false }));
   const production = process.env.NODE_ENV === 'production';
   const cookieName = sessionCookieName(production);
-  const cookieOptions = { httpOnly: true, secure: production, sameSite: 'strict' as const, path: '/' };
+  const cookieOptions = { httpOnly: true, secure: production, sameSite: 'lax' as const, path: '/' };
   const hasSession = (req: express.Request) => validSession(readSessionCookie(req.get('Cookie') || '', cookieName), process.env.DASH_PASSWORD || '');
   const sameOrigin = (req: express.Request) => req.get('Origin') === `${production ? 'https' : req.protocol}://${req.get('Host')}` && req.get('Sec-Fetch-Site') !== 'cross-site';
   const matchesPassword = (value: string) => {
