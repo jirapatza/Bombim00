@@ -1,4 +1,4 @@
-import { getResultNumbers, matchesLottery } from './lotteryResult.ts';
+import { getResultNumbers, matchesLottery, normalizeLotteryIdentity } from './lotteryResult.ts';
 import { filterLotteriesForDrawDate, isGovernmentLottery } from './lotterySchedule.ts';
 type Row = Record<string, any>;
 export const dayKey = (value: string): string => {
@@ -49,7 +49,7 @@ export function latestPublishedResults(results:Row[],catalog:Row[],now=new Date(
 export function todayLotteryRows(catalog:Row[],results:Row[],now=new Date()) {
   const today=thaiToday(now);const clock=minutes(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Bangkok',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(now))!;
   const scheduled=filterLotteriesForDrawDate(catalog,now);
-  return catalog.flatMap(item=>{
+  const rows = catalog.flatMap(item=>{
     const actual=results.find(row=>matchesLottery(item,row)&&dayKey(rowDate(row))===today&&complete(row));
     const own=dayKey(item.date)===today&&complete(item)?item:null;
     const result=actual||own;
@@ -58,7 +58,26 @@ export function todayLotteryRows(catalog:Row[],results:Row[],now=new Date()) {
     const draw=minutes(item.drawTimeStr);const time=timelineMinutes(item.drawTimeStr);
     const state=result?'announced':draw!==null&&draw>=7*60&&draw<=clock?'waiting':'upcoming';
     return [{item:{...item,...(result?getResultNumbers(result):{top3:'',bottom2:''}),date:result?rowDate(result):'',firstPrize:'',status:state} as Row,state,draw,time}];
-  }).sort((a,b)=>a.time-b.time||String(a.item.name).localeCompare(String(b.item.name),'th'));
+  });
+
+  const extraIds = new Set<string>();
+  for (const result of results) {
+    if (!complete(result) || dayKey(rowDate(result)) !== today) continue;
+    const name = rowName(result);
+    const identity = normalizeLotteryIdentity(name);
+    if (!identity || /LIW|ปิงปอง|ยี่กี/i.test(name) || extraIds.has(identity)) continue;
+    if (catalog.some(item => matchesLottery(item, result))) continue;
+
+    extraIds.add(identity);
+    rows.push({
+      item: { id: `result:${identity}`, name, ...getResultNumbers(result), date: rowDate(result), status: 'announced' },
+      state: 'announced',
+      draw: null,
+      time: Number.POSITIVE_INFINITY,
+    });
+  }
+
+  return rows.sort((a,b)=>a.time-b.time||String(a.item.name).localeCompare(String(b.item.name),'th'));
 }
 export function lotteryHistory(item:Row,results:Row[],limit=10) {
   const history=[...results.filter(row=>matchesLottery(item,row)),...(item.history||[]).map((r:Row)=>({...r,ชื่อหวย:item.name,งวดวันที่:r.date}))];
