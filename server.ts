@@ -277,35 +277,6 @@ app.post('/api/all-lotteries', async (req, res) => {
   }
 });
 
-// Test LINE Messaging API push using server-side secrets only.
-app.post('/api/test-line', async (req, res) => {
-  try {
-    const channelAccessToken = (process.env.LINE_CHANNEL_ACCESS_TOKEN || '').trim();
-    const targetId = (process.env.LINE_TARGET_ID || '').trim();
-    if (!channelAccessToken || !targetId) {
-      return res.status(503).json({ success: false, error: 'ต้องตั้งค่า LINE_CHANNEL_ACCESS_TOKEN และ LINE_TARGET_ID ใน Environment ก่อน' });
-    }
-    const message = String(req.body?.message || 'ทดสอบการแจ้งเตือน Bombim00 ผ่าน LINE Messaging API').trim();
-    if (!message || message.length > 5000) {
-      return res.status(400).json({ success: false, error: 'ข้อความต้องมีความยาว 1–5000 ตัวอักษร' });
-    }
-    const lineRes = await fetch('https://api.line.me/v2/bot/message/push', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + channelAccessToken,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ to: targetId, messages: [{ type: 'text', text: message }] }),
-      signal: AbortSignal.timeout(10000),
-    });
-    if (lineRes.ok) return res.json({ success: true, message: 'ส่งข้อความทดสอบผ่าน LINE Messaging API แล้ว' });
-    const detail = await lineRes.text().catch(() => '');
-    return res.status(502).json({ success: false, error: 'LINE Messaging API ปฏิเสธคำขอ (HTTP ' + lineRes.status + '): ' + detail.slice(0, 300) });
-  } catch (err: any) {
-    return res.status(502).json({ success: false, error: err?.message || 'ส่งข้อความ LINE ไม่สำเร็จ' });
-  }
-});
-
 // Test ntfy push. Destination host is server-configured to prevent arbitrary URL/SSRF requests.
 app.post('/api/test-ntfy', async (req, res) => {
   try {

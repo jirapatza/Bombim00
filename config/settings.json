@@ -81,10 +81,6 @@
         "loudspeaker"
       ],
       "click_url": "https://bombim00.onrender.com"
-    },
-    "line": {
-      "enabled": false,
-      "mode": "messaging_api"
     }
   },
   "ntfy": {

@@ -97,7 +97,7 @@ test('production API protects writes and exposes only the single GitHub Actions 
     assert.equal((await post('/api/settings', {}, false)).status, 401);
     assert.equal((await post('/api/settings', {})).status, 503);
     assert.equal((await post('/api/github/dispatch', {})).status, 503);
-    assert.equal((await post('/api/test-line', {})).status, 503);
+    assert.equal((await post('/api/test-line', {})).status, 404);
     assert.equal((await post('/api/system/self-heal', {})).status, 503);
     assert.equal((await post('/api/test-ntfy', { topic: 'bad/topic' })).status, 400);
 

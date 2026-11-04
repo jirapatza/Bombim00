@@ -7,7 +7,7 @@
 - **GitHub repository JSON files** are the durable source of truth for settings, catalog, results, latest status and system audit history. Render's local filesystem is not used for mutable application data.
 - The web service never starts a second Python checker or background polling scheduler.
 - Data-only GitHub commits include Render's `[skip render]` marker so each five-minute result update does not rebuild the web service.
-- Notifications are sent by the GitHub Actions checker. ntfy uses `NTFY_TOPIC`; LINE uses LINE Messaging API secrets.
+- Notifications are sent by the GitHub Actions checker. ntfy uses `NTFY_TOPIC`.
 
 All lottery displays, speech, notifications and exports use upper-three/lower-two results, such as `782 - 57`. Government upper-three results come from the final three digits of the first prize; the lower-two result is its own published prize. Missing numbers remain unavailable and are never replaced with invented zeros. Original provider data remains available internally for compatibility.
 
@@ -25,7 +25,7 @@ cp .env.example .env
 
 Set `DASH_PASSWORD` and `GITHUB_TOKEN` in the server environment. The GitHub token needs repository Contents read/write permission and Actions workflow dispatch permission for `jirapatza/Bombim00`. Do not put the token in browser storage or commit it to a file.
 
-For LINE notifications, configure `LINE_CHANNEL_ACCESS_TOKEN` and `LINE_TARGET_ID` as GitHub Actions secrets. Configure the same LINE credentials in Render only if you want to use the dashboard's test-send endpoint. For ntfy, configure `NTFY_TOPIC` as a GitHub Actions secret or in the repository settings file.
+For ntfy, configure `NTFY_TOPIC` as a GitHub Actions secret or in the repository settings file.
 
 ```sh
 npm run dev
@@ -43,7 +43,6 @@ npm start
 - Lottery checks are dispatched to `.github/workflows/lottery.yml` only. A successful dispatch means the workflow was queued, not that results have finished updating.
 - Legacy Cloudflare Worker routes, local Python runner aliases, arbitrary project-file editing APIs and Firebase integration have been removed.
 - The system monitor reads repository data and bounded external reachability checks. Self-heal is diagnostic-only; it does not overwrite bot-owned result data or claim to repair the Render host.
-- LINE Notify is retired; LINE alerts use LINE Messaging API.
 
 ## Verification
 
