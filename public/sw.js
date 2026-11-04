@@ -1,5 +1,5 @@
 // Service worker for Lottery Alert PWA
-const CACHE_NAME = 'lottery-alert-v2';
+const CACHE_NAME = 'lottery-alert-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -29,7 +29,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   // Only cache same-origin GET requests. Keep API calls live and never cache writes.
-  if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) {
+  if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin/')) {
     return;
   }
 

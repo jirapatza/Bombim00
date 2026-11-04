@@ -433,7 +433,11 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [announcementQueue, setAnnouncementQueue] = useState<LotteryAnnouncement[]>([]);
   const [currentQueueIndex, setCurrentQueueIndex] = useState<number>(0);
-  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    try { return window.localStorage.getItem('bombim00:voice-enabled') !== 'false'; }
+    catch { return true; }
+  });
+  const [adminSignedIn, setAdminSignedIn] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
   const audioUnlockedRef = useRef(false);
@@ -954,7 +958,7 @@ export default function App() {
     let inFlight = false;
     const controller = new AbortController();
     const ensureCheck = async () => {
-      if (inFlight || document.visibilityState !== 'visible' || !navigator.onLine) return;
+      if (!adminSignedIn || inFlight || document.visibilityState !== 'visible' || !navigator.onLine) return;
       inFlight = true;
       try {
         const response = await apiFetch('/api/github/dispatch', {
@@ -972,6 +976,31 @@ export default function App() {
     const timer = window.setInterval(ensureCheck, 60000);
     document.addEventListener('visibilitychange', ensureCheck);
     return () => { disposed = true; controller.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', ensureCheck); };
+  }, [adminSignedIn]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem('bombim00:voice-enabled', String(voiceEnabled)); }
+    catch { /* Keep the current preference when storage is unavailable. */ }
+    if (!voiceEnabled || audioReady) return;
+    const enableAudio = (event: Event) => {
+      if (!event.isTrusted || !('speechSynthesis' in window)) return;
+      audioUnlockedRef.current = true;
+      window.speechSynthesis.resume();
+      setAudioReady(true);
+      setSpeechError(null);
+    };
+    window.addEventListener('click', enableAudio, true);
+    window.addEventListener('keydown', enableAudio, true);
+    return () => {
+      window.removeEventListener('click', enableAudio, true);
+      window.removeEventListener('keydown', enableAudio, true);
+    };
+  }, [voiceEnabled, audioReady]);
+
+  useEffect(() => {
+    void apiFetch('/api/auth/session').then(async (response) => {
+      if (response.ok) setAdminSignedIn((await response.json()).authenticated === true);
+    }).catch(() => {});
   }, []);
 
   // Announce each scheduled lottery closing once at its configured closing minute.
@@ -1475,20 +1504,20 @@ export default function App() {
           <div className="overview-brand"><h1>BOMBIM<span>00</span></h1><p>LIVE RESULTS</p></div>
           <div className="overview-header-actions">
             <button onClick={fetchData} disabled={isLoading}><RefreshCw size={18} className={isLoading ? 'animate-spin' : ''}/> รีเฟรชข้อมูล</button>
-            <button onClick={async () => {
+            {adminSignedIn && <button onClick={async () => {
               try {
                 const response = await apiFetch('/api/auth/logout', { method: 'POST' });
                 if (!response.ok) throw new Error();
                 window.location.reload();
               } catch { showToast('ออกจากระบบไม่สำเร็จ กรุณาลองอีกครั้ง'); }
-            }}>ออกจากระบบ</button>
+            }}>ออกจากระบบ</button>}
             <span className="live-pill">● LIVE</span>
             <button onClick={() => {
               if (!audioReady || !voiceEnabled) { speakCustomText('เปิดเสียงแจ้งเตือนแล้วครับ', true); }
               else { voiceEnabledRef.current = false; setVoiceEnabled(false); stopSpeech(); }
-            }} aria-label={!audioReady || !voiceEnabled ? 'เปิดและทดสอบเสียง' : 'ปิดเสียงอ่าน'}>
-              {voiceEnabled && audioReady ? <Volume2 size={19}/> : <VolumeX size={19}/>}
-              <span>{!audioReady || !voiceEnabled ? 'เปิดและทดสอบเสียง' : 'ปิดเสียงอ่าน'}</span>
+            }} aria-label={!voiceEnabled ? 'เปิดและทดสอบเสียง' : audioReady ? 'ปิดเสียงอ่าน' : 'เปิดเสียงไว้ · แตะเพื่อทดสอบ'}>
+              {voiceEnabled ? <Volume2 size={19}/> : <VolumeX size={19}/>}
+              <span>{!voiceEnabled ? 'เปิดและทดสอบเสียง' : audioReady ? 'ปิดเสียงอ่าน' : 'เปิดเสียงไว้ · แตะเพื่อทดสอบ'}</span>
             </button>
             <button onClick={handleTriggerCheck} disabled={isTriggering}><Play size={17}/>{isTriggering ? 'กำลังตรวจ...' : 'ตรวจผลทันที'}</button>
           </div>

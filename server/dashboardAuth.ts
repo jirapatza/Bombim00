@@ -20,9 +20,10 @@ export function installDashboardAuth(app: express.Express, formParser: express.R
   const loginPage = (res: express.Response, message = '') => {
     const nonce = randomUUID();
     res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Content-Security-Policy': `default-src 'none'; style-src 'nonce-${nonce}'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'` });
-    return res.type('html').send(`<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>เข้าสู่ระบบส่วนตัว · BOMBIM00</title><style nonce="${nonce}">*{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;background:#030b1b;color:#edf4ff;font:18px system-ui,sans-serif}main{width:100%;max-width:420px;padding:32px;border:1px solid #25497a;border-radius:24px;background:#09172f}h1{font-size:28px;margin:0 0 12px}p{color:#a6bbd8;line-height:1.7}label{display:block;margin:24px 0 8px}input,button{width:100%;padding:15px;font:inherit;border-radius:12px}input{background:#030b1b;border:1px solid #436187;color:white}button{margin-top:18px;background:#1765ec;color:white;border:0;cursor:pointer}.error{color:#ffb4b4}small{display:block;line-height:1.7;margin-top:20px;color:#a6bbd8}</style><main><h1>BOMBIM00</h1><p>เว็บไซต์ส่วนตัว<br>กรอกรหัส Dashboard เพื่อเข้าใช้งาน</p>${message ? `<p class="error" role="alert">${message}</p>` : ''}<form method="post" action="/api/auth/login"><label for="password">รหัสผ่าน</label><input id="password" name="password" type="password" autocomplete="current-password" required autofocus><button type="submit">เข้าสู่ระบบ</button></form><small>จำการเข้าสู่ระบบบนเครื่องนี้ 30 วัน<br>หากใช้เครื่องร่วมกับคนอื่น โปรดออกจากระบบเมื่อใช้งานเสร็จ</small></main></html>`);
+    return res.type('html').send(`<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>เข้าสู่ระบบส่วนตัว · BOMBIM00</title><style nonce="${nonce}">*{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;background:#030b1b;color:#edf4ff;font:18px system-ui,sans-serif}main{width:100%;max-width:420px;padding:32px;border:1px solid #25497a;border-radius:24px;background:#09172f}h1{font-size:28px;margin:0 0 12px}p{color:#a6bbd8;line-height:1.7}label{display:block;margin:24px 0 8px}input,button{width:100%;padding:15px;font:inherit;border-radius:12px}input{background:#030b1b;border:1px solid #436187;color:white}button{margin-top:18px;background:#1765ec;color:white;border:0;cursor:pointer}.error{color:#ffb4b4}small{display:block;line-height:1.7;margin-top:20px;color:#a6bbd8}</style><main><h1>BOMBIM00</h1><p>เว็บไซต์ส่วนตัว<br>กรอกรหัส Dashboard เพื่อเข้าใช้งาน</p>${message ? `<p class="error" role="alert">${message}</p>` : ''}<form method="post" action="/api/auth/login"><label for="password">รหัสผ่าน</label><input id="password" name="password" type="password" autocomplete="current-password" required autofocus><button type="submit">เข้าสู่ระบบ</button></form></main></html>`);
   };
 
+  app.get('/admin/login', (_req, res) => loginPage(res));
   app.get('/api/auth/session', (req, res) => { res.set('Cache-Control', 'no-store').json({ authenticated: hasSession(req) }); });
   const attempts = new Map<string, { count: number; resetAt: number }>();
   app.post('/api/auth/login', formParser, (req, res) => {
@@ -60,6 +61,10 @@ export function installDashboardAuth(app: express.Express, formParser: express.R
       if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !sameOrigin(req)) return res.status(403).json({ error: 'Same-origin request required.' });
       return next();
     }
+    const readOnly = req.method === 'GET' || req.method === 'HEAD';
+    const publicPath = ['/', '/index.html', '/sw.js', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/api/results', '/api/all-lotteries'].includes(req.path) ||
+      req.path.startsWith('/assets/');
+    if (readOnly && publicPath) return next();
     if (req.path.startsWith('/api/')) return res.status(process.env.DASH_PASSWORD ? 401 : 503).json({ error: 'Dashboard sign-in required.' });
     if (!['GET', 'HEAD'].includes(req.method)) return res.sendStatus(401);
     if (!process.env.DASH_PASSWORD) return res.status(503).type('text').send('Private dashboard is locked: configure DASH_PASSWORD.');
