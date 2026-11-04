@@ -62,7 +62,7 @@ export function installDashboardAuth(app: express.Express, formParser: express.R
       return next();
     }
     const readOnly = req.method === 'GET' || req.method === 'HEAD';
-    const publicPath = ['/', '/index.html', '/api/results', '/api/all-lotteries'].includes(req.path) ||
+    const publicPath = ['/', '/index.html', '/sw.js', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/api/results', '/api/all-lotteries'].includes(req.path) ||
       req.path.startsWith('/assets/');
     if (readOnly && publicPath) return next();
     if (req.path.startsWith('/api/')) return res.status(process.env.DASH_PASSWORD ? 401 : 503).json({ error: 'Dashboard sign-in required.' });
