@@ -7,6 +7,15 @@ on:
     paths:
       - "lottery_checker.py"
       - "settings_loader.py"
+      - "requirements.txt"
+      - "tests/**"
+      - ".github/workflows/lottery.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "lottery_checker.py"
+      - "settings_loader.py"
+      - "requirements.txt"
       - "tests/**"
       - ".github/workflows/lottery.yml"
   schedule:
@@ -60,6 +69,7 @@ jobs:
           fetch-depth: 0
 
       - name: Load runtime data without replacing reviewed application code
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           git fetch origin runtime-live
@@ -109,6 +119,7 @@ jobs:
           echo "NTFY_HTTP_ACCEPTED=1 (server accepted the publish request; Android receipt is not verifiable here)"
 
       - name: Check notification secret configuration
+        if: github.event_name != 'pull_request'
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
@@ -120,6 +131,7 @@ jobs:
           fi
 
       - name: Run Lottery Checker & Alert
+        if: github.event_name != 'pull_request'
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           FORCE_NOTIFY: ${{ github.event.inputs.force_notify || 'false' }}
@@ -128,6 +140,7 @@ jobs:
           python lottery_checker.py
 
       - name: Commit only results to the runtime data branch
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
