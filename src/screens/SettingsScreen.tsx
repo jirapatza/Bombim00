@@ -48,11 +48,10 @@ export const SettingsScreen: React.FC<Props> = ({
   };
 
   const dataSources = [
-    { name: 'สำนักงานสลากกินแบ่งรัฐบาล (GLO Official)', active: true },
-    { name: 'ThaiLottoAPI (หุ้น / VIP / ลาว)', active: true },
-    { name: 'RANLOTTO Public API (ไทยสำรอง)', active: true },
-    { name: 'LotteryChecks API', active: true },
-    { name: 'Sanook / Pholhuay Fallback', active: false },
+    {
+      name: status.last_source_used || 'ยังไม่มีแหล่งข้อมูลล่าสุด',
+      active: status.active_sources_count > 0,
+    },
   ];
 
   return (
@@ -220,7 +219,7 @@ export const SettingsScreen: React.FC<Props> = ({
         <p className="text-slate-300">
           • สถานะระบบ:{' '}
           <span className="font-bold text-emerald-400">
-            {status.system_status} (พร้อมทำงาน)
+            {status.system_status} ({status.system_status === 'degraded' ? 'ต้องตรวจสอบ' : status.system_status === 'healthy' ? 'พร้อมทำงาน' : 'ไม่ทราบสถานะ'})
           </span>
         </p>
         <p className="text-slate-300">
@@ -236,7 +235,7 @@ export const SettingsScreen: React.FC<Props> = ({
         <p className="text-slate-300">
           • อัปเดตล่าสุด:{' '}
           <span className="font-bold text-amber-400">
-            {status.last_run_date_thai || '03/11/2026 01:43:47 น.'}
+            {status.last_run_date_thai || 'ยังไม่มีข้อมูล'}
           </span>
         </p>
       </div>
