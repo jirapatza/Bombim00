@@ -61,7 +61,8 @@ function findMatchingResult(
 
   return results.find((res) => {
     const resKey = normalizeName(getDisplayName(res));
-    return resKey && (resKey.includes(catKey) || catKey.includes(resKey));
+    // Match the complete normalized lottery name to avoid crossing draw variants.
+    return Boolean(resKey && resKey === catKey);
   });
 }
 
