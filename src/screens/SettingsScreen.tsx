@@ -6,41 +6,31 @@ import {
   Volume2,
   VolumeX,
   Play,
-  Bell,
-  Save,
   CloudSync,
   Activity,
-  Check,
+  ShieldCheck,
 } from 'lucide-react';
-import { AppSettings, SystemStatus } from '../types/lottery';
+import { SystemStatus } from '../types/lottery';
 import { ThaiTtsService } from '../utils/thaiTts';
 
 interface Props {
-  settings: AppSettings;
   status: SystemStatus;
   watchedNumbers: string[];
   isVoiceEnabled: boolean;
   onToggleVoice: () => void;
   onAddWatchedNumber: (num: string) => void;
   onRemoveWatchedNumber: (num: string) => void;
-  onUpdateNtfy: (server: string, topic: string, priority: string) => void;
 }
 
 export const SettingsScreen: React.FC<Props> = ({
-  settings,
   status,
   watchedNumbers,
   isVoiceEnabled,
   onToggleVoice,
   onAddWatchedNumber,
   onRemoveWatchedNumber,
-  onUpdateNtfy,
 }) => {
   const [newNum, setNewNum] = useState('');
-  const [ntfyServer, setNtfyServer] = useState(settings.ntfy.server);
-  const [ntfyTopic, setNtfyTopic] = useState(settings.ntfy.topic);
-  const [ntfyPriority, setNtfyPriority] = useState(settings.ntfy.priority);
-  const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleAddNumber = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,12 +39,6 @@ export const SettingsScreen: React.FC<Props> = ({
       onAddWatchedNumber(clean);
       setNewNum('');
     }
-  };
-
-  const handleSaveNtfy = () => {
-    onUpdateNtfy(ntfyServer, ntfyTopic, ntfyPriority);
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
   };
 
   const handleTestTts = () => {
@@ -175,58 +159,23 @@ export const SettingsScreen: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Push Notifications (ntfy) Settings */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg space-y-3.5">
+      {/* Notification security: credentials stay server-side */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg space-y-3">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-400 text-slate-950 shadow-md">
-            <Bell className="h-5 w-5" />
+            <ShieldCheck className="h-5 w-5" />
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-100">
               การแจ้งเตือน Push Notification (ntfy)
             </h3>
-            <p className="text-xs text-slate-400">เชื่อมต่อเซิร์ฟเวอร์แจ้งเตือนผลหวยสด</p>
+            <p className="text-xs text-slate-400">จัดการการส่งแจ้งเตือนจาก GitHub Actions</p>
           </div>
         </div>
-
-        <div className="space-y-2.5 text-xs">
-          <div>
-            <label className="text-slate-400 font-medium block mb-1">Server URL</label>
-            <input
-              type="text"
-              value={ntfyServer}
-              onChange={(e) => setNtfyServer(e.target.value)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-slate-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono-numbers"
-            />
-          </div>
-
-          <div>
-            <label className="text-slate-400 font-medium block mb-1">Topic Channel</label>
-            <input
-              type="text"
-              value={ntfyTopic}
-              onChange={(e) => setNtfyTopic(e.target.value)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-slate-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono-numbers"
-            />
-          </div>
-        </div>
-
-        <button
-          onClick={handleSaveNtfy}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-slate-950 shadow-md hover:bg-amber-400 transition-colors"
-        >
-          {savedSuccess ? (
-            <>
-              <Check className="h-4 w-4" />
-              บันทึกการตั้งค่าสำเร็จ!
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              บันทึกการตั้งค่า
-            </>
-          )}
-        </button>
+        <p className="text-xs leading-6 text-slate-300">
+          Topic และค่าลับสำหรับแจ้งเตือนจะเก็บไว้ใน GitHub Actions Secrets หรือฝั่งเซิร์ฟเวอร์เท่านั้น
+          แอปจะไม่แสดงหรือบันทึก Token และ Topic ลงในเบราว์เซอร์
+        </p>
       </div>
 
       {/* Data Sources Status */}
