@@ -37,12 +37,6 @@ on:
         required: false
         type: string
         default: ''
-      test_notification:
-        description: 'Send one test message to ntfy (does not claim phone receipt)'
-        required: false
-        type: boolean
-        default: false
-
 concurrency:
   group: bombim00-lottery-alert
   cancel-in-progress: false
@@ -80,33 +74,6 @@ jobs:
       - name: Run Tests
         run: |
           PYTHONPATH=. pytest tests/
-
-      # One-time notification test; only an explicit [test-notification] commit sends one test message.
-      - name: Send one-time VIP alert and sound test
-        if: (github.event_name == 'workflow_dispatch' && inputs.test_notification) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[test-notification]'))
-        env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: |
-          set -euo pipefail
-          readarray -t NTFY_CONFIG < <(python -c 'import json; c=json.load(open("config/settings.json", encoding="utf-8")); n=c.get("channels", {}).get("ntfy", {}); print(n.get("server", "https://ntfy.sh")); print(n.get("topic", ""))')
-          NTFY_SERVER="${NTFY_SERVER:-${NTFY_CONFIG[0]}}"
-          TOPIC="${NTFY_TOPIC:-${NTFY_CONFIG[1]}}"
-          if [ -z "$TOPIC" ]; then
-            echo "::warning::No ntfy topic is configured in the Actions secret or config/settings.json; skipping the notification test."
-            exit 0
-          fi
-          if [[ ! "$TOPIC" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
-            echo "::error::Configured ntfy topic contains unsupported characters."
-            exit 1
-          fi
-          curl --fail --show-error --silent --max-time 20 \
-            -H "Title: ทดสอบเสียงแจ้งเตือนหุ้น VIP" \
-            -H "Priority: urgent" \
-            -H "Tags: loudspeaker,bell" \
-            -H "Click: https://github.com/jirapatza/Bombim00/actions" \
-            -d "นี่คือข้อความทดสอบเท่านั้น ไม่ใช่ผลหวยจริง\nระบบส่งจาก GitHub Actions ไปยัง ntfy แล้ว\nถ้าต้องการให้พูดออกเสียง ให้เปิดเสียงการแจ้งเตือนของ ntfy ใน Android; ntfy ไม่สามารถสั่งเสียงพูดไทยเองจาก GitHub ได้" \
-            "${NTFY_SERVER%/}/$TOPIC"
-          echo "NTFY_HTTP_ACCEPTED=1 (server accepted the publish request; Android receipt is not verifiable here)"
 
       - name: Check notification secret configuration
         env:
