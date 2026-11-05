@@ -28,9 +28,11 @@ A modern, high-performance React application built with TypeScript, Vite, and Ta
 - **Settings & Notification Center (ตั้งค่า & แจ้งเตือน)**:
   - Watched numbers management (add and remove lucky numbers with persistence).
   - Thai TTS voice preferences (toggle, speech rate, sample voice announcement).
-  - ntfy Push notification configuration (server, topic, priority).
+  - Notification delivery is managed by GitHub Actions; ntfy credentials are not exposed to the browser.
   - Real-time data sources health monitor (GLO, ThaiLottoAPI, RANLOTTO, LotteryChecks).
   - System diagnostics and audit history.
+
+- **Live data:** a read-only Cloudflare Worker proxy fetches the catalog, results, and status from the private `runtime-live` branch. The frontend falls back to bundled JSON if the API is not configured or unavailable.
 
 ## Tech Stack & Architecture
 
