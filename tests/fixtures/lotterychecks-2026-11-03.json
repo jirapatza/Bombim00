@@ -1,0 +1,84 @@
+{
+  "capturedAt": "2026-11-03T15:36:15Z",
+  "workflowRun": "https://github.com/jirapatza/Bombim00/actions/runs/41665575560",
+  "responses": {
+    "lao-union": {
+      "success": true,
+      "data": [
+        {
+          "lottery": "lao-union",
+          "lotteryName": "หวยลาวสามัคคี",
+          "drawDate": "2026-11-03",
+          "status": "complete",
+          "pendingPrizes": [],
+          "publishedAt": "2026-11-03T13:37:26.818Z",
+          "prizes": [
+            {
+              "slug": "special-prize",
+              "name": "รางวัลพิเศษ",
+              "amount": null,
+              "numbers": [
+                "20853"
+              ]
+            },
+            {
+              "slug": "three-digit-top",
+              "name": "3 ตัวบน",
+              "amount": null,
+              "numbers": [
+                "853"
+              ]
+            },
+            {
+              "slug": "two-digit-bottom",
+              "name": "2 ตัวล่าง",
+              "amount": null,
+              "numbers": [
+                "08"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "hanoi-develop": {
+      "success": true,
+      "data": [
+        {
+          "lottery": "hanoi-develop",
+          "lotteryName": "หวยฮานอยพัฒนา",
+          "drawDate": "2026-11-03",
+          "status": "complete",
+          "pendingPrizes": [],
+          "publishedAt": "2026-11-03T12:42:09.431Z",
+          "prizes": [
+            {
+              "slug": "special-prize",
+              "name": "รางวัลพิเศษ",
+              "amount": null,
+              "numbers": [
+                "36910"
+              ]
+            },
+            {
+              "slug": "three-digit-top",
+              "name": "3 ตัวบน",
+              "amount": null,
+              "numbers": [
+                "910"
+              ]
+            },
+            {
+              "slug": "two-digit-bottom",
+              "name": "2 ตัวล่าง",
+              "amount": null,
+              "numbers": [
+                "09"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
