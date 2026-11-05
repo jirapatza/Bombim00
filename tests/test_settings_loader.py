@@ -47,6 +47,7 @@ def test_should_notify_rules():
     row_new = {
         "งวดวันที่": "16 ตุลาคม 2569",
         "รางวัลที่_1": "289594",
+        "เลขบน_3_ตัว": "594",
         "เลขท้าย_2_ตัว": "84",
         "สถานะการแจ้งเตือน": "pending"
     }
@@ -80,6 +81,20 @@ def test_write_status(tmp_path):
     with open(status_file, "r", encoding="utf-8") as f:
         saved = json.load(f)
         assert saved["system_status"] == "healthy"
+
+
+def test_result_numbers_does_not_infer_top3_from_first_prize():
+    row = {"รางวัลที่_1": "289594", "เลขท้าย_2_ตัว": "84"}
+    assert sl.result_numbers(row) == ("", "84")
+
+    explicit = dict(row, **{"เลขบน_3_ตัว": "023"})
+    assert sl.result_numbers(explicit) == ("023", "84")
+
+
+def test_result_fingerprint_keeps_first_prize_distinct_from_top3():
+    base = {"ชื่อหวย": "สลากกินแบ่งรัฐบาล", "งวดวันที่": "1 พฤศจิกายน 2569", "รางวัลที่_1": "001234", "เลขท้าย_2_ตัว": "09"}
+    changed = dict(base, **{"รางวัลที่_1": "991234"})
+    assert sl.result_fingerprint(base) != sl.result_fingerprint(changed)
 
 
 def test_result_fingerprint_ignores_provider_and_is_stable():
