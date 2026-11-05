@@ -293,7 +293,17 @@ def should_notify(S: Dict[str, Any], row: Dict[str, Any]) -> bool:
         return False
 
     top3, bottom2 = result_numbers(row)
-    if not top3 or not bottom2:
+    category = str(row.get("หมวดหวย") or row.get("category") or "").strip().lower()
+    first_prize_value = str(
+        row.get("รางวัลที่_1") or row.get("firstPrize") or row.get("first") or ""
+    ).strip()
+    first_prize = (
+        first_prize_value.zfill(6)
+        if first_prize_value.isascii() and first_prize_value.isdigit()
+        else first_prize_value
+    )
+    is_government = category in {"government", "gov_savings"}
+    if not bottom2 or not (top3 or (is_government and first_prize)):
         return False
     if notifications.get("notify_on_new_draw", True):
         return True
@@ -302,11 +312,13 @@ def should_notify(S: Dict[str, Any], row: Dict[str, Any]) -> bool:
     watched = [str(w).strip() for w in notifications.get("custom_watched_numbers", [])]
     enabled_prizes = notifications.get("notify_prizes", {})
     numbers = []
-    if enabled_prizes.get("top3", enabled_prizes.get("first_prize", True)):
+    if enabled_prizes.get("top3", True) and top3:
         numbers.append(top3)
+    if enabled_prizes.get("first_prize", True) and is_government and first_prize:
+        numbers.append(first_prize)
     if enabled_prizes.get("bottom2", enabled_prizes.get("last_2", True)):
         numbers.append(bottom2)
-    return any(w in numbers for w in watched if len(w) in (2, 3) and w.isascii() and w.isdigit())
+    return any(w in numbers for w in watched if len(w) in (2, 3, 6) and w.isascii() and w.isdigit())
 
 def write_status(
     rows: List[Dict[str, Any]], 
