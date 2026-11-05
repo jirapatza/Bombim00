@@ -7,12 +7,12 @@ import { SummaryScreen } from './screens/SummaryScreen';
 import { TicketCheckerScreen } from './screens/TicketCheckerScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { LotteryRepository } from './data/lotteryRepository';
+import { fetchLiveLotteryData, isLiveDataConfigured } from './data/liveDataClient';
 import { ThaiTtsService } from './utils/thaiTts';
 import {
   LotteryCatalogItem,
   RawLotteryResult,
   SystemStatus,
-  AppSettings,
   TicketCheckReport,
   FrequencyStat,
 } from './types/lottery';
@@ -27,13 +27,15 @@ export const App: React.FC = () => {
   const [lotteries, setLotteries] = useState<LotteryCatalogItem[]>(() =>
     LotteryRepository.getLotteries()
   );
-  const [results] = useState<RawLotteryResult[]>(() => LotteryRepository.getResults());
+  const [results, setResults] = useState<RawLotteryResult[]>(() => LotteryRepository.getResults());
   const [status, setStatus] = useState<SystemStatus>(() => LotteryRepository.getStatus());
-  const [settings, setSettings] = useState<AppSettings>(() => LotteryRepository.getSettings());
   const [watchedNumbers, setWatchedNumbers] = useState<string[]>(() =>
     LotteryRepository.getWatchedNumbers()
   );
   const [ticketReports, setTicketReports] = useState<TicketCheckReport[]>([]);
+  const [dataConnectionStatus, setDataConnectionStatus] = useState(() =>
+    isLiveDataConfigured() ? 'กำลังเชื่อมต่อข้อมูลสด...' : 'ข้อมูลสำรอง • ยังไม่ได้ตั้งค่า Live Data API'
+  );
 
   // Bangkok Clock Ticker
   useEffect(() => {
@@ -57,26 +59,45 @@ export const App: React.FC = () => {
   // Compute Statistics
   const top2Stats = useMemo<FrequencyStat[]>(() => {
     return LotteryRepository.getTop2DigitFrequency(15);
-  }, []);
+  }, [results]);
 
   const top3Stats = useMemo<FrequencyStat[]>(() => {
     return LotteryRepository.getTop3DigitFrequency(15);
-  }, []);
+  }, [results]);
 
   // Compute Next Closing Lottery
   const nextClosing = useMemo(() => {
     return LotteryRepository.getNextClosingLottery(lotteries);
   }, [lotteries]);
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
+    if (!isLiveDataConfigured()) {
+      setDataConnectionStatus('ข้อมูลสำรอง • ยังไม่ได้ตั้งค่า Live Data API');
+      return;
+    }
+
     setIsRefreshing(true);
-    setTimeout(() => {
-      const refreshed = LotteryRepository.refresh();
+    try {
+      const liveData = await fetchLiveLotteryData();
+      const refreshed = LotteryRepository.applyLiveData(liveData);
+      setResults([...liveData.results]);
       setStatus(refreshed.status);
       setLotteries([...refreshed.lotteries]);
+      setDataConnectionStatus(
+        `ข้อมูลสด • ตรวจล่าสุด ${liveData.status.last_run_date_thai || 'ไม่ระบุเวลา'}`
+      );
+    } catch {
+      setDataConnectionStatus('ข้อมูลสำรอง • เชื่อมต่อ API สดไม่สำเร็จ');
+    } finally {
       setIsRefreshing(false);
-    }, 600);
+    }
   }, []);
+
+  useEffect(() => {
+    if (isLiveDataConfigured()) {
+      void handleRefresh();
+    }
+  }, [handleRefresh]);
 
   const handleToggleVoice = useCallback(() => {
     setIsVoiceEnabled((prev) => {
@@ -105,25 +126,6 @@ export const App: React.FC = () => {
     });
   }, []);
 
-  const handleUpdateNtfy = useCallback(
-    (server: string, topic: string, priority: string) => {
-      setSettings((prev) => {
-        const updated: AppSettings = {
-          ...prev,
-          ntfy: {
-            ...prev.ntfy,
-            server,
-            topic,
-            priority,
-          },
-        };
-        LotteryRepository.saveSettings(updated);
-        return updated;
-      });
-    },
-    []
-  );
-
   const handleCheckTickets = useCallback((input: string) => {
     const reports = LotteryRepository.checkTickets(input);
     setTicketReports(reports);
@@ -140,6 +142,7 @@ export const App: React.FC = () => {
         currentTimeString={currentTimeString}
         isVoiceEnabled={isVoiceEnabled}
         isRefreshing={isRefreshing}
+        dataConnectionStatus={dataConnectionStatus}
         onToggleVoice={handleToggleVoice}
         onRefresh={handleRefresh}
       />
@@ -175,14 +178,12 @@ export const App: React.FC = () => {
 
         {currentTab === 'settings' && (
           <SettingsScreen
-            settings={settings}
             status={status}
             watchedNumbers={watchedNumbers}
             isVoiceEnabled={isVoiceEnabled}
             onToggleVoice={handleToggleVoice}
             onAddWatchedNumber={handleAddWatchedNumber}
             onRemoveWatchedNumber={handleRemoveWatchedNumber}
-            onUpdateNtfy={handleUpdateNtfy}
           />
         )}
       </main>
