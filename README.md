@@ -1,6 +1,6 @@
-# Lottery Alert — Android Application
+# Lottery Alert — React Web Application
 
-A modern, high-performance Android application built with Kotlin and Jetpack Compose for tracking Thai government, foreign stock, and VIP lottery results in real time.
+A modern, high-performance React application built with TypeScript, Vite, and Tailwind CSS for tracking Thai government, foreign stock, and VIP lottery results in real time. Rewritten from Android Jetpack Compose to React while preserving all core features and business logic.
 
 ## Overview & Core Features
 
@@ -9,7 +9,7 @@ A modern, high-performance Android application built with Kotlin and Jetpack Com
   - Countdown timer to the next closing draw ("งวดที่ใกล้ปิดรับแทงที่สุด").
   - Country flags, category tags (หวยเช้า, หวยบ่าย, หวยเย็น, หวยดึก, หวยรัฐบาล, หวยหุ้น, หวย VIP).
   - Complete 3 ตัวบน, 2 ตัวล่าง, and รางวัลที่ 1 badges with gold & emerald highlights.
-  - Native Thai Text-To-Speech (TTS) audio announcements with spelled digits for natural pronunciation.
+  - Thai Text-To-Speech (TTS) audio announcements using Web Speech API with spelled digits for natural pronunciation.
   - Watched lucky number indicators for instant alerts when a drawn number matches user preferences.
 
 - **History & Frequency Statistics (ผลย้อนหลัง / สถิติ)**:
@@ -17,28 +17,26 @@ A modern, high-performance Android application built with Kotlin and Jetpack Com
   - Frequency analysis: Top 15 most drawn 2-digit pairs and top 15 3-digit numbers with visual progress indicators and draw percentages.
 
 - **Daily Summary Table & Social Card Generator (ตารางผลและภาพแชร์)**:
-  - Matrix view of all 51 lotteries grouped by period (รอบเช้า, รอบบ่าย, รอบเย็น, รอบดึก, รวมทั้งวัน).
-  - High-resolution Social Card image generator (Canvas rendering on Android Bitmap) with gold header banner, country flags, and badges.
-  - Instant sharing via Android Share Intent (`Intent.ACTION_SEND` with `FileProvider`) and one-tap formatted text summary copy.
+  - Matrix view of all lotteries grouped by period (รอบเช้า, รอบบ่าย, รอบเย็น, รอบดึก, รวมทั้งวัน).
+  - High-resolution Social Card image generator (HTML5 Canvas 1080px rendering) with gold header banner, country flags, and badges.
+  - Instant sharing via Web Share API (`navigator.share`), PNG download, and one-tap formatted text summary copy.
 
 - **Smart Ticket Checker (ตรวจสลากรางวัล)**:
   - Single and batch ticket verification against official and VIP/Stock results.
-  - Win celebration effects and prize breakdown (รางวัลที่ 1, เลขท้าย 2 ตัว, 3 ตัวบน, เลขหน้า/เลขท้าย 3 ตัว).
+  - Win celebration effects with confetti and prize breakdown (รางวัลที่ 1, เลขท้าย 2 ตัว, 3 ตัวบน, เลขหน้า/เลขท้าย 3 ตัว).
 
 - **Settings & Notification Center (ตั้งค่า & แจ้งเตือน)**:
-  - Watched numbers management (add and remove lucky numbers).
-  - Thai TTS voice preferences (toggle, speech rate, polite endings).
+  - Watched numbers management (add and remove lucky numbers with persistence).
+  - Thai TTS voice preferences (toggle, speech rate, sample voice announcement).
   - ntfy Push notification configuration (server, topic, priority).
   - Real-time data sources health monitor (GLO, ThaiLottoAPI, RANLOTTO, LotteryChecks).
   - System diagnostics and audit history.
 
 ## Tech Stack & Architecture
 
-- **Language:** Kotlin
-- **UI Framework:** Jetpack Compose (Material 3)
-- **Architecture:** MVVM (Model-View-ViewModel) + Repository Pattern
-- **State Management:** Kotlin Coroutines & StateFlow
-- **Serialization:** kotlinx.serialization
-- **Audio:** Android TextToSpeech (`android.speech.tts.TextToSpeech`)
-- **Image & Sharing:** Android Graphics Canvas + FileProvider
-- **Theme:** Luxury Dark Slate (`#020617`, `#0F172A`) with Gold & Amber accents (`#F59E0B`, `#EAB308`, `#10B981`)
+- **Language:** TypeScript
+- **UI Framework:** React 19 + Vite
+- **Styling:** Tailwind CSS (Dark slate `#020617`, `#0F172A` with Gold & Amber accents `#F59E0B`, `#EAB308`, `#10B981`)
+- **Icons:** Lucide React
+- **Audio:** Web Speech API (`SpeechSynthesis`)
+- **Graphics & Export:** HTML5 Canvas API + Web Share API
