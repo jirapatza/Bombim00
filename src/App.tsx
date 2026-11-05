@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Header } from './components/Header';
 import { BottomNavigation, AppTab } from './components/BottomNavigation';
 import { LiveResultsScreen } from './screens/LiveResultsScreen';
@@ -22,6 +22,7 @@ export const App: React.FC = () => {
   const [currentTimeString, setCurrentTimeString] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+  const refreshInFlight = useRef(false);
 
   // Core Data States
   const [lotteries, setLotteries] = useState<LotteryCatalogItem[]>(() =>
@@ -81,6 +82,8 @@ export const App: React.FC = () => {
       return;
     }
 
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
     setIsRefreshing(true);
     try {
       const liveData = await fetchLiveLotteryData();
@@ -94,14 +97,18 @@ export const App: React.FC = () => {
     } catch {
       setDataConnectionStatus('ข้อมูลสำรอง • เชื่อมต่อ API สดไม่สำเร็จ');
     } finally {
+      refreshInFlight.current = false;
       setIsRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    if (isLiveDataConfigured()) {
+    if (!isLiveDataConfigured()) return;
+    void handleRefresh();
+    const intervalId = window.setInterval(() => {
       void handleRefresh();
-    }
+    }, 60_000);
+    return () => window.clearInterval(intervalId);
   }, [handleRefresh]);
 
   const handleToggleVoice = useCallback(() => {
