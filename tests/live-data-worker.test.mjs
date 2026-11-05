@@ -73,8 +73,10 @@ test('live data endpoint fails closed when its server-side GitHub secret is miss
 
   try {
     const response = await worker.fetch(
-      new Request('https://worker.example/api/live-data'),
-      {}
+      new Request('https://worker.example/api/live-data', {
+        headers: { Origin: 'https://dashboard.example' },
+      }),
+      { ALLOWED_ORIGIN: 'https://dashboard.example' }
     );
     assert.equal(response.status, 503);
     assert.equal(called, false);
@@ -93,10 +95,33 @@ test('live data endpoint rejects unapproved browser origins', async () => {
   assert.equal(response.status, 403);
 });
 
+test('live data endpoint fails closed when the origin allowlist is missing or wildcard', async () => {
+  for (const env of [{}, { ALLOWED_ORIGIN: '*' }]) {
+    const response = await worker.fetch(
+      new Request('https://worker.example/api/live-data', {
+        headers: { Origin: 'https://dashboard.example' },
+      }),
+      env
+    );
+    assert.equal(response.status, 403);
+  }
+});
+
+test('live data endpoint rejects requests without an Origin header', async () => {
+  const response = await worker.fetch(
+    new Request('https://worker.example/api/live-data'),
+    { ALLOWED_ORIGIN: 'https://dashboard.example' }
+  );
+  assert.equal(response.status, 403);
+});
+
 test('live data endpoint is read-only', async () => {
   const response = await worker.fetch(
-    new Request('https://worker.example/api/live-data', { method: 'POST' }),
-    { GITHUB_TOKEN: 'test-token' }
+    new Request('https://worker.example/api/live-data', {
+      method: 'POST',
+      headers: { Origin: 'https://dashboard.example' },
+    }),
+    { GITHUB_TOKEN: 'test-token', ALLOWED_ORIGIN: 'https://dashboard.example' }
   );
   assert.equal(response.status, 405);
 });
