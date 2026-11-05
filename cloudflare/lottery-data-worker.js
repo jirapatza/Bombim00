@@ -18,24 +18,24 @@ function jsonResponse(body, status, headers = {}) {
 }
 
 function decodeBase64Utf8(value) {
-  const binary = atob(value.replace(/\s/g, ''));
+  const binary = atob(value.replace(/\\s/g, ''));
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
   return new TextDecoder().decode(bytes);
 }
 
-function isOriginAllowed(origin, configuredOrigins) {
-  if (!origin || !configuredOrigins || configuredOrigins.trim() === '*') return true;
-  return configuredOrigins
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .includes(origin);
+function configuredOriginList(value) {
+  if (typeof value !== 'string' || !value.trim() || value.trim() === '*') return [];
+  return value.split(',').map((item) => item.trim()).filter((item) => item && item !== '*');
 }
 
-function corsHeaders(origin, configuredOrigins) {
-  const wildcard = !configuredOrigins || configuredOrigins.trim() === '*';
+function isOriginAllowed(origin, configuredOrigins) {
+  if (!origin) return false;
+  return configuredOriginList(configuredOrigins).includes(origin);
+}
+
+function corsHeaders(origin) {
   return {
-    'Access-Control-Allow-Origin': wildcard ? '*' : origin,
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Accept, Content-Type',
     'Access-Control-Max-Age': '86400',
@@ -74,13 +74,13 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const origin = request.headers.get('Origin') || '';
-    const configuredOrigins = env.ALLOWED_ORIGIN || '*';
+    const configuredOrigins = env.ALLOWED_ORIGIN || '';
 
     if (!isOriginAllowed(origin, configuredOrigins)) {
-      return jsonResponse({ error: 'Origin not allowed' }, 403);
+      return jsonResponse({ error: 'Origin not allowed or origin allowlist is not configured' }, 403);
     }
 
-    const cors = corsHeaders(origin, configuredOrigins);
+    const cors = corsHeaders(origin);
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: cors });
     }
