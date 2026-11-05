@@ -27,7 +27,7 @@ export const App: React.FC = () => {
   const [lotteries, setLotteries] = useState<LotteryCatalogItem[]>(() =>
     LotteryRepository.getLotteries()
   );
-  const [results] = useState<RawLotteryResult[]>(() => LotteryRepository.getResults());
+  const [results, setResults] = useState<RawLotteryResult[]>(() => LotteryRepository.getResults());
   const [status, setStatus] = useState<SystemStatus>(() => LotteryRepository.getStatus());
   const [settings, setSettings] = useState<AppSettings>(() => LotteryRepository.getSettings());
   const [watchedNumbers, setWatchedNumbers] = useState<string[]>(() =>
@@ -74,6 +74,7 @@ export const App: React.FC = () => {
       const refreshed = LotteryRepository.refresh();
       setStatus(refreshed.status);
       setLotteries([...refreshed.lotteries]);
+      setResults([...LotteryRepository.getResults()]);
       setIsRefreshing(false);
     }, 600);
   }, []);
