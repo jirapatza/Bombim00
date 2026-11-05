@@ -27,11 +27,8 @@ function getDisplayDate(res: RawLotteryResult): string {
 }
 
 function getResolvedTop3(res: RawLotteryResult): string {
-  if (res.เลขบน_3_ตัว) return res.เลขบน_3_ตัว;
-  if (res.รางวัลที่_1 && res.รางวัลที่_1.length >= 3) {
-    return res.รางวัลที่_1.slice(-3);
-  }
-  return '';
+  // A first-prize suffix is not the same as a separately published top-3 result.
+  return res.เลขบน_3_ตัว || '';
 }
 
 function getResolvedBottom2(res: RawLotteryResult): string {
@@ -64,7 +61,8 @@ function findMatchingResult(
 
   return results.find((res) => {
     const resKey = normalizeName(getDisplayName(res));
-    return resKey && (resKey.includes(catKey) || catKey.includes(resKey));
+    // Require the complete normalized name to avoid matching different draw variants.
+    return Boolean(resKey && resKey === catKey);
   });
 }
 
