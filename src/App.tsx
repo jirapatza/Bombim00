@@ -37,6 +37,11 @@ export const App: React.FC = () => {
     isLiveDataConfigured() ? 'กำลังเชื่อมต่อข้อมูลสด...' : 'ข้อมูลสำรอง • ยังไม่ได้ตั้งค่า Live Data API'
   );
 
+  // Remove ntfy values saved by older frontend versions.
+  useEffect(() => {
+    LotteryRepository.clearNotificationSecretsFromBrowser();
+  }, []);
+
   // Bangkok Clock Ticker
   useEffect(() => {
     const updateTime = () => {
