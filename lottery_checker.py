@@ -717,7 +717,10 @@ def send_ntfy_notification(row: dict) -> bool:
     canonical_name = sl.map_canonical_lottery_name(raw_lottery_name)
     draw_date = row.get("งวดวันที่") or row.get("วันที่จัดรูปแบบ") or "ไม่ระบุวันที่"
     top3, bottom2 = sl.result_numbers(row)
-    if not top3 or not bottom2:
+    category = _lottery_category(row)
+    first_prize = str(row.get("รางวัลที่_1") or row.get("firstPrize") or row.get("first") or "").strip()
+    is_government = category in {"government", "gov_savings"}
+    if not bottom2 or not (top3 or (is_government and first_prize)):
         return False
 
     app_url = os.environ.get("APP_URL") or "https://bombim00.onrender.com"
@@ -727,7 +730,10 @@ def send_ntfy_notification(row: dict) -> bool:
     if _lottery_category(row) not in {"government", "gov_savings"} and not display_name.startswith("หวย"):
         display_name = f"หวย{display_name}"
     title = f"📢 ผล{display_name} งวด {draw_date}"
-    body = f"{canonical_name}\nงวด {draw_date}\n{top3} - {bottom2}"
+    if is_government:
+        body = f"{canonical_name}\nงวด {draw_date}\nรางวัลที่ 1: {first_prize}\nเลขท้าย 2 ตัว: {bottom2}"
+    else:
+        body = f"{canonical_name}\nงวด {draw_date}\n{top3} - {bottom2}"
 
     # Publish via JSON payload to prevent base64 header encoding bugs on Android
     url = f"{ntfy_server}/"
