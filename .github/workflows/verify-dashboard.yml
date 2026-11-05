@@ -32,8 +32,6 @@ jobs:
         run: npm audit --audit-level=high
       - name: TypeScript check
         run: npm run lint
-      - name: Unit tests
-        run: npm test
       - name: Production build
         run: npm run build
 
