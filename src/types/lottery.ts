@@ -55,6 +55,13 @@ export interface SystemStatus {
   recent_logs: SystemStatusLog[];
 }
 
+export interface LiveLotteryData {
+  catalog: LotteryCatalogItem[];
+  results: RawLotteryResult[];
+  status: SystemStatus;
+  updatedAt: string;
+}
+
 export interface NtfyConfig {
   enabled: boolean;
   server: string;

@@ -5,6 +5,7 @@ interface Props {
   currentTimeString: string;
   isVoiceEnabled: boolean;
   isRefreshing: boolean;
+  dataConnectionStatus: string;
   onToggleVoice: () => void;
   onRefresh: () => void;
 }
@@ -13,6 +14,7 @@ export const Header: React.FC<Props> = ({
   currentTimeString,
   isVoiceEnabled,
   isRefreshing,
+  dataConnectionStatus,
   onToggleVoice,
   onRefresh,
 }) => {
@@ -31,6 +33,7 @@ export const Header: React.FC<Props> = ({
               🇹🇭 {currentTimeString} น. (เวลาไทย)
             </p>
           )}
+          <p className="text-[10px] text-slate-400">{dataConnectionStatus}</p>
         </div>
 
         <div className="flex items-center gap-1.5">
