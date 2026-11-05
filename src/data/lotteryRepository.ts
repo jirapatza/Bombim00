@@ -26,11 +26,9 @@ function getDisplayDate(res: RawLotteryResult): string {
 }
 
 function getResolvedTop3(res: RawLotteryResult): string {
-  if (res.เลขบน_3_ตัว) return res.เลขบน_3_ตัว;
-  if (res.รางวัลที่_1 && res.รางวัลที่_1.length >= 3) {
-    return res.รางวัลที่_1.slice(-3);
-  }
-  return '';
+  // A first-prize suffix is not a separately published top-3 result.
+  // Only use an explicit top-3 field to avoid false winning matches.
+  return res.เลขบน_3_ตัว || '';
 }
 
 function getResolvedBottom2(res: RawLotteryResult): string {
@@ -47,7 +45,6 @@ export function normalizeName(name: string): string {
     .replace(/หวยหุ้น/g, '')
     .replace(/หวย/g, '')
     .replace(/หุ้น/g, '')
-    .replace(/รอบ/g, '')
     .replace(/\(ไทย\)/g, '')
     .replace(/[^a-z0-9ก-๙]/g, '');
 
@@ -63,7 +60,7 @@ function findMatchingResult(
 
   return results.find((res) => {
     const resKey = normalizeName(getDisplayName(res));
-    return resKey && (resKey.includes(catKey) || catKey.includes(resKey));
+    return resKey === catKey;
   });
 }
 
@@ -173,24 +170,12 @@ export class LotteryRepository {
   }
 
   static refresh(): { status: SystemStatus; lotteries: LotteryCatalogItem[] } {
-    const now = new Date();
-    const thaiFormatter = new Intl.DateTimeFormat('th-TH', {
-      timeZone: 'Asia/Bangkok',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-    const currentThaiTime = `${thaiFormatter.format(now)} น.`;
-
+    // This client currently has only build-time JSON data; do not claim that
+    // a live API check happened or increment the backend check counter.
     this.status = {
       ...this.status,
-      last_run_date_thai: currentThaiTime,
-      total_checks: this.status.total_checks + 1,
-      status_message: `ตรวจพบผลล่าสุดและอัปเดตระบบเรียบร้อย (${currentThaiTime})`,
+      status_message:
+        'กำลังแสดงข้อมูลชุดที่โหลดมาพร้อมแอปเท่านั้น ยังไม่ได้ดึงผลหวยสดจากเซิร์ฟเวอร์',
     };
 
     this.lotteries = mergeCatalogWithResults(defaultCatalog, this.results);
@@ -262,7 +247,7 @@ export class LotteryRepository {
 
         // Check front / last 3 digits
         if (num.length === 3) {
-          if (front3List.some((item) => item.includes(num))) {
+          if (front3List.some((item) => item.replace(/\D/g, '') === num)) {
             matchedWin = {
               ticketNumber: num,
               isWin: true,
@@ -273,7 +258,7 @@ export class LotteryRepository {
             };
             break;
           }
-          if (last3List.some((item) => item.includes(num))) {
+          if (last3List.some((item) => item.replace(/\D/g, '') === num)) {
             matchedWin = {
               ticketNumber: num,
               isWin: true,
