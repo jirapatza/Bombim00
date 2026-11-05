@@ -142,6 +142,21 @@ export class LotteryRepository {
     }
   }
 
+  static clearNotificationSecretsFromBrowser(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem(STORAGE_SETTINGS);
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && 'ntfy' in parsed) {
+        delete parsed.ntfy;
+        localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(parsed));
+      }
+    } catch {
+      localStorage.removeItem(STORAGE_SETTINGS);
+    }
+  }
+
   static getSettings(): AppSettings {
     const defaultVal: AppSettings = {
       app_name: 'Lottery Alert System Pro',
