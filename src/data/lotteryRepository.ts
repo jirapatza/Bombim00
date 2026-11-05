@@ -5,17 +5,18 @@ import {
   AppSettings,
   TicketCheckReport,
   FrequencyStat,
+  LiveLotteryData,
 } from '../types/lottery';
 
 // Import local JSON datasets
 import rawAllLotteries from '../../data/all_lotteries.json';
 import rawPreviousResults from '../../lottery_previous_results.json';
-import rawSettings from '../../config/settings.json';
 import rawStatus from '../../status/status.json';
 
 const defaultCatalog = rawAllLotteries as LotteryCatalogItem[];
 const defaultResults = rawPreviousResults as RawLotteryResult[];
 const defaultSystemStatus = rawStatus as SystemStatus;
+const DEFAULT_WATCHED_NUMBERS = ['95', '42', '84', '19', '56', '289594'];
 
 function getDisplayName(res: RawLotteryResult): string {
   return res.ชื่อหวย || res.หวย || 'ไม่ระบุชื่อ';
@@ -98,12 +99,13 @@ const STORAGE_WATCHED_NUMBERS = 'lottery_watched_numbers_v1';
 const STORAGE_SETTINGS = 'lottery_app_settings_v1';
 
 export class LotteryRepository {
+  private static catalog: LotteryCatalogItem[] = defaultCatalog;
   private static lotteries: LotteryCatalogItem[] = [];
   private static results: RawLotteryResult[] = defaultResults;
   private static status: SystemStatus = defaultSystemStatus;
 
   static init(): void {
-    this.lotteries = mergeCatalogWithResults(defaultCatalog, this.results);
+    this.lotteries = mergeCatalogWithResults(this.catalog, this.results);
   }
 
   static getLotteries(): LotteryCatalogItem[] {
@@ -123,7 +125,7 @@ export class LotteryRepository {
 
   static getWatchedNumbers(): string[] {
     if (typeof window === 'undefined') {
-      return (rawSettings as any).notifications?.custom_watched_numbers || ['95', '42', '84', '19', '56', '289594'];
+      return DEFAULT_WATCHED_NUMBERS;
     }
     try {
       const stored = localStorage.getItem(STORAGE_WATCHED_NUMBERS);
@@ -131,7 +133,7 @@ export class LotteryRepository {
     } catch {
       // ignore
     }
-    return (rawSettings as any).notifications?.custom_watched_numbers || ['95', '42', '84', '19', '56', '289594'];
+    return DEFAULT_WATCHED_NUMBERS;
   }
 
   static setWatchedNumbers(numbers: string[]): void {
@@ -142,16 +144,11 @@ export class LotteryRepository {
 
   static getSettings(): AppSettings {
     const defaultVal: AppSettings = {
-      app_name: (rawSettings as any).app_name || 'Lottery Alert System Pro',
-      ntfy: {
-        enabled: (rawSettings as any).channels?.ntfy?.enabled ?? true,
-        server: (rawSettings as any).channels?.ntfy?.server || 'https://ntfy.sh',
-        topic: (rawSettings as any).channels?.ntfy?.topic || 'lottery-alert-live',
-        priority: (rawSettings as any).channels?.ntfy?.priority || 'high',
-        tags: (rawSettings as any).channels?.ntfy?.tags || ['moneybag', 'dart', 'loudspeaker'],
-      },
+      app_name: 'Lottery Alert System Pro',
+      // Notification credentials belong in GitHub Actions/Worker secrets, never in the browser bundle.
+      ntfy: { enabled: false, server: 'https://ntfy.sh', topic: '', priority: 'high', tags: [] },
       custom_watched_numbers: this.getWatchedNumbers(),
-      speech_polite_ending: (rawSettings as any).message_template?.polite_particle || 'ครับ',
+      speech_polite_ending: 'ครับ',
       speech_rate: 1.0,
     };
 
@@ -159,7 +156,7 @@ export class LotteryRepository {
 
     try {
       const stored = localStorage.getItem(STORAGE_SETTINGS);
-      if (stored) return { ...defaultVal, ...JSON.parse(stored) };
+      if (stored) return { ...defaultVal, ...JSON.parse(stored), ntfy: defaultVal.ntfy };
     } catch {
       // ignore
     }
@@ -168,32 +165,30 @@ export class LotteryRepository {
 
   static saveSettings(settings: AppSettings): void {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(settings));
+      const safeSettings = {
+        app_name: settings.app_name,
+        custom_watched_numbers: settings.custom_watched_numbers,
+        speech_polite_ending: settings.speech_polite_ending,
+        speech_rate: settings.speech_rate,
+      };
+      localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(safeSettings));
     }
   }
 
+  static applyLiveData(data: LiveLotteryData): {
+    status: SystemStatus;
+    lotteries: LotteryCatalogItem[];
+  } {
+    this.catalog = data.catalog;
+    this.results = data.results;
+    this.status = data.status;
+    this.lotteries = mergeCatalogWithResults(this.catalog, this.results);
+    return { status: this.status, lotteries: this.lotteries };
+  }
+
   static refresh(): { status: SystemStatus; lotteries: LotteryCatalogItem[] } {
-    const now = new Date();
-    const thaiFormatter = new Intl.DateTimeFormat('th-TH', {
-      timeZone: 'Asia/Bangkok',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-    const currentThaiTime = `${thaiFormatter.format(now)} น.`;
-
-    this.status = {
-      ...this.status,
-      last_run_date_thai: currentThaiTime,
-      total_checks: this.status.total_checks + 1,
-      status_message: `ตรวจพบผลล่าสุดและอัปเดตระบบเรียบร้อย (${currentThaiTime})`,
-    };
-
-    this.lotteries = mergeCatalogWithResults(defaultCatalog, this.results);
+    // Rebuild from loaded data; do not fabricate a new check timestamp.
+    this.lotteries = mergeCatalogWithResults(this.catalog, this.results);
     return { status: this.status, lotteries: this.lotteries };
   }
 
