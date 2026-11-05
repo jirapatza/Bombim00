@@ -174,15 +174,16 @@ def _parse_draw_date(row: Dict[str, Any]) -> datetime.date:
 
 
 def result_numbers(row: Dict[str, Any]) -> tuple[str, str]:
-    """Return only real upper-three and lower-two digits, preserving leading zeros."""
+    """Return separately published upper-three and lower-two results; preserve leading zeros."""
     def digits(keys, width):
         for key in keys:
             value = str(row.get(key) if row.get(key) is not None else "").strip()
             if value.isascii() and value.isdigit():
                 return value[-width:].zfill(width)
         return ""
+    # The last three digits of the first prize are not a separately published top-three result.
     return (
-        digits(("เลขบน_3_ตัว", "top3", "รางวัลที่_1", "firstPrize", "first"), 3),
+        digits(("เลขบน_3_ตัว", "top3"), 3),
         digits(("เลขล่าง_2_ตัว", "เลขท้าย_2_ตัว", "bottom2", "last2"), 2),
     )
 
@@ -196,6 +197,14 @@ def result_fingerprint(row: Dict[str, Any]) -> str:
     date_str = parsed_date.isoformat() if parsed_date != datetime.date.min else str(row.get("งวดวันที่") or row.get("วันที่จัดรูปแบบ") or "").strip()
     
     top3, last2 = result_numbers(row)
+    first_prize_value = str(
+        row.get("รางวัลที่_1") or row.get("firstPrize") or row.get("first") or ""
+    ).strip()
+    first_prize = (
+        first_prize_value.zfill(6)
+        if first_prize_value.isascii() and first_prize_value.isdigit()
+        else first_prize_value
+    )
 
     category = str(row.get("หมวดหวย") or row.get("category") or "").strip().lower()
     category_aliases = {
@@ -210,6 +219,7 @@ def result_fingerprint(row: Dict[str, Any]) -> str:
         "category": category,
         "draw_date": date_str,
         "top3": top3,
+        "first_prize": first_prize,
         "last2": last2,
     }
     return json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -235,9 +245,13 @@ def was_already_notified(row: Dict[str, Any], previous: List[Dict[str, Any]]) ->
             if d1 != datetime.date.min and d1 == d2:
                 top_now = str(row.get("เลขบน_3_ตัว") or row.get("top3") or "").strip()
                 top_old = str(old.get("เลขบน_3_ตัว") or old.get("top3") or "").strip()
+                first_now = str(row.get("รางวัลที่_1") or row.get("firstPrize") or row.get("first") or "").strip()
+                first_old = str(old.get("รางวัลที่_1") or old.get("firstPrize") or old.get("first") or "").strip()
                 bot_now = str(row.get("เลขท้าย_2_ตัว") or row.get("เลขล่าง_2_ตัว") or row.get("bottom2") or "").strip()
                 bot_old = str(old.get("เลขท้าย_2_ตัว") or old.get("เลขล่าง_2_ตัว") or old.get("bottom2") or "").strip()
-                if (top_now and top_now == top_old) and (bot_now and bot_now == bot_old):
+                same_upper_result = bool(top_now and top_old and top_now == top_old)
+                same_first_prize = bool(first_now and first_old and first_now == first_old)
+                if (same_upper_result or same_first_prize) and bot_now and bot_now == bot_old:
                     return True
     return False
 
