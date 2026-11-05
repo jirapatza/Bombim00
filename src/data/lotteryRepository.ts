@@ -26,11 +26,9 @@ function getDisplayDate(res: RawLotteryResult): string {
 }
 
 function getResolvedTop3(res: RawLotteryResult): string {
-  if (res.เลขบน_3_ตัว) return res.เลขบน_3_ตัว;
-  if (res.รางวัลที่_1 && res.รางวัลที่_1.length >= 3) {
-    return res.รางวัลที่_1.slice(-3);
-  }
-  return '';
+  // Only use an explicitly published top-3 result. The last three digits
+  // of the first prize are not equivalent to a separate "3 ตัวบน" result.
+  return res.เลขบน_3_ตัว || '';
 }
 
 function getResolvedBottom2(res: RawLotteryResult): string {
