@@ -35,7 +35,7 @@ def test_extra_backfills_without_old_pushes_and_preserves_delivery_dedup(monkeyp
     def row(date):
         return {'ชื่อหวย': 'ลาว EXTRA', 'หวย': 'lao_extra', 'หมวดหวย': 'lao',
                 'งวดวันที่': date.isoformat(), 'วันที่จัดรูปแบบ': date.isoformat(),
-                'รางวัลที่_1': '007', 'เลขท้าย_2_ตัว': '90'}
+                'รางวัลที่_1': '007', 'เลขบน_3_ตัว': '007', 'เลขท้าย_2_ตัว': '90'}
     monkeypatch.setattr(lc, 'S', {'channels': {'ntfy': {'enabled': True}}, 'notifications': {'enabled': True}})
     monkeypatch.setattr(lc, 'fetch_from_pholhuay_stock_groups', lambda: [])
     monkeypatch.setattr(lc, 'fetch_from_pholhuay_lao_extra', lambda: [row(today), row(yesterday)])
