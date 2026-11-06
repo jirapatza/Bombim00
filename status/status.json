@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-06T18:27:11.524553+07:00",
-  "last_run_date_thai": "06/11/2026 18:27:11 น.",
-  "total_checks": 695,
+  "last_run_timestamp": "2026-11-06T19:21:21.764900+07:00",
+  "last_run_date_thai": "06/11/2026 19:21:21 น.",
+  "total_checks": 696,
   "last_source_used": "ThaiLottoAPI + ผลหวย.com stock groups + ผลหวย.com Lao EXTRA",
   "status_message": "ตรวจพบผลงวดล่าสุด 06.11.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups + ผลหวย.com Lao EXTRA",
   "active_sources_count": 3,
   "latest_draw_detected": "06.11.2026",
-  "notifications_sent_today": 49,
+  "notifications_sent_today": 50,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-06T19:21:21.764900+07:00",
+      "level": "INFO",
+      "message": "ตรวจพบผลงวดล่าสุด 06.11.2026 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups + ผลหวย.com Lao EXTRA"
+    },
     {
       "timestamp": "2026-11-06T18:27:11.524553+07:00",
       "level": "INFO",
@@ -102,11 +107,6 @@
     },
     {
       "timestamp": "2026-11-05T03:23:24.985195+07:00",
-      "level": "INFO",
-      "message": "ตรวจพบผลงวดล่าสุด 4 พฤศจิกายน 2569 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups + ผลหวย.com Lao EXTRA"
-    },
-    {
-      "timestamp": "2026-11-05T03:17:37.161654+07:00",
       "level": "INFO",
       "message": "ตรวจพบผลงวดล่าสุด 4 พฤศจิกายน 2569 ผ่านแหล่ง ThaiLottoAPI + ผลหวย.com stock groups + ผลหวย.com Lao EXTRA"
     }
