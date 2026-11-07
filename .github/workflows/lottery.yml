@@ -8,6 +8,7 @@ on:
       - "lottery_checker.py"
       - "draw_schedule.py"
       - "lottery_worker.py"
+      - "cloudflare/**"
       - "data/draw_weekdays.json"
       - "data/all_lotteries.json"
       - "settings_loader.py"
@@ -20,6 +21,7 @@ on:
       - "lottery_checker.py"
       - "draw_schedule.py"
       - "lottery_worker.py"
+      - "cloudflare/**"
       - "data/draw_weekdays.json"
       - "data/all_lotteries.json"
       - "settings_loader.py"
@@ -70,7 +72,7 @@ permissions:
 
 jobs:
   check-lottery:
-    if: github.event_name == 'pull_request' || vars.LOTTERY_CHECKER_MODE != 'continuous'
+    if: github.event_name == 'pull_request' || (vars.LOTTERY_CHECKER_MODE != 'continuous' && vars.LOTTERY_CHECKER_MODE != 'cloudflare')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
