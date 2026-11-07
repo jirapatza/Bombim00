@@ -205,6 +205,16 @@ test('public health distinguishes successful execution from degraded source/deli
   await f.run();
   assert.equal((await worker.fetch(new Request('https://local/health'), f.env)).status, 503);
 });
+test('waiting for a draw publishes diagnostics without degrading a successful check', async t => {
+  const waiting = [{ source: 'LotteryChecks Lao/Hanoi', lottery: 'ลาว TV', status: 404 }];
+  const f = fixture(t, { collect: async () => ({ rows: [], sources: [], errors: [], waiting }) });
+  await f.run();
+  const status = f.data[OUTPUTS[1]];
+  assert.equal(status.system_status, 'healthy');
+  assert.match(status.status_message, /รอผลจากแหล่งข้อมูล 1 รายการ/);
+  assert.doesNotMatch(status.status_message, /ขัดข้อง/);
+  assert.deepEqual(status.source_checks, { waiting, errors: [] });
+});
 test('ntfy uses Thai JSON with distinct lower prize; rejects/timeouts do not become sent', async () => {
   let posted;
   const request = async (url, options) => { posted = [url, JSON.parse(options.body)]; return new Response('', { status: 200 }); };

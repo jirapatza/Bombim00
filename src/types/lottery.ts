@@ -43,6 +43,13 @@ export interface SystemStatusLog {
   message: string;
 }
 
+export interface SourceCheck {
+  source: string;
+  lottery?: string;
+  status: number | null;
+  reason?: string;
+}
+
 export interface SystemStatus {
   system_status: string;
   last_run_timestamp: string;
@@ -55,6 +62,7 @@ export interface SystemStatus {
   notifications_sent_today: number;
   notification_failures: number;
   recent_logs: SystemStatusLog[];
+  source_checks?: { waiting: SourceCheck[]; errors: SourceCheck[] };
 }
 
 export interface NtfyConfig {

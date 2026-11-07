@@ -129,8 +129,17 @@ export function mergeCatalogWithResults(
   });
 }
 
+const object = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
+
+function validSourceChecks(value: unknown): boolean {
+  return object(value) && ['waiting', 'errors'].every(key => Array.isArray(value[key]) && value[key].every((entry: unknown) =>
+    object(entry) && typeof entry.source === 'string' &&
+    (entry.lottery === undefined || typeof entry.lottery === 'string') &&
+    (entry.reason === undefined || typeof entry.reason === 'string') &&
+    (entry.status === null || Number.isInteger(entry.status))));
+}
+
 export function validateLiveData(catalog: unknown, results: unknown, status: unknown): void {
-  const object = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
   const strings = (x: Record<string, unknown>, keys: string[]) => keys.every((k) => typeof x[k] === 'string');
   const optionalStrings = ['ชื่อหวย', 'หวย', 'หมวดหวย', 'งวดวันที่', 'วันที่จัดรูปแบบ', 'รางวัลที่_1',
     'เลขท้าย_2_ตัว', 'เลขบน_3_ตัว', 'เลขล่าง_2_ตัว', 'แหล่งข้อมูล', 'เวลาที่ตรวจพบ', 'สถานะการแจ้งเตือน'];
@@ -255,7 +264,7 @@ export class LotteryRepository {
       this.results = results as RawLotteryResult[];
       this.catalog = catalog as LotteryCatalogItem[];
       this.lotteries = current;
-      this.status = status;
+      this.status = { ...status, source_checks: validSourceChecks(status.source_checks) ? status.source_checks : undefined };
     } finally {
       clearTimeout(timeout);
       controller.abort();

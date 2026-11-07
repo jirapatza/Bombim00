@@ -332,6 +332,26 @@ export const SettingsScreen: React.FC<Props> = ({
           </span>
         </p>
         <p className="text-slate-300">{status.status_message}</p>
+        {status.source_checks && [
+          { label: "รอผลจากแหล่งข้อมูล", entries: status.source_checks.waiting },
+          { label: "แหล่งข้อมูลขัดข้อง", entries: status.source_checks.errors },
+        ].filter(group => group.entries.length > 0).map(({ label, entries }) => (
+          <details key={label} className="text-slate-300">
+            <summary className="cursor-pointer">{label} ({entries.length})</summary>
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              {entries.map(({ source, lottery, status: code, reason }, index) => (
+                <li key={`${source}-${lottery}-${index}`}>
+                  {[lottery, source, code === null ? undefined : `HTTP ${code}`,
+                    reason === "timeout" ? "หมดเวลารอ" :
+                      reason === "network" ? "เชื่อมต่อไม่ได้" :
+                        reason === "invalid_response" ? "ข้อมูลตอบกลับผิดรูปแบบ" :
+                          reason === "request_budget" ? "ถึงขีดจำกัดของรอบตรวจ" : undefined]
+                    .filter(Boolean).join(" · ")}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ))}
         <p className="text-slate-300">
           • ตรวจสอบแล้วทั้งหมด:{" "}
           <span className="font-mono-numbers font-bold text-slate-100">
