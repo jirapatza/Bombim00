@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-07T23:15:12.189+07:00",
-  "last_run_date_thai": "07/11/2026 23:15:12",
-  "total_checks": 772,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 41 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลติดต่อไม่ได้ 1 แหล่ง",
-  "active_sources_count": 5,
-  "latest_draw_detected": "07.11.2026",
+  "last_run_timestamp": "2026-11-07T23:16:12.468+07:00",
+  "last_run_date_thai": "07/11/2026 23:16:12",
+  "total_checks": 773,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลติดต่อไม่ได้ 2 แหล่ง",
+  "active_sources_count": 4,
+  "latest_draw_detected": "7 พฤศจิกายน 2569",
   "notifications_sent_today": 40,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-07T23:16:12.468+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลติดต่อไม่ได้ 2 แหล่ง"
+    },
     {
       "timestamp": "2026-11-07T23:15:12.189+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-07T22:57:12.826+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 41 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลติดต่อไม่ได้ 1 แหล่ง"
-    },
-    {
-      "timestamp": "2026-11-07T22:56:12.625+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลติดต่อไม่ได้ 2 แหล่ง"
     }
   ],
   "uncertain_deliveries": 0,
