@@ -279,11 +279,34 @@ test('GitHub publish preserves config tree, writes only two files and never forc
   remote.snapshot = async () => ({ data: {} });
   await assert.rejects(remote.publish(pending), /runtime_conflict/); assert.equal(calls.length, 0);
 });
-test('writer mode is Cloudflare only and every active Actions status is checked', async () => {
+test('writer requires reviewed PR-only workflow and no active non-PR Actions runs', async () => {
   const remote = new RuntimeRepository('owner/repo', 'synthetic', null), paths = [];
-  remote.api = async (_method, path) => { paths.push(path); return path.includes('variables') ? { value: 'cloudflare' } : { workflow_runs: [] }; };
-  await remote.assertWriter(); assert.equal(paths.length, 6);
-  remote.api = async () => ({ value: 'continuous' });
+  const prOnly = readFileSync(new URL('../../.github/workflows/lottery.yml', import.meta.url), 'utf8');
+  const workflow = source => ({ encoding: 'base64', content: Buffer.from(source).toString('base64') });
+  let current = prOnly, runs = [];
+  remote.api = async (_method, path) => {
+    paths.push(path);
+    return path.includes('/contents/.github/workflows/lottery.yml')
+      ? workflow(current) : { workflow_runs: runs };
+  };
+  await remote.assertWriter();
+  assert.equal(paths.length, 6);
+  assert.ok(!prOnly.includes('NTFY_TOPIC'));
+  assert.ok(!prOnly.includes('python lottery_checker.py'));
+  for (const invalid of [
+    prOnly.replace('  pull_request:', '  schedule:\n    - cron: "* * * * *"\n  pull_request:'),
+    prOnly.replace('  pull_request:', '  workflow_dispatch:\n  pull_request:'),
+    prOnly.replace('  pull_request:', '  push:\n  pull_request:'),
+    prOnly + '\n  - run: python lottery_checker.py\n',
+  ]) {
+    current = invalid;
+    await assert.rejects(remote.assertWriter(), /writer_mode/);
+  }
+  current = prOnly;
+  runs = [{ event: 'schedule' }];
+  await assert.rejects(remote.assertWriter(), /actions_active/);
+  runs = [];
+  remote.api = async () => ({ encoding: 'base64', content: 'invalid' });
   await assert.rejects(remote.assertWriter(), /writer_mode/);
 });
 test('worst-case source fallback cycle fits 38 network calls and at most 12 D1 operations', async t => {
@@ -296,7 +319,7 @@ test('worst-case source fallback cycle fits 38 network calls and at most 12 D1 o
     calls++;
     if (url.startsWith('https://api.github.com/')) {
       const path = new URL(url).pathname;
-      if (path.endsWith('LOTTERY_CHECKER_MODE')) return Response.json({ value: 'cloudflare' });
+      if (path.endsWith('/contents/.github/workflows/lottery.yml')) return Response.json({ encoding: 'base64', content: Buffer.from(readFileSync(new URL('../../.github/workflows/lottery.yml', import.meta.url), 'utf8')).toString('base64') });
       if (path.endsWith('/runs')) return Response.json({ workflow_runs: [] });
       if (path.endsWith('/git/ref/heads/runtime-live')) return Response.json({ object: { sha: 'a'.repeat(40) } });
       if (path.includes('/git/commits/') && options.method === 'GET') return Response.json({ tree: { sha: 'tree' } });

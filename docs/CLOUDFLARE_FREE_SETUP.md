@@ -2,7 +2,7 @@
 
 # Cloudflare Workers Free: ตรวจผลหวยทุกนาที
 
-สถานะ: เตรียมโค้ดสำหรับติดตั้ง ยังไม่เปิดใช้จริงโดยอัตโนมัติ ค่าเริ่มต้น `ENABLED=false`, `MODE=observe` ไม่มีการสร้างบริการหรือเปลี่ยนแผนจากการ build/test
+สถานะ ณ 7 พ.ย. 2026: Worker ติดตั้งจริงแล้ว, Cron ทุกนาที, `ENABLED=true`, `MODE=observe`; มีผล observe จริงแต่แหล่งข้อมูลภายนอกยังผิดพลาดบางแหล่ง การส่ง ntfy ต้องรอขั้นตอน cutover และการอนุมัติ PR ที่เปลี่ยน Workflow
 
 ## พิมพ์เขียว
 
@@ -12,7 +12,7 @@ flowchart TD
   B --> C{โหมดทดลองหรือส่งจริง}
   C -->|ทดลอง| D[อ่าน runtime-live และแหล่งผลสาธารณะ]
   D --> E[บันทึกจำนวนผลและข้อผิดพลาด ไม่ส่ง ntfy]
-  C -->|ส่งจริง| F[ตรวจ LOTTERY_CHECKER_MODE=cloudflare และ Actions เดิมจบแล้ว]
+  C -->|ส่งจริง| F[ตรวจ main workflow เหลือ PR-only และ Actions เดิมจบแล้ว]
   F --> G[อ่านข้อมูล JSON จาก Git commit ที่ตรึงไว้]
   G --> H[ดึงผลหลายแหล่งและตรวจชื่อหวย วันที่ รางวัล วันออกรางวัล]
   H --> I[ตรวจประวัติเดิมและบันทึกเจตนาส่งใน D1]
@@ -26,7 +26,7 @@ flowchart TD
 - ดึง ThaiLottoAPI, กลุ่มหุ้นจากผลหวย.com, ลาว EXTRA, 9 รอบจาก LotteryChecks และแหล่งรัฐบาลเดิม ต้องมีรางวัลบน/ล่างชัดเจน ไม่แต่งผล ไม่อนุมานเลขล่างจากเลขบน
 - รางวัลรัฐบาลไทยต้องมีเลขรางวัลที่หนึ่งครบ 6 หลักและวันที่จริง จึงยืนยันงวดที่เลื่อนได้
 - ประวัติชื่อหวย/วันที่/รางวัลเทียบกับ Python เดิมด้วย `tests/test_cloudflare_contract.py` และไม่ล้างประวัติการส่ง
-- เปลี่ยนตัวเลือกผู้เขียนจากเดิม `continuous` (Python บนเครื่องถาวร) เป็นค่าใหม่ `cloudflare` สำหรับ Worker นี้โดยเฉพาะ Actions จะหยุดเขียนในทั้งสองค่านี้ และ Python เดิมไม่ยอมเริ่มในค่า cloudflare
+- การย้ายเป็น Cloudflare writer ทำโดย **ถอด trigger ส่งผลจาก `.github/workflows/lottery.yml`** ให้เหลือ PR tests เท่านั้น และ Worker ตรวจไฟล์ Workflow จาก reviewed `main` ทุกครั้งก่อนส่ง ntfy พร้อมตรวจว่าไม่มี non-PR Actions runs ค้างอยู่ ไม่ต้องตั้งค่า GitHub repository variable เพื่อเปิดตัวส่ง Cloudflare
 - D1 เก็บเฉพาะ ledger และผลที่เปลี่ยนในรอบ ไม่คัดลอกประวัติทั้งหมดลงแถวเดียว เมื่อ retry publish จะอ่านประวัติเดิมจาก immutable Git commit ช่วยหลีกเลี่ยงขนาดแถว D1 สูงสุด 2 MB
 - ส่งได้สูงสุด 3 รายการต่อ invocation เพื่อเผื่อเพดาน subrequest ที่เหลืออยู่จะมีสถานะ queued และลองในรอบถัดไป ถ้าผลหลายรายการออกพร้อมกันอาจเพิ่มหลายรอบนาที ไม่รับประกันว่าจะถึงมือถือภายใน 60 วินาที
 
@@ -54,7 +54,7 @@ flowchart TD
 6. เจ้าของสร้าง fine-grained GitHub PAT เฉพาะ `jirapatza/Bombim00`: Contents read/write, Actions read และ Variables read จากนั้นใส่ผ่าน `npx --no-install wrangler secret put LOTTERY_RUNTIME_TOKEN --config wrangler.local.json` ใช้ token ที่เจ้าของสร้างเท่านั้น ไม่ส่งลงแชต ไม่ commit และไม่คัดลอกจาก credential ของ Coding Agent
 7. ใส่ปลายทางเดิมผ่าน `npx --no-install wrangler secret put NTFY_TOPIC --config wrangler.local.json` ไม่ใช้ชื่อ topic สุ่มอัตโนมัติและไม่ส่งข้อความทดสอบโดยไม่ได้สั่ง
 8. ใน local config เปลี่ยน `ENABLED` เป็นสตริง `true` คง `MODE=observe` แล้ว deploy ด้วย config เดิม ตัวเดิมยังทำงานตามปกติ ตรวจ `/health` และ Metrics/CPU/ข้อผิดพลาดจริงตาม gate ข้างต้น ครอบคลุมแหล่งที่สำคัญและช่วงผลออกพร้อมกัน ตรวจ Settings ของ runtime-live ว่าแหล่งที่ต้องการเปิดใช้งานจริง
-9. เมื่อโหมดทดลองผ่านแล้ว เจ้าของตั้ง GitHub repository variable `LOTTERY_CHECKER_MODE=cloudflare` และรอทุก Actions checker เดิมจบ ถ้ามี Python worker ให้หยุดจนจบรอบด้วย `gh variable set LOTTERY_CHECKER_MODE --body cloudflare --repo jirapatza/Bombim00` ต้องใช้บัญชีที่มีสิทธิ์ Variables write ห้ามข้ามเมื่อได้ 403
+9. เมื่อโหมดทดลองผ่านและเจ้าของอนุมัติ PR cutover แล้ว Merge Workflow ที่เหลือเพียง `pull_request` สำหรับ Python tests ไม่มี `schedule`, `push`, `workflow_dispatch`, `NTFY_TOPIC`, หรือการรัน `lottery_checker.py` เพื่อส่งผล รอให้ non-PR Actions runs เดิมทุกงานจบ Worker จะอ่าน Workflow จาก `main` ตรวจเงื่อนไขนี้และ active runs ก่อนส่งทุกครั้ง ถ้าตรวจไม่ได้จะหยุดแบบ fail-closed
 10. เปลี่ยน local config เป็น `MODE=deliver` แล้ว deploy ตรวจ `/health`, GitHub runtime-live status/results, การยอมรับส่งจาก ntfy และให้เจ้าของยืนยันว่าโทรศัพท์ได้รับจริง การที่ ntfy HTTP200 ไม่พิสูจน์ว่าโทรศัพท์ได้รับหรือพูดเสียงไทยแล้ว
 
 Cron ของ Cloudflare อาจใช้เวลาถึง 15 นาทีในการกระจายตารางครั้งแรก ผลในเว็บยังอาจช้าจากการเผยแพร่ raw GitHub/cache และเวลาอัปเดตของแหล่งต้นทาง
@@ -65,7 +65,7 @@ Cron ของ Cloudflare อาจใช้เวลาถึง 15 นาท�
 - Cloudflare Worker ที่ติดตั้งจริงตั้ง `ENABLED=true`, `MODE=observe`, Cron ทุกนาที แต่ D1 แสดง `error=github_network`, `error_stage=snapshot` และยังไม่มี `lastObservation` หรือ `lastSuccess` จึง **ห้ามเปิด deliver หรือปิด Actions** จนตรวจสำเร็จจริง
 - PR แก้การวินิจฉัยเพิ่มรหัสปลอดภัย เช่น `github_network_ref`, `github_timeout_contents` และ retry GET ที่ปลอดภัยหนึ่งครั้ง รหัสเหล่านี้บอกขั้นตอนที่ล้มเหลวเท่านั้น ไม่แสดง URL, token หรือข้อความ exception และไม่ยืนยันว่าต้นเหตุถูกแก้แล้ว
 - หลัง Deploy PR ที่ได้รับอนุมัติ ให้รอ Cron และอ่าน D1 `worker_state` / `/health` จน `lastObservation.at` สดภายใน 5 นาทีและไม่มี error ติดต่อกันหลายรอบ รวมช่วงเวลาที่แหล่งผลออกจริง; ตรวจ Free CPU และจำนวน subrequests
-- ก่อนสลับตัวส่งต้องมี `NTFY_TOPIC` เป็น secret ของ Worker, สิทธิ์ GitHub Contents/Actions/Variables ที่จำเป็น, `LOTTERY_CHECKER_MODE=cloudflare` และไม่มี Actions checker ที่ยังทำงาน ตรวจ D1 ledger เพื่อไม่ส่งผลเดิมซ้ำ
+- ก่อนสลับตัวส่งต้องมี `NTFY_TOPIC` เป็น secret ของ Worker, สิทธิ์ GitHub Contents/Actions read และ Contents write ที่จำเป็น, Workflow จาก reviewed `main` ต้องเป็น PR-only และไม่มี Actions checker non-PR ที่ยังทำงาน ตรวจ D1 ledger เพื่อไม่ส่งผลเดิมซ้ำ
 - หลังเปิดส่งจริง ตรวจ ntfy HTTP acceptance, runtime-live status และการรับบน Android แยกกัน หากไม่ผ่านให้หยุด Worker อย่างปลอดภัยและย้อนกลับตามหัวข้อด้านล่าง **ห้ามเปิดสองตัวส่งพร้อมกัน**
 
 ## การตรวจสุขภาพและซ่อม
@@ -81,7 +81,7 @@ Cron ของ Cloudflare อาจใช้เวลาถึง 15 นาท�
 
 ## ย้อนกลับ
 
-ตั้ง `ENABLED=false` และ deploy รอรอบที่เริ่มแล้วจบ ตรวจว่าไม่มี pending และพิสูจน์ uncertain ทุกตัวก่อน จากนั้นค่อยเปลี่ยน `LOTTERY_CHECKER_MODE` เป็น `actions` และเปิด/dispatch checker เดิมตามปกติ เก็บ D1 ไว้เป็นหลักฐาน ห้ามเปิด Python/Actions/Cloudflare ส่งพร้อมกัน การสลับกลับอาจกลับมาช้าตาม scheduler ของ GitHub
+ตั้ง `ENABLED=false` และ deploy รอรอบที่เริ่มแล้วจบ ตรวจว่าไม่มี pending และพิสูจน์ uncertain ทุกตัวก่อน หากจำเป็นต้องกลับไป Actions ให้สร้าง PR เพื่อคืน Workflow ส่งผลเดิมและอนุมัติ Merge หลัง Worker หยุดสนิทเท่านั้น เก็บ D1 ไว้ ห้ามเปิดตัวส่งสองตัวพร้อมกันเป็นหลักฐาน ห้ามเปิด Python/Actions/Cloudflare ส่งพร้อมกัน การสลับกลับอาจกลับมาช้าตาม scheduler ของ GitHub
 
 ## ทดสอบในเครื่อง
 
