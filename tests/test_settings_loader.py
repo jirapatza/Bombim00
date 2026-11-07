@@ -72,14 +72,14 @@ def test_write_status(tmp_path):
     }]
 
     status = sl.write_status(sample_rows, status_path=str(status_file), source_used="glo")
-    assert status["system_status"] == "healthy"
+    assert status["system_status"] == "degraded"
     assert status["last_source_used"] == "glo"
     assert status["latest_draw_detected"] == "16 ตุลาคม 2569"
     assert os.path.exists(status_file)
 
     with open(status_file, "r", encoding="utf-8") as f:
         saved = json.load(f)
-        assert saved["system_status"] == "healthy"
+        assert saved["system_status"] == "degraded"
 
 
 def test_result_fingerprint_ignores_provider_and_is_stable():

@@ -21,6 +21,7 @@ except ImportError:
     import urllib.error
 
 import settings_loader as sl
+from draw_schedule import load_catalog, scheduled_result
 
 # Load configuration at startup
 S = sl.load()
@@ -780,16 +781,31 @@ def main():
     print("=" * 60)
     today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date()
     previous_results = sl.load_previous_results()
+    catalog = load_catalog()
     rows, sources_used = [], []
     lottery_target = os.environ.get("LOTTERY_TARGET", "all").strip().lower() or "all"
     government_targets = {"all", "government"}
 
+    # Independent sources run together; a slow government fallback must not add
+    # its timeout after every stock/Lao request has already completed.
+    jobs = {"stocks": fetch_from_pholhuay_stock_groups}
     if sl.source_enabled(S, "thailottoapi"):
-        print("[CHECK] Querying ThaiLottoAPI for all supported lottery categories...")
-        api_rows = fetch_from_thailottoapi_results()
-        rows.extend(api_rows)
-        if api_rows:
-            sources_used.append("ThaiLottoAPI")
+        jobs["api"] = fetch_from_thailottoapi_results
+    if lottery_target in {"all", "lao"}:
+        jobs["extra"] = fetch_from_pholhuay_lao_extra
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = {key: pool.submit(fetcher) for key, fetcher in jobs.items()}
+        fetched = {}
+        for key, future in futures.items():
+            try:
+                fetched[key] = future.result()
+            except Exception as error:
+                print(f"[WARN] Source {key} failed: {type(error).__name__}")
+                fetched[key] = []
+    api_rows = fetched.get("api", [])
+    rows.extend(api_rows)
+    if api_rows:
+        sources_used.append("ThaiLottoAPI")
 
     print("[CHECK] Querying separated regular/VIP/special/VISA stock results...")
     def row_dedup_key(r):
@@ -800,7 +816,7 @@ def main():
         bot = str(r.get("เลขล่าง_2_ตัว") or r.get("bottom2") or r.get("เลขท้าย_2_ตัว") or "").strip()
         return (name, date_str, top[-3:] if len(top) >= 3 else top, bot[-2:] if len(bot) >= 2 else bot)
 
-    grouped_rows = fetch_from_pholhuay_stock_groups()
+    grouped_rows = fetched["stocks"]
     if grouped_rows:
         known = {row_dedup_key(r) for r in rows}
         for row in grouped_rows:
@@ -812,7 +828,7 @@ def main():
 
     # This round is absent from the general API/stock feed. Read its dedicated history.
     if lottery_target in {"all", "lao"}:
-        extra_rows = fetch_from_pholhuay_lao_extra()
+        extra_rows = fetched["extra"]
         extra_dates = {sl._parse_draw_date(row) for row in rows
                        if sl.normalize_lottery_name(row.get("ชื่อหวย", "")) == sl.normalize_lottery_name("ลาว EXTRA")}
         # Existing archived rows keep their original delivery history unchanged.
@@ -836,16 +852,23 @@ def main():
         and re.fullmatch(r"[0-9]{6}", str(row.get("รางวัลที่_1") or ""))
         for row in rows
     ):
-        for source_name, fetcher, source_label in (
+        government_sources = [
             ("pholhuay", fetch_from_pholhuay, "pholhuay"),
             ("glo", fetch_from_glo, "glo"),
             ("lotterychecks", fetch_from_lotterychecks, "LotteryChecks"),
             ("ranlotto", fetch_from_ranlotto, "ranlotto"),
-        ):
-            if not sl.source_enabled(S, source_name):
-                continue
-            print(f"[CHECK] Querying government fallback source: {source_name}...")
-            fallback_rows = fetcher()
+        ]
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            futures = {name: pool.submit(fetcher) for name, fetcher, _ in government_sources if sl.source_enabled(S, name)}
+            fallback_results = {}
+            for name, future in futures.items():
+                try:
+                    fallback_results[name] = future.result()
+                except Exception as error:
+                    print(f"[WARN] Government source {name} failed: {type(error).__name__}")
+                    fallback_results[name] = []
+        for source_name, _, source_label in government_sources:
+            fallback_rows = fallback_results.get(source_name, [])
             current = [row for row in fallback_rows
                        if sl._parse_draw_date(row) == today and all(sl.result_numbers(row))
                        and re.fullmatch(r"[0-9]{6}", str(row.get("รางวัลที่_1") or ""))]
@@ -898,9 +921,12 @@ def main():
         row["notification_channels"] = sl.previous_notification_channels(
             row, previous_results, active_channels or ["ntfy"]
         )
-        # Backfill history for summaries, but never push old EXTRA draws (even with force).
-        if row.get("หวย") == "lao_extra" and sl._parse_draw_date(row) < today:
+        # Retain historical results without publishing them as new alerts (even with force).
+        if sl._parse_draw_date(row) < today:
             row["สถานะการแจ้งเตือน"] = "history_only"
+            continue
+        if not scheduled_result(row, catalog, today):
+            row["สถานะการแจ้งเตือน"] = "sent" if any(value == "sent" for value in row["notification_channels"].values()) else "not_scheduled"
             continue
         if not sl.should_notify(S, row):
             row["สถานะการแจ้งเตือน"] = "not_eligible"
@@ -926,14 +952,17 @@ def main():
             print(f"[ERROR] Delivery incomplete for {row.get('ชื่อหวย', 'unknown lottery')}; failed channels remain retryable.")
 
     merged, seen = [], set()
-    for row in rows + previous_results:
+    # Historical provider backfills must not replace persisted delivery records.
+    current_rows = [row for row in rows if sl._parse_draw_date(row) == today]
+    historical_rows = [row for row in rows if sl._parse_draw_date(row) < today]
+    for row in current_rows + previous_results + historical_rows:
         fingerprint = sl.result_fingerprint(row)
         if fingerprint not in seen:
             seen.add(fingerprint)
             merged.append(row)
     sl.save_results(merged)
     sl.write_status(rows, source_used=source_used, notifications_sent=len(delivered),
-                    live_results=bool(live_rows))
+                    live_results=any(scheduled_result(row, catalog, today) for row in live_rows))
     print(f"[DONE] Checked {len(live_rows)} live result(s) for target '{lottery_target}'; delivered {len(delivered)} notification(s).")
 
 
