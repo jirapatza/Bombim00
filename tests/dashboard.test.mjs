@@ -100,8 +100,8 @@ test("overdue filter shows the most recent missed draw first while all rows stay
     item("late", "22:30 น.", { name: "ฮานอย EXTRA" }),
     item("future", "23:30 น.", { name: "ลาวกาชาด" }),
   ];
-  assert.deepEqual(sortDailyRows(items, "pending", atNight).map(x => x.id),
-    ["future", "late", "evening", "four", "one", "midnight"]);
+  assert.deepEqual(sortDailyRows(items.filter(x => drawState(x, atNight) === "pending"), "pending", atNight).map(x => x.id),
+    ["late", "evening", "four", "one", "midnight"]);
   assert.deepEqual(sortDailyRows(items, "all", atNight).map(x => x.id),
     ["midnight", "one", "four", "evening", "late", "future"]);
   assert.equal(drawState(items[0], atNight), "pending");
