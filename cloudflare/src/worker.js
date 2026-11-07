@@ -1,4 +1,4 @@
-import { bangkokDay, canonical, drawDate, drawIdentity, eligible, mergeRows, normalize, numbers, previousChannels, rawName, scheduled } from './domain.js';
+import { bangkokDay, canonical, drawDate, drawIdentity, dueScheduleAlerts, eligible, mergeRows, normalize, numbers, previousChannels, rawName, scheduled } from './domain.js';
 import { collect } from './providers.js';
 import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './storage.js';
 
@@ -25,39 +25,53 @@ export function boundedRequest(fetcher, deadline = Date.now() + 50000) {
     return fetcher(url, { ...options, redirect: 'manual', signal: AbortSignal.timeout(Math.max(1, Math.min(7000, deadline - Date.now()))) });
   };
 }
-function payload(settings, row, topic) {
+function resultMessage(row) {
   const name = canonical(rawName(row)), date = row.งวดวันที่ || row.วันที่จัดรูปแบบ;
-  const [top, bottom] = numbers(row), cfg = settings.channels?.ntfy || {};
+  const [top, bottom] = numbers(row);
   const display = /รัฐบาล|ออมสิน|ธ\.ก\.ส/.test(name) || name.startsWith('หวย') ? name : `หวย${name}`;
-  const click = cfg.click_url || settings.ntfy?.click_url || '';
-  return { topic, title: `📢 ผล${display} งวด ${date}`, message: `${name}\nงวด ${date}\n${top} - ${bottom}`,
-    priority: 4, tags: ['loudspeaker', 'dart'], click: !click || click.includes('sanook') ? 'https://bombim00.onrender.com' : click };
+  return { title: `📢 ผล${display} งวด ${date}`, message: `${name}\nงวด ${date}\n${top} - ${bottom}`,
+    tags: ['loudspeaker', 'dart'] };
 }
-export async function sendNotification(settings, row, topic, request) {
-  const server = (settings.channels?.ntfy?.server || settings.ntfy?.server || 'https://ntfy.sh').replace(/\/+$/, '');
+function scheduleMessage(alert) {
+  const closing = alert.kind === 'closing';
+  return { title: closing ? 'ใกล้ปิดรับ' : 'หวยรายการถัดไป',
+    message: `${alert.name} ${closing ? 'ปิดรับ' : 'ออกผลตามตาราง'} เวลา ${alert.clock} น.`,
+    tags: ['alarm_clock'] };
+}
+async function publishNtfy(settings, message, topic, request) {
+  const cfg = settings.channels?.ntfy || {};
+  const server = (cfg.server || settings.ntfy?.server || 'https://ntfy.sh').replace(/\/+$/, '');
+  const click = cfg.click_url || settings.ntfy?.click_url || '';
   try {
     const response = await request(server + '/', { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify(payload(settings, row, topic)) });
+      body: JSON.stringify({ topic, ...message, priority: 4,
+        click: !click || click.includes('sanook') ? 'https://bombim00.onrender.com' : click }) });
     await response.body?.cancel();
     if (response.status === 200) return 'sent';
     // A definite rejection is retryable. A timeout or 5xx might follow acceptance.
     return [400, 401, 403, 404, 413, 422, 429].includes(response.status) ? 'failed' : 'uncertain';
   } catch (error) { return error instanceof PreflightError ? 'failed' : 'uncertain'; }
 }
+export const sendNotification = (settings, row, topic, request) => publishNtfy(settings, resultMessage(row), topic, request);
 const safeError = error => /^(github_http_\d{3}|github_network|github_invalid_response|github_(network|timeout|aborted)_(ref|commit|contents|writer|publish|other)|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
-function makeStatus(previous, rows, live, sources, errors, sent, uncertain, now) {
+function makeStatus(previous, rows, live, sources, errors, sent, alerts, uncertain, now) {
   const day = bangkokDay(now), time = new Date(+now + 7 * 3600000).toISOString().replace('Z', '+07:00');
   const thaiDate = `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;
   const failed = rows.filter(x => ['failed', 'partial', 'queued', 'uncertain'].includes(x.สถานะการแจ้งเตือน)).length;
-  const healthy = live && !errors.length && !failed && !uncertain;
+  const healthy = live && !errors.length && !failed && !alerts.failed && !uncertain;
+  const sameDay = String(previous.last_run_date_thai || '').split(' ')[0] === thaiDate;
   const message = `Cloudflare ตรวจทุกนาที พบผลวันนี้ ${rows.length} รายการ ส่งสำเร็จ ${sent} รายการ` +
+    (alerts.sent ? ` ส่งเตือนตามตาราง ${alerts.sent} รายการ` : '') +
+    (alerts.failed ? ` ส่งเตือนตามตารางไม่สำเร็จ ${alerts.failed} รายการ` : '') +
     (failed ? ` ค้างส่ง ${failed} รายการ` : '') + (uncertain ? ` ต้องตรวจสอบการส่งที่ไม่ทราบผล ${uncertain} รายการ` : '') +
     (errors.length ? ` แหล่งข้อมูลติดต่อไม่ได้ ${errors.length} แหล่ง` : '') + (!live ? ' ยังไม่พบผลสด' : '');
   return { ...previous, system_status: healthy ? 'healthy' : 'degraded', last_run_timestamp: time,
     last_run_date_thai: `${thaiDate} ${time.slice(11, 19)}`, total_checks: (Number(previous.total_checks) || 0) + 1,
     last_source_used: sources.join(' + ') || previous.last_source_used || 'Cloudflare', status_message: message,
     active_sources_count: sources.length, latest_draw_detected: rows[0]?.งวดวันที่ || previous.latest_draw_detected || '',
-    notifications_sent_today: (String(previous.last_run_date_thai || '').split(' ')[0] === thaiDate ? Number(previous.notifications_sent_today) || 0 : 0) + sent,
+    notifications_sent_today: (sameDay ? Number(previous.notifications_sent_today) || 0 : 0) + sent,
+    schedule_alerts_sent_today: (sameDay ? Number(previous.schedule_alerts_sent_today) || 0 : 0) + alerts.sent,
+    schedule_alert_failures: alerts.failed,
     notification_failures: failed, uncertain_deliveries: uncertain, checker_mode: 'cloudflare', poll_interval_seconds: 60,
     recent_logs: [{ timestamp: time, level: healthy ? 'INFO' : 'WARNING', message }, ...(Array.isArray(previous.recent_logs) ? previous.recent_logs : [])].slice(0, 20) };
 }
@@ -122,6 +136,17 @@ export async function cycle(env, dependencies = {}) {
       [row.เลขบน_3_ตัว, row.เลขล่าง_2_ตัว] = numbers(row);
     }
     let sent = 0, attempts = 0;
+    async function recordDelivery(key, send, kind) {
+      attempts++;
+      stage = 'delivery';
+      const entry = { state: 'sending', date: today, kind };
+      state.deliveries[key] = entry;
+      await store.save(state); // Persist intent before touching ntfy.
+      entry.state = await send();
+      await store.save(state); // A lost write leaves 'sending', never an implicit retry.
+      stage = 'process';
+      return entry.state;
+    }
     for (const row of rows) {
       const key = drawIdentity(row), entry = state.deliveries[key];
       row.notification_channels = previousChannels(row, historyByDraw.get(historyKey(row)) || []);
@@ -135,22 +160,28 @@ export async function cycle(env, dependencies = {}) {
       if (!active) { row.สถานะการแจ้งเตือน = 'disabled'; continue; }
       if (observing) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
       if (attempts >= MAX_SENDS) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
-      attempts++;
-      stage = 'delivery';
-      state.deliveries[key] = { state: 'sending', date: today };
-      await store.save(state); // Intent is durable BEFORE touching ntfy.
-      const result = await (dependencies.send || sendNotification)(settings, row, topic, request);
-      state.deliveries[key].state = result;
-      await store.save(state); // A lost write leaves 'sending', never an implicit retry.
+      const result = await recordDelivery(key, () => (dependencies.send || sendNotification)(settings, row, topic, request), 'result');
       row.notification_channels.ntfy = result; row.สถานะการแจ้งเตือน = result;
       if (result === 'sent') sent++;
-      stage = 'process';
+    }
+    // Reserve the existing send budget for results first and use the time after provider I/O.
+    if (!observing && active && settings.notifications?.enabled !== false && attempts < MAX_SENDS) {
+      const clock = () => +(dependencies.now || new Date());
+      for (const alert of dueScheduleAlerts(catalog, today, new Date(clock()))) {
+        if (attempts >= MAX_SENDS) break;
+        const entry = state.deliveries[alert.key];
+        if ((entry && entry.state !== 'failed') || clock() >= alert.at) continue;
+        await recordDelivery(alert.key, () => publishNtfy(settings, scheduleMessage(alert), topic, request), 'schedule');
+      }
     }
     const merged = mergeRows(rows, history);
     const uncertain = Object.values(state.deliveries).filter(x => ['sending', 'uncertain'].includes(x.state)).length;
-    const unpublishedSent = Object.values(state.deliveries).filter(x => x.state === 'sent' && !x.published && x.date === today).length;
+    const todayDeliveries = Object.values(state.deliveries).filter(x => x.date === today);
+    const unpublished = todayDeliveries.filter(x => x.state === 'sent' && !x.published);
+    const alerts = { sent: unpublished.filter(x => x.kind === 'schedule').length,
+      failed: todayDeliveries.filter(x => x.kind === 'schedule' && x.state === 'failed').length };
     const outputs = { 'lottery_previous_results.json': merged, 'status/status.json': makeStatus(status, rows,
-      fetched.some(x => scheduled(x, catalog, today)), sources, errors, unpublishedSent, uncertain, now) };
+      fetched.some(x => scheduled(x, catalog, today)), sources, errors, unpublished.length - alerts.sent, alerts, uncertain, now) };
     if (observing) {
       state.lastObservation = { at: now.toISOString(), results: fetched.length,
         scheduled: fetched.filter(x => scheduled(x, catalog, today)).length, sourceErrors: errors.length,

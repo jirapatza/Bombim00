@@ -115,6 +115,36 @@ export function fingerprint(row) {
     last2, lottery: normalize(rawName(row)), top3 });
 }
 export const drawIdentity = row => JSON.stringify([normalize(rawName(row)), drawDate(row), ...numbers(row)]);
+const drawRule = item => item.drawDays.trim().replace(/\s*-\s*/g, ' - ');
+
+function scheduleTime(value, today) {
+  const match = typeof value === 'string' && value.trim().match(/^(\d{1,2})[:.](\d{2})(?:\s*น\.?)?$/);
+  if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) return null;
+  const clock = `${match[1].padStart(2, '0')}:${match[2]}`;
+  return { clock, at: Date.parse(`${today}T${clock}:00+07:00`) };
+}
+
+export function dueScheduleAlerts(catalog, today, now) {
+  if (bangkokDay(now) !== today) return [];
+  const weekday = new Date(today + 'T00:00:00Z').getUTCDay();
+  const alerts = [];
+  for (const item of catalog) {
+    // Irregular draws lack a verified upcoming date in the catalog.
+    if (!item.id || !item.name.trim() || disallowed(item.name) || !weekdays[drawRule(item)]?.includes(weekday)) continue;
+    const draw = scheduleTime(item.drawTimeStr, today);
+    const close = scheduleTime(item.closeTimeStr, today);
+    const windows = [
+      ['closing', close && (!draw || close.at <= draw.at) ? close : null, 10],
+      ['upcoming', draw, 5],
+    ];
+    for (const [kind, time, minutes] of windows) {
+      if (!time || +now < time.at - minutes * 60000 || +now >= time.at) continue;
+      alerts.push({ kind, key: JSON.stringify([kind, item.id, today]), name: item.name, ...time });
+    }
+  }
+  return alerts.sort((a, b) => a.at - b.at);
+}
+
 const catalogIndexes = new WeakMap();
 export function scheduled(row, catalog, today) {
   if (drawDate(row) !== today) return false;
@@ -130,7 +160,7 @@ export function scheduled(row, catalog, today) {
   }
   const item = index.ids.get(row.หวย) || index.names.get(scheduleName(rawName(row)));
   if (!item) return false;
-  const rule = item.drawDays.trim().replace(/\s*-\s*/g, ' - ');
+  const rule = drawRule(item);
   if (rule === 'ตามประกาศวันงวดจริง (อาจเลื่อน)') return numbers(row).every(Boolean) && (item.id !== 'thai_gov' || /^[0-9]{6}$/.test(row.รางวัลที่_1 || ''));
   return (weekdays[rule] || []).includes(new Date(today + 'T00:00:00Z').getUTCDay());
 }
