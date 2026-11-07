@@ -10,7 +10,7 @@ function finishPublish(state, now) {
   state.lastCheck = { status: status.system_status, notification_failures: status.notification_failures,
     message: status.status_message };
   for (const entry of Object.values(state.deliveries)) if (entry.state === 'sent') entry.published = true;
-  state.pending = null; state.error = null; state.lastSuccess = now.toISOString();
+  state.pending = null; state.error = null; state.error_stage = null; state.lastSuccess = now.toISOString();
 }
 // 38 external calls + at most 12 D1 calls per normal cycle. No automatic retries.
 export function boundedRequest(fetcher, deadline = Date.now() + 50000) {
@@ -42,7 +42,7 @@ export async function sendNotification(settings, row, topic, request) {
     return [400, 401, 403, 404, 413, 422, 429].includes(response.status) ? 'failed' : 'uncertain';
   } catch (error) { return error instanceof PreflightError ? 'failed' : 'uncertain'; }
 }
-const safeError = error => /^(github_http_\d{3}|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
+const safeError = error => /^(github_http_\d{3}|github_network|github_invalid_response|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
 function makeStatus(previous, rows, live, sources, errors, sent, uncertain, now) {
   const day = bangkokDay(now), time = new Date(+now + 7 * 3600000).toISOString().replace('Z', '+07:00');
   const thaiDate = `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;
@@ -67,18 +67,22 @@ export async function cycle(env, dependencies = {}) {
   const store = dependencies.store || new DurableState(env.DB);
   const state = await store.acquire();
   if (!state) return { busy: true };
+  let stage = 'writer';
   try {
     const observing = env.MODE !== 'deliver';
     if (!observing) await remote.assertWriter();
     // Publication retries use the durable output, without querying providers/sending again.
     if (state.pending) {
       if (observing) throw new Error('pending_requires_deliver');
+      stage = 'publish';
       await remote.publish(state.pending, () => store.assertLease());
       finishPublish(state, now);
       await store.save(state);
       return { recoveredPublish: true };
     }
+    stage = 'snapshot';
     const snapshot = await remote.snapshot();
+    stage = 'validate';
     const { settings, catalog, history, status } = validateSnapshot(snapshot);
     const active = settings.channels?.ntfy?.enabled !== false;
     const topic = String(env.NTFY_TOPIC || '').trim();
@@ -90,7 +94,9 @@ export async function cycle(env, dependencies = {}) {
       if (entry.state === 'sending') entry.state = 'uncertain';
       if (['sent', 'failed'].includes(entry.state) && entry.date < cutoff) delete state.deliveries[key];
     }
+    stage = 'sources';
     const { rows: fetched, sources, errors } = await (dependencies.collect || collect)(settings, today, now, request);
+    stage = 'process';
     // Group once instead of repeatedly normalizing the entire historical archive
     // for every live row. The same Python matching rules run within each bucket.
     const historyByDraw = new Map();
@@ -128,6 +134,7 @@ export async function cycle(env, dependencies = {}) {
       if (observing) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
       if (attempts >= MAX_SENDS) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
       attempts++;
+      stage = 'delivery';
       state.deliveries[key] = { state: 'sending', date: today };
       await store.save(state); // Intent is durable BEFORE touching ntfy.
       const result = await (dependencies.send || sendNotification)(settings, row, topic, request);
@@ -135,6 +142,7 @@ export async function cycle(env, dependencies = {}) {
       await store.save(state); // A lost write leaves 'sending', never an implicit retry.
       row.notification_channels.ntfy = result; row.สถานะการแจ้งเตือน = result;
       if (result === 'sent') sent++;
+      stage = 'process';
     }
     const merged = mergeRows(rows, history);
     const uncertain = Object.values(state.deliveries).filter(x => ['sending', 'uncertain'].includes(x.state)).length;
@@ -145,10 +153,11 @@ export async function cycle(env, dependencies = {}) {
       state.lastObservation = { at: now.toISOString(), results: fetched.length,
         scheduled: fetched.filter(x => scheduled(x, catalog, today)).length, sourceErrors: errors.length,
         candidates: rows.filter(x => x.สถานะการแจ้งเตือน === 'queued').length };
-      state.error = null;
+      state.error = null; state.error_stage = null;
       await store.save(state);
       return { observing: true, ...state.lastObservation };
     }
+    stage = 'publish';
     state.pending = { baseHead: snapshot.head, rows, status: outputs[OUTPUTS[1]] };
     await store.save(state);
     await remote.publish(state.pending, () => store.assertLease(), {
@@ -159,6 +168,7 @@ export async function cycle(env, dependencies = {}) {
     return { sent, queued: rows.filter(x => x.สถานะการแจ้งเตือน === 'queued').length, uncertain };
   } catch (error) {
     state.error = safeError(error);
+    state.error_stage = stage;
     // Failed save cannot be treated as successful delivery. The prior durable intent
     // remains authoritative; do not overwrite it from a catch handler.
     if (!['lease_lost', 'state_schema'].includes(state.error)) {
@@ -181,7 +191,8 @@ export default {
       const observing = env.MODE !== 'deliver', observed = state.lastObservation;
       const ready = !paused && (observing ? observed && Date.now() - Date.parse(observed.at) < 5 * 60000 && !observed.sourceErrors && !state.error : healthy);
       return Response.json({ status: paused ? 'paused' : observing ? 'observing' : healthy ? 'healthy' : 'degraded', last_success: state.lastSuccess,
-        last_observation: observed || null, last_check: state.lastCheck || null, error: state.error, publish_pending: Boolean(state.pending), uncertain_deliveries: uncertain, poll_seconds: 60 },
+        last_observation: observed || null, last_check: state.lastCheck || null, error: state.error, error_stage: state.error_stage || null,
+        publish_pending: Boolean(state.pending), uncertain_deliveries: uncertain, poll_seconds: 60 },
       { status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
     } catch { return Response.json({ status: 'unavailable' }, { status: 503 }); }
   },

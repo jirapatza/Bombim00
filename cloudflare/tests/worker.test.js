@@ -92,6 +92,25 @@ test('invalid history fails closed before sources or sends', async t => {
   await assert.rejects(f.run(), /runtime_schema/); assert.equal(f.sends.length, 0);
   assert.throws(() => validateSnapshot({ data: {} }), /runtime_schema/);
 });
+test('diagnostics identify safe stages without exposing arbitrary exception messages', async t => {
+  const f = fixture(t);
+  f.remote.snapshot = async () => { throw new Error('synthetic private diagnostic'); };
+  await assert.rejects(f.run(), /cycle_failed/);
+  const state = f.db.state();
+  assert.equal(state.error_stage, 'snapshot');
+  assert.equal(state.error, 'cycle_failed');
+  assert.ok(!JSON.stringify(state).includes('synthetic private diagnostic'));
+  const response = await worker.fetch(new Request('https://local/health'), f.env);
+  assert.equal((await response.json()).error_stage, 'snapshot');
+});
+test('GitHub transport and invalid JSON failures are classified without revealing request details', async () => {
+  const remote = new RuntimeRepository('owner/repo', 'synthetic-token', async () => { throw new Error('synthetic private diagnostic'); });
+  await assert.rejects(remote.api('GET', '/path'), { message: 'github_network' });
+  remote.request = async () => new Response('invalid private diagnostic', { status: 200 });
+  await assert.rejects(remote.api('GET', '/path'), { message: 'github_invalid_response' });
+  remote.request = async () => new Response('', { status: 401 });
+  await assert.rejects(remote.api('GET', '/path'), { message: 'github_http_401' });
+});
 test('D1 lease serializes overlap and rejects a stale resumed invocation', async t => {
   const db = database(); t.after(() => db.close()); let clock = 1000;
   const a = new DurableState(db, () => clock), b = new DurableState(db, () => clock);
