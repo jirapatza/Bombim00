@@ -11,7 +11,7 @@ export class RuntimeRepository {
   async api(method, path, body, accept = 'application/vnd.github+json') {
     let response;
     try {
-      response = await this.request(this.base + path, { method, redirect: 'error',
+      response = await this.request(this.base + path, { method, redirect: 'manual',
         headers: { Authorization: `Bearer ${this.token}`, Accept: accept,
           'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'Bombim00-Cloudflare', 'Content-Type': 'application/json' },
         body: body === undefined ? undefined : JSON.stringify(body) });
