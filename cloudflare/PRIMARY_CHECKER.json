@@ -1,0 +1,5 @@
+{
+  "mode": "cloudflare",
+  "legacy_workflow": "pr-only",
+  "poll_seconds": 60
+}
