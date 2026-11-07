@@ -58,15 +58,22 @@ test("latest three use detection timestamp, scheduled time breaks tied polls, do
   );
   assert.equal(items[0].id, "old");
 });
-test("midnight, completed draw before scheduled time, no future draw and unknown time", () => {
+test("results cannot appear before their scheduled time or on another Bangkok day", () => {
   const early = item("early", "20:00", {
     status: "drawn",
     resultDate: "2026-11-07",
   });
-  assert.equal(drawState(early, now), "drawn");
-  assert.notEqual(drawState(early, new Date("2026-11-07T17:00:00Z")), "drawn");
+  assert.equal(drawState(early, now), "upcoming");
+  assert.equal(dashboardData([early], now).drawn, 0);
+  assert.deepEqual(dashboardData([early], now).latest, []);
+  assert.equal(drawState(early, new Date("2026-11-07T13:00:00Z")), "drawn"); // 20:00 Bangkok
+  assert.equal(drawState(early, new Date("2026-11-07T17:00:00Z")), "pending"); // next Bangkok day
+  assert.equal(drawState(item("invalid", "ตามประกาศ", {
+    status: "drawn", resultDate: "2026-11-07",
+  }), now), "pending");
+  assert.equal(drawState(item("invalid", "25:00", {
+    status: "drawn", resultDate: "2026-11-07",
+  }), now), "pending");
   assert.equal(dashboardData([item("past", "01:30 น.")], now).next, null);
-  assert.equal(drawState(item("invalid", "ตามประกาศ"), now), "pending");
-  assert.equal(drawState(item("invalid", "25:00"), now), "pending");
   assert.equal(countdown(1, 2), "00 : 00 : 00");
 });
