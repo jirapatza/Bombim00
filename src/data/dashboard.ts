@@ -16,10 +16,14 @@ export function drawState(
   item: LotteryCatalogItem,
   now = new Date(),
 ): DrawState {
+  const at = drawTimestamp(item, now);
+  // A result cannot be announced on the dashboard before its scheduled draw.
+  // This also protects against stale or prematurely published upstream rows.
+  if (!Number.isFinite(at)) return "pending";
+  if (at > now.getTime()) return "upcoming";
   if (item.status === "drawn" && item.resultDate === bangkokDateKey(now))
     return "drawn";
-  const at = drawTimestamp(item, now);
-  return !Number.isFinite(at) || at <= now.getTime() ? "pending" : "upcoming";
+  return "pending";
 }
 export function dashboardData(items: LotteryCatalogItem[], now = new Date()) {
   const drawn = items.filter((item) => drawState(item, now) === "drawn");
