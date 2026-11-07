@@ -180,7 +180,26 @@ test('request budget and redirects prevent unbounded subrequests or token forwar
   const options = [], request = boundedRequest(async (_url, o) => { options.push(o); return new Response(''); });
   for (let i = 0; i < 38; i++) await request('https://example.test');
   await assert.rejects(request('https://example.test'), /request_budget/);
-  assert.ok(options.every(x => x.redirect === 'error'));
+  assert.ok(options.every(x => x.redirect === 'manual'));
+});
+test('a redirect response is rejected without forwarding the GitHub authorization', async () => {
+  const calls = [];
+  const request = boundedRequest(async (url, options) => {
+    calls.push({ url, redirect: options.redirect });
+    return new Response(null, { status: 302, headers: { Location: 'https://other.example.test/' } });
+  });
+  const remote = new RuntimeRepository('owner/repo', 'synthetic-token', request);
+  await assert.rejects(remote.api('GET', '/git/ref/heads/runtime-live'), { message: 'github_http_302' });
+  assert.deepEqual(calls, [{ url: 'https://api.github.com/repos/owner/repo/git/ref/heads/runtime-live', redirect: 'manual' }]);
+});
+test('a redirected ntfy publish is uncertain and is not automatically repeated', async () => {
+  const options = [];
+  const request = boundedRequest(async (_url, init) => {
+    options.push(init.redirect);
+    return new Response(null, { status: 307, headers: { Location: 'https://other.example.test/' } });
+  });
+  assert.equal(await sendNotification({}, result(), 'synthetic-topic', request), 'uncertain');
+  assert.deepEqual(options, ['manual']);
 });
 test('GitHub publish preserves config tree, writes only two files and never forces the runtime ref', async () => {
   const calls = [], before = Object.fromEntries(OUTPUTS.map(x => [x, []])), outputs = { ...before, [OUTPUTS[1]]: { changed: true } };

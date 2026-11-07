@@ -20,7 +20,9 @@ export function boundedRequest(fetcher, deadline = Date.now() + 50000) {
     let target;
     try { target = new URL(url); } catch { throw new PreflightError('https_required'); }
     if (target.protocol !== 'https:' || target.username || target.password) throw new PreflightError('https_required');
-    return fetcher(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(Math.max(1, Math.min(7000, deadline - Date.now()))) });
+    // Workers does not implement redirect: 'error'. Manual keeps credentials on
+    // the original host; callers reject the returned non-2xx redirect response.
+    return fetcher(url, { ...options, redirect: 'manual', signal: AbortSignal.timeout(Math.max(1, Math.min(7000, deadline - Date.now()))) });
   };
 }
 function payload(settings, row, topic) {
