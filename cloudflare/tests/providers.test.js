@@ -73,5 +73,46 @@ test('collection includes independent fallbacks after failures, preserves API or
     return new Response('');
   });
   assert.deepEqual(data.rows.map(x => x.หวย), ['hanoi_asean']);
-  assert.deepEqual(data.errors, ['ThaiLottoAPI']); assert.ok(calls.length <= 16);
+  assert.deepEqual(data.errors, [{ source: 'ThaiLottoAPI', status: null, reason: 'network' }]);
+  assert.ok(calls.length <= 16);
+});
+
+test('LotteryChecks dated no-result responses stay separate from HTTP and response failures', async () => {
+  const settings = { sources: { lotterychecks: { enabled: true }, glo: { enabled: true } } };
+  const { rows, waiting, errors } = await collect(settings, today, now, async (url, options) => {
+    if (url.includes('glo.or.th')) {
+      assert.equal(options.method, 'POST');
+      assert.equal(options.headers['Content-Type'], 'application/json');
+      return new Response(null, { status: 503 });
+    }
+    if (url.includes('lottery=thai-government')) return Response.json({ success: true, data: [] });
+    if (url.includes('lottery=hanoi-hd')) return new Response('<html>Not found</html>', { status: 404 });
+    if (url.includes('lottery=hanoi-tv')) return Response.json({ success: true, data: [{ lottery: 'hanoi-tv',
+      drawDate: today, status: 'announced', pendingPrizes: ['last-two-digit'] }] });
+    if (url.includes('lottery=hanoi-star')) return Response.json({ success: true, data: [{ lottery: 'hanoi-star',
+      drawDate: today, status: 'complete', prizes: [] }] });
+    if (url.includes('lotterychecks')) return Response.json({ success: false,
+      error: 'หวยชนิดนี้ยังไม่มีผลให้แสดง' }, { status: 404 });
+    return new Response('');
+  });
+  assert.deepEqual(rows, []);
+  assert.equal(waiting.length, 7);
+  assert.deepEqual(waiting.find(x => x.lottery === 'ฮานอย TV'), { source: 'LotteryChecks Lao/Hanoi', lottery: 'ฮานอย TV', status: 200 });
+  assert.deepEqual(errors.find(x => x.lottery === 'ฮานอย HD'), { source: 'LotteryChecks Lao/Hanoi', lottery: 'ฮานอย HD', status: 404, reason: 'http' });
+  assert.deepEqual(errors.find(x => x.lottery === 'ฮานอย STAR'), { source: 'LotteryChecks Lao/Hanoi', lottery: 'ฮานอย STAR', status: 200, reason: 'invalid_response' });
+  assert.deepEqual(errors.find(x => x.source === 'glo'), { source: 'glo', lottery: 'สลากกินแบ่งรัฐบาล', status: 503, reason: 'http' });
+});
+
+test('GLO official response uses its declared draw date and named prize groups', () => {
+  const prize = (...values) => ({ number: values.map((value, index) => ({ round: index + 1, value })) });
+  const data = { response: { date: today, data: {
+    first: prize('000007'), last2: prize('09'),
+    last3f: prize('001', '002'), last3b: prize('003', '004'),
+  } } };
+  const [draw] = parseGovernment(data, 'glo', now);
+  assert.equal(draw.งวดวันที่, today);
+  assert.equal(draw.รางวัลที่_1, '000007');
+  assert.equal(draw.เลขท้าย_2_ตัว, '09');
+  assert.deepEqual(draw.เลขหน้า_3_ตัว, ['001', '002']);
+  assert.deepEqual(draw.เลขท้าย_3_ตัว, ['003', '004']);
 });

@@ -54,24 +54,25 @@ async function publishNtfy(settings, message, topic, request) {
 }
 export const sendNotification = (settings, row, topic, request) => publishNtfy(settings, resultMessage(row), topic, request);
 const safeError = error => /^(github_http_\d{3}|github_network|github_invalid_response|github_(network|timeout|aborted)_(ref|commit|contents|writer|publish|other)|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
-function makeStatus(previous, rows, live, sources, errors, sent, alerts, uncertain, now) {
+function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertain, now) {
   const day = bangkokDay(now), time = new Date(+now + 7 * 3600000).toISOString().replace('Z', '+07:00');
   const thaiDate = `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;
   const failed = rows.filter(x => ['failed', 'partial', 'queued', 'uncertain'].includes(x.สถานะการแจ้งเตือน)).length;
-  const healthy = live && !errors.length && !failed && !alerts.failed && !uncertain;
+  const healthy = !checks.errors.length && !failed && !alerts.failed && !uncertain;
   const sameDay = String(previous.last_run_date_thai || '').split(' ')[0] === thaiDate;
   const message = `Cloudflare ตรวจทุกนาที พบผลวันนี้ ${rows.length} รายการ ส่งสำเร็จ ${sent} รายการ` +
     (alerts.sent ? ` ส่งเตือนตามตาราง ${alerts.sent} รายการ` : '') +
     (alerts.failed ? ` ส่งเตือนตามตารางไม่สำเร็จ ${alerts.failed} รายการ` : '') +
     (failed ? ` ค้างส่ง ${failed} รายการ` : '') + (uncertain ? ` ต้องตรวจสอบการส่งที่ไม่ทราบผล ${uncertain} รายการ` : '') +
-    (errors.length ? ` แหล่งข้อมูลติดต่อไม่ได้ ${errors.length} แหล่ง` : '') + (!live ? ' ยังไม่พบผลสด' : '');
+    (checks.waiting.length ? ` รอผลจากแหล่งข้อมูล ${checks.waiting.length} รายการ` : '') +
+    (checks.errors.length ? ` แหล่งข้อมูลขัดข้อง ${checks.errors.length} คำขอ` : '') + (!live ? ' ยังไม่พบผลสด' : '');
   return { ...previous, system_status: healthy ? 'healthy' : 'degraded', last_run_timestamp: time,
     last_run_date_thai: `${thaiDate} ${time.slice(11, 19)}`, total_checks: (Number(previous.total_checks) || 0) + 1,
     last_source_used: sources.join(' + ') || previous.last_source_used || 'Cloudflare', status_message: message,
     active_sources_count: sources.length, latest_draw_detected: rows[0]?.งวดวันที่ || previous.latest_draw_detected || '',
     notifications_sent_today: (sameDay ? Number(previous.notifications_sent_today) || 0 : 0) + sent,
     schedule_alerts_sent_today: (sameDay ? Number(previous.schedule_alerts_sent_today) || 0 : 0) + alerts.sent,
-    schedule_alert_failures: alerts.failed,
+    schedule_alert_failures: alerts.failed, source_checks: checks,
     notification_failures: failed, uncertain_deliveries: uncertain, checker_mode: 'cloudflare', poll_interval_seconds: 60,
     recent_logs: [{ timestamp: time, level: healthy ? 'INFO' : 'WARNING', message }, ...(Array.isArray(previous.recent_logs) ? previous.recent_logs : [])].slice(0, 20) };
 }
@@ -111,7 +112,7 @@ export async function cycle(env, dependencies = {}) {
       if (['sent', 'failed'].includes(entry.state) && entry.date < cutoff) delete state.deliveries[key];
     }
     stage = 'sources';
-    const { rows: fetched, sources, errors } = await (dependencies.collect || collect)(settings, today, now, request);
+    const { rows: fetched, sources, errors, waiting = [] } = await (dependencies.collect || collect)(settings, today, now, request);
     stage = 'process';
     // Group once instead of repeatedly normalizing the entire historical archive
     // for every live row. The same Python matching rules run within each bucket.
@@ -181,7 +182,7 @@ export async function cycle(env, dependencies = {}) {
     const alerts = { sent: unpublished.filter(x => x.kind === 'schedule').length,
       failed: todayDeliveries.filter(x => x.kind === 'schedule' && x.state === 'failed').length };
     const outputs = { 'lottery_previous_results.json': merged, 'status/status.json': makeStatus(status, rows,
-      fetched.some(x => scheduled(x, catalog, today)), sources, errors, unpublished.length - alerts.sent, alerts, uncertain, now) };
+      fetched.some(x => scheduled(x, catalog, today)), sources, { waiting, errors }, unpublished.length - alerts.sent, alerts, uncertain, now) };
     if (observing) {
       state.lastObservation = { at: now.toISOString(), results: fetched.length,
         scheduled: fetched.filter(x => scheduled(x, catalog, today)).length, sourceErrors: errors.length,

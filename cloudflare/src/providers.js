@@ -103,6 +103,10 @@ export function parseExtra(html, today, now = new Date()) {
   }
   return rows;
 }
+const gloNumbers = prize => Array.isArray(prize?.number)
+  ? prize.number.map(number => typeof number === 'object' ? number?.value : number)
+  : [];
+
 export function parseGovernment(data, source, now = new Date()) {
   let first, bottom, date, front = [], rear = [];
   if (source === 'lotterychecks') {
@@ -114,9 +118,11 @@ export function parseGovernment(data, source, now = new Date()) {
     front = prizes['first-three-digit']; rear = prizes['last-three-digit'];
   } else if (source === 'glo') {
     const r = data?.response || data?.data || data, prizes = r?.data || r;
-    first = prizes?.first?.number?.[0] ?? r?.firstPrize;
-    bottom = prizes?.last2?.number?.[0] ?? r?.last2;
-    date = r?.date || r?.drawDate; front = prizes?.first3?.number; rear = prizes?.last3?.number;
+    first = gloNumbers(prizes?.first)[0] ?? r?.firstPrize;
+    bottom = gloNumbers(prizes?.last2)[0] ?? r?.last2;
+    date = r?.date || r?.drawDate;
+    front = gloNumbers(prizes?.last3f ?? prizes?.first3);
+    rear = gloNumbers(prizes?.last3b ?? prizes?.last3);
   } else if (source === 'ranlotto') {
     if (data?.success === false) return [];
     const r = data?.data, prizes = r?.result;
@@ -140,27 +146,54 @@ async function parallel(jobs, concurrency = 4) {
   return results.flat();
 }
 export async function collect(settings, today, now, request) {
-  const errors = [], sources = [], cfg = settings.sources || {};
-  const get = async (label, url, parser, json = true) => {
+  const errors = [], waiting = [], sources = [], cfg = settings.sources || {};
+  const readSource = async (source, url, parser, { json = true, lottery, slug, method = 'GET' } = {}) => {
+    let status = null, reason = 'network';
     try {
-      const response = await request(url, { headers: { Accept: json ? 'application/json' : 'text/html' } });
-      if (!response.ok) throw new Error('source_http');
+      const headers = { Accept: json ? 'application/json' : 'text/html' };
+      if (method === 'POST') headers['Content-Type'] = 'application/json';
+      const response = await request(url, { method, headers });
+      status = response.status;
+      const datedRound = Boolean(slug);
+      if (!response.ok && !(datedRound && status === 404)) {
+        reason = 'http';
+        await response.body?.cancel().catch(() => {});
+        throw new Error(reason);
+      }
+      reason = response.ok ? 'invalid_response' : 'http';
       const content = await response.text();
       if (content.length > 2_000_000) throw new Error('source_size');
-      const rows = parser(json ? JSON.parse(content) : content);
-      if (rows.length) sources.push(label);
+      const data = json ? JSON.parse(content) : content;
+      if (datedRound && status === 404) {
+        if (data?.success !== false || data.error !== 'หวยชนิดนี้ยังไม่มีผลให้แสดง') throw new Error(reason);
+        waiting.push({ source, lottery, status });
+        return [];
+      }
+      const rows = parser(data);
+      if (datedRound && !rows.length) {
+        const entries = data?.data;
+        if (data?.success !== true || !Array.isArray(entries) || !entries.every(row =>
+          row?.lottery === slug && row.drawDate === today && row.status === 'announced')) throw new Error(reason);
+        waiting.push({ source, lottery, status });
+      }
+      if (rows.length) sources.push(source);
       return rows;
-    } catch { errors.push(label); return []; }
+    } catch (error) {
+      if (error?.name === 'TimeoutError' || error?.name === 'AbortError') reason = 'timeout';
+      if (error?.message === 'request_budget') reason = 'request_budget';
+      errors.push({ source, ...(lottery ? { lottery } : {}), status, reason });
+      return [];
+    }
   };
   const jobs = [
-    () => get('ผลหวย.com stock groups', 'https://xn--t3cmiit.com/stock-lottery', x => parseStocks(x, now), false),
-    () => get('ผลหวย.com Lao EXTRA', 'https://xn--t3cmiit.com/lao-lottery/extra', x => parseExtra(x, today, now), false),
+    () => readSource('ผลหวย.com stock groups', 'https://xn--t3cmiit.com/stock-lottery', x => parseStocks(x, now), { json: false }),
+    () => readSource('ผลหวย.com Lao EXTRA', 'https://xn--t3cmiit.com/lao-lottery/extra', x => parseExtra(x, today, now), { json: false, lottery: 'ลาว EXTRA' }),
   ];
   if (cfg.thailottoapi?.enabled) {
     const url = new URL(cfg.thailottoapi.url || 'https://thailottoapi.com/api/results');
     url.searchParams.set('date', today); url.searchParams.set('sync', '1');
     // The general API has priority over overlapping stock cards, as in Python.
-    jobs.unshift(() => get('ThaiLottoAPI', url.href, x => parseThaiApi(x, now)));
+    jobs.unshift(() => readSource('ThaiLottoAPI', url.href, x => parseThaiApi(x, now)));
   }
   let rows = await parallel(jobs);
   const complete = rows.filter(x => drawDate(x) === today && numbers(x).every(Boolean));
@@ -169,8 +202,9 @@ export async function collect(settings, today, now, request) {
   const names = new Set(complete.filter(x => !supported.has(x.หวย)).map(x => scheduleName(x.ชื่อหวย || '')));
   const fallback = [];
   if (cfg.lotterychecks?.enabled) for (const [slug, [id, name]] of Object.entries(rounds)) {
-    if (!ids.has(id) && !names.has(scheduleName(name))) fallback.push(() => get('LotteryChecks Lao/Hanoi',
-      `https://lotterychecks.com/api/public/results?lottery=${slug}&date=${today}&limit=1`, x => parseRound(x, slug, today, now)));
+    if (!ids.has(id) && !names.has(scheduleName(name))) fallback.push(() => readSource('LotteryChecks Lao/Hanoi',
+      `https://lotterychecks.com/api/public/results?lottery=${slug}&date=${today}&limit=1`, x => parseRound(x, slug, today, now),
+      { lottery: name, slug }));
   }
   const needsGov = !complete.some(x => (x.หวย === 'thailotto' || normalizeGovernment(x.ชื่อหวย)) && /^[0-9]{6}$/.test(x.รางวัลที่_1));
   const gov = [];
@@ -178,11 +212,12 @@ export async function collect(settings, today, now, request) {
     ['pholhuay', 'https://api.pholhuay.com/v1/lottery/latest'], ['glo', 'https://www.glo.or.th/api/lottery/getLatestLottery'],
     ['lotterychecks', 'https://lotterychecks.com/api/public/results?lottery=thai-government&limit=1'],
     ['ranlotto', 'https://api.ranlotto.com/api/public/v1/lottery/result/latest'],
-  ]) if (cfg[source]?.enabled) gov.push(() => get(source, cfg[source].url || url, x => parseGovernment(x, source, now)));
+  ]) if (cfg[source]?.enabled) gov.push(() => readSource(source, cfg[source].url || url, x => parseGovernment(x, source, now),
+    { lottery: 'สลากกินแบ่งรัฐบาล', method: source === 'glo' ? 'POST' : 'GET' }));
   const [supplement, government] = await Promise.all([parallel(fallback), parallel(gov, 2)]);
   const governmentRow = government.find(x => drawDate(x) === today);
   rows = [...(governmentRow ? [governmentRow] : []), ...rows, ...supplement];
   return { rows: rows.filter(x => drawDate(x) === today && !disallowed(x.ชื่อหวย) && !disallowed(x.หวย) && numbers(x).every(Boolean)),
-    sources: [...new Set(sources)], errors };
+    sources: [...new Set(sources)], errors, waiting };
 }
 const normalizeGovernment = name => canonical(name) === 'สลากกินแบ่งรัฐบาล';
