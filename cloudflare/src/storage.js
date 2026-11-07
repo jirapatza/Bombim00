@@ -13,7 +13,8 @@ function githubEndpoint(path) {
 }
 function githubTransportError(error, path) {
   if (error?.message === 'request_budget' || error?.message === 'https_required') return error;
-  const kind = error?.name === 'TimeoutError' ? 'timeout' : 'network';
+  // An explicit abort is not evidence of a transient network failure: do not retry it.
+  const kind = error?.name === 'AbortError' ? 'aborted' : error?.name === 'TimeoutError' ? 'timeout' : 'network';
   return new Error(`github_${kind}_${githubEndpoint(path)}`);
 }
 
