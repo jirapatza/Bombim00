@@ -207,6 +207,8 @@ export const App: React.FC = () => {
           online={online}
           lastSynced={lastSynced}
           liveDataError={liveDataError}
+          lastRunTimestamp={status.last_run_timestamp}
+          checkerStatus={status.system_status}
           currentTimeString={currentTimeString}
           isVoiceEnabled={isVoiceEnabled}
           isRefreshing={isRefreshing}
@@ -259,6 +261,8 @@ export const App: React.FC = () => {
                 <DeviceHealthPanel
                   online={online}
                   lastSynced={lastSynced}
+                  status={status}
+                  liveDataError={liveDataError}
                   isRefreshing={isRefreshing}
                   onRecover={handleRefresh}
                 />

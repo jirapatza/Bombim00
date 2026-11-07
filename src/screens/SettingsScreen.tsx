@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AppSettings, SystemStatus } from "../types/lottery";
 import { ThaiTtsService } from "../utils/thaiTts";
+import { checkerHeartbeatFresh } from "../utils/checkerHealth";
 
 interface Props {
   settings: AppSettings;
@@ -97,9 +98,7 @@ export const SettingsScreen: React.FC<Props> = ({
     );
   };
 
-  const lastRun = Date.parse(status.last_run_timestamp);
-  const delayed =
-    !Number.isFinite(lastRun) || Date.now() - lastRun > 15 * 60_000;
+  const delayed = !checkerHeartbeatFresh(status.last_run_timestamp);
   const healthy = status.system_status === "healthy" && !delayed;
 
   return (

@@ -7,18 +7,31 @@ import {
   Bell,
 } from "lucide-react";
 import { ThaiTtsService } from "../utils/thaiTts";
+import { connectionHealth, connectionLabels } from "../utils/checkerHealth";
+import type { SystemStatus } from "../types/lottery";
 interface Props {
   online: boolean;
   lastSynced: string;
+  status: SystemStatus;
+  liveDataError: boolean;
   isRefreshing: boolean;
   onRecover: () => Promise<boolean>;
 }
 export function DeviceHealthPanel({
   online,
   lastSynced,
+  status,
+  liveDataError,
   isRefreshing,
   onRecover,
 }: Props) {
+  const checkerHealth = connectionHealth(
+    online,
+    lastSynced,
+    liveDataError,
+    status.last_run_timestamp,
+    status.system_status,
+  );
   const [permission, setPermission] = useState(
     typeof Notification === "undefined"
       ? "unsupported"
@@ -91,6 +104,16 @@ export function DeviceHealthPanel({
           <p>การเชื่อมต่อ</p>
           <strong>{online ? "เครือข่ายพร้อม" : "ออฟไลน์"}</strong>
           <small>โหลดข้อมูลสำเร็จล่าสุด: {lastSynced || "ยังไม่สำเร็จ"}</small>
+        </div>
+        <div>
+          <Activity size={18} />
+          <p>ตัวตรวจผลฝั่งเซิร์ฟเวอร์</p>
+          <strong>{connectionLabels[checkerHealth]}</strong>
+          <small>
+            {checkerHealth === "checker-stale"
+              ? "ยืนยันการตรวจผลล่าสุดภายใน 15 นาทีไม่ได้ แม้เว็บจะโหลดข้อมูลสำเร็จ"
+              : "สถานะจากข้อมูลตรวจผลล่าสุด ไม่ใช่การยืนยันว่าโทรศัพท์ได้รับแจ้งเตือน"}
+          </small>
         </div>
         <div>
           <VolumeX size={18} />
