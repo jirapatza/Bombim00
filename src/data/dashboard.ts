@@ -25,6 +25,11 @@ export function drawState(
     return "drawn";
   return "pending";
 }
+// Keep summary/share views behind the same Bangkok draw-time gate as the dashboard.
+export function publishedSummaryResults(items: LotteryCatalogItem[], now = new Date()): LotteryCatalogItem[] {
+  return items.filter((item) => drawState(item, now) === "drawn");
+}
+
 export function dashboardData(items: LotteryCatalogItem[], now = new Date()) {
   const drawn = items.filter((item) => drawState(item, now) === "drawn");
   const latest = [...drawn]
