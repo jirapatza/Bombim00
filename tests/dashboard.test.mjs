@@ -67,7 +67,7 @@ test("results cannot appear before their scheduled time or on another Bangkok da
   assert.equal(dashboardData([early], now).drawn, 0);
   assert.deepEqual(dashboardData([early], now).latest, []);
   assert.equal(drawState(early, new Date("2026-11-07T13:00:00Z")), "drawn"); // 20:00 Bangkok
-  assert.equal(drawState(early, new Date("2026-11-07T17:00:00Z")), "pending"); // next Bangkok day
+  assert.equal(drawState(early, new Date("2026-11-07T17:00:00Z")), "upcoming"); // next Bangkok day; no stale result
   assert.equal(drawState(item("invalid", "ตามประกาศ", {
     status: "drawn", resultDate: "2026-11-07",
   }), now), "pending");
