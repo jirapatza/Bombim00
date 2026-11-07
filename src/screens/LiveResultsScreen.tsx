@@ -21,6 +21,7 @@ import {
   dashboardData,
   drawState,
   drawTimestamp,
+  sortDailyRows,
   DrawState,
   stateLabels,
 } from "../data/dashboard";
@@ -61,7 +62,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
     setPeriod("ทั้งหมด");
     summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
-  const filtered = lotteries
+  const filtered = sortDailyRows(lotteries
     .filter((item) => {
       const text =
         `${item.name} ${item.top3} ${item.bottom2} ${item.firstPrize}`.toLowerCase();
@@ -71,14 +72,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
         (category === "ทั้งหมด" || item.categoryLabel === category) &&
         (period === "ทั้งหมด" || item.periodLabel === period)
       );
-    })
-    .sort((a, b) => {
-      const key = (item: LotteryCatalogItem) => {
-        const timestamp = drawTimestamp(item, now);
-        return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER;
-      };
-      return key(a) - key(b);
-    });
+    }), filter, now);
   const resultText = (item: LotteryCatalogItem) =>
     `${item.name} งวด ${item.date}\n${item.firstPrize ? `รางวัลที่ 1: ${item.firstPrize}` : `3 ตัว: ${item.top3 || "—"}`} / 2 ตัว: ${item.bottom2 || "—"}`;
   const copy = async (item: LotteryCatalogItem) =>
@@ -116,7 +110,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
       color: "green",
     },
     {
-      title: "กำลังรอผล",
+      title: "เลยเวลา / รอผล",
       value: data.pending,
       icon: Timer,
       state: "pending",
@@ -187,12 +181,12 @@ export const LiveResultsScreen: React.FC<Props> = ({
         ) : (
           <div className="empty-state">
             {data.pending
-              ? "รายการตามตารางวันนี้ถึงเวลาแล้ว กำลังรอแหล่งข้อมูลประกาศผล"
+              ? "ไม่มีรายการที่จะออกเพิ่มวันนี้ แต่ยังมีรายการที่เลยเวลาและรอข้อมูลผล"
               : "ไม่มีรายการที่กำลังจะออกเพิ่มเติมในวันนี้"}
           </div>
         )}
         <p className="muted footnote">
-          เวลาออกเป็นเวลาตามตาราง ผลจะแสดงเมื่อแหล่งข้อมูลประกาศแล้วเท่านั้น
+          เวลาปิดรับและเวลาออกเป็นคนละเวลา รายการที่เลยเวลาแต่ยังไม่มีผลจะแสดงเป็นรอผล ไม่เติมผลแทนแหล่งข้อมูล
         </p>
       </section>
       <div className="metric-grid">
@@ -255,10 +249,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
               </div>
               <div className="latest-footer">
                 <span>
-                  {item.detectedAt &&
-                  Number.isFinite(Date.parse(item.detectedAt))
-                    ? `ตรวจพบ ${new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit" }).format(new Date(item.detectedAt))} น.`
-                    : `ตามตาราง ${item.drawTimeStr}`}
+                  ออกตามตาราง {item.drawTimeStr}
                 </span>
                 <span>
                   ดูผล <ArrowRight size={12} />
@@ -271,7 +262,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
           <div className="empty-state">ยังไม่มีผลที่ยืนยันแล้วของวันนี้</div>
         )}
         <p className="muted footnote">
-          เรียงตามเวลาตรวจพบผล หากไม่มีเวลา ใช้เวลาออกตามตาราง
+          เรียงผลตามเวลาออกที่กำหนดในตาราง ไม่ใช้เวลาอัปเดตข้อมูลซ้ำ
         </p>
       </section>
       <section
@@ -347,6 +338,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
             <thead>
               <tr>
                 <th>เวลาออก</th>
+                <th>เวลาปิดรับ</th>
                 <th>รายการ</th>
                 <th>ประเภท</th>
                 <th>ผล 3 ตัว / รางวัลที่ 1</th>
@@ -369,6 +361,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
                 return (
                   <tr key={item.id} className={matched ? "watched-row" : ""}>
                     <td>{item.drawTimeStr}</td>
+                    <td>{item.closeTimeStr || "—"}</td>
                     <td>
                       <span className="table-name">
                         <span>{item.flag}</span>
@@ -388,7 +381,9 @@ export const LiveResultsScreen: React.FC<Props> = ({
                       <span
                         className={`badge ${state === "drawn" ? "green" : state === "pending" ? "gold" : "blue"}`}
                       >
-                        {stateLabels[state]}
+                        {state === "pending" && !Number.isFinite(drawTimestamp(item, now))
+                          ? "ไม่ทราบเวลาออก"
+                          : stateLabels[state]}
                       </span>
                     </td>
                     <td>
@@ -442,7 +437,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
             </button>
           </div>
           <p className="muted">
-            {detail.date} • ตามตาราง {detail.drawTimeStr}
+            {detail.date} • ออกตามตาราง {detail.drawTimeStr} • ปิดรับตามตาราง {detail.closeTimeStr || "—"}
           </p>
           {drawState(detail, now) === "drawn" ? (
             <>
