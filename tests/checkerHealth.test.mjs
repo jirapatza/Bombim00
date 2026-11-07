@@ -9,7 +9,7 @@ const result = await build({
   format: "esm",
   write: false,
 });
-const { connectionHealth, connectionLabels } = await import(
+const { connectionHealth, connectionLabels, checkerHeartbeatFresh } = await import(
   `data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString("base64")}`
 );
 const now = Date.parse("2026-11-07T12:50:00Z");
@@ -36,4 +36,12 @@ test("checker reports unhealthy despite fresh heartbeat", () => {
   assert.equal(connectionHealth(true, "19:50", false, "2026-11-07T19:49:00+07:00", "degraded", now), "checker-unhealthy");
   assert.equal(connectionHealth(true, "19:50", false, "2026-11-07T19:35:00+07:00", "healthy", now), "connected");
   assert.equal(connectionHealth(true, "19:50", false, "2026-11-07T19:34:59+07:00", "healthy", now), "checker-stale");
+});
+
+test("settings and header share exactly the same checker heartbeat rule", () => {
+  assert.equal(checkerHeartbeatFresh("2026-11-07T19:49:00+07:00", now), true);
+  assert.equal(checkerHeartbeatFresh("2026-11-07T19:35:00+07:00", now), true);
+  assert.equal(checkerHeartbeatFresh("2026-11-07T19:34:59+07:00", now), false);
+  assert.equal(checkerHeartbeatFresh("2026-11-07T19:52:00+07:00", now), false);
+  assert.equal(checkerHeartbeatFresh("invalid", now), false);
 });
