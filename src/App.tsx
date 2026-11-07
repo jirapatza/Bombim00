@@ -261,6 +261,8 @@ export const App: React.FC = () => {
                 <DeviceHealthPanel
                   online={online}
                   lastSynced={lastSynced}
+                  status={status}
+                  liveDataError={liveDataError}
                   isRefreshing={isRefreshing}
                   onRecover={handleRefresh}
                 />
