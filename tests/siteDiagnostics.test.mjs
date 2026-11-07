@@ -59,7 +59,7 @@ test('diagnostics capture only allowlisted anonymous events without cookies or U
       'frontend_started', 'frontend_runtime_error', 'frontend_promise_error', 'frontend_render_error',
     ]);
     for (const { url, options } of requests) {
-      assert.equal(url, 'https://us.i.posthog.com/capture/');
+      assert.equal(url, 'https://us.i.posthog.com/i/v0/e');
       assert.equal(options.credentials, 'omit');
       assert.equal(options.referrerPolicy, 'no-referrer');
       const payload = JSON.parse(options.body);
