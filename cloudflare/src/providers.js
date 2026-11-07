@@ -103,6 +103,10 @@ export function parseExtra(html, today, now = new Date()) {
   }
   return rows;
 }
+const gloNumbers = prize => Array.isArray(prize?.number)
+  ? prize.number.map(number => typeof number === 'object' ? number?.value : number)
+  : [];
+
 export function parseGovernment(data, source, now = new Date()) {
   let first, bottom, date, front = [], rear = [];
   if (source === 'lotterychecks') {
@@ -114,11 +118,11 @@ export function parseGovernment(data, source, now = new Date()) {
     front = prizes['first-three-digit']; rear = prizes['last-three-digit'];
   } else if (source === 'glo') {
     const r = data?.response || data?.data || data, prizes = r?.data || r;
-    first = prizes?.first?.number?.[0] ?? r?.firstPrize;
-    bottom = prizes?.last2?.number?.[0] ?? r?.last2;
+    first = gloNumbers(prizes?.first)[0] ?? r?.firstPrize;
+    bottom = gloNumbers(prizes?.last2)[0] ?? r?.last2;
     date = r?.date || r?.drawDate;
-    front = prizes?.last3f?.number ?? prizes?.first3?.number;
-    rear = prizes?.last3b?.number ?? prizes?.last3?.number;
+    front = gloNumbers(prizes?.last3f ?? prizes?.first3);
+    rear = gloNumbers(prizes?.last3b ?? prizes?.last3);
   } else if (source === 'ranlotto') {
     if (data?.success === false) return [];
     const r = data?.data, prizes = r?.result;

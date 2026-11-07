@@ -104,9 +104,10 @@ test('LotteryChecks dated no-result responses stay separate from HTTP and respon
 });
 
 test('GLO official response uses its declared draw date and named prize groups', () => {
+  const prize = (...values) => ({ number: values.map((value, index) => ({ round: index + 1, value })) });
   const data = { response: { date: today, data: {
-    first: { number: ['000007'] }, last2: { number: ['09'] },
-    last3f: { number: ['001', '002'] }, last3b: { number: ['003', '004'] },
+    first: prize('000007'), last2: prize('09'),
+    last3f: prize('001', '002'), last3b: prize('003', '004'),
   } } };
   const [draw] = parseGovernment(data, 'glo', now);
   assert.equal(draw.งวดวันที่, today);
