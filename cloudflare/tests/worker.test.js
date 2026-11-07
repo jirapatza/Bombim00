@@ -109,6 +109,8 @@ test('GitHub transport and invalid JSON failures are classified without revealin
   await assert.rejects(remote.api('GET', '/git/ref/heads/runtime-live'), { message: 'github_network_ref' });
   remote.request = async () => { const error = new Error('sensitive URL or token must not be logged'); error.name = 'TimeoutError'; throw error; };
   await assert.rejects(remote.api('GET', '/contents/config/settings.json'), { message: 'github_timeout_contents' });
+  remote.request = async () => { const error = new Error('manual abort'); error.name = 'AbortError'; throw error; };
+  await assert.rejects(remote.api('GET', '/git/ref/heads/runtime-live'), { message: 'github_network_ref' });
   remote.request = async () => { throw new Error('request_budget'); };
   await assert.rejects(remote.api('GET', '/git/ref/heads/runtime-live'), { message: 'request_budget' });
   remote.request = async () => new Response('invalid private diagnostic', { status: 200 });
