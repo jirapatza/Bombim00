@@ -38,10 +38,10 @@ function getResolvedBottom2(res: RawLotteryResult): string {
 }
 
 export function normalizeName(name: string): string {
-  const isVip = /vip|วีไอพี/i.test(name);
+  const isVip = /(?<!s)vip|วีไอพี/i.test(name);
   const cleaned = name
     .toLowerCase()
-    .replace(/vip/gi, '')
+    .replace(/(?<!s)vip/gi, '')
     .replace(/วีไอพี/g, '')
     .replace(/นิคเคอิ/g, 'นิเคอิ')
     .replace(/หวยหุ้น/g, '')
@@ -54,43 +54,99 @@ export function normalizeName(name: string): string {
   return cleaned + (isVip ? 'vip' : '');
 }
 
-function findMatchingResult(
-  catalogItem: LotteryCatalogItem,
-  results: RawLotteryResult[]
-): RawLotteryResult | undefined {
-  const catKey = normalizeName(catalogItem.name);
-  if (!catKey) return undefined;
+const thaiMonths = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+];
+const bangkokDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Bangkok' });
+const bangkokTime = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
+const drawWeekdays: Record<string, number[]> = {
+  'ทุกวัน (จันทร์ - อาทิตย์)': [0, 1, 2, 3, 4, 5, 6],
+  'จันทร์ - ศุกร์': [1, 2, 3, 4, 5],
+  'จันทร์, พุธ, ศุกร์': [1, 3, 5],
+  'อังคาร - เสาร์': [2, 3, 4, 5, 6],
+};
 
-  return results.find((res) => {
-    const resKey = normalizeName(getDisplayName(res));
-    return resKey && (resKey.includes(catKey) || catKey.includes(resKey));
-  });
+export function bangkokDateKey(now: Date): string {
+  return bangkokDate.format(now);
+}
+
+function hasReachedDrawTime(item: LotteryCatalogItem, today: string, now: Date): boolean {
+  const drawDays = item.drawDays.trim().replace(/\s*-\s*/g, ' - ');
+  const weekdays = drawWeekdays[drawDays];
+  const announcedDate = drawDays === 'ตามประกาศวันงวดจริง (อาจเลื่อน)';
+  // For irregular draws, the caller still requires a published result dated today.
+  if (!announcedDate && !weekdays?.includes(new Date(today + 'T00:00:00Z').getUTCDay())) {
+    return false;
+  }
+  const time = item.drawTimeStr.match(/^(\d{1,2})[:.](\d{2})(?:\s|$)/);
+  if (!time || Number(time[1]) > 23 || Number(time[2]) > 59) return false;
+  return bangkokTime.format(now) >= time[1].padStart(2, '0') + ':' + time[2];
+}
+
+function drawDate(result: RawLotteryResult): string {
+  for (const date of [result.งวดวันที่, result.วันที่จัดรูปแบบ]) {
+    const value = date?.trim() ?? '';
+    const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T ])/);
+    if (iso) {
+      const year = Number(iso[1]);
+      return `${year >= 2400 ? year - 543 : year}-${iso[2]}-${iso[3]}`;
+    }
+    const numeric = value.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+    const thai = value.match(/^(\d{1,2})\s+(\S+)\s+(\d{4})$/);
+    const month = numeric ? Number(numeric[2]) : thaiMonths.indexOf(thai?.[2] ?? '') + 1;
+    const day = Number(numeric?.[1] ?? thai?.[1]);
+    const year = Number(numeric?.[3] ?? thai?.[3]);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year) {
+      return [year >= 2400 ? year - 543 : year, String(month).padStart(2, '0'), String(day).padStart(2, '0')].join('-');
+    }
+  }
+  return '';
 }
 
 export function mergeCatalogWithResults(
   catalog: LotteryCatalogItem[],
-  results: RawLotteryResult[]
+  results: RawLotteryResult[],
+  now = new Date(),
 ): LotteryCatalogItem[] {
+  const today = bangkokDateKey(now);
+  const current = results.filter((row) =>
+    drawDate(row) === today && /^\d{2}$/.test(getResolvedBottom2(row)) &&
+    (/^\d{3}$/.test(row.เลขบน_3_ตัว ?? '') || /^\d{6}$/.test(row.รางวัลที่_1 ?? ''))
+  );
   return catalog.map((item) => {
-    const matched = findMatchingResult(item, results);
-    if (matched) {
-      const top3 = item.top3?.trim() || getResolvedTop3(matched);
-      const bottom2 = item.bottom2?.trim() || getResolvedBottom2(matched);
-      const firstPrize = item.firstPrize?.trim() || matched.รางวัลที่_1 || '';
-      const isDrawn = Boolean(top3 || bottom2 || firstPrize);
-
-      return {
-        ...item,
-        status: isDrawn ? 'drawn' : 'waiting',
-        top3,
-        bottom2,
-        firstPrize,
-        date: item.date && item.date !== 'ไม่ระบุ' ? item.date : getDisplayDate(matched),
-        source: item.source || matched.แหล่งข้อมูล || 'ผลตรวจล่าสุด',
-      };
+    const name = normalizeName(item.name);
+    const eligible = item.id === 'thai_gov'
+      ? current.filter((row) => /^\d{6}$/.test(row.รางวัลที่_1 ?? ''))
+      : current;
+    const matched = eligible.find((row) => row.หวย === item.id) ??
+      eligible.find((row) => name && name === normalizeName(getDisplayName(row)));
+    if (!matched || !hasReachedDrawTime(item, today, now)) {
+      return { ...item, status: 'waiting', top3: '', bottom2: '', firstPrize: '', date: 'ไม่ระบุ', resultDate: undefined };
     }
-    return item;
+    const firstPrize = matched.รางวัลที่_1 ?? '';
+    const hasFirstPrize = /^\d{6}$/.test(firstPrize);
+    return {
+      ...item,
+      status: 'drawn',
+      // Government adapters can carry a derived suffix; show their actual first prize separately.
+      top3: ['thai_gov', 'gsb', 'baac'].includes(item.id) && hasFirstPrize ? '' : matched.เลขบน_3_ตัว ?? '',
+      bottom2: getResolvedBottom2(matched),
+      firstPrize: hasFirstPrize ? firstPrize : '',
+      date: getDisplayDate(matched),
+      resultDate: today,
+      source: matched.แหล่งข้อมูล || 'ผลตรวจล่าสุด',
+    };
   });
+}
+
+const LIVE_DATA_ROOT = 'https://raw.githubusercontent.com/jirapatza/Bombim00/runtime-live';
+async function fetchLiveJson(path: string, signal: AbortSignal): Promise<unknown> {
+  const response = await fetch(`${LIVE_DATA_ROOT}/${path}`, { cache: 'no-cache', signal });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
 }
 
 // LocalStorage Keys
@@ -172,29 +228,37 @@ export class LotteryRepository {
     }
   }
 
-  static refresh(): { status: SystemStatus; lotteries: LotteryCatalogItem[] } {
-    const now = new Date();
-    const thaiFormatter = new Intl.DateTimeFormat('th-TH', {
-      timeZone: 'Asia/Bangkok',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-    const currentThaiTime = `${thaiFormatter.format(now)} น.`;
+  private static refreshRequest: Promise<void> | undefined;
 
-    this.status = {
-      ...this.status,
-      last_run_date_thai: currentThaiTime,
-      total_checks: this.status.total_checks + 1,
-      status_message: `ตรวจพบผลล่าสุดและอัปเดตระบบเรียบร้อย (${currentThaiTime})`,
-    };
+  static refresh(): Promise<void> {
+    if (!this.refreshRequest) {
+      this.refreshRequest = this.loadLiveData().finally(() => { this.refreshRequest = undefined; });
+    }
+    return this.refreshRequest;
+  }
 
-    this.lotteries = mergeCatalogWithResults(defaultCatalog, this.results);
-    return { status: this.status, lotteries: this.lotteries };
+  private static async loadLiveData(): Promise<void> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+      const [catalog, results, rawStatus] = await Promise.all([
+        fetchLiveJson('data/all_lotteries.json', controller.signal),
+        fetchLiveJson('lottery_previous_results.json', controller.signal),
+        fetchLiveJson('status/status.json', controller.signal),
+      ]);
+      const status = rawStatus as SystemStatus | null;
+      if (!Array.isArray(catalog) || !catalog.length || !Array.isArray(results) ||
+          !status || !Number.isFinite(Date.parse(status.last_run_timestamp))) {
+        throw new Error('Invalid runtime data');
+      }
+      const current = mergeCatalogWithResults(catalog, results);
+      this.results = results;
+      this.lotteries = current;
+      this.status = status;
+    } finally {
+      clearTimeout(timeout);
+      controller.abort();
+    }
   }
 
   static checkTickets(rawInput: string): TicketCheckReport[] {
@@ -221,7 +285,7 @@ export class LotteryRepository {
 
         // Check first prize
         if (first && (first === num || (first.length === 6 && first.slice(-num.length) === num && (num.length === 2 || num.length === 3)))) {
-          if (first === num) {
+          if (first.length === 6 && first === num) {
             matchedWin = {
               ticketNumber: num,
               isWin: true,

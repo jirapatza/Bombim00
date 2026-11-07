@@ -51,7 +51,7 @@ export async function generateSummaryCanvas(
   ctx.fillText('รายการหวย', 70, 240);
 
   ctx.textAlign = 'center';
-  ctx.fillText('3 ตัวบน', 680, 240);
+  ctx.fillText('3 ตัวบน / รางวัลที่ 1', 680, 240);
   ctx.fillText('2 ตัวล่าง', 920, 240);
 
   // Draw Items
@@ -85,7 +85,7 @@ export async function generateSummaryCanvas(
       Boolean(item.firstPrize?.trim());
 
     // Top 3 Badge
-    const top3Text = item.top3?.trim() || (isDrawn ? '---' : 'รอผล');
+    const top3Text = item.top3?.trim() || item.firstPrize?.trim() || (isDrawn ? '---' : 'รอผล');
     drawRoundedRect(ctx, 590, rowTop + 8, 180, 60, 14, '#F59E0B');
     ctx.fillStyle = '#020617';
     ctx.font = 'bold 34px "JetBrains Mono", monospace';

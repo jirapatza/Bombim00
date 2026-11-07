@@ -778,6 +778,7 @@ def main():
     print("Lottery Alert Checker Started")
     print(f"Time (UTC): {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
+    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date()
     previous_results = sl.load_previous_results()
     rows, sources_used = [], []
     lottery_target = os.environ.get("LOTTERY_TARGET", "all").strip().lower() or "all"
@@ -814,7 +815,6 @@ def main():
         extra_rows = fetch_from_pholhuay_lao_extra()
         extra_dates = {sl._parse_draw_date(row) for row in rows
                        if sl.normalize_lottery_name(row.get("ชื่อหวย", "")) == sl.normalize_lottery_name("ลาว EXTRA")}
-        today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date()
         # Existing archived rows keep their original delivery history unchanged.
         extra_dates.update(sl._parse_draw_date(row) for row in previous_results
                            if sl.normalize_lottery_name(row.get("ชื่อหวย", "")) == sl.normalize_lottery_name("ลาว EXTRA")
@@ -828,8 +828,14 @@ def main():
         rows.extend(supplementary_rows)
         sources_used.append("LotteryChecks Lao/Hanoi")
 
-    # Government feeds are checked independently when requested, not only when every other lottery fails.
-    if lottery_target in government_targets and not any(_lottery_category(row) == "government" for row in rows):
+    # Old government rows and savings draws must not suppress the current government fallback.
+    if lottery_target in government_targets and not any(
+        (row.get("หวย") == "thailotto" or
+         sl.normalize_lottery_name(row.get("ชื่อหวย") or "") == "สลากกินแบ่งรัฐบาล")
+        and sl._parse_draw_date(row) == today
+        and re.fullmatch(r"[0-9]{6}", str(row.get("รางวัลที่_1") or ""))
+        for row in rows
+    ):
         for source_name, fetcher, source_label in (
             ("pholhuay", fetch_from_pholhuay, "pholhuay"),
             ("glo", fetch_from_glo, "glo"),
@@ -840,10 +846,15 @@ def main():
                 continue
             print(f"[CHECK] Querying government fallback source: {source_name}...")
             fallback_rows = fetcher()
-            if fallback_rows:
-                for row in fallback_rows:
-                    row.setdefault("หมวดหวย", "government")
-                rows.extend(fallback_rows)
+            current = [row for row in fallback_rows
+                       if sl._parse_draw_date(row) == today and all(sl.result_numbers(row))
+                       and re.fullmatch(r"[0-9]{6}", str(row.get("รางวัลที่_1") or ""))]
+            if current:
+                for row in current:
+                    row["ชื่อหวย"] = "สลากกินแบ่งรัฐบาล"
+                    row["หวย"] = "thailotto"
+                    row["หมวดหวย"] = "government"
+                rows = current + rows
                 sources_used.append(source_label)
                 break
 
@@ -855,7 +866,18 @@ def main():
             seen_rows.add(identity)
             unique_rows.append(row)
 
-    rows = filter_rows_by_target(unique_rows, lottery_target)
+    live_rows = filter_rows_by_target(
+        [row for row in unique_rows if datetime.date.min < sl._parse_draw_date(row) <= today],
+        lottery_target,
+    )
+    live_draws = {row_dedup_key(row)[:2] for row in live_rows}
+    pending = [
+        dict(row) for row in previous_results
+        if row.get("สถานะการแจ้งเตือน") in {"failed", "partial"}
+        and sl._parse_draw_date(row) == today
+        and row_dedup_key(row)[:2] not in live_draws
+    ]
+    rows = live_rows + filter_rows_by_target(pending, lottery_target)
     for row in rows:
         row["เลขบน_3_ตัว"], row["เลขล่าง_2_ตัว"] = sl.result_numbers(row)
     source_used = " + ".join(dict.fromkeys(sources_used)) or None
@@ -867,6 +889,7 @@ def main():
 
     force_notify = os.environ.get("FORCE_NOTIFY", "").strip().lower() == "true"
     delivered = []
+    live_ids = {id(row) for row in live_rows}
     for row in rows:
         row.setdefault("ชื่อหวย", "หวยไม่ระบุชื่อ")
         row.setdefault("แหล่งข้อมูล", source_used or "unknown")
@@ -876,7 +899,7 @@ def main():
             row, previous_results, active_channels or ["ntfy"]
         )
         # Backfill history for summaries, but never push old EXTRA draws (even with force).
-        if row.get("หวย") == "lao_extra" and sl._parse_draw_date(row) < datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date():
+        if row.get("หวย") == "lao_extra" and sl._parse_draw_date(row) < today:
             row["สถานะการแจ้งเตือน"] = "history_only"
             continue
         if not sl.should_notify(S, row):
@@ -885,7 +908,7 @@ def main():
         if not active_channels:
             row["สถานะการแจ้งเตือน"] = "disabled"
             continue
-        if force_notify:
+        if force_notify and id(row) in live_ids:
             row["notification_channels"] = {}
         if all(row["notification_channels"].get(name) == "sent" for name in active_channels):
             row["สถานะการแจ้งเตือน"] = "sent"
@@ -908,9 +931,10 @@ def main():
         if fingerprint not in seen:
             seen.add(fingerprint)
             merged.append(row)
-    sl.save_results(merged[:500])
-    sl.write_status(rows, source_used=source_used, notifications_sent=len(delivered))
-    print(f"[DONE] Checked {len(rows)} live result(s) for target '{lottery_target}'; delivered {len(delivered)} notification(s).")
+    sl.save_results(merged)
+    sl.write_status(rows, source_used=source_used, notifications_sent=len(delivered),
+                    live_results=bool(live_rows))
+    print(f"[DONE] Checked {len(live_rows)} live result(s) for target '{lottery_target}'; delivered {len(delivered)} notification(s).")
 
 
 if __name__ == "__main__":

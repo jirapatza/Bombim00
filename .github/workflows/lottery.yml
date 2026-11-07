@@ -19,8 +19,9 @@ on:
       - "tests/**"
       - ".github/workflows/lottery.yml"
   schedule:
-    # Poll every 5 minutes; GitHub may delay scheduled workflows.
-    - cron: '*/5 * * * *'
+    # Keep a five-minute cadence away from the top-of-hour scheduling peak.
+    # GitHub can still delay or drop scheduled runs.
+    - cron: '2-57/5 * * * *'
   workflow_dispatch:
     inputs:
       force_notify:
@@ -53,7 +54,7 @@ on:
         default: false
 
 concurrency:
-  group: bombim00-lottery-alert
+  group: ${{ github.event_name == 'pull_request' && format('bombim00-lottery-pr-{0}', github.event.pull_request.number) || 'bombim00-lottery-alert' }}
   cancel-in-progress: false
 
 permissions:

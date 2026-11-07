@@ -8,7 +8,6 @@ import {
   Play,
   Bell,
   Save,
-  CloudSync,
   Activity,
   Check,
 } from 'lucide-react';
@@ -63,13 +62,9 @@ export const SettingsScreen: React.FC<Props> = ({
     );
   };
 
-  const dataSources = [
-    { name: 'สำนักงานสลากกินแบ่งรัฐบาล (GLO Official)', active: true },
-    { name: 'ThaiLottoAPI (หุ้น / VIP / ลาว)', active: true },
-    { name: 'RANLOTTO Public API (ไทยสำรอง)', active: true },
-    { name: 'LotteryChecks API', active: true },
-    { name: 'Sanook / Pholhuay Fallback', active: false },
-  ];
+  const lastRun = Date.parse(status.last_run_timestamp);
+  const delayed = !Number.isFinite(lastRun) || Date.now() - lastRun > 15 * 60_000;
+  const healthy = status.system_status === 'healthy' && !delayed;
 
   return (
     <div className="space-y-4 pb-20">
@@ -185,7 +180,7 @@ export const SettingsScreen: React.FC<Props> = ({
             <h3 className="text-base font-bold text-slate-100">
               การแจ้งเตือน Push Notification (ntfy)
             </h3>
-            <p className="text-xs text-slate-400">เชื่อมต่อเซิร์ฟเวอร์แจ้งเตือนผลหวยสด</p>
+            <p className="text-xs text-slate-400">ค่าที่บันทึกในเบราว์เซอร์นี้เท่านั้น ระบบส่งผลอัตโนมัติใช้ค่าจาก GitHub Actions</p>
           </div>
         </div>
 
@@ -229,39 +224,6 @@ export const SettingsScreen: React.FC<Props> = ({
         </button>
       </div>
 
-      {/* Data Sources Status */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg space-y-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-400 text-slate-950 shadow-md">
-            <CloudSync className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-100">
-              สถานะแหล่งข้อมูล (Data Sources)
-            </h3>
-            <p className="text-xs text-slate-400">ความพร้อมและลำดับความสำคัญของ API</p>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          {dataSources.map((ds) => (
-            <div
-              key={ds.name}
-              className="flex items-center justify-between rounded-xl bg-slate-950 px-3.5 py-2.5 text-xs"
-            >
-              <span className="text-slate-200 truncate pr-2">{ds.name}</span>
-              <span
-                className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${
-                  ds.active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'
-                }`}
-              >
-                {ds.active ? 'พร้อมใช้งาน' : 'สแตนด์บาย'}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Diagnostics & System Health */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg space-y-2.5 text-xs">
         <div className="flex items-center gap-2">
@@ -270,10 +232,12 @@ export const SettingsScreen: React.FC<Props> = ({
         </div>
         <p className="text-slate-300">
           • สถานะระบบ:{' '}
-          <span className="font-bold text-emerald-400">
-            {status.system_status} (พร้อมทำงาน)
+          <span className={healthy ? 'font-bold text-emerald-400' : 'font-bold text-amber-400'}>
+            {delayed ? 'งานตรวจผลล่าช้า' : healthy ? 'ทำงานปกติ' :
+              status.system_status === 'error' ? 'ตรวจผลไม่สำเร็จ' : 'ทำงานได้บางส่วน'}
           </span>
         </p>
+        <p className="text-slate-300">{status.status_message}</p>
         <p className="text-slate-300">
           • ตรวจสอบแล้วทั้งหมด:{' '}
           <span className="font-mono-numbers font-bold text-slate-100">
@@ -287,7 +251,7 @@ export const SettingsScreen: React.FC<Props> = ({
         <p className="text-slate-300">
           • อัปเดตล่าสุด:{' '}
           <span className="font-bold text-amber-400">
-            {status.last_run_date_thai || '03/11/2026 01:43:47 น.'}
+            {status.last_run_date_thai || 'ไม่ทราบเวลา'}
           </span>
         </p>
       </div>
