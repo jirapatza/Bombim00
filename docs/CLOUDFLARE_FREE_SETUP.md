@@ -51,7 +51,7 @@ flowchart TD
 3. ใส่ UUID ที่ได้: `node configure.mjs <database_id> [account_id]` จะสร้าง `wrangler.local.json` ที่ไม่เข้า Git และยังหยุดทำงานอยู่
 4. ใช้ `npx --no-install wrangler d1 migrations apply DB --remote --config wrangler.local.json` ห้ามรันไฟล์ migration ตรงเพื่อรีเซ็ตฐานที่มีข้อมูล
 5. ติดตั้งตัวหยุดไว้ก่อน: `npx --no-install wrangler deploy --config wrangler.local.json`
-6. เจ้าของสร้าง fine-grained GitHub PAT เฉพาะ `jirapatza/Bombim00`: Contents read/write, Actions read และ Variables read จากนั้นใส่ผ่าน `npx --no-install wrangler secret put LOTTERY_RUNTIME_TOKEN --config wrangler.local.json` ใช้ token ที่เจ้าของสร้างเท่านั้น ไม่ส่งลงแชต ไม่ commit และไม่คัดลอกจาก credential ของ Coding Agent
+6. เจ้าของสร้าง fine-grained GitHub PAT เฉพาะ `jirapatza/Bombim00`: Contents read/write และ Actions read จากนั้นใส่ผ่าน `npx --no-install wrangler secret put LOTTERY_RUNTIME_TOKEN --config wrangler.local.json` ใช้ token ที่เจ้าของสร้างเท่านั้น ไม่ส่งลงแชต ไม่ commit และไม่คัดลอกจาก credential ของ Coding Agent
 7. ใส่ปลายทางเดิมผ่าน `npx --no-install wrangler secret put NTFY_TOPIC --config wrangler.local.json` ไม่ใช้ชื่อ topic สุ่มอัตโนมัติและไม่ส่งข้อความทดสอบโดยไม่ได้สั่ง
 8. ใน local config เปลี่ยน `ENABLED` เป็นสตริง `true` คง `MODE=observe` แล้ว deploy ด้วย config เดิม ตัวเดิมยังทำงานตามปกติ ตรวจ `/health` และ Metrics/CPU/ข้อผิดพลาดจริงตาม gate ข้างต้น ครอบคลุมแหล่งที่สำคัญและช่วงผลออกพร้อมกัน ตรวจ Settings ของ runtime-live ว่าแหล่งที่ต้องการเปิดใช้งานจริง
 9. เมื่อโหมดทดลองผ่านแล้ว Merge PR ที่ปิด schedule/dispatch/push ของ Actions และเพิ่ม `cloudflare/PRIMARY_CHECKER.json` บน main; รอรอบ Actions ที่กำลังทำงานทั้งหมดจบ หากมี Python worker ที่รันแยกนอก Actions ต้องหยุดก่อนด้วย (การแก้ workflow ไม่หยุด Python worker บนเครื่องอื่น)
