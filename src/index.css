@@ -554,6 +554,10 @@ select:focus-visible {
   min-width: 180px;
   color: #83a2c9;
 }
+.search-box:focus-within {
+  border-color: #1587ff;
+  box-shadow: 0 0 0 2px #1587ff;
+}
 .search-box input {
   width: 100%;
   background: transparent;

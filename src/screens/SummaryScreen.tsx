@@ -74,8 +74,8 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
 
     const ok = await copyText(lines.join('\n'));
     setCopyError(!ok);
+    setCopiedTextSuccess(ok);
     if (ok) {
-      setCopiedTextSuccess(true);
       setTimeout(() => setCopiedTextSuccess(false), 2000);
     }
   };

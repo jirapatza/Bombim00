@@ -45,6 +45,7 @@ export const Header: React.FC<Props> = ({
         <span className="desktop-label">รีเฟรชข้อมูล</span>
       </button>
       <span
+        role="status"
         className={`badge ${online && lastSynced && !liveDataError ? "green" : "gold"}`}
       >
         <Radio size={13} />

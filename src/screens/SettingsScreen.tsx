@@ -40,6 +40,7 @@ export const SettingsScreen: React.FC<Props> = ({
   const [ntfyTopic, setNtfyTopic] = useState(settings.ntfy.topic);
   const [ntfyPriority, setNtfyPriority] = useState(settings.ntfy.priority);
   const [formError, setFormError] = useState("");
+  const [ntfyError, setNtfyError] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleAddNumber = (e: React.FormEvent) => {
@@ -70,7 +71,7 @@ export const SettingsScreen: React.FC<Props> = ({
         server.hash ||
         !/^[A-Za-z0-9_-]+$/.test(ntfyTopic)
       ) {
-        setFormError(
+        setNtfyError(
           "ใช้ Server URL แบบ HTTP/HTTPS และ topic ที่มีตัวอักษรอังกฤษ ตัวเลข _ หรือ - เท่านั้น",
         );
         return;
@@ -80,10 +81,10 @@ export const SettingsScreen: React.FC<Props> = ({
         ntfyTopic,
         ntfyPriority,
       );
-      setFormError("");
+      setNtfyError("");
       setSavedSuccess(true);
     } catch {
-      setFormError(
+      setNtfyError(
         "บันทึกไม่ได้ ตรวจ URL และสิทธิ์พื้นที่จัดเก็บของเบราว์เซอร์",
       );
     }
@@ -160,7 +161,6 @@ export const SettingsScreen: React.FC<Props> = ({
             onChange={(e) => setNewNum(e.target.value.replace(/\D/g, ""))}
             data-testid="add_watched_number_input"
             aria-label="เลขที่เฝ้าดู"
-            maxLength={6}
             placeholder="ใส่เลข 2, 3 หรือ 6 หลัก"
             className="flex-1 rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono-numbers"
           />
@@ -283,6 +283,11 @@ export const SettingsScreen: React.FC<Props> = ({
           </div>
         </div>
 
+        {ntfyError && (
+          <p role="alert" className="rounded-xl bg-amber-950 p-3 text-amber-200">
+            {ntfyError}
+          </p>
+        )}
         <button
           onClick={handleSaveNtfy}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-slate-950 shadow-md hover:bg-amber-400 transition-colors"

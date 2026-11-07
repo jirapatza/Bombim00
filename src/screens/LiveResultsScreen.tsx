@@ -41,7 +41,8 @@ export const LiveResultsScreen: React.FC<Props> = ({
   const [category, setCategory] = useState("ทั้งหมด");
   const [period, setPeriod] = useState("ทั้งหมด");
   const [filter, setFilter] = useState<DrawState | "all">("all");
-  const [detail, setDetail] = useState<LotteryCatalogItem | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detail = lotteries.find((item) => item.id === detailId) ?? null;
   const [message, setMessage] = useState("");
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -68,7 +69,13 @@ export const LiveResultsScreen: React.FC<Props> = ({
         (period === "ทั้งหมด" || item.periodLabel === period)
       );
     })
-    .sort((a, b) => drawTimestamp(a, now) - drawTimestamp(b, now));
+    .sort((a, b) => {
+      const key = (item: LotteryCatalogItem) => {
+        const timestamp = drawTimestamp(item, now);
+        return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER;
+      };
+      return key(a) - key(b);
+    });
   const resultText = (item: LotteryCatalogItem) =>
     `${item.name} งวด ${item.date}\n${item.firstPrize ? `รางวัลที่ 1: ${item.firstPrize}\n` : ""}3 ตัวบน: ${item.top3 || "—"} / 2 ตัวล่าง: ${item.bottom2 || "—"}`;
   const copy = async (item: LotteryCatalogItem) =>
@@ -222,7 +229,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
               key={item.id}
               onClick={() => {
                 setMessage("");
-                setDetail(item);
+                setDetailId(item.id);
               }}
             >
               <span className="rank">{index + 1}</span>
@@ -387,7 +394,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
                         aria-label={`ดูผล ${item.name}`}
                         onClick={() => {
                           setMessage("");
-                          setDetail(item);
+                          setDetailId(item.id);
                         }}
                       >
                         ดูผล <ArrowRight size={14} />
@@ -416,8 +423,8 @@ export const LiveResultsScreen: React.FC<Props> = ({
           ref={dialogRef}
           className="result-dialog"
           aria-label={`ผล ${detail.name}`}
-          onClose={() => setDetail(null)}
-          onCancel={() => setDetail(null)}
+          onClose={() => setDetailId(null)}
+          onCancel={() => setDetailId(null)}
         >
           <div className="section-heading">
             <h2>
@@ -426,7 +433,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
             <button
               className="quiet-button"
               aria-label="ปิดรายละเอียด"
-              onClick={() => setDetail(null)}
+              onClick={() => setDetailId(null)}
             >
               <X size={19} />
             </button>
