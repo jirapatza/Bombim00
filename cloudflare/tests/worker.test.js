@@ -118,6 +118,40 @@ test('GitHub transport and invalid JSON failures are classified without revealin
   remote.request = async () => new Response('', { status: 401 });
   await assert.rejects(remote.api('GET', '/path'), { message: 'github_http_401' });
 });
+test('transient GitHub read failures retry once but non-idempotent writes never retry', async () => {
+  let calls = 0;
+  const remote = new RuntimeRepository('owner/repo', 'synthetic-token', async () => {
+    if (++calls === 1) throw new TypeError('transient private network detail');
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  });
+  assert.deepEqual(await remote.api('GET', '/git/ref/heads/runtime-live'), { ok: true });
+  assert.equal(calls, 2);
+  calls = 0;
+  remote.request = async () => {
+    calls++;
+    throw new TypeError('private network failure');
+  };
+  await assert.rejects(remote.api('POST', '/git/commits', { message: 'test' }), { message: 'github_network_commit' });
+  assert.equal(calls, 1);
+});
+
+test('GitHub GET retries temporary 503 but never retries authorization rejection', async () => {
+  let calls = 0;
+  const remote = new RuntimeRepository('owner/repo', 'synthetic-token', async () => {
+    calls++;
+    return new Response(JSON.stringify({ ok: true }), { status: calls === 1 ? 503 : 200 });
+  });
+  assert.deepEqual(await remote.api('GET', '/git/ref/heads/runtime-live'), { ok: true });
+  assert.equal(calls, 2);
+  calls = 0;
+  remote.request = async () => {
+    calls++;
+    return new Response('', { status: 403 });
+  };
+  await assert.rejects(remote.api('GET', '/git/ref/heads/runtime-live'), { message: 'github_http_403' });
+  assert.equal(calls, 1);
+});
+
 test('worker health persists only safe GitHub timeout labels and failing stage', async t => {
   const f = fixture(t);
   f.remote.snapshot = async () => { throw new Error('github_timeout_contents'); };
