@@ -2,6 +2,22 @@ export const INPUTS = ['config/settings.json', 'data/all_lotteries.json', 'lotte
 export const OUTPUTS = ['lottery_previous_results.json', 'status/status.json'];
 const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
+// Fixed endpoint labels only: never persist URLs, request bodies, tokens or transport messages.
+function githubEndpoint(path) {
+  if (path.startsWith('/git/ref/')) return 'ref';
+  if (path === '/git/commits' || path.startsWith('/git/commits/') || path.startsWith('/git/trees')) return 'commit';
+  if (path.startsWith('/contents/')) return 'contents';
+  if (path.startsWith('/actions/')) return 'writer';
+  if (path.startsWith('/git/refs/')) return 'publish';
+  return 'other';
+}
+function githubTransportError(error, path) {
+  if (error?.message === 'request_budget' || error?.message === 'https_required') return error;
+  // An explicit abort is not evidence of a transient network failure: do not retry it.
+  const kind = error?.name === 'AbortError' ? 'aborted' : error?.name === 'TimeoutError' ? 'timeout' : 'network';
+  return new Error(`github_${kind}_${githubEndpoint(path)}`);
+}
+
 export class RuntimeRepository {
   constructor(repository, token, request) {
     if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository) || !token) throw new Error('github_configuration');
@@ -9,18 +25,27 @@ export class RuntimeRepository {
     this.token = token; this.request = request;
   }
   async api(method, path, body, accept = 'application/vnd.github+json') {
-    let response;
-    try {
-      response = await this.request(this.base + path, { method, redirect: 'manual',
-        headers: { Authorization: `Bearer ${this.token}`, Accept: accept,
-          'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'Bombim00-Cloudflare', 'Content-Type': 'application/json' },
-        body: body === undefined ? undefined : JSON.stringify(body) });
-    } catch {
-      // Never include the transport exception, URL, headers, or token in health/logs.
-      throw new Error('github_network');
+    // A retry is safe only for idempotent reads. Never repeat Git writes or ntfy sends.
+    const maxAttempts = method === 'GET' ? 2 : 1;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      let response;
+      try {
+        response = await this.request(this.base + path, { method, redirect: 'manual',
+          headers: { Authorization: `Bearer ${this.token}`, Accept: accept,
+            'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'Bombim00-Cloudflare', 'Content-Type': 'application/json' },
+          body: body === undefined ? undefined : JSON.stringify(body) });
+      } catch (error) {
+        const safe = githubTransportError(error, path);
+        if (attempt + 1 < maxAttempts && /^github_(network|timeout)_/.test(safe.message)) continue;
+        throw safe;
+      }
+      if (!response.ok) {
+        await response.body?.cancel();
+        if (attempt + 1 < maxAttempts && [502, 503, 504].includes(response.status)) continue;
+        throw new Error(`github_http_${response.status}`);
+      }
+      try { return await response.json(); } catch { throw new Error('github_invalid_response'); }
     }
-    if (!response.ok) { await response.body?.cancel(); throw new Error(`github_http_${response.status}`); }
-    try { return await response.json(); } catch { throw new Error('github_invalid_response'); }
   }
   async assertWriter() {
     if ((await this.api('GET', '/actions/variables/LOTTERY_CHECKER_MODE')).value !== 'cloudflare') throw new Error('writer_mode');
