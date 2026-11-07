@@ -25,6 +25,7 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
   const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null);
   const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const [copiedTextSuccess, setCopiedTextSuccess] = useState(false);
 
   const periodOptions = ['รวมทั้งวัน', 'รอบเช้า', 'รอบบ่าย', 'รอบเย็น', 'รอบดึก'];
@@ -72,8 +73,9 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
     lines.push('\nติดตามผลหวยสดได้ที่ Lottery Alert');
 
     const ok = await copyText(lines.join('\n'));
+    setCopyError(!ok);
+    setCopiedTextSuccess(ok);
     if (ok) {
-      setCopiedTextSuccess(true);
       setTimeout(() => setCopiedTextSuccess(false), 2000);
     }
   };
@@ -92,6 +94,7 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
 
   return (
     <div className="space-y-4 pb-20">
+      {copyError && <p role="alert">คัดลอกไม่ได้ กรุณาตรวจสิทธิ์คลิปบอร์ด</p>}
       {/* Top Header Card with Summary Metrics */}
       <div className="rounded-2xl border border-amber-500/30 bg-slate-900 p-5 shadow-lg">
         <div className="flex items-start justify-between">
@@ -198,6 +201,7 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h4 className="text-base font-bold text-slate-100">ภาพสรุปผลหวย (Social Card)</h4>
               <button
+                aria-label="ปิดภาพสรุป"
                 onClick={() => {
                   setPreviewCanvas(null);
                   setPreviewDataUrl(null);
@@ -233,6 +237,7 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
                 ดาวน์โหลดรูปภาพ
               </button>
               <button
+                aria-label="ปิดภาพสรุป"
                 onClick={() => {
                   setPreviewCanvas(null);
                   setPreviewDataUrl(null);

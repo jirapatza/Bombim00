@@ -4,6 +4,7 @@ Lottery Alert System (ระบบแจ้งเตือนผลหวย)
 """
 
 import json
+import re
 import os
 import datetime
 import tempfile
@@ -84,6 +85,8 @@ def map_canonical_lottery_name(name: str) -> str:
                  ("hd", "ฮานอย HD"), ("tv", "ฮานอย TV"), ("ทีวี", "ฮานอย TV")]
         for token, canonical in named:
             if token in lower:
+                if canonical != "ฮานอย SVIP" and (re.search(r"(?<!s)vip", lower) or "วีไอพี" in s):
+                    return canonical + " VIP"
                 return canonical
         if "พิเศษ" in s or "17:30" in s or "17.30" in s:
             return "ฮานอยพิเศษ"
@@ -98,6 +101,11 @@ def map_canonical_lottery_name(name: str) -> str:
         vip = "vip" in lower or "วีไอพี" in s
         if "extra" in lower or "เอ็กซ์ตร้า" in s or "เอ็กตร้า" in s:
             return "ลาว EXTRA"
+        # Provider spellings must retain the round and VIP identity across sources.
+        if "ทีวี" in s or re.search(r"(?<![a-z])tv(?![a-z])", lower):
+            return "ลาว TV VIP" if vip else "ลาว TV"
+        if re.search(r"(?<![a-z])hd(?![a-z])", lower):
+            return "ลาว HD VIP" if vip else "ลาว HD"
         if "สามัคคี" in s:
             return "หวยลาวสามัคคี VIP" if vip else "หวยลาวสามัคคี"
         if "สตาร์" in s or "star" in lower:

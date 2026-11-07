@@ -123,6 +123,7 @@ export function mergeCatalogWithResults(
       firstPrize: hasFirstPrize ? firstPrize : '',
       date: getDisplayDate(matched),
       resultDate: today,
+      detectedAt: matched.เวลาที่ตรวจพบ,
       source: matched.แหล่งข้อมูล || 'ผลตรวจล่าสุด',
     };
   });
