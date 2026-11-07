@@ -105,12 +105,26 @@ test('diagnostics identify safe stages without exposing arbitrary exception mess
 });
 test('GitHub transport and invalid JSON failures are classified without revealing request details', async () => {
   const remote = new RuntimeRepository('owner/repo', 'synthetic-token', async () => { throw new Error('synthetic private diagnostic'); });
-  await assert.rejects(remote.api('GET', '/path'), { message: 'github_network' });
+  await assert.rejects(remote.api('GET', '/path'), { message: 'github_network_other' });
+  await assert.rejects(remote.api('GET', '/git/ref/heads/runtime-live'), { message: 'github_network_ref' });
+  remote.request = async () => { const error = new Error('sensitive URL or token must not be logged'); error.name = 'TimeoutError'; throw error; };
+  await assert.rejects(remote.api('GET', '/contents/config/settings.json'), { message: 'github_timeout_contents' });
+  remote.request = async () => { throw new Error('request_budget'); };
+  await assert.rejects(remote.api('GET', '/git/ref/heads/runtime-live'), { message: 'request_budget' });
   remote.request = async () => new Response('invalid private diagnostic', { status: 200 });
   await assert.rejects(remote.api('GET', '/path'), { message: 'github_invalid_response' });
   remote.request = async () => new Response('', { status: 401 });
   await assert.rejects(remote.api('GET', '/path'), { message: 'github_http_401' });
 });
+test('worker health persists only safe GitHub timeout labels and failing stage', async t => {
+  const f = fixture(t);
+  f.remote.snapshot = async () => { throw new Error('github_timeout_contents'); };
+  await assert.rejects(f.run(), { message: 'github_timeout_contents' });
+  assert.equal(f.db.state().error_stage, 'snapshot');
+  assert.equal(f.db.state().error, 'github_timeout_contents');
+  assert.equal(f.sends.length, 0);
+});
+
 test('D1 lease serializes overlap and rejects a stale resumed invocation', async t => {
   const db = database(); t.after(() => db.close()); let clock = 1000;
   const a = new DurableState(db, () => clock), b = new DurableState(db, () => clock);
