@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import worker, { cycle, sendNotification, boundedRequest } from '../src/worker.js';
 import { DurableState, RuntimeRepository, validateSnapshot, OUTPUTS } from '../src/storage.js';
 import { database } from './state-helper.js';
-import { drawDate, scheduled, numbers, mergeRows } from '../src/domain.js';
+import { drawDate, dueScheduleAlerts, scheduled, numbers, mergeRows } from '../src/domain.js';
 import { readFileSync } from 'node:fs';
 
 const now = new Date('2026-11-07T08:00:00Z'), today = '2026-11-07';
@@ -213,6 +213,75 @@ test('ntfy uses Thai JSON with distinct lower prize; rejects/timeouts do not bec
   assert.equal(await sendNotification({}, result(), 'x', async () => new Response('', { status: 429 })), 'failed');
   assert.equal(await sendNotification({}, result(), 'x', async () => new Response('', { status: 503 })), 'uncertain');
   assert.equal(await sendNotification({}, result(), 'x', async () => { throw new Error('timeout'); }), 'uncertain');
+});
+
+const scheduledLottery = { id: 'scheduled-test', name: 'หวยทดสอบ', drawDays: 'อังคาร-เสาร์',
+  closeTimeStr: '15:20 น.', drawTimeStr: '15:30 น.' };
+const bangkok = (time, date = today) => new Date(`${date}T${time}:00+07:00`);
+
+test('schedule alerts honor Bangkok day, individual deadlines and confirmed schedule rules', () => {
+  const catalog = [scheduledLottery,
+    { ...scheduledLottery, id: 'weekday', drawDays: 'จันทร์ - ศุกร์' },
+    { ...scheduledLottery, id: 'irregular', drawDays: 'ตามประกาศวันงวดจริง (อาจเลื่อน)' },
+    { ...scheduledLottery, id: 'invalid', closeTimeStr: '15:60 น.', drawTimeStr: '25:30 น.' }];
+  const kinds = time => dueScheduleAlerts(catalog, today, bangkok(time)).map(alert => alert.kind);
+  assert.deepEqual(kinds('15:09'), []);
+  assert.deepEqual(kinds('15:10'), ['closing']);
+  assert.deepEqual(kinds('15:20'), []);
+  assert.deepEqual(kinds('15:24'), []);
+  assert.deepEqual(kinds('15:25'), ['upcoming']);
+  assert.deepEqual(kinds('15:30'), []);
+  assert.deepEqual(dueScheduleAlerts(catalog, today, bangkok('00:00', '2026-11-08')), []);
+});
+
+function scheduleFixture(t, responses = []) {
+  const messages = [];
+  const f = fixture(t, {
+    now: bangkok('15:10'),
+    collect: async () => ({ rows: [], sources: [], errors: ['synthetic unavailable source'] }),
+    request: async (_url, { body }) => {
+      messages.push(JSON.parse(body));
+      return new Response(null, { status: responses.shift() ?? 200 });
+    },
+  });
+  f.data['data/all_lotteries.json'] = [scheduledLottery];
+  return { ...f, messages };
+}
+
+test('sends each schedule alert once via ntfy even with no source result, independently of the result ledger', async t => {
+  const f = scheduleFixture(t);
+  f.env.MODE = 'observe';
+  await f.run();
+  assert.equal(f.messages.length, 0);
+  f.env.MODE = 'deliver';
+  f.data['config/settings.json'].notifications = { enabled: false };
+  await f.run();
+  assert.equal(f.messages.length, 0);
+  f.data['config/settings.json'].notifications.enabled = true;
+  await f.run();
+  await f.run();
+  f.dependencies.now = bangkok('15:25');
+  await f.run();
+  await f.run();
+  assert.deepEqual(f.messages.map(({ topic, title, message }) => [topic, title, message]), [
+    ['synthetic-local-topic', 'ใกล้ปิดรับ', 'หวยทดสอบ ปิดรับ เวลา 15:20 น.'],
+    ['synthetic-local-topic', 'หวยรายการถัดไป', 'หวยทดสอบ ออกผลตามตาราง เวลา 15:30 น.'],
+  ]);
+  assert.deepEqual(f.data[OUTPUTS[0]], []);
+  assert.equal(f.data[OUTPUTS[1]].notifications_sent_today, 0);
+  assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 2);
+});
+
+test('retries a definite schedule rejection before the deadline and never repeats an uncertain send', async t => {
+  const f = scheduleFixture(t, [429, 503]);
+  await f.run();
+  assert.equal(f.data[OUTPUTS[1]].schedule_alert_failures, 1);
+  f.dependencies.now = bangkok('15:11');
+  await f.run();
+  f.dependencies.now = bangkok('15:12');
+  assert.equal((await f.run()).uncertain, 1);
+  assert.equal(f.messages.length, 2);
+  assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 0);
 });
 test('preflight rejects are retryable, while same-named transport errors remain uncertain', async t => {
   let fetches = 0;
