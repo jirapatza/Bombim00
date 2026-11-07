@@ -294,10 +294,10 @@ test('writer requires reviewed PR-only workflow and no active non-PR Actions run
   assert.ok(!prOnly.includes('NTFY_TOPIC'));
   assert.ok(!prOnly.includes('python lottery_checker.py'));
   for (const invalid of [
-    prOnly.replace('  pull_request:', '  schedule:\\n    - cron: "* * * * *"\\n  pull_request:'),
-    prOnly.replace('  pull_request:', '  workflow_dispatch:\\n  pull_request:'),
-    prOnly.replace('  pull_request:', '  push:\\n  pull_request:'),
-    prOnly + '\\n  - run: python lottery_checker.py\\n',
+    prOnly.replace('  pull_request:', '  schedule:\n    - cron: "* * * * *"\n  pull_request:'),
+    prOnly.replace('  pull_request:', '  workflow_dispatch:\n  pull_request:'),
+    prOnly.replace('  pull_request:', '  push:\n  pull_request:'),
+    prOnly + '\n  - run: python lottery_checker.py\n',
   ]) {
     current = invalid;
     await assert.rejects(remote.assertWriter(), /writer_mode/);
