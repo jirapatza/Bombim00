@@ -1,5 +1,6 @@
 import React from "react";
 import { Volume2, VolumeX, RefreshCw, Radio } from "lucide-react";
+import { connectionHealth, connectionLabels } from "../utils/checkerHealth";
 interface Props {
   currentTimeString: string;
   isVoiceEnabled: boolean;
@@ -9,6 +10,8 @@ interface Props {
   online: boolean;
   lastSynced: string;
   liveDataError: boolean;
+  lastRunTimestamp: string;
+  checkerStatus: string;
 }
 export const Header: React.FC<Props> = ({
   currentTimeString,
@@ -19,7 +22,11 @@ export const Header: React.FC<Props> = ({
   online,
   lastSynced,
   liveDataError,
-}) => (
+  lastRunTimestamp,
+  checkerStatus,
+}) => {
+  const health = connectionHealth(online, lastSynced, liveDataError, lastRunTimestamp, checkerStatus);
+  return (
   <header className="app-header">
     <div>
       <span className="mobile-brand">
@@ -46,16 +53,11 @@ export const Header: React.FC<Props> = ({
       </button>
       <span
         role="status"
-        className={`badge ${online && lastSynced && !liveDataError ? "green" : "gold"}`}
+        className={`badge ${health === "connected" ? "green" : "gold"}`}
+        title={health === "checker-stale" ? "เว็บโหลดข้อมูลได้ แต่ตัวตรวจผลฝั่งเซิร์ฟเวอร์ไม่ได้อัปเดตภายใน 15 นาที" : undefined}
       >
         <Radio size={13} />
-        {!online
-          ? "ออฟไลน์"
-          : liveDataError
-            ? "โหลดไม่สำเร็จ"
-            : lastSynced
-              ? "เชื่อมต่อแล้ว"
-              : "กำลังเชื่อมต่อ"}
+        {connectionLabels[health]}
       </span>
       <button
         className="quiet-button"
@@ -68,4 +70,5 @@ export const Header: React.FC<Props> = ({
       </button>
     </div>
   </header>
-);
+  );
+};
