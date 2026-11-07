@@ -13,7 +13,7 @@ import { LotteryRepository } from '../data/lotteryRepository';
 
 interface Props {
   reports: TicketCheckReport[];
-  onCheck: (input: string) => void;
+  onCheck: (input: string, drawKey: string) => TicketCheckReport[];
   onClear: () => void;
 }
 
@@ -23,16 +23,18 @@ export const TicketCheckerScreen: React.FC<Props> = ({
   onClear,
 }) => {
   const [inputText, setInputText] = useState('');
+  const [drawKey, setDrawKey] = useState('');
+  const draws = LotteryRepository.getTicketDraws();
 
   const winCount = reports.filter((r) => r.isWin).length;
 
   const handleRunCheck = () => {
     if (!inputText.trim()) return;
-    onCheck(inputText);
+    const generatedReports = onCheck(inputText, drawKey);
 
     // If any ticket won, fire celebratory confetti
     setTimeout(() => {
-      const generatedReports = LotteryRepository.checkTickets(inputText);
+
       if (generatedReports.some((r) => r.isWin)) {
         try {
           confetti({
@@ -53,12 +55,6 @@ export const TicketCheckerScreen: React.FC<Props> = ({
     onClear();
   };
 
-  const quickSamples = [
-    { sample: '85, 224', label: 'ผลงวดล่าสุด' },
-    { sample: '071, 92', label: 'หวยออมสิน' },
-    { sample: '612, 21', label: 'หวย ธ.ก.ส.' },
-  ];
-
   return (
     <div className="space-y-4 pb-20">
       {/* Hero Card */}
@@ -77,6 +73,15 @@ export const TicketCheckerScreen: React.FC<Props> = ({
           กรอกตัวเลขที่ต้องการตรวจ (คั่นด้วยเครื่องหมายจุลภาค เว้นวรรค หรือขึ้นบรรทัดใหม่):
         </p>
 
+        <label className="mt-3 block text-xs text-slate-300">
+          เลือกหวยและงวดที่ต้องการตรวจ
+          <select aria-label="หวยและงวด" value={drawKey} onChange={(e) => { setDrawKey(e.target.value); onClear(); }}
+            className="mt-2 w-full min-w-0 rounded-xl bg-slate-950 p-3">
+            <option value="">กรุณาเลือกหวยและงวด</option>
+            {draws.map((draw) => <option key={draw.key} value={draw.key}>{draw.label}</option>)}
+          </select>
+        </label>
+        <p className="mt-2 text-xs text-slate-400">ตรวจเฉพาะรางวัลที่มีข้อมูลในงวดที่เลือก ไม่ครอบคลุมรางวัลอื่นที่แหล่งข้อมูลไม่ได้ระบุ</p>
         {/* Textarea */}
         <textarea
           value={inputText}
@@ -86,24 +91,11 @@ export const TicketCheckerScreen: React.FC<Props> = ({
           className="mt-2 h-28 w-full resize-none rounded-xl border border-slate-800 bg-slate-950 p-3 text-sm text-slate-100 placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
         />
 
-        {/* Quick Sample Chips */}
-        <div className="mt-2.5 flex flex-wrap gap-2">
-          {quickSamples.map((q) => (
-            <button
-              key={q.label}
-              onClick={() => setInputText(q.sample)}
-              className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:border-amber-500/50 hover:text-amber-400 transition-colors"
-            >
-              {q.label} ({q.sample})
-            </button>
-          ))}
-        </div>
-
         {/* Action Buttons */}
         <div className="mt-4 flex gap-3">
           <button
             onClick={handleRunCheck}
-            disabled={!inputText.trim()}
+            disabled={!inputText.trim() || !drawKey}
             data-testid="check_tickets_button"
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 py-3 text-sm font-bold text-slate-950 shadow-md hover:bg-amber-400 transition-colors disabled:opacity-50"
           >
@@ -151,7 +143,7 @@ export const TicketCheckerScreen: React.FC<Props> = ({
                     ? `ยินดีด้วย! ถูกรางวัล ${winCount} รายการ 🎉`
                     : 'ไม่พบตัวเลขที่ถูกรางวัล'}
                 </h4>
-                <p className="text-xs text-slate-400">ตรวจทั้งหมด {reports.length} หมายเลข</p>
+                <p className="text-xs text-slate-400">ผลการตรวจ {reports.length} รายการ</p>
               </div>
             </div>
           </div>

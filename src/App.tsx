@@ -148,9 +148,10 @@ export const App: React.FC = () => {
     []
   );
 
-  const handleCheckTickets = useCallback((input: string) => {
-    const reports = LotteryRepository.checkTickets(input);
+  const handleCheckTickets = useCallback((input: string, drawKey: string) => {
+    const reports = LotteryRepository.checkTickets(input, drawKey);
     setTicketReports(reports);
+    return reports;
   }, []);
 
   const handleClearTickets = useCallback(() => {

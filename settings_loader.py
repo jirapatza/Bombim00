@@ -6,6 +6,7 @@ Lottery Alert System (ระบบแจ้งเตือนผลหวย)
 import json
 import os
 import datetime
+import tempfile
 from typing import Dict, Any, List, Optional
 
 DEFAULT_SETTINGS_PATH = "config/settings.json"
@@ -177,14 +178,22 @@ def result_numbers(row: Dict[str, Any]) -> tuple[str, str]:
     """Return only real upper-three and lower-two digits, preserving leading zeros."""
     def digits(keys, width):
         for key in keys:
-            value = str(row.get(key) if row.get(key) is not None else "").strip()
-            if value.isascii() and value.isdigit():
-                return value[-width:].zfill(width)
+            value = row.get(key)
+            if value is None or value == "":
+                continue
+            text = str(value).strip()
+            if not (text.isascii() and text.isdigit()):
+                return ""
+            # Explicit result fields must already have their declared width.
+            if key in ("รางวัลที่_1", "firstPrize", "first"):
+                return text[-3:] if len(text) in (3, 5, 6) else ""
+            return text if len(text) == width else ""
         return ""
     return (
         digits(("เลขบน_3_ตัว", "top3", "รางวัลที่_1", "firstPrize", "first"), 3),
         digits(("เลขล่าง_2_ตัว", "เลขท้าย_2_ตัว", "bottom2", "last2"), 2),
     )
+
 
 
 def result_fingerprint(row: Dict[str, Any]) -> str:
@@ -334,10 +343,12 @@ def write_status(
             "level": "ERROR",
             "message": status_message
         })
-    elif not rows or live_results is False:
+    elif not rows or live_results is False or not any(_parse_draw_date(row) == now.date() for row in rows):
         # No live result is not the same as a healthy result check.
         system_status = "degraded"
         status_message = "ไม่พบผลหวยสดจากแหล่งข้อมูลที่เปิดใช้งาน"
+        if rows:
+            status_message += f" (งวดล่าสุด {latest_row.get('งวดวันที่') or latest_row.get('วันที่จัดรูปแบบ') or 'ไม่ระบุ'})"
         if notifications_sent:
             status_message += f" ส่งผลที่ค้างจากรอบก่อนสำเร็จ {notifications_sent} รายการ"
         if failed_deliveries:
@@ -389,11 +400,7 @@ def write_status(
         "recent_logs": recent_logs
     }
 
-    try:
-        with open(status_path, "w", encoding="utf-8") as f:
-            json.dump(status_data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[ERROR] Failed to write status to {status_path}: {e}")
+    _atomic_json_write(status_data, status_path)
 
     return status_data
 
@@ -402,19 +409,29 @@ def load_previous_results(path: str = DEFAULT_RESULTS_PATH) -> List[Dict[str, An
     """Load previously saved lottery results with Thai keys."""
     if not os.path.exists(path):
         return []
+    with open(path, "r", encoding="utf-8") as f:
+        rows = json.load(f)
+    if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+        raise ValueError("Invalid notification history; refusing to send without valid history")
+    return rows
+
+
+def _atomic_json_write(value: Any, path: str) -> None:
+    directory = os.path.dirname(path) or "."
+    os.makedirs(directory, exist_ok=True)
+    temporary = None
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"[WARN] Failed to load previous results: {e}")
-        return []
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=directory, delete=False) as f:
+            temporary = f.name
+            json.dump(value, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.unlink(temporary)
 
 
 def save_results(rows: List[Dict[str, Any]], path: str = DEFAULT_RESULTS_PATH) -> None:
-    """Save lottery results to lottery_previous_results.json."""
-    os.makedirs(os.path.dirname(path) if os.path.dirname(path) else ".", exist_ok=True)
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(rows, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[ERROR] Failed to save results to {path}: {e}")
+    """Persist complete history atomically; failures must fail the checker run."""
+    _atomic_json_write(rows, path)

@@ -898,8 +898,8 @@ def main():
         row["notification_channels"] = sl.previous_notification_channels(
             row, previous_results, active_channels or ["ntfy"]
         )
-        # Backfill history for summaries, but never push old EXTRA draws (even with force).
-        if row.get("หวย") == "lao_extra" and sl._parse_draw_date(row) < today:
+        # Retain historical results without publishing them as new alerts (even with force).
+        if sl._parse_draw_date(row) < today:
             row["สถานะการแจ้งเตือน"] = "history_only"
             continue
         if not sl.should_notify(S, row):
@@ -926,14 +926,17 @@ def main():
             print(f"[ERROR] Delivery incomplete for {row.get('ชื่อหวย', 'unknown lottery')}; failed channels remain retryable.")
 
     merged, seen = [], set()
-    for row in rows + previous_results:
+    # Historical provider backfills must not replace persisted delivery records.
+    current_rows = [row for row in rows if sl._parse_draw_date(row) == today]
+    historical_rows = [row for row in rows if sl._parse_draw_date(row) < today]
+    for row in current_rows + previous_results + historical_rows:
         fingerprint = sl.result_fingerprint(row)
         if fingerprint not in seen:
             seen.add(fingerprint)
             merged.append(row)
     sl.save_results(merged)
     sl.write_status(rows, source_used=source_used, notifications_sent=len(delivered),
-                    live_results=bool(live_rows))
+                    live_results=any(sl._parse_draw_date(row) == today for row in live_rows))
     print(f"[DONE] Checked {len(live_rows)} live result(s) for target '{lottery_target}'; delivered {len(delivered)} notification(s).")
 
 
