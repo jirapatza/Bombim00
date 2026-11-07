@@ -13,7 +13,7 @@ function githubEndpoint(path) {
 }
 function githubTransportError(error, path) {
   if (error?.message === 'request_budget' || error?.message === 'https_required') return error;
-  const kind = error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'timeout' : 'network';
+  const kind = error?.name === 'TimeoutError' ? 'timeout' : 'network';
   return new Error(`github_${kind}_${githubEndpoint(path)}`);
 }
 
