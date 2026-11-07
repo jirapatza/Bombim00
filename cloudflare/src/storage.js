@@ -2,6 +2,21 @@ export const INPUTS = ['config/settings.json', 'data/all_lotteries.json', 'lotte
 export const OUTPUTS = ['lottery_previous_results.json', 'status/status.json'];
 const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
+// Fixed endpoint labels only: never persist URLs, request bodies, tokens or transport messages.
+function githubEndpoint(path) {
+  if (path.startsWith('/git/ref/')) return 'ref';
+  if (path.startsWith('/git/commits/') || path.startsWith('/git/trees')) return 'commit';
+  if (path.startsWith('/contents/')) return 'contents';
+  if (path.startsWith('/actions/')) return 'writer';
+  if (path.startsWith('/git/refs/')) return 'publish';
+  return 'other';
+}
+function githubTransportError(error, path) {
+  if (error?.message === 'request_budget' || error?.message === 'https_required') return error;
+  const kind = error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'timeout' : 'network';
+  return new Error(`github_${kind}_${githubEndpoint(path)}`);
+}
+
 export class RuntimeRepository {
   constructor(repository, token, request) {
     if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository) || !token) throw new Error('github_configuration');
@@ -15,9 +30,9 @@ export class RuntimeRepository {
         headers: { Authorization: `Bearer ${this.token}`, Accept: accept,
           'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'Bombim00-Cloudflare', 'Content-Type': 'application/json' },
         body: body === undefined ? undefined : JSON.stringify(body) });
-    } catch {
-      // Never include the transport exception, URL, headers, or token in health/logs.
-      throw new Error('github_network');
+    } catch (error) {
+      // Stable, non-sensitive diagnostic identifies the failing GitHub operation.
+      throw githubTransportError(error, path);
     }
     if (!response.ok) { await response.body?.cancel(); throw new Error(`github_http_${response.status}`); }
     try { return await response.json(); } catch { throw new Error('github_invalid_response'); }
