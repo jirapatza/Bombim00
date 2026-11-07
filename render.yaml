@@ -1,0 +1,28 @@
+# Creates a separate paid worker only when an owner applies this Blueprint.
+# Review compute/disk pricing in Render first; the existing website is not changed.
+services:
+  - type: worker
+    name: bombim00-lottery-worker
+    runtime: docker
+    repo: https://github.com/jirapatza/Bombim00
+    branch: main
+    dockerfilePath: ./Dockerfile.worker
+    dockerContext: .
+    dockerCommand: python /app/deploy/start_worker.py
+    autoDeployTrigger: 'off'
+    numInstances: 1
+    disk:
+      name: lottery-delivery-state
+      mountPath: /var/data/lottery
+      sizeGB: 1
+    envVars:
+      - key: GITHUB_REPOSITORY
+        value: jirapatza/Bombim00
+      - key: LOTTERY_WORKER_STATE_DIR
+        value: /var/data/lottery
+      - key: LOTTERY_POLL_SECONDS
+        value: '15'
+      - key: LOTTERY_RUNTIME_TOKEN
+        sync: false
+      - key: NTFY_TOPIC
+        sync: false

@@ -1,5 +1,7 @@
 <!-- coderabbit-ai-generated:v1 -->
 
+<!-- coderabbit-ai-generated-section:v1:d95bbc111e12e04674924e4298ecfa47cb4a5e7ef6b3504f4846166fc04ab56b -->
+
 <!-- coderabbit-ai-generated-section:v1:ce8ccd857978d3841b8c382f15040ae16072e809e3677be4253494b08e36c1e2 -->
 
 <!-- coderabbit-ai-generated-section:v1:f6311527b3353215707341df3c44317d49722838e057e657fbe6ac5595f663ed -->
@@ -91,6 +93,29 @@ Worker อ่านเฉพาะ JSON 4 ไฟล์จาก commit ที่
 เป้าหมาย 15 วินาทีเป็นช่วง polling ไม่ใช่ SLA เวลาถึงโทรศัพท์ ยังขึ้นกับเวลาที่ provider เปิดเผยข้อมูล/แคช, network และ ntfy/Android โดย LotteryChecks fallback มี cache ที่เอกสารระบุ 300 วินาที จึงไม่กล่าวอ้างว่าแจ้งทันทีทุกแหล่ง ข้อมูลหน้าเว็บยังผ่าน GitHub raw/CDN และอาจมี cache แม้เปลี่ยน URL query ทุก polling bucket
 
 สถานะ ณ การพัฒนา: ทดสอบด้วย mocks และ Preview แล้ว ยังไม่ได้สลับ Actions variable, เพิ่มบริการภายนอก, ส่งข้อความจริง หรือ deploy จึงยังไม่ถือว่าการแจ้งผลแบบ realtime ใน production เปิดใช้งานแล้ว
+
+
+<!-- /coderabbit-ai-generated:v1 -->
+
+## เปิด worker บน Render ด้วย Blueprint
+
+ไฟล์ `render.yaml` เตรียม service `bombim00-lottery-worker` แยกจากเว็บเดิม ใช้ Dockerfile.worker, main branch, persistent disk 1 GB และหนึ่ง instance ไม่แก้ configuration ของเว็บเดิม และปิด automatic deployment ของ worker ไว้เพื่อให้ตรวจแต่ละ release ก่อนใช้งาน Blueprint นี้ยังไม่ถูก apply และไม่ได้สร้างบริการที่มีค่าใช้จ่าย
+
+ตรวจและอนุมัติค่าใช้จ่าย compute/disk ที่ Render แสดงก่อนสร้าง service เพราะ worker พร้อม disk เป็นบริการแบบชำระเงินตาม [คู่มือ persistent disks](https://render.com/docs/disks) ไม่เก็บค่าใช้จ่ายตายตัวในเอกสารนี้
+
+ลำดับเปิดใช้ที่แนะนำ:
+
+1. ให้เจ้าของตรวจและอนุมัติ PR #50 ก่อน merge เนื่องจากมีการเปลี่ยน core logic/workflow ตาม AGENTS.md
+2. หลัง merge ใช้ Render Dashboard > New Blueprint เลือก repository นี้และไฟล์ render.yaml ตรวจว่าแผนสร้างเฉพาะ worker แยกหนึ่งตัว พร้อม disk ที่ `/var/data/lottery` หากมี service ชื่อซ้ำให้ตรวจ configuration ก่อน apply
+3. ตั้ง LOTTERY_RUNTIME_TOKEN และ NTFY_TOPIC ในช่อง secret ของ Render ที่ Blueprint ถาม ห้ามส่งค่าลับในแชตหรือ commit token ใช้สิทธิ์ Contents Read/Write, Variables Read, Actions Read เฉพาะ repository นี้
+4. ปล่อยให้ service เตรียมพร้อมก่อน การเริ่ม worker จะตรวจ LOTTERY_CHECKER_MODE ที่ GitHub และปฏิเสธการส่งถ้า Actions ยังเป็นตัวเขียนอยู่ การที่เริ่มไม่สำเร็จตรงนี้ไม่ใช่เหตุให้ลบการตรวจ single writer
+5. เมื่อ service/disk/secrets พร้อมแล้ว ให้บัญชีที่มีสิทธิ์ตั้ง Actions variable LOTTERY_CHECKER_MODE=continuous และรอ checker เดิมจบทุกงาน จากนั้น restart/deploy worker เพื่อเริ่มรอบตรวจ ห้ามเปิดหลายตัวพร้อมกัน
+6. Render ใช้ `python /app/deploy/start_worker.py` ซึ่งตรวจ mount point จริงก่อนสร้าง marker `.persistent-volume-confirmed` แล้วเริ่ม worker ถ้าไม่ได้ mount disk จะหยุดก่อนใช้ storage ชั่วคราว จึงไม่ต้องเปิด shell เพื่อสร้าง marker เองเมื่อใช้ Blueprint นี้ การรัน worker โดยตรงตามคู่มือเดิมยังต้องยืนยัน disk เอง
+7. เปิดดู worker logs และ runtime-live/status/status.json ยืนยัน timestamp อัปเดตต่อเนื่อง จากนั้นรอผลงวดที่ตรงตารางและตรวจว่า ntfy/โทรศัพท์รับผล พร้อมเทียบเวลาต้นทาง–ตรวจพบ–server รับข้อความ การเห็นเว็บโหลดได้หรือ CI ผ่านไม่แทนขั้นตรวจผลจริงนี้
+
+การเปิด Blueprint อาจทำให้เกิดค่าใช้จ่ายทันทีตามหน้าสรุปของ Render ต้องตรวจหน้าแผนก่อนยืนยัน [Blueprint specification](https://render.com/docs/blueprint-spec) เป็นแหล่งอ้างอิง field ที่ใช้ ส่วน [Background workers](https://render.com/docs/background-workers) อธิบายประเภท service
+
+สถานะตรวจครั้งล่าสุด: PR preview ที่ https://bombim-pr-50.onrender.com เปิดได้และกรองรายการวันเสาร์ถูกต้อง GitHub integration ของ task อ่าน/แก้ variables และ secrets ไม่ได้ (HTTP 403) และ cloud browser ยังไม่ได้ login Render จึงยังไม่ได้ apply Blueprint หรือสลับตัวส่งจริง อย่าปิด checker เดิมก่อนบริการใหม่และสิทธิ์พร้อม
 
 
 <!-- /coderabbit-ai-generated:v1 -->
