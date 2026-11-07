@@ -10,6 +10,12 @@ export type ConnectionHealth =
   | "checker-unhealthy"
   | "connected";
 
+/** Accept only server heartbeats within the past 15 minutes (with 60s clock skew). */
+export function checkerHeartbeatFresh(lastRunTimestamp: string, now = Date.now()): boolean {
+  const lastRun = Date.parse(lastRunTimestamp);
+  return Number.isFinite(lastRun) && lastRun <= now + 60_000 && now - lastRun <= 15 * 60_000;
+}
+
 /**
  * Classify the current connection without conflating browser fetch success
  * with the server checker heartbeat. A missing, invalid, future or older-than-
@@ -28,10 +34,7 @@ export function connectionHealth(
   if (liveDataError) return "load-error";
   if (!lastSynced) return "connecting";
 
-  const lastRun = Date.parse(lastRunTimestamp);
-  // Reject missing, invalid, or implausibly future timestamps as well as stale ones.
-  if (!Number.isFinite(lastRun) || lastRun > now + 60_000 || now - lastRun > 15 * 60_000)
-    return "checker-stale";
+  if (!checkerHeartbeatFresh(lastRunTimestamp, now)) return "checker-stale";
   if (checkerStatus !== "healthy") return "checker-unhealthy";
   return "connected";
 }
