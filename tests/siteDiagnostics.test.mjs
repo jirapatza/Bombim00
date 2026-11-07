@@ -92,3 +92,10 @@ test('diagnostics reject unknown ingestion hosts', async () => {
     globalThis.fetch = oldFetch;
   }
 });
+
+test('Docker build accepts the public PostHog Vite configuration', () => {
+  const dockerfile = readFileSync('Dockerfile', 'utf8');
+  assert.match(dockerfile, /^ARG VITE_POSTHOG_PROJECT_TOKEN$/m);
+  assert.match(dockerfile, /^ARG VITE_POSTHOG_HOST$/m);
+  assert.match(dockerfile, /^RUN npm run build$/m);
+});
