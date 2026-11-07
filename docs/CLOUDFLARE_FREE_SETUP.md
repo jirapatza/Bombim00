@@ -34,7 +34,7 @@ flowchart TD
 
 ใช้บัญชี Workers Free และ D1 Free เท่านั้น ไม่มีโค้ดเปิด Workers Paid, R2, Queues, Containers หรือบริการเสียเงิน ต้องตรวจแผนในหน้า Billing ของบัญชีที่เลือกก่อนติดตั้ง หากบัญชีนั้นเป็น Paid อยู่แล้วให้หยุดและใช้บัญชี Free ตามที่เจ้าของเลือก
 
-ข้อจำกัดอ้างอิงเอกสารวันที่ 7 พ.ย. 2026: Workers Free 100,000 requests/วันต่อบัญชี, CPU 10 ms/invocation และ 50 subrequests/invocation; Cron ทุกนาทีประมาณ 1,440 ครั้ง/วันก่อนรวม health/การเรียกอื่น D1 Free มี 5 ล้าน rows read/วัน, 100,000 rows written/วัน, 5 GB รวม และสูงสุด 50 binding queries/invocation โค้ดจำกัด external fetch ไม่เกิน 38 ครั้งต่อรอบปกติ บวก D1 ไม่เกินประมาณ 12 ครั้ง รวมทางเดินข้อผิดพลาดทั่วไป ไม่มี network retry อัตโนมัติใน invocation
+ข้อจำกัดอ้างอิงเอกสารวันที่ 7 พ.ย. 2026: Workers Free 100,000 requests/วันต่อบัญชี, CPU 10 ms/invocation และ 50 subrequests/invocation; Cron ทุกนาทีประมาณ 1,440 ครั้ง/วันก่อนรวม health/การเรียกอื่น D1 Free มี 5 ล้าน rows read/วัน, 100,000 rows written/วัน, 5 GB รวม และสูงสุด 50 binding queries/invocation โค้ดจำกัด external fetch ไม่เกิน 38 ครั้งต่อรอบ รวมการลองซ้ำ GET ของ GitHub ได้อีกไม่เกินหนึ่งครั้งต่อคำขอเมื่อเกิดเครือข่ายล้มเหลว หมดเวลา หรือ HTTP 502/503/504; ไม่ลองซ้ำคำขอเขียน GitHub หรือส่ง ntfy เพื่อป้องกันการส่งซ้ำ และมี D1 ไม่เกินประมาณ 12 ครั้งในรอบปกติ
 
 **Build และการทดสอบในเครื่องไม่ยืนยัน CPU 10 ms บน Cloudflare** ต้องรันโหมด observe บนบัญชี Free และตรวจ CPU/subrequests/errors ใน Metrics หรือ `wrangler tail --format json` ทั้งรอบธรรมดาและรอบผลออกพร้อมกัน ก่อนเปลี่ยนเป็น deliver ถ้าเกินเพดานให้คง Actions และปรับแบ่งงานใน PR ถัดไป ห้ามแก้ด้วยการอัปเกรด Paid โดยไม่ได้รับอนุญาต การดึง HTML และประวัติที่โตขึ้นอาจทำให้เกิน CPU ในอนาคตได้
 
@@ -58,6 +58,15 @@ flowchart TD
 10. เปลี่ยน local config เป็น `MODE=deliver` แล้ว deploy ตรวจ `/health`, GitHub runtime-live status/results, การยอมรับส่งจาก ntfy และให้เจ้าของยืนยันว่าโทรศัพท์ได้รับจริง การที่ ntfy HTTP200 ไม่พิสูจน์ว่าโทรศัพท์ได้รับหรือพูดเสียงไทยแล้ว
 
 Cron ของ Cloudflare อาจใช้เวลาถึง 15 นาทีในการกระจายตารางครั้งแรก ผลในเว็บยังอาจช้าจากการเผยแพร่ raw GitHub/cache และเวลาอัปเดตของแหล่งต้นทาง
+
+## เหตุขัดข้องที่ตรวจพบ 7 พ.ย. 2026 และเงื่อนไขสลับตัวรัน
+
+- ตัวตั้งเวลา GitHub Actions ระบุทุก 5 นาที แต่รอบที่สังเกตจริงห่าง 40–61 นาที จึงไม่เหมาะเป็นตัวตรวจหลักที่ต้องการความเร็ว
+- Cloudflare Worker ที่ติดตั้งจริงตั้ง `ENABLED=true`, `MODE=observe`, Cron ทุกนาที แต่ D1 แสดง `error=github_network`, `error_stage=snapshot` และยังไม่มี `lastObservation` หรือ `lastSuccess` จึง **ห้ามเปิด deliver หรือปิด Actions** จนตรวจสำเร็จจริง
+- PR แก้การวินิจฉัยเพิ่มรหัสปลอดภัย เช่น `github_network_ref`, `github_timeout_contents` และ retry GET ที่ปลอดภัยหนึ่งครั้ง รหัสเหล่านี้บอกขั้นตอนที่ล้มเหลวเท่านั้น ไม่แสดง URL, token หรือข้อความ exception และไม่ยืนยันว่าต้นเหตุถูกแก้แล้ว
+- หลัง Deploy PR ที่ได้รับอนุมัติ ให้รอ Cron และอ่าน D1 `worker_state` / `/health` จน `lastObservation.at` สดภายใน 5 นาทีและไม่มี error ติดต่อกันหลายรอบ รวมช่วงเวลาที่แหล่งผลออกจริง; ตรวจ Free CPU และจำนวน subrequests
+- ก่อนสลับตัวส่งต้องมี `NTFY_TOPIC` เป็น secret ของ Worker, สิทธิ์ GitHub Contents/Actions/Variables ที่จำเป็น, `LOTTERY_CHECKER_MODE=cloudflare` และไม่มี Actions checker ที่ยังทำงาน ตรวจ D1 ledger เพื่อไม่ส่งผลเดิมซ้ำ
+- หลังเปิดส่งจริง ตรวจ ntfy HTTP acceptance, runtime-live status และการรับบน Android แยกกัน หากไม่ผ่านให้หยุด Worker อย่างปลอดภัยและย้อนกลับตามหัวข้อด้านล่าง **ห้ามเปิดสองตัวส่งพร้อมกัน**
 
 ## การตรวจสุขภาพและซ่อม
 
