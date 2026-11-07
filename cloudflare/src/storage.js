@@ -48,7 +48,11 @@ export class RuntimeRepository {
     }
   }
   async assertWriter() {
-    if ((await this.api('GET', '/actions/variables/LOTTERY_CHECKER_MODE')).value !== 'cloudflare') throw new Error('writer_mode');
+    // The main-branch cutover marker is merged together with the PR-only
+    // GitHub workflow. A missing or stale marker fails closed before ntfy sends.
+    const gate = await this.api('GET', '/contents/cloudflare/PRIMARY_CHECKER.json?ref=main',
+      undefined, 'application/vnd.github.raw+json');
+    if (gate?.mode !== 'cloudflare' || gate?.legacy_workflow !== 'pr-only' || gate?.poll_seconds !== 60) throw new Error('writer_mode');
     // Query each active state: an old queued run must not be hidden by newer completed runs.
     for (const status of ['queued', 'in_progress', 'waiting', 'pending', 'requested']) {
       const data = await this.api('GET', `/actions/workflows/lottery.yml/runs?status=${status}&per_page=100`);
