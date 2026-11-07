@@ -80,7 +80,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
       return key(a) - key(b);
     });
   const resultText = (item: LotteryCatalogItem) =>
-    `${item.name} งวด ${item.date}\n${item.firstPrize ? `รางวัลที่ 1: ${item.firstPrize}\n` : ""}3 ตัวบน: ${item.top3 || "—"} / 2 ตัวล่าง: ${item.bottom2 || "—"}`;
+    `${item.name} งวด ${item.date}\n${item.firstPrize ? `รางวัลที่ 1: ${item.firstPrize}` : `3 ตัว: ${item.top3 || "—"}`} / 2 ตัว: ${item.bottom2 || "—"}`;
   const copy = async (item: LotteryCatalogItem) =>
     setMessage(
       (await copyText(resultText(item)))

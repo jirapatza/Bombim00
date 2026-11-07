@@ -51,7 +51,7 @@ export async function generateSummaryCanvas(
   ctx.fillText('รายการหวย', 70, 240);
 
   ctx.textAlign = 'center';
-  ctx.fillText('3 ตัวบน / รางวัลที่ 1', 680, 240);
+  ctx.fillText('3 ตัว / รางวัลที่ 1', 680, 240, 230);
   ctx.fillText('2 ตัวล่าง', 920, 240);
 
   // Draw Items
@@ -85,12 +85,15 @@ export async function generateSummaryCanvas(
       Boolean(item.firstPrize?.trim());
 
     // Top 3 Badge
-    const top3Text = item.top3?.trim() || item.firstPrize?.trim() || (isDrawn ? '---' : 'รอผล');
+    const isFirstPrize = Boolean(item.firstPrize?.trim());
+    const top3Text = (isFirstPrize ? item.firstPrize : item.top3)?.trim() || (isDrawn ? '---' : 'รอผล');
     drawRoundedRect(ctx, 590, rowTop + 8, 180, 60, 14, '#F59E0B');
     ctx.fillStyle = '#020617';
-    ctx.font = 'bold 34px "JetBrains Mono", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(top3Text, 680, rowTop + 50);
+    ctx.font = 'bold 17px Prompt, sans-serif';
+    ctx.fillText(isFirstPrize ? 'รางวัลที่ 1' : '3 ตัว', 680, rowTop + 27);
+    ctx.font = `bold ${isFirstPrize ? 29 : 32}px "JetBrains Mono", monospace`;
+    ctx.fillText(top3Text, 680, rowTop + 57, 170);
 
     // Bottom 2 Badge
     const bottom2Text = item.bottom2?.trim() || (isDrawn ? '--' : 'รอผล');

@@ -8,7 +8,7 @@ const result = await build({
   format: "esm",
   write: false,
 });
-const { shareCanvasImage, copyText } = await import(
+const { shareCanvasImage, copyText, generateSummaryCanvas } = await import(
   `data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString("base64")}`
 );
 test("image sharing awaits the asynchronous share result and falls back only on failure, not cancellation", async () => {
@@ -64,5 +64,32 @@ test("clipboard rejection returns failure so callers cannot claim a successful c
   } finally {
     if (descriptor) Object.defineProperty(globalThis, "navigator", descriptor);
     else delete globalThis.navigator;
+  }
+});
+
+test("summary image labels full first prize separately from three-digit results", async () => {
+  const oldDocument = globalThis.document;
+  const labels = [];
+  const noop = () => {};
+  const ctx = {
+    createLinearGradient: () => ({ addColorStop: noop }),
+    fillRect: noop, fillText: (value) => labels.push(value),
+    save: noop, restore: noop, beginPath: noop, moveTo: noop,
+    lineTo: noop, quadraticCurveTo: noop, closePath: noop,
+    fill: noop, stroke: noop,
+  };
+  globalThis.document = { createElement: () => ({ getContext: () => ctx }) };
+  try {
+    await generateSummaryCanvas("summary", "today", "all", [
+      { name: "Thai", flag: "", closeTimeStr: "15:00", status: "drawn", firstPrize: "123456", top3: "", bottom2: "12" },
+      { name: "Other", flag: "", closeTimeStr: "14:00", status: "drawn", firstPrize: "", top3: "789", bottom2: "34" },
+    ]);
+    assert.ok(labels.includes("รางวัลที่ 1"));
+    assert.ok(labels.includes("123456"));
+    assert.ok(labels.includes("3 ตัว"));
+    assert.ok(labels.includes("789"));
+  } finally {
+    if (oldDocument === undefined) delete globalThis.document;
+    else globalThis.document = oldDocument;
   }
 });

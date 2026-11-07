@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   Share2,
   Copy,
@@ -7,7 +7,7 @@ import {
   Check,
   Sparkles,
 } from 'lucide-react';
-import { bangkokDateKey } from '../data/lotteryRepository';
+import { publishedSummaryResults } from '../data/dashboard';
 import { LotteryCatalogItem } from '../types/lottery';
 import {
   generateSummaryCanvas,
@@ -31,12 +31,11 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
   const periodOptions = ['รวมทั้งวัน', 'รอบเช้า', 'รอบบ่าย', 'รอบเย็น', 'รอบดึก'];
 
   const now = new Date();
-  const today = bangkokDateKey(now);
   const bangkokDateStr = new Intl.DateTimeFormat('th-TH', {
     timeZone: 'Asia/Bangkok', year: 'numeric', month: 'long', day: 'numeric',
   }).format(now);
 
-  const published = lotteries.filter((item) => item.status === 'drawn' && item.resultDate === today);
+  const published = publishedSummaryResults(lotteries, now);
   const period = periodOptions.indexOf(selectedPeriodTab);
   const displayedItems = period > 0
     ? published.filter((item) => item.period === ['morning', 'afternoon', 'evening', 'night'][period - 1])
@@ -67,8 +66,8 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
       `🗓 วันที่ ${bangkokDateStr}\n`,
     ];
     displayedItems.forEach((it) => {
-      const top = it.firstPrize ? `รางวัลที่ 1 ${it.firstPrize}` : `3 ตัวบน ${it.top3}`;
-      lines.push(`${it.flag} ${it.name}: ${top} / ล่าง ${it.bottom2}`);
+      const top = it.firstPrize ? `รางวัลที่ 1 ${it.firstPrize}` : `3 ตัว ${it.top3}`;
+      lines.push(`${it.flag} ${it.name}: ${top} / 2 ตัว ${it.bottom2}`);
     });
     lines.push('\nติดตามผลหวยสดได้ที่ Lottery Alert');
 
@@ -146,7 +145,11 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
           return (
             <button
               key={p}
-              onClick={() => setSelectedPeriodTab(p)}
+              onClick={() => {
+                setSelectedPeriodTab(p);
+                setPreviewCanvas(null);
+                setPreviewDataUrl(null);
+              }}
               className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
                 isSelected
                   ? 'bg-amber-500 text-slate-950 shadow-md'
@@ -162,7 +165,7 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
       {/* Summary Table Header */}
       <div className="flex items-center rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-slate-400 border border-slate-800">
         <div className="flex-1 min-w-0">ชื่อหวย & รอบ</div>
-        <div className="w-24 text-center text-amber-400">3 ตัวบน</div>
+        <div className="w-24 text-center text-amber-400">3 ตัว / รางวัลที่ 1</div>
         <div className="w-24 text-center text-emerald-400">2 ตัวล่าง</div>
       </div>
 
@@ -184,8 +187,9 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
                 {item.firstPrize && <p className="text-xs text-amber-300">รางวัลที่ 1 {item.firstPrize}</p>}
               </div>
             </div>
-            <div className="w-24 rounded-lg bg-amber-500 py-1 text-center text-sm font-black text-slate-950">
-              {item.top3 || '—'}
+            <div className="w-24 rounded-lg bg-amber-500 px-1 py-1 text-center text-slate-950" aria-label={item.firstPrize ? `รางวัลที่ 1 ${item.firstPrize}` : `3 ตัว ${item.top3 || "—"}`}>
+              <span className="block text-[10px] font-semibold">{item.firstPrize ? 'รางวัลที่ 1' : '3 ตัว'}</span>
+              <span className={item.firstPrize ? 'block text-xs font-black' : 'block text-sm font-black'}>{item.firstPrize || item.top3 || '—'}</span>
             </div>
             <div className="ml-2 w-24 rounded-lg bg-emerald-500 py-1 text-center text-sm font-black text-slate-950">
               {item.bottom2}
