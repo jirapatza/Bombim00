@@ -48,6 +48,9 @@ export const LiveResultsScreen: React.FC<Props> = ({
   useEffect(() => {
     if (detail && !dialogRef.current?.open) dialogRef.current?.showModal();
   }, [detail?.id]);
+  useEffect(() => {
+    if (detailId && !detail) setDetailId(null);
+  }, [detailId, detail]);
   const summaryRef = useRef<HTMLElement>(null);
   const now = new Date();
   const data = dashboardData(lotteries, now);
