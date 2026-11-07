@@ -44,7 +44,7 @@ export async function sendNotification(settings, row, topic, request) {
     return [400, 401, 403, 404, 413, 422, 429].includes(response.status) ? 'failed' : 'uncertain';
   } catch (error) { return error instanceof PreflightError ? 'failed' : 'uncertain'; }
 }
-const safeError = error => /^(github_http_\d{3}|github_network|github_invalid_response|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
+const safeError = error => /^(github_http_\d{3}|github_network|github_invalid_response|github_(network|timeout)_(ref|commit|contents|writer|publish|other)|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
 function makeStatus(previous, rows, live, sources, errors, sent, uncertain, now) {
   const day = bangkokDay(now), time = new Date(+now + 7 * 3600000).toISOString().replace('Z', '+07:00');
   const thaiDate = `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;
