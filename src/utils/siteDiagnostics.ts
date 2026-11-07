@@ -15,10 +15,11 @@ const token = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN || '';
 const configuredHost = import.meta.env.VITE_POSTHOG_HOST || '';
 const allowedHosts = new Set(['https://us.i.posthog.com', 'https://eu.i.posthog.com']);
 const host = allowedHosts.has(configuredHost.replace(/\/$/, '')) ? configuredHost.replace(/\/$/, '') : '';
-const enabled = /^phc_[A-Za-z0-9]+$/.test(token) && Boolean(host);
+// Disable diagnostics rather than fall back to weak randomness on older browsers.
 const sessionId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
   ? crypto.randomUUID()
-  : Math.random().toString(36).slice(2);
+  : '';
+const enabled = /^phc_[A-Za-z0-9]+$/.test(token) && Boolean(host) && Boolean(sessionId);
 
 export function trackDiagnostic(event: DiagnosticEvent, area: DiagnosticArea = 'app'): void {
   if (!enabled || typeof window === 'undefined' || typeof fetch !== 'function') return;
