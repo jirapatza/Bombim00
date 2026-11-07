@@ -8,7 +8,7 @@ const bundle = await build({
   format: "esm",
   write: false,
 });
-const { dashboardData, drawState, drawTimestamp, countdown } = await import(
+const { dashboardData, drawState, drawTimestamp, countdown, publishedSummaryResults } = await import(
   `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
 );
 const now = new Date("2026-11-07T08:00:00Z"); // 15:00 Bangkok
@@ -76,4 +76,16 @@ test("results cannot appear before their scheduled time or on another Bangkok da
   }), now), "pending");
   assert.equal(dashboardData([item("past", "01:30 น.")], now).next, null);
   assert.equal(countdown(1, 2), "00 : 00 : 00");
+});
+
+test("summary and sharing exclude results before draw time and from another Bangkok day", () => {
+  const rows = [
+    item("early", "20:00 น.", { status: "drawn", resultDate: "2026-11-07", top3: "111" }),
+    item("ready", "14:00 น.", { status: "drawn", resultDate: "2026-11-07", top3: "222" }),
+    item("old", "13:00 น.", { status: "drawn", resultDate: "2026-11-06", top3: "333" }),
+    item("waiting", "14:30 น.", { status: "waiting", resultDate: "2026-11-07" }),
+  ];
+  assert.deepEqual(publishedSummaryResults(rows, now).map((x) => x.id), ["ready"]);
+  assert.deepEqual(publishedSummaryResults(rows, new Date("2026-11-07T13:00:00Z")).map((x) => x.id), ["early", "ready"]);
+  assert.deepEqual(publishedSummaryResults(rows, new Date("2026-11-07T17:00:00Z")), []);
 });
