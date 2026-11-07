@@ -30,16 +30,27 @@ export function publishedSummaryResults(items: LotteryCatalogItem[], now = new D
   return items.filter((item) => drawState(item, now) === "drawn");
 }
 
+// All rows follow the day's schedule. A filtered list of overdue or announced
+// draws starts with the most recent scheduled draw, not an old midnight entry.
+export function sortDailyRows(
+  items: LotteryCatalogItem[],
+  state: DrawState | "all" = "all",
+  now = new Date(),
+): LotteryCatalogItem[] {
+  const descending = state === "pending" || state === "drawn";
+  return [...items].sort((a, b) => {
+    const ta = drawTimestamp(a, now), tb = drawTimestamp(b, now);
+    if (!Number.isFinite(ta)) return Number.isFinite(tb) ? 1 : String(a.name || "").localeCompare(String(b.name || ""), "th");
+    if (!Number.isFinite(tb)) return -1;
+    return (descending ? tb - ta : ta - tb) || String(a.name || "").localeCompare(String(b.name || ""), "th");
+  });
+}
+
 export function dashboardData(items: LotteryCatalogItem[], now = new Date()) {
   const drawn = items.filter((item) => drawState(item, now) === "drawn");
-  const latest = [...drawn]
-    .sort(
-      (a, b) =>
-        (Date.parse(b.detectedAt || "") || drawTimestamp(b, now) || 0) -
-          (Date.parse(a.detectedAt || "") || drawTimestamp(a, now) || 0) ||
-        (drawTimestamp(b, now) || 0) - (drawTimestamp(a, now) || 0),
-    )
-    .slice(0, 3);
+  // Provider rows may receive a new detectedAt timestamp on every poll.
+  // The draw schedule, not a repeated fetch time, defines "latest result".
+  const latest = sortDailyRows(drawn, "drawn", now).slice(0, 3);
   const upcoming = items
     .filter((item) => drawState(item, now) === "upcoming")
     .sort((a, b) => drawTimestamp(a, now) - drawTimestamp(b, now));
@@ -63,6 +74,6 @@ export function countdown(target: number, now = Date.now()): string {
 }
 export const stateLabels: Record<DrawState, string> = {
   drawn: "ประกาศผลแล้ว",
-  pending: "กำลังรอผล",
+  pending: "ถึงเวลาแล้ว / รอผล",
   upcoming: "ยังไม่ถึงเวลา",
 };

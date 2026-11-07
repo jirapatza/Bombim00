@@ -8,7 +8,7 @@ const bundle = await build({
   format: "esm",
   write: false,
 });
-const { dashboardData, drawState, drawTimestamp, countdown, publishedSummaryResults } = await import(
+const { dashboardData, drawState, drawTimestamp, countdown, publishedSummaryResults, sortDailyRows } = await import(
   `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
 );
 const now = new Date("2026-11-07T08:00:00Z"); // 15:00 Bangkok
@@ -32,7 +32,7 @@ test("next draw uses announcement time with Thai suffix, not close time or catal
   assert.equal(data.upcoming, 2);
   assert.equal(countdown(drawTimestamp(data.next, now), +now), "00 : 10 : 00");
 });
-test("latest three use detection timestamp, scheduled time breaks tied polls, do not mutate source", () => {
+test("latest three use scheduled draw time, not repeated provider detection timestamps", () => {
   const items = [
     item("old", "10:00", {
       status: "drawn",
@@ -54,7 +54,7 @@ test("latest three use detection timestamp, scheduled time breaks tied polls, do
   ];
   assert.deepEqual(
     dashboardData(items, now).latest.map((x) => x.id),
-    ["late", "tie", "old"],
+    ["unknown", "tie", "late"],
   );
   assert.equal(items[0].id, "old");
 });
@@ -88,4 +88,30 @@ test("summary and sharing exclude results before draw time and from another Bang
   assert.deepEqual(publishedSummaryResults(rows, now).map((x) => x.id), ["ready"]);
   assert.deepEqual(publishedSummaryResults(rows, new Date("2026-11-07T13:00:00Z")).map((x) => x.id), ["early", "ready"]);
   assert.deepEqual(publishedSummaryResults(rows, new Date("2026-11-07T17:00:00Z")), []);
+});
+
+test("overdue filter shows the most recent missed draw first while all rows stay chronological", () => {
+  const atNight = new Date("2026-11-07T16:11:00Z"); // 23:11 Bangkok
+  const items = [
+    item("midnight", "00:30 น.", { name: "ดาวโจนส์ VIP" }),
+    item("one", "01:30 น.", { name: "ดาวโจนส์ STAR" }),
+    item("four", "04:00 น.", { name: "ดาวโจนส์" }),
+    item("evening", "20:30 น.", { name: "ลาวสามัคคี" }),
+    item("late", "22:30 น.", { name: "ฮานอย EXTRA" }),
+    item("future", "23:30 น.", { name: "ลาวกาชาด" }),
+  ];
+  assert.deepEqual(sortDailyRows(items.filter(x => drawState(x, atNight) === "pending"), "pending", atNight).map(x => x.id),
+    ["late", "evening", "four", "one", "midnight"]);
+  assert.deepEqual(sortDailyRows(items, "all", atNight).map(x => x.id),
+    ["midnight", "one", "four", "evening", "late", "future"]);
+  assert.equal(drawState(items[0], atNight), "pending");
+  assert.equal(drawState(items[5], atNight), "upcoming");
+});
+test("results with identical poll timestamps still follow their scheduled draw order", () => {
+  const items = [
+    item("older", "17:30 น.", { name: "ฮานอยพิเศษ", status: "drawn", resultDate: "2026-11-07", detectedAt: "2026-11-07T16:10:00Z" }),
+    item("newer", "20:30 น.", { name: "ลาวสามัคคี", status: "drawn", resultDate: "2026-11-07", detectedAt: "2026-11-07T16:10:00Z" }),
+  ];
+  assert.deepEqual(dashboardData(items, new Date("2026-11-07T16:11:00Z")).latest.map(x => x.id),
+    ["newer", "older"]);
 });
