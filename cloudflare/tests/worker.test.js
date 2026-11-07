@@ -110,7 +110,7 @@ test('GitHub transport and invalid JSON failures are classified without revealin
   remote.request = async () => { const error = new Error('sensitive URL or token must not be logged'); error.name = 'TimeoutError'; throw error; };
   await assert.rejects(remote.api('GET', '/contents/config/settings.json'), { message: 'github_timeout_contents' });
   remote.request = async () => { const error = new Error('manual abort'); error.name = 'AbortError'; throw error; };
-  await assert.rejects(remote.api('GET', '/git/ref/heads/runtime-live'), { message: 'github_network_ref' });
+  await assert.rejects(remote.api('GET', '/git/ref/heads/runtime-live'), { message: 'github_aborted_ref' });
   remote.request = async () => { throw new Error('request_budget'); };
   await assert.rejects(remote.api('GET', '/git/ref/heads/runtime-live'), { message: 'request_budget' });
   remote.request = async () => new Response('invalid private diagnostic', { status: 200 });
@@ -132,6 +132,18 @@ test('transient GitHub read failures retry once but non-idempotent writes never 
     throw new TypeError('private network failure');
   };
   await assert.rejects(remote.api('POST', '/git/commits', { message: 'test' }), { message: 'github_network_commit' });
+  assert.equal(calls, 1);
+});
+
+test('GitHub explicit abort is not retried, unlike transient transport failures', async () => {
+  let calls = 0;
+  const remote = new RuntimeRepository('owner/repo', 'synthetic-token', async () => {
+    calls++;
+    const error = new Error('private abort reason');
+    error.name = 'AbortError';
+    throw error;
+  });
+  await assert.rejects(remote.api('GET', '/git/ref/heads/runtime-live'), { message: 'github_aborted_ref' });
   assert.equal(calls, 1);
 });
 
