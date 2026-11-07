@@ -36,7 +36,7 @@ export function trackDiagnostic(event: DiagnosticEvent, area: DiagnosticArea = '
     },
   });
   try {
-    void fetch(host + '/capture/', {
+    void fetch(host + '/i/v0/e', {
       method: 'POST',
       mode: 'cors',
       credentials: 'omit',
