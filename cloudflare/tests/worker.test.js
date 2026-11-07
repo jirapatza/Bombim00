@@ -133,6 +133,30 @@ test('ntfy uses Thai JSON with distinct lower prize; rejects/timeouts do not bec
   assert.equal(await sendNotification({}, result(), 'x', async () => new Response('', { status: 503 })), 'uncertain');
   assert.equal(await sendNotification({}, result(), 'x', async () => { throw new Error('timeout'); }), 'uncertain');
 });
+test('preflight rejects are retryable, while same-named transport errors remain uncertain', async t => {
+  let fetches = 0;
+  const neverSent = boundedRequest(async () => { fetches++; return new Response(); }, Date.now() - 1);
+  assert.equal(await sendNotification({}, result(), 'x', neverSent), 'failed');
+  const insecure = boundedRequest(async () => { fetches++; return new Response(); });
+  assert.equal(await sendNotification({ channels: { ntfy: { server: 'http://example.test' } } }, result(), 'x', insecure), 'failed');
+  assert.equal(await sendNotification({ channels: { ntfy: { server: 'invalid' } } }, result(), 'x', insecure), 'failed');
+  assert.equal(fetches, 0);
+  const transport = boundedRequest(async () => { throw new Error('request_budget'); });
+  assert.equal(await sendNotification({}, result(), 'x', transport), 'uncertain');
+
+  const f = fixture(t);
+  delete f.dependencies.send;
+  f.dependencies.request = neverSent;
+  await f.run();
+  assert.equal(f.data[OUTPUTS[0]][0].สถานะการแจ้งเตือน, 'failed');
+  assert.equal(Object.values(f.db.state().deliveries)[0].state, 'failed');
+  let accepted = 0;
+  f.dependencies.collect = async () => ({ rows: [], sources: [], errors: ['synthetic timeout'] });
+  f.dependencies.request = boundedRequest(async () => { accepted++; return new Response(); });
+  await f.run(); await f.run();
+  assert.equal(accepted, 1);
+  assert.equal(f.data[OUTPUTS[0]][0].สถานะการแจ้งเตือน, 'sent');
+});
 test('request budget and redirects prevent unbounded subrequests or token forwarding', async () => {
   const options = [], request = boundedRequest(async (_url, o) => { options.push(o); return new Response(''); });
   for (let i = 0; i < 38; i++) await request('https://example.test');

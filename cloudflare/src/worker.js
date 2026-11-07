@@ -3,6 +3,8 @@ import { collect } from './providers.js';
 import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './storage.js';
 
 const MAX_SENDS = 3;
+// Only raised locally before fetch begins. A transport failure must stay uncertain.
+class PreflightError extends Error {}
 function finishPublish(state, now) {
   const status = state.pending.status;
   state.lastCheck = { status: status.system_status, notification_failures: status.notification_failures,
@@ -14,9 +16,10 @@ function finishPublish(state, now) {
 export function boundedRequest(fetcher, deadline = Date.now() + 50000) {
   let calls = 0;
   return async (url, options = {}) => {
-    if (++calls > 38 || Date.now() >= deadline) throw new Error('request_budget');
-    const target = new URL(url);
-    if (target.protocol !== 'https:' || target.username || target.password) throw new Error('https_required');
+    if (++calls > 38 || Date.now() >= deadline) throw new PreflightError('request_budget');
+    let target;
+    try { target = new URL(url); } catch { throw new PreflightError('https_required'); }
+    if (target.protocol !== 'https:' || target.username || target.password) throw new PreflightError('https_required');
     return fetcher(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(Math.max(1, Math.min(7000, deadline - Date.now()))) });
   };
 }
@@ -37,7 +40,7 @@ export async function sendNotification(settings, row, topic, request) {
     if (response.status === 200) return 'sent';
     // A definite rejection is retryable. A timeout or 5xx might follow acceptance.
     return [400, 401, 403, 404, 413, 422, 429].includes(response.status) ? 'failed' : 'uncertain';
-  } catch { return 'uncertain'; }
+  } catch (error) { return error instanceof PreflightError ? 'failed' : 'uncertain'; }
 }
 const safeError = error => /^(github_http_\d{3}|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
 function makeStatus(previous, rows, live, sources, errors, sent, uncertain, now) {
