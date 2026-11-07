@@ -9,12 +9,18 @@ export class RuntimeRepository {
     this.token = token; this.request = request;
   }
   async api(method, path, body, accept = 'application/vnd.github+json') {
-    const response = await this.request(this.base + path, { method, redirect: 'error',
-      headers: { Authorization: `Bearer ${this.token}`, Accept: accept,
-        'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'Bombim00-Cloudflare', 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body) });
+    let response;
+    try {
+      response = await this.request(this.base + path, { method, redirect: 'error',
+        headers: { Authorization: `Bearer ${this.token}`, Accept: accept,
+          'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'Bombim00-Cloudflare', 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body) });
+    } catch {
+      // Never include the transport exception, URL, headers, or token in health/logs.
+      throw new Error('github_network');
+    }
     if (!response.ok) { await response.body?.cancel(); throw new Error(`github_http_${response.status}`); }
-    return response.json();
+    try { return await response.json(); } catch { throw new Error('github_invalid_response'); }
   }
   async assertWriter() {
     if ((await this.api('GET', '/actions/variables/LOTTERY_CHECKER_MODE')).value !== 'cloudflare') throw new Error('writer_mode');
