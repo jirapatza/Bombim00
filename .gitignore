@@ -9,3 +9,6 @@ coverage/
 /server.js
 __pycache__/
 .pytest_cache/
+.wrangler/
+cloudflare/wrangler.local.json
+cloudflare/.dev.vars*

@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bombim00-lottery-checker",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "send_metrics": false,
+  "triggers": { "crons": ["* * * * *"] },
+  "vars": {
+    "GITHUB_REPOSITORY": "jirapatza/Bombim00",
+    "MODE": "observe",
+    "ENABLED": "false"
+  },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "bombim00-lottery-state",
+    "database_id": "00000000-0000-0000-0000-000000000000",
+    "migrations_dir": "migrations"
+  }],
+  "observability": { "enabled": false }
+}

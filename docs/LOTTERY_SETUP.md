@@ -1,5 +1,7 @@
 <!-- coderabbit-ai-generated:v1 -->
 
+<!-- coderabbit-ai-generated-section:v1:372c6b829852b94e12763e74391b5eed6caedb1ae60bdb162c195721fa335fbe -->
+
 <!-- coderabbit-ai-generated-section:v1:d95bbc111e12e04674924e4298ecfa47cb4a5e7ef6b3504f4846166fc04ab56b -->
 
 <!-- coderabbit-ai-generated-section:v1:ce8ccd857978d3841b8c382f15040ae16072e809e3677be4253494b08e36c1e2 -->
@@ -116,6 +118,13 @@ Worker อ่านเฉพาะ JSON 4 ไฟล์จาก commit ที่
 การเปิด Blueprint อาจทำให้เกิดค่าใช้จ่ายทันทีตามหน้าสรุปของ Render ต้องตรวจหน้าแผนก่อนยืนยัน [Blueprint specification](https://render.com/docs/blueprint-spec) เป็นแหล่งอ้างอิง field ที่ใช้ ส่วน [Background workers](https://render.com/docs/background-workers) อธิบายประเภท service
 
 สถานะตรวจครั้งล่าสุด: PR preview ที่ https://bombim-pr-50.onrender.com เปิดได้และกรองรายการวันเสาร์ถูกต้อง GitHub integration ของ task อ่าน/แก้ variables และ secrets ไม่ได้ (HTTP 403) และ cloud browser ยังไม่ได้ login Render จึงยังไม่ได้ apply Blueprint หรือสลับตัวส่งจริง อย่าปิด checker เดิมก่อนบริการใหม่และสิทธิ์พร้อม
+
+
+<!-- /coderabbit-ai-generated:v1 -->
+
+## ทางเลือก Cloudflare Free ตรวจทุกนาที
+
+มี Worker JavaScript แยกใน `cloudflare/` พร้อม D1 เก็บประวัติการส่งและสถานะรอ publish ค่าเริ่มต้นหยุดทำงานและเป็นโหมดทดลอง อ่านขั้นตอนติดตั้ง พิมพ์เขียว ข้อจำกัด CPU ของแผนฟรี การเปิดใช้โดยไม่ส่งซ้ำ และการย้อนกลับที่ [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ต้องให้เจ้าของอนุมัติ PR ที่เกี่ยวข้องและผ่านโหมดทดลองบนบัญชี Free ก่อนสลับ `LOTTERY_CHECKER_MODE=cloudflare` ห้ามเปิดพร้อมกับ Python worker/Actions
 
 
 <!-- /coderabbit-ai-generated:v1 -->
