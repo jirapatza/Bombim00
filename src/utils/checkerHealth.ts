@@ -10,6 +10,12 @@ export type ConnectionHealth =
   | "checker-unhealthy"
   | "connected";
 
+/**
+ * Classify the current connection without conflating browser fetch success
+ * with the server checker heartbeat. A missing, invalid, future or older-than-
+ * 15-minute heartbeat cannot confirm that the checker is current.
+ * Offline and fetch errors take precedence over the checker state.
+ */
 export function connectionHealth(
   online: boolean,
   lastSynced: string,
