@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Star,
   Plus,
@@ -10,9 +10,9 @@ import {
   Save,
   Activity,
   Check,
-} from 'lucide-react';
-import { AppSettings, SystemStatus } from '../types/lottery';
-import { ThaiTtsService } from '../utils/thaiTts';
+} from "lucide-react";
+import { AppSettings, SystemStatus } from "../types/lottery";
+import { ThaiTtsService } from "../utils/thaiTts";
 
 interface Props {
   settings: AppSettings;
@@ -35,39 +35,79 @@ export const SettingsScreen: React.FC<Props> = ({
   onRemoveWatchedNumber,
   onUpdateNtfy,
 }) => {
-  const [newNum, setNewNum] = useState('');
+  const [newNum, setNewNum] = useState("");
   const [ntfyServer, setNtfyServer] = useState(settings.ntfy.server);
   const [ntfyTopic, setNtfyTopic] = useState(settings.ntfy.topic);
   const [ntfyPriority, setNtfyPriority] = useState(settings.ntfy.priority);
+  const [formError, setFormError] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleAddNumber = (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = newNum.replace(/\D/g, '').trim();
-    if (clean) {
+    const clean = newNum.replace(/\D/g, "").trim();
+    if (!/^(?:[0-9]{2}|[0-9]{3}|[0-9]{6})$/.test(clean)) {
+      setFormError("กรุณาใส่เลข 2, 3 หรือ 6 หลัก");
+      return;
+    }
+    try {
       onAddWatchedNumber(clean);
-      setNewNum('');
+      setNewNum("");
+      setFormError("");
+    } catch {
+      setFormError("บันทึกไม่ได้ เบราว์เซอร์อาจปิดการใช้พื้นที่จัดเก็บ");
     }
   };
 
   const handleSaveNtfy = () => {
-    onUpdateNtfy(ntfyServer, ntfyTopic, ntfyPriority);
-    setSavedSuccess(true);
+    setSavedSuccess(false);
+    try {
+      const server = new URL(ntfyServer);
+      if (
+        !["https:", "http:"].includes(server.protocol) ||
+        server.username ||
+        server.password ||
+        server.search ||
+        server.hash ||
+        !/^[A-Za-z0-9_-]+$/.test(ntfyTopic)
+      ) {
+        setFormError(
+          "ใช้ Server URL แบบ HTTP/HTTPS และ topic ที่มีตัวอักษรอังกฤษ ตัวเลข _ หรือ - เท่านั้น",
+        );
+        return;
+      }
+      onUpdateNtfy(
+        server.toString().replace(/\/$/, ""),
+        ntfyTopic,
+        ntfyPriority,
+      );
+      setFormError("");
+      setSavedSuccess(true);
+    } catch {
+      setFormError(
+        "บันทึกไม่ได้ ตรวจ URL และสิทธิ์พื้นที่จัดเก็บของเบราว์เซอร์",
+      );
+    }
     setTimeout(() => setSavedSuccess(false), 2500);
   };
 
   const handleTestTts = () => {
     ThaiTtsService.speak(
-      'ประกาศผลสลากกินแบ่งรัฐบาล รางวัลที่หนึ่ง สอง สอง สี่ เลขท้ายสองตัว แปด ห้า ครับ'
+      "ประกาศผลสลากกินแบ่งรัฐบาล รางวัลที่หนึ่ง สอง สอง สี่ เลขท้ายสองตัว แปด ห้า ครับ",
     );
   };
 
   const lastRun = Date.parse(status.last_run_timestamp);
-  const delayed = !Number.isFinite(lastRun) || Date.now() - lastRun > 15 * 60_000;
-  const healthy = status.system_status === 'healthy' && !delayed;
+  const delayed =
+    !Number.isFinite(lastRun) || Date.now() - lastRun > 15 * 60_000;
+  const healthy = status.system_status === "healthy" && !delayed;
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="space-y-4 pb-6">
+      {formError && (
+        <p role="alert" className="rounded-xl bg-amber-950 p-3 text-amber-200">
+          {formError}
+        </p>
+      )}
       {/* Watched Numbers Section */}
       <div className="rounded-2xl border border-amber-500/30 bg-slate-900 p-5 shadow-lg">
         <div className="flex items-center gap-3">
@@ -79,7 +119,8 @@ export const SettingsScreen: React.FC<Props> = ({
               เลขนำโชคที่คุณเฝ้าดู (Watched Numbers)
             </h3>
             <p className="text-xs text-slate-400">
-              ระบบจะแจ้งเตือนและเน้นสีเป็นพิเศษเมื่อออกผลรางวัล
+              เน้นผลที่ตรงกับเลขเฝ้าดูในตารางของเบราว์เซอร์นี้
+              ไม่เปลี่ยนค่าตัวส่งบนเซิร์ฟเวอร์
             </p>
           </div>
         </div>
@@ -94,7 +135,15 @@ export const SettingsScreen: React.FC<Props> = ({
               {num}
               <button
                 type="button"
-                onClick={() => onRemoveWatchedNumber(num)}
+                aria-label={`ลบเลข ${num}`}
+                onClick={() => {
+                  try {
+                    onRemoveWatchedNumber(num);
+                    setFormError("");
+                  } catch {
+                    setFormError("ลบไม่ได้ พื้นที่จัดเก็บไม่พร้อม");
+                  }
+                }}
                 className="rounded-full p-0.5 hover:bg-black/20 text-slate-950"
               >
                 <X className="h-3.5 w-3.5" />
@@ -108,9 +157,11 @@ export const SettingsScreen: React.FC<Props> = ({
           <input
             type="text"
             value={newNum}
-            onChange={(e) => setNewNum(e.target.value.replace(/\D/g, ''))}
+            onChange={(e) => setNewNum(e.target.value.replace(/\D/g, ""))}
             data-testid="add_watched_number_input"
-            placeholder="ใส่เลข 2 ตัว หรือ 3 ตัว..."
+            aria-label="เลขที่เฝ้าดู"
+            maxLength={6}
+            placeholder="ใส่เลข 2, 3 หรือ 6 หลัก"
             className="flex-1 rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono-numbers"
           />
           <button
@@ -130,30 +181,41 @@ export const SettingsScreen: React.FC<Props> = ({
           <div className="flex items-center gap-3">
             <div
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                isVoiceEnabled ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-500'
+                isVoiceEnabled
+                  ? "bg-emerald-500 text-slate-950"
+                  : "bg-slate-800 text-slate-500"
               }`}
             >
-              {isVoiceEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+              {isVoiceEnabled ? (
+                <Volume2 className="h-5 w-5" />
+              ) : (
+                <VolumeX className="h-5 w-5" />
+              )}
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-100">
                 ระบบเสียงอ่านผลรางวัล (TTS)
               </h3>
               <p className="text-xs text-slate-400">
-                {isVoiceEnabled ? 'เปิดใช้งานเสียงอ่านผลภาษาไทย' : 'ปิดเสียงอยู่'}
+                {isVoiceEnabled
+                  ? "เปิดใช้งานเสียงอ่านผลภาษาไทย"
+                  : "ปิดเสียงอยู่"}
               </p>
             </div>
           </div>
 
           <button
             onClick={onToggleVoice}
+            aria-label="เปิดหรือปิดเสียงอ่านผล"
+            role="switch"
+            aria-checked={isVoiceEnabled}
             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              isVoiceEnabled ? 'bg-amber-500' : 'bg-slate-700'
+              isVoiceEnabled ? "bg-amber-500" : "bg-slate-700"
             }`}
           >
             <span
               className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-slate-950 shadow ring-0 transition duration-200 ease-in-out ${
-                isVoiceEnabled ? 'translate-x-5' : 'translate-x-0'
+                isVoiceEnabled ? "translate-x-5" : "translate-x-0"
               }`}
             />
           </button>
@@ -180,15 +242,24 @@ export const SettingsScreen: React.FC<Props> = ({
             <h3 className="text-base font-bold text-slate-100">
               การแจ้งเตือน Push Notification (ntfy)
             </h3>
-            <p className="text-xs text-slate-400">ค่าที่บันทึกในเบราว์เซอร์นี้เท่านั้น ระบบส่งผลอัตโนมัติใช้ค่าจาก GitHub Actions</p>
+            <p className="text-xs text-slate-400">
+              ค่าที่บันทึกในเบราว์เซอร์นี้เท่านั้น ระบบส่งผลอัตโนมัติใช้ค่าจาก
+              GitHub Actions
+            </p>
           </div>
         </div>
 
         <div className="space-y-2.5 text-xs">
           <div>
-            <label className="text-slate-400 font-medium block mb-1">Server URL</label>
+            <label
+              htmlFor="ntfy-server"
+              className="text-slate-400 font-medium block mb-1"
+            >
+              Server URL
+            </label>
             <input
               type="text"
+              id="ntfy-server"
               value={ntfyServer}
               onChange={(e) => setNtfyServer(e.target.value)}
               className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-slate-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono-numbers"
@@ -196,9 +267,15 @@ export const SettingsScreen: React.FC<Props> = ({
           </div>
 
           <div>
-            <label className="text-slate-400 font-medium block mb-1">Topic Channel</label>
+            <label
+              htmlFor="ntfy-topic"
+              className="text-slate-400 font-medium block mb-1"
+            >
+              Topic Channel
+            </label>
             <input
               type="text"
+              id="ntfy-topic"
               value={ntfyTopic}
               onChange={(e) => setNtfyTopic(e.target.value)}
               className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-slate-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono-numbers"
@@ -213,7 +290,7 @@ export const SettingsScreen: React.FC<Props> = ({
           {savedSuccess ? (
             <>
               <Check className="h-4 w-4" />
-              บันทึกการตั้งค่าสำเร็จ!
+              บันทึกในเบราว์เซอร์แล้ว
             </>
           ) : (
             <>
@@ -228,30 +305,43 @@ export const SettingsScreen: React.FC<Props> = ({
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg space-y-2.5 text-xs">
         <div className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-emerald-400" />
-          <h3 className="text-base font-bold text-slate-100">ข้อมูลสถานะระบบ (Diagnostics)</h3>
+          <h3 className="text-base font-bold text-slate-100">
+            ข้อมูลสถานะระบบ (Diagnostics)
+          </h3>
         </div>
         <p className="text-slate-300">
-          • สถานะระบบ:{' '}
-          <span className={healthy ? 'font-bold text-emerald-400' : 'font-bold text-amber-400'}>
-            {delayed ? 'งานตรวจผลล่าช้า' : healthy ? 'ทำงานปกติ' :
-              status.system_status === 'error' ? 'ตรวจผลไม่สำเร็จ' : 'ทำงานได้บางส่วน'}
+          • สถานะระบบ:{" "}
+          <span
+            className={
+              healthy
+                ? "font-bold text-emerald-400"
+                : "font-bold text-amber-400"
+            }
+          >
+            {delayed
+              ? "งานตรวจผลล่าช้า"
+              : healthy
+                ? "ทำงานปกติ"
+                : status.system_status === "error"
+                  ? "ตรวจผลไม่สำเร็จ"
+                  : "ทำงานได้บางส่วน"}
           </span>
         </p>
         <p className="text-slate-300">{status.status_message}</p>
         <p className="text-slate-300">
-          • ตรวจสอบแล้วทั้งหมด:{' '}
+          • ตรวจสอบแล้วทั้งหมด:{" "}
           <span className="font-mono-numbers font-bold text-slate-100">
             {status.total_checks} ครั้ง
           </span>
         </p>
         <p className="text-slate-300 truncate">
-          • แหล่งข้อมูลล่าสุด:{' '}
+          • แหล่งข้อมูลล่าสุด:{" "}
           <span className="text-slate-100">{status.last_source_used}</span>
         </p>
         <p className="text-slate-300">
-          • อัปเดตล่าสุด:{' '}
+          • อัปเดตล่าสุด:{" "}
           <span className="font-bold text-amber-400">
-            {status.last_run_date_thai || 'ไม่ทราบเวลา'}
+            {status.last_run_date_thai || "ไม่ทราบเวลา"}
           </span>
         </p>
       </div>

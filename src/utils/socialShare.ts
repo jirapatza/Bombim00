@@ -155,24 +155,16 @@ export function downloadCanvasAsImage(canvas: HTMLCanvasElement, filename: strin
 
 export async function shareCanvasImage(canvas: HTMLCanvasElement, title: string) {
   try {
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      const file = new File([blob], 'lottery_summary.png', { type: 'image/png' });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title,
-          text: `📊 ${title}\nดูผลหวยฉบับเต็มได้ที่ Lottery Alert`,
-          files: [file],
-        });
-      } else {
-        // Fallback to downloading
-        downloadCanvasAsImage(canvas, 'lottery_summary.png');
-      }
-    });
-  } catch (err) {
-    console.error('Sharing failed:', err);
-    downloadCanvasAsImage(canvas, 'lottery_summary.png');
+    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value =>
+      value ? resolve(value) : reject(new Error('สร้างไฟล์รูปภาพไม่สำเร็จ')), 'image/png'));
+    const file = new File([blob], 'lottery_summary.png', { type: 'image/png' });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ title, text: title, files: [file] });
+    } else downloadCanvasAsImage(canvas, 'lottery_summary.png');
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === 'AbortError')) {
+      downloadCanvasAsImage(canvas, 'lottery_summary.png');
+    }
   }
 }
 

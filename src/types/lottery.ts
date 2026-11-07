@@ -15,6 +15,7 @@ export interface LotteryCatalogItem {
   firstPrize: string;
   date: string;
   resultDate?: string;
+  detectedAt?: string;
   source: string;
 }
 
