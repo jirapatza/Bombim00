@@ -59,6 +59,32 @@ const thaiMonths = [
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
 ];
 const bangkokDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Bangkok' });
+const bangkokTime = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
+const drawWeekdays: Record<string, number[]> = {
+  'ทุกวัน (จันทร์ - อาทิตย์)': [0, 1, 2, 3, 4, 5, 6],
+  'จันทร์ - ศุกร์': [1, 2, 3, 4, 5],
+  'จันทร์, พุธ, ศุกร์': [1, 3, 5],
+  'อังคาร - เสาร์': [2, 3, 4, 5, 6],
+};
+
+export function bangkokDateKey(now: Date): string {
+  return bangkokDate.format(now);
+}
+
+function hasReachedDrawTime(item: LotteryCatalogItem, today: string, now: Date): boolean {
+  const drawDays = item.drawDays.trim().replace(/\s*-\s*/g, ' - ');
+  const weekdays = drawWeekdays[drawDays];
+  const announcedDate = drawDays === 'ตามประกาศวันงวดจริง (อาจเลื่อน)';
+  // For irregular draws, the caller still requires a published result dated today.
+  if (!announcedDate && !weekdays?.includes(new Date(today + 'T00:00:00Z').getUTCDay())) {
+    return false;
+  }
+  const time = item.drawTimeStr.match(/^(\d{1,2})[:.](\d{2})(?:\s|$)/);
+  if (!time || Number(time[1]) > 23 || Number(time[2]) > 59) return false;
+  return bangkokTime.format(now) >= time[1].padStart(2, '0') + ':' + time[2];
+}
 
 function drawDate(result: RawLotteryResult): string {
   for (const date of [result.งวดวันที่, result.วันที่จัดรูปแบบ]) {
@@ -83,25 +109,34 @@ function drawDate(result: RawLotteryResult): string {
 export function mergeCatalogWithResults(
   catalog: LotteryCatalogItem[],
   results: RawLotteryResult[],
-  today = bangkokDate.format(new Date()),
+  now = new Date(),
 ): LotteryCatalogItem[] {
+  const today = bangkokDateKey(now);
   const current = results.filter((row) =>
-    drawDate(row) === today && /^\d{3}$/.test(getResolvedTop3(row)) && /^\d{2}$/.test(getResolvedBottom2(row))
+    drawDate(row) === today && /^\d{2}$/.test(getResolvedBottom2(row)) &&
+    (/^\d{3}$/.test(row.เลขบน_3_ตัว ?? '') || /^\d{6}$/.test(row.รางวัลที่_1 ?? ''))
   );
   return catalog.map((item) => {
     const name = normalizeName(item.name);
-    const matched = current.find((row) => row.หวย === item.id) ??
-      current.find((row) => name && name === normalizeName(getDisplayName(row)));
-    if (!matched) {
-      return { ...item, status: 'waiting', top3: '', bottom2: '', firstPrize: '', date: 'ไม่ระบุ' };
+    const eligible = item.id === 'thai_gov'
+      ? current.filter((row) => /^\d{6}$/.test(row.รางวัลที่_1 ?? ''))
+      : current;
+    const matched = eligible.find((row) => row.หวย === item.id) ??
+      eligible.find((row) => name && name === normalizeName(getDisplayName(row)));
+    if (!matched || !hasReachedDrawTime(item, today, now)) {
+      return { ...item, status: 'waiting', top3: '', bottom2: '', firstPrize: '', date: 'ไม่ระบุ', resultDate: undefined };
     }
+    const firstPrize = matched.รางวัลที่_1 ?? '';
+    const hasFirstPrize = /^\d{6}$/.test(firstPrize);
     return {
       ...item,
       status: 'drawn',
-      top3: getResolvedTop3(matched),
+      // Government adapters can carry a derived suffix; show their actual first prize separately.
+      top3: ['thai_gov', 'gsb', 'baac'].includes(item.id) && hasFirstPrize ? '' : matched.เลขบน_3_ตัว ?? '',
       bottom2: getResolvedBottom2(matched),
-      firstPrize: /^\d{6}$/.test(matched.รางวัลที่_1 ?? '') ? matched.รางวัลที่_1! : '',
+      firstPrize: hasFirstPrize ? firstPrize : '',
       date: getDisplayDate(matched),
+      resultDate: today,
       source: matched.แหล่งข้อมูล || 'ผลตรวจล่าสุด',
     };
   });

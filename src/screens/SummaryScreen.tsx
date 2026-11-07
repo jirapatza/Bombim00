@@ -1,14 +1,13 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Share2,
   Copy,
   Download,
   X,
   Check,
-  CheckCircle2,
-  Clock,
   Sparkles,
 } from 'lucide-react';
+import { bangkokDateKey } from '../data/lotteryRepository';
 import { LotteryCatalogItem } from '../types/lottery';
 import {
   generateSummaryCanvas,
@@ -30,39 +29,17 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
 
   const periodOptions = ['รวมทั้งวัน', 'รอบเช้า', 'รอบบ่าย', 'รอบเย็น', 'รอบดึก'];
 
-  // Current Bangkok date formatted in Thai
-  const bangkokDateStr = useMemo(() => {
-    const now = new Date();
-    return new Intl.DateTimeFormat('th-TH', {
-      timeZone: 'Asia/Bangkok',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }).format(now);
-  }, []);
+  const now = new Date();
+  const today = bangkokDateKey(now);
+  const bangkokDateStr = new Intl.DateTimeFormat('th-TH', {
+    timeZone: 'Asia/Bangkok', year: 'numeric', month: 'long', day: 'numeric',
+  }).format(now);
 
-  const displayedItems = useMemo(() => {
-    switch (selectedPeriodTab) {
-      case 'รอบเช้า':
-        return lotteries.filter((it) => it.period === 'morning' || it.periodLabel.includes('เช้า'));
-      case 'รอบบ่าย':
-        return lotteries.filter((it) => it.period === 'afternoon' || it.periodLabel.includes('บ่าย'));
-      case 'รอบเย็น':
-        return lotteries.filter((it) => it.period === 'evening' || it.periodLabel.includes('เย็น'));
-      case 'รอบดึก':
-        return lotteries.filter((it) => it.period === 'night' || it.periodLabel.includes('ดึก'));
-      default:
-        return lotteries;
-    }
-  }, [lotteries, selectedPeriodTab]);
-
-  const drawnCount = useMemo(() => {
-    return displayedItems.filter(
-      (it) => it.status === 'drawn' || Boolean(it.top3) || Boolean(it.bottom2)
-    ).length;
-  }, [displayedItems]);
-
-  const waitingCount = displayedItems.length - drawnCount;
+  const published = lotteries.filter((item) => item.status === 'drawn' && item.resultDate === today);
+  const period = periodOptions.indexOf(selectedPeriodTab);
+  const displayedItems = period > 0
+    ? published.filter((item) => item.period === ['morning', 'afternoon', 'evening', 'night'][period - 1])
+    : published;
 
   const handleGenerateImage = async () => {
     setIsGenerating(true);
@@ -89,9 +66,8 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
       `🗓 วันที่ ${bangkokDateStr}\n`,
     ];
     displayedItems.forEach((it) => {
-      const top = it.top3 || 'รอผล';
-      const btm = it.bottom2 || 'รอผล';
-      lines.push(`${it.flag} ${it.name}: บน ${top} / ล่าง ${btm}`);
+      const top = it.firstPrize ? `รางวัลที่ 1 ${it.firstPrize}` : `3 ตัวบน ${it.top3}`;
+      lines.push(`${it.flag} ${it.name}: ${top} / ล่าง ${it.bottom2}`);
     });
     lines.push('\nติดตามผลหวยสดได้ที่ Lottery Alert');
 
@@ -128,28 +104,11 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
           </span>
         </div>
 
-        {/* Metrics Row */}
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="flex flex-col items-center justify-center rounded-xl bg-emerald-500/15 py-2.5 px-3 border border-emerald-500/20">
-            <span className="text-xs text-emerald-400 flex items-center gap-1">
-              <CheckCircle2 className="h-3.5 w-3.5" /> ออกผลแล้ว
-            </span>
-            <span className="text-lg font-black text-emerald-400">{drawnCount} หวย</span>
-          </div>
-
-          <div className="flex flex-col items-center justify-center rounded-xl bg-slate-800 py-2.5 px-3">
-            <span className="text-xs text-slate-400 flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" /> รอออกรางวัล
-            </span>
-            <span className="text-lg font-black text-slate-200">{waitingCount} หวย</span>
-          </div>
-        </div>
-
         {/* Action Buttons: Generate Image Card & Copy Text */}
         <div className="mt-4 flex gap-2.5">
           <button
             onClick={handleGenerateImage}
-            disabled={isGenerating}
+            disabled={isGenerating || !displayedItems.length}
             data-testid="generate_share_image_button"
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 py-2.5 text-xs font-black text-slate-950 shadow-md hover:bg-amber-400 transition-colors disabled:opacity-50"
           >
@@ -159,6 +118,7 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
 
           <button
             onClick={handleCopySummaryText}
+            disabled={!displayedItems.length}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-amber-500/50 bg-slate-800/80 py-2.5 text-xs font-bold text-amber-400 hover:bg-slate-800 transition-colors"
           >
             {copiedTextSuccess ? (
@@ -205,46 +165,30 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
 
       {/* Summary Table Rows */}
       <div className="space-y-2">
-        {displayedItems.map((item) => {
-          const isDrawn =
-            item.status === 'drawn' ||
-            Boolean(item.top3?.trim()) ||
-            Boolean(item.bottom2?.trim()) ||
-            Boolean(item.firstPrize?.trim());
-
-          return (
-            <div
-              key={item.id}
-              className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5 transition-colors hover:border-slate-700"
-            >
-              <div className="flex items-center gap-2.5 flex-1 min-w-0 pr-2">
-                <span className="text-xl select-none">{item.flag}</span>
-                <div className="truncate">
-                  <h5 className="truncate text-sm font-bold text-slate-100">{item.name}</h5>
-                  <p className="text-[11px] text-slate-400">ปิด {item.closeTimeStr}</p>
-                </div>
-              </div>
-
-              {/* Top 3 Badge */}
-              <div
-                className={`w-24 rounded-lg py-1 text-center font-mono-numbers text-sm font-black transition-colors ${
-                  isDrawn ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-500'
-                }`}
-              >
-                {item.top3 || (isDrawn ? '---' : 'รอผล')}
-              </div>
-
-              {/* Bottom 2 Badge */}
-              <div
-                className={`ml-2 w-24 rounded-lg py-1 text-center font-mono-numbers text-sm font-black transition-colors ${
-                  isDrawn ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-500'
-                }`}
-              >
-                {item.bottom2 || (isDrawn ? '--' : 'รอผล')}
+        {!displayedItems.length && (
+          <p className="py-5 text-center text-sm text-slate-400">ยังไม่มีผลที่ประกาศสำหรับช่วงนี้</p>
+        )}
+        {displayedItems.map((item) => (
+          <div
+            key={item.id}
+            className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5"
+          >
+            <div className="flex items-center gap-2.5 flex-1 min-w-0 pr-2">
+              <span className="text-xl select-none">{item.flag}</span>
+              <div className="truncate">
+                <h5 className="truncate text-sm font-bold text-slate-100">{item.name}</h5>
+                <p className="text-[11px] text-slate-400">ออก {item.drawTimeStr}</p>
+                {item.firstPrize && <p className="text-xs text-amber-300">รางวัลที่ 1 {item.firstPrize}</p>}
               </div>
             </div>
-          );
-        })}
+            <div className="w-24 rounded-lg bg-amber-500 py-1 text-center text-sm font-black text-slate-950">
+              {item.top3 || '—'}
+            </div>
+            <div className="ml-2 w-24 rounded-lg bg-emerald-500 py-1 text-center text-sm font-black text-slate-950">
+              {item.bottom2}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Image Preview & Share Dialog */}
