@@ -12,6 +12,7 @@ import rawAllLotteries from '../../data/all_lotteries.json';
 import rawPreviousResults from '../../lottery_previous_results.json';
 import rawSettings from '../../config/settings.json';
 import rawStatus from '../../status/status.json';
+import weekdayRules from '../../data/draw_weekdays.json';
 
 const defaultCatalog = rawAllLotteries as LotteryCatalogItem[];
 const defaultResults = rawPreviousResults as RawLotteryResult[];
@@ -44,6 +45,7 @@ export function normalizeName(name: string): string {
     .replace(/(?<!s)vip/gi, '')
     .replace(/วีไอพี/g, '')
     .replace(/นิคเคอิ/g, 'นิเคอิ')
+    .replace(/สตาร์/g, 'star')
     .replace(/หวยหุ้น/g, '')
     .replace(/หวย/g, '')
     .replace(/หุ้น/g, '')
@@ -59,31 +61,10 @@ const thaiMonths = [
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
 ];
 const bangkokDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Bangkok' });
-const bangkokTime = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-});
-const drawWeekdays: Record<string, number[]> = {
-  'ทุกวัน (จันทร์ - อาทิตย์)': [0, 1, 2, 3, 4, 5, 6],
-  'จันทร์ - ศุกร์': [1, 2, 3, 4, 5],
-  'จันทร์, พุธ, ศุกร์': [1, 3, 5],
-  'อังคาร - เสาร์': [2, 3, 4, 5, 6],
-};
+const drawWeekdays: Record<string, number[]> = weekdayRules;
 
 export function bangkokDateKey(now: Date): string {
   return bangkokDate.format(now);
-}
-
-function hasReachedDrawTime(item: LotteryCatalogItem, today: string, now: Date): boolean {
-  const drawDays = item.drawDays.trim().replace(/\s*-\s*/g, ' - ');
-  const weekdays = drawWeekdays[drawDays];
-  const announcedDate = drawDays === 'ตามประกาศวันงวดจริง (อาจเลื่อน)';
-  // For irregular draws, the caller still requires a published result dated today.
-  if (!announcedDate && !weekdays?.includes(new Date(today + 'T00:00:00Z').getUTCDay())) {
-    return false;
-  }
-  const time = item.drawTimeStr.match(/^(\d{1,2})[:.](\d{2})(?:\s|$)/);
-  if (!time || Number(time[1]) > 23 || Number(time[2]) > 59) return false;
-  return bangkokTime.format(now) >= time[1].padStart(2, '0') + ':' + time[2];
 }
 
 function drawDate(result: RawLotteryResult): string {
@@ -116,14 +97,19 @@ export function mergeCatalogWithResults(
     drawDate(row) === today && /^\d{2}$/.test(getResolvedBottom2(row)) &&
     (/^\d{3}$/.test(row.เลขบน_3_ตัว ?? '') || /^\d{6}$/.test(row.รางวัลที่_1 ?? ''))
   );
-  return catalog.map((item) => {
+  return catalog.flatMap((item) => {
+    const rule = item.drawDays.trim().replace(/\s*-\s*/g, ' - ');
+    const irregular = rule === 'ตามประกาศวันงวดจริง (อาจเลื่อน)';
+    const weekday = new Date(today + 'T00:00:00Z').getUTCDay();
+    if (!irregular && !drawWeekdays[rule]?.includes(weekday)) return [];
     const name = normalizeName(item.name);
     const eligible = item.id === 'thai_gov'
       ? current.filter((row) => /^\d{6}$/.test(row.รางวัลที่_1 ?? ''))
       : current;
     const matched = eligible.find((row) => row.หวย === item.id) ??
       eligible.find((row) => name && name === normalizeName(getDisplayName(row)));
-    if (!matched || !hasReachedDrawTime(item, today, now)) {
+    if (irregular && !matched) return [];
+    if (!matched) {
       return { ...item, status: 'waiting', top3: '', bottom2: '', firstPrize: '', date: 'ไม่ระบุ', resultDate: undefined };
     }
     const firstPrize = matched.รางวัลที่_1 ?? '';
@@ -161,7 +147,7 @@ export function validateLiveData(catalog: unknown, results: unknown, status: unk
 
 const LIVE_DATA_ROOT = 'https://raw.githubusercontent.com/jirapatza/Bombim00/runtime-live';
 async function fetchLiveJson(path: string, signal: AbortSignal): Promise<unknown> {
-  const response = await fetch(`${LIVE_DATA_ROOT}/${path}`, { cache: 'no-cache', signal });
+  const response = await fetch(`${LIVE_DATA_ROOT}/${path}?v=${Math.floor(Date.now() / 15_000)}`, { cache: 'no-store', signal });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
 }
@@ -172,6 +158,7 @@ const STORAGE_SETTINGS = 'lottery_app_settings_v1';
 
 export class LotteryRepository {
   private static lotteries: LotteryCatalogItem[] = [];
+  private static catalog = defaultCatalog;
   private static results: RawLotteryResult[] = defaultResults;
   private static status: SystemStatus = defaultSystemStatus;
 
@@ -179,11 +166,9 @@ export class LotteryRepository {
     this.lotteries = mergeCatalogWithResults(defaultCatalog, this.results);
   }
 
-  static getLotteries(): LotteryCatalogItem[] {
-    if (this.lotteries.length === 0) {
-      this.init();
-    }
-    return this.lotteries;
+  static getLotteries(now = new Date()): LotteryCatalogItem[] {
+    // Recompute even offline so Friday rows disappear at Bangkok midnight.
+    return mergeCatalogWithResults(this.catalog, this.results, now);
   }
 
   static getResults(): RawLotteryResult[] {
@@ -267,6 +252,7 @@ export class LotteryRepository {
       const status = rawStatus as SystemStatus;
       const current = mergeCatalogWithResults(catalog as LotteryCatalogItem[], results as RawLotteryResult[]);
       this.results = results as RawLotteryResult[];
+      this.catalog = catalog as LotteryCatalogItem[];
       this.lotteries = current;
       this.status = status;
     } finally {

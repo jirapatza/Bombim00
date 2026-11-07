@@ -67,7 +67,8 @@ export const App: React.FC = () => {
     return LotteryRepository.getTop3DigitFrequency(15);
   }, [results]);
 
-  const nextClosing = LotteryRepository.getNextClosingLottery(lotteries);
+  const todayLotteries = LotteryRepository.getLotteries();
+  const nextClosing = LotteryRepository.getNextClosingLottery(todayLotteries);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -89,7 +90,7 @@ export const App: React.FC = () => {
     const refreshVisible = () => {
       if (document.visibilityState === 'visible') void handleRefresh();
     };
-    const timer = window.setInterval(refreshVisible, 60_000);
+    const timer = window.setInterval(refreshVisible, 15_000);
     document.addEventListener('visibilitychange', refreshVisible);
     return () => {
       window.clearInterval(timer);
@@ -178,7 +179,7 @@ export const App: React.FC = () => {
         )}
         {currentTab === 'live' && (
           <LiveResultsScreen
-            lotteries={lotteries}
+            lotteries={todayLotteries}
             watchedNumbers={watchedNumbers}
             isVoiceEnabled={isVoiceEnabled}
             nextClosing={nextClosing}
@@ -193,7 +194,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {currentTab === 'summary' && <SummaryScreen lotteries={lotteries} />}
+        {currentTab === 'summary' && <SummaryScreen lotteries={todayLotteries} />}
 
         {currentTab === 'checker' && (
           <TicketCheckerScreen

@@ -6,6 +6,10 @@ on:
     branches: [main]
     paths:
       - "lottery_checker.py"
+      - "draw_schedule.py"
+      - "lottery_worker.py"
+      - "data/draw_weekdays.json"
+      - "data/all_lotteries.json"
       - "settings_loader.py"
       - "requirements.txt"
       - "tests/**"
@@ -14,6 +18,10 @@ on:
     branches: [main]
     paths:
       - "lottery_checker.py"
+      - "draw_schedule.py"
+      - "lottery_worker.py"
+      - "data/draw_weekdays.json"
+      - "data/all_lotteries.json"
       - "settings_loader.py"
       - "requirements.txt"
       - "tests/**"
@@ -62,6 +70,7 @@ permissions:
 
 jobs:
   check-lottery:
+    if: github.event_name == 'pull_request' || vars.LOTTERY_CHECKER_MODE != 'continuous'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository

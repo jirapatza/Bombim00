@@ -1,0 +1,8 @@
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY lottery_checker.py settings_loader.py draw_schedule.py lottery_worker.py ./
+COPY data/draw_weekdays.json ./data/draw_weekdays.json
+ENV PYTHONUNBUFFERED=1 LOTTERY_WORKER_STATE_DIR=/var/data/lottery
+CMD ["python", "lottery_worker.py"]

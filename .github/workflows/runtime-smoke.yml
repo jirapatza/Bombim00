@@ -17,6 +17,8 @@ on:
       - "vite.config.ts"
       - "index.html"
       - "lottery_checker.py"
+      - "draw_schedule.py"
+      - "lottery_worker.py"
       - "settings_loader.py"
       - "requirements.txt"
       - "tests/**"
