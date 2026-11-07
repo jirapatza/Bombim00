@@ -21,7 +21,7 @@ except ImportError:
     import urllib.error
 
 import settings_loader as sl
-from draw_schedule import load_catalog, scheduled_result
+from draw_schedule import load_catalog, scheduled_result, schedule_name
 
 # Load configuration at startup
 S = sl.load()
@@ -486,6 +486,13 @@ def filter_rows_by_target(rows: list, target: str = "all") -> list:
 LOTTERYCHECKS_ROUNDS = {
     "lao-union": ("lao_samakki", "ลาวสามัคคี", "lao"),
     "hanoi-develop": ("hanoi_patthana", "ฮานอยพัฒนา", "hanoi"),
+    "hanoi-asean": ("hanoi_asean", "ฮานอยอาเซียน", "hanoi"),
+    "hanoi-hd": ("hanoi_hd", "ฮานอย HD", "hanoi"),
+    "hanoi-star": ("hanoi_star", "ฮานอย STAR", "hanoi"),
+    "hanoi-tv": ("hanoi_tv", "ฮานอย TV", "hanoi"),
+    "lao-tv": ("lao_tv", "ลาว TV", "lao"),
+    "lao-hd": ("lao_hd", "ลาว HD", "lao"),
+    "lao-star": ("lao_star", "ลาว STAR", "lao"),
 }
 
 
@@ -538,18 +545,18 @@ def parse_lotterychecks_round(data: dict, slug: str, today: datetime.date) -> li
 
 
 def fetch_missing_lotterychecks_rounds(existing: list, target: str = "all") -> list:
-    """Query each missing supported round independently, with at most two concurrent requests."""
+    """Query missing supported rounds independently, with at most four concurrent requests."""
     if not sl.source_enabled(S, "lotterychecks") or target not in {"all", "lao", "hanoi"}:
         return []
     today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date()
     complete = [row for row in existing if sl._parse_draw_date(row) == today and all(sl.result_numbers(row))]
     supported_ids = {entry[0] for entry in LOTTERYCHECKS_ROUNDS.values()}
     known_ids = {row.get("หวย") for row in complete if row.get("หวย") in supported_ids}
-    known_names = {sl.normalize_lottery_name(row.get("ชื่อหวย") or "") for row in complete
+    known_names = {schedule_name(row.get("ชื่อหวย") or "") for row in complete
                    if row.get("หวย") not in supported_ids}
     missing = [slug for slug, (lottery_id, name, category) in LOTTERYCHECKS_ROUNDS.items()
                if target in {"all", category} and lottery_id not in known_ids
-               and sl.normalize_lottery_name(name) not in known_names]
+               and schedule_name(name) not in known_names]
     if not missing:
         return []
     def fetch_round(slug):
@@ -562,7 +569,7 @@ def fetch_missing_lotterychecks_rounds(existing: list, target: str = "all") -> l
         except Exception as error:
             print(f"[WARN] LotteryChecks {slug} unavailable: {type(error).__name__}")
             return []
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         return [row for batch in pool.map(fetch_round, missing) for row in batch]
 
 
