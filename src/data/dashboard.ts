@@ -40,9 +40,9 @@ export function sortDailyRows(
   const descending = state === "pending" || state === "drawn";
   return [...items].sort((a, b) => {
     const ta = drawTimestamp(a, now), tb = drawTimestamp(b, now);
-    if (!Number.isFinite(ta)) return Number.isFinite(tb) ? 1 : a.name.localeCompare(b.name, "th");
+    if (!Number.isFinite(ta)) return Number.isFinite(tb) ? 1 : String(a.name || "").localeCompare(String(b.name || ""), "th");
     if (!Number.isFinite(tb)) return -1;
-    return (descending ? tb - ta : ta - tb) || a.name.localeCompare(b.name, "th");
+    return (descending ? tb - ta : ta - tb) || String(a.name || "").localeCompare(String(b.name || ""), "th");
   });
 }
 
