@@ -279,12 +279,16 @@ test('GitHub publish preserves config tree, writes only two files and never forc
   remote.snapshot = async () => ({ data: {} });
   await assert.rejects(remote.publish(pending), /runtime_conflict/); assert.equal(calls.length, 0);
 });
-test('writer mode is Cloudflare only and every active Actions status is checked', async () => {
+test('reviewed main-branch Cloudflare gate and every active Actions status protect the writer', async () => {
   const remote = new RuntimeRepository('owner/repo', 'synthetic', null), paths = [];
-  remote.api = async (_method, path) => { paths.push(path); return path.includes('variables') ? { value: 'cloudflare' } : { workflow_runs: [] }; };
+  const gate = { mode: 'cloudflare', legacy_workflow: 'pr-only', poll_seconds: 60 };
+  remote.api = async (_method, path) => { paths.push(path); return path.includes('PRIMARY_CHECKER.json') ? gate : { workflow_runs: [] }; };
   await remote.assertWriter(); assert.equal(paths.length, 6);
-  remote.api = async () => ({ value: 'continuous' });
+  assert.equal(paths[0], '/contents/cloudflare/PRIMARY_CHECKER.json?ref=main');
+  remote.api = async () => ({ mode: 'github-actions' });
   await assert.rejects(remote.assertWriter(), /writer_mode/);
+  remote.api = async (_method, path) => path.includes('PRIMARY_CHECKER.json') ? gate : { workflow_runs: [{ event: 'schedule' }] };
+  await assert.rejects(remote.assertWriter(), /actions_active/);
 });
 test('worst-case source fallback cycle fits 38 network calls and at most 12 D1 operations', async t => {
   const db = database(); t.after(() => db.close());
@@ -296,7 +300,7 @@ test('worst-case source fallback cycle fits 38 network calls and at most 12 D1 o
     calls++;
     if (url.startsWith('https://api.github.com/')) {
       const path = new URL(url).pathname;
-      if (path.endsWith('LOTTERY_CHECKER_MODE')) return Response.json({ value: 'cloudflare' });
+      if (path.endsWith('/contents/cloudflare/PRIMARY_CHECKER.json')) return Response.json({ mode: 'cloudflare', legacy_workflow: 'pr-only', poll_seconds: 60 });
       if (path.endsWith('/runs')) return Response.json({ workflow_runs: [] });
       if (path.endsWith('/git/ref/heads/runtime-live')) return Response.json({ object: { sha: 'a'.repeat(40) } });
       if (path.includes('/git/commits/') && options.method === 'GET') return Response.json({ tree: { sha: 'tree' } });
