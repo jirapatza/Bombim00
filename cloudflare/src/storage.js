@@ -24,18 +24,27 @@ export class RuntimeRepository {
     this.token = token; this.request = request;
   }
   async api(method, path, body, accept = 'application/vnd.github+json') {
-    let response;
-    try {
-      response = await this.request(this.base + path, { method, redirect: 'manual',
-        headers: { Authorization: `Bearer ${this.token}`, Accept: accept,
-          'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'Bombim00-Cloudflare', 'Content-Type': 'application/json' },
-        body: body === undefined ? undefined : JSON.stringify(body) });
-    } catch (error) {
-      // Stable, non-sensitive diagnostic identifies the failing GitHub operation.
-      throw githubTransportError(error, path);
+    // A retry is safe only for idempotent reads. Never repeat Git writes or ntfy sends.
+    const maxAttempts = method === 'GET' ? 2 : 1;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      let response;
+      try {
+        response = await this.request(this.base + path, { method, redirect: 'manual',
+          headers: { Authorization: `Bearer ${this.token}`, Accept: accept,
+            'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'Bombim00-Cloudflare', 'Content-Type': 'application/json' },
+          body: body === undefined ? undefined : JSON.stringify(body) });
+      } catch (error) {
+        const safe = githubTransportError(error, path);
+        if (attempt + 1 < maxAttempts && /^github_(network|timeout)_/.test(safe.message)) continue;
+        throw safe;
+      }
+      if (!response.ok) {
+        await response.body?.cancel();
+        if (attempt + 1 < maxAttempts && [502, 503, 504].includes(response.status)) continue;
+        throw new Error(`github_http_${response.status}`);
+      }
+      try { return await response.json(); } catch { throw new Error('github_invalid_response'); }
     }
-    if (!response.ok) { await response.body?.cancel(); throw new Error(`github_http_${response.status}`); }
-    try { return await response.json(); } catch { throw new Error('github_invalid_response'); }
   }
   async assertWriter() {
     if ((await this.api('GET', '/actions/variables/LOTTERY_CHECKER_MODE')).value !== 'cloudflare') throw new Error('writer_mode');
