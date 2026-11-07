@@ -1,8 +1,8 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-08T00:45:12.113+07:00",
-  "last_run_date_thai": "08/11/2026 00:45:12",
-  "total_checks": 862,
+  "last_run_timestamp": "2026-11-08T00:46:12.379+07:00",
+  "last_run_date_thai": "08/11/2026 00:46:12",
+  "total_checks": 863,
   "last_source_used": "ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks",
   "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 0 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ แหล่งข้อมูลติดต่อไม่ได้ 10 แหล่ง ยังไม่พบผลสด",
   "active_sources_count": 3,
@@ -10,6 +10,11 @@
   "notifications_sent_today": 0,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-08T00:46:12.379+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 0 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ แหล่งข้อมูลติดต่อไม่ได้ 10 แหล่ง ยังไม่พบผลสด"
+    },
     {
       "timestamp": "2026-11-08T00:45:12.113+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-08T00:27:12.493+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 0 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 1 รายการ แหล่งข้อมูลติดต่อไม่ได้ 10 แหล่ง ยังไม่พบผลสด"
-    },
-    {
-      "timestamp": "2026-11-08T00:26:12.578+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 0 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ แหล่งข้อมูลติดต่อไม่ได้ 10 แหล่ง ยังไม่พบผลสด"
     }
   ],
   "uncertain_deliveries": 0,
