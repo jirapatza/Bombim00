@@ -207,6 +207,8 @@ export const App: React.FC = () => {
           online={online}
           lastSynced={lastSynced}
           liveDataError={liveDataError}
+          lastRunTimestamp={status.last_run_timestamp}
+          checkerStatus={status.system_status}
           currentTimeString={currentTimeString}
           isVoiceEnabled={isVoiceEnabled}
           isRefreshing={isRefreshing}
