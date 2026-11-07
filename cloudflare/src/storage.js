@@ -5,7 +5,7 @@ const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // Fixed endpoint labels only: never persist URLs, request bodies, tokens or transport messages.
 function githubEndpoint(path) {
   if (path.startsWith('/git/ref/')) return 'ref';
-  if (path.startsWith('/git/commits/') || path.startsWith('/git/trees')) return 'commit';
+  if (path === '/git/commits' || path.startsWith('/git/commits/') || path.startsWith('/git/trees')) return 'commit';
   if (path.startsWith('/contents/')) return 'contents';
   if (path.startsWith('/actions/')) return 'writer';
   if (path.startsWith('/git/refs/')) return 'publish';
