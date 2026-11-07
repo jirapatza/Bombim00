@@ -21,13 +21,17 @@ export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<AppTab>('live');
   const [currentTimeString, setCurrentTimeString] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+  const [liveDataError, setLiveDataError] = useState(false);
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(() => {
+    try { return localStorage.getItem('lottery_voice_enabled') !== 'false'; }
+    catch { return true; }
+  });
 
   // Core Data States
   const [lotteries, setLotteries] = useState<LotteryCatalogItem[]>(() =>
     LotteryRepository.getLotteries()
   );
-  const [results] = useState<RawLotteryResult[]>(() => LotteryRepository.getResults());
+  const [results, setResults] = useState<RawLotteryResult[]>(() => LotteryRepository.getResults());
   const [status, setStatus] = useState<SystemStatus>(() => LotteryRepository.getStatus());
   const [settings, setSettings] = useState<AppSettings>(() => LotteryRepository.getSettings());
   const [watchedNumbers, setWatchedNumbers] = useState<string[]>(() =>
@@ -57,26 +61,46 @@ export const App: React.FC = () => {
   // Compute Statistics
   const top2Stats = useMemo<FrequencyStat[]>(() => {
     return LotteryRepository.getTop2DigitFrequency(15);
-  }, []);
+  }, [results]);
 
   const top3Stats = useMemo<FrequencyStat[]>(() => {
     return LotteryRepository.getTop3DigitFrequency(15);
-  }, []);
+  }, [results]);
 
-  // Compute Next Closing Lottery
-  const nextClosing = useMemo(() => {
-    return LotteryRepository.getNextClosingLottery(lotteries);
-  }, [lotteries]);
+  const nextClosing = LotteryRepository.getNextClosingLottery(lotteries);
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
-      const refreshed = LotteryRepository.refresh();
-      setStatus(refreshed.status);
-      setLotteries([...refreshed.lotteries]);
+    try {
+      await LotteryRepository.refresh();
+      setStatus(LotteryRepository.getStatus());
+      setLotteries(LotteryRepository.getLotteries());
+      setResults(LotteryRepository.getResults());
+      setLiveDataError(false);
+    } catch {
+      setLiveDataError(true);
+    } finally {
       setIsRefreshing(false);
-    }, 600);
+    }
   }, []);
+
+  useEffect(() => {
+    void handleRefresh();
+    const refreshVisible = () => {
+      if (document.visibilityState === 'visible') void handleRefresh();
+    };
+    const timer = window.setInterval(refreshVisible, 60_000);
+    document.addEventListener('visibilitychange', refreshVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshVisible);
+    };
+  }, [handleRefresh]);
+
+  useEffect(() => {
+    try { localStorage.setItem('lottery_voice_enabled', String(isVoiceEnabled)); }
+    catch { /* Browser storage can be unavailable. */ }
+  }, [isVoiceEnabled]);
 
   const handleToggleVoice = useCallback(() => {
     setIsVoiceEnabled((prev) => {
@@ -146,6 +170,11 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-4">
+        {liveDataError && (
+          <p role="status" className="mb-3 rounded-xl bg-amber-950 p-3 text-sm text-amber-200">
+            โหลดข้อมูลล่าสุดไม่สำเร็จ กำลังแสดงข้อมูลที่มีอยู่
+          </p>
+        )}
         {currentTab === 'live' && (
           <LiveResultsScreen
             lotteries={lotteries}

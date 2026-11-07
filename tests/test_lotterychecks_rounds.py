@@ -107,3 +107,26 @@ def test_main_adds_missing_feed_and_never_pushes_twice(monkeypatch):
     lc.main()
     assert sent == ['lao_samakki']
     assert statuses[-1]['source_used'] == 'LotteryChecks Lao/Hanoi'
+
+
+def test_main_retries_unsent_draw_without_refetching_it(monkeypatch):
+    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).date()
+    result = {'ชื่อหวย': 'ลาวสามัคคี', 'หวย': 'lao_samakki', 'หมวดหวย': 'lao',
+              'งวดวันที่': today.isoformat(), 'เลขบน_3_ตัว': '007', 'เลขล่าง_2_ตัว': '90'}
+    history = [dict(result, สถานะการแจ้งเตือน='failed', notification_channels={'ntfy': 'failed'})]
+    attempts, status = [], []
+    monkeypatch.setenv('LOTTERY_TARGET', 'lao')
+    monkeypatch.setattr(lc, 'S', {'channels': {'ntfy': {'enabled': True}}})
+    monkeypatch.setattr(lc, 'fetch_from_pholhuay_stock_groups', lambda: [])
+    monkeypatch.setattr(lc, 'fetch_from_pholhuay_lao_extra', lambda: [])
+    monkeypatch.setattr(sl, 'load_previous_results', lambda: copy.deepcopy(history))
+    monkeypatch.setattr(sl, 'save_results', lambda rows: history.__setitem__(slice(None), copy.deepcopy(rows)))
+    monkeypatch.setattr(sl, 'write_status', lambda *args, **kwargs: status.append(kwargs))
+    monkeypatch.setattr(lc, 'send_ntfy_notification', lambda row: attempts.append(row['หวย']) or True)
+
+    lc.main()
+    assert attempts == ['lao_samakki']
+    assert history[0]['notification_channels'] == {'ntfy': 'sent'}
+    assert status[-1]['live_results'] is False
+    lc.main()
+    assert attempts == ['lao_samakki']

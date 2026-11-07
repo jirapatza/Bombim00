@@ -299,7 +299,8 @@ def write_status(
     status_path: str = DEFAULT_STATUS_PATH,
     error: Optional[str] = None,
     source_used: Optional[str] = None,
-    notifications_sent: Optional[int] = None
+    notifications_sent: Optional[int] = None,
+    live_results: Optional[bool] = None
 ) -> Dict[str, Any]:
     """
     Write status.json after execution.
@@ -333,10 +334,14 @@ def write_status(
             "level": "ERROR",
             "message": status_message
         })
-    elif not rows:
+    elif not rows or live_results is False:
         # No live result is not the same as a healthy result check.
         system_status = "degraded"
-        status_message = "ไม่พบผลหวยสดจากแหล่งข้อมูลที่เปิดใช้งาน รอบนี้จึงไม่มีการส่งผลหวย"
+        status_message = "ไม่พบผลหวยสดจากแหล่งข้อมูลที่เปิดใช้งาน"
+        if notifications_sent:
+            status_message += f" ส่งผลที่ค้างจากรอบก่อนสำเร็จ {notifications_sent} รายการ"
+        if failed_deliveries:
+            status_message += f" ยังส่งไม่สำเร็จ {failed_deliveries} รายการ"
         recent_logs.insert(0, {
             "timestamp": iso_time,
             "level": "WARNING",
