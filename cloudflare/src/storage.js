@@ -55,13 +55,13 @@ export class RuntimeRepository {
     let source;
     try {
       if (workflow.encoding !== 'base64' || typeof workflow.content !== 'string') throw new Error('writer_mode');
-      source = atob(workflow.content.replace(/\\s/g, ''));
+      source = atob(workflow.content.replace(/\s/g, ''));
     } catch { throw new Error('writer_mode'); }
-    const triggers = source.match(/^on:\\s*\\r?\\n([\\s\\S]*?)^(?:concurrency|permissions|jobs):/m)?.[1];
-    const events = [...(triggers || '').matchAll(/^ {2}([A-Za-z_][\\w-]*):/gm)].map(x => x[1]);
-    const jobs = source.split(/^jobs:\\s*$/m)[1] || '';
+    const triggers = source.match(/^on:\s*\r?\n([\s\S]*?)^(?:concurrency|permissions|jobs):/m)?.[1];
+    const events = [...(triggers || '').matchAll(/^ {2}([A-Za-z_][\w-]*):/gm)].map(x => x[1]);
+    const jobs = source.split(/^jobs:\s*$/m)[1] || '';
     if (events.length !== 1 || events[0] !== 'pull_request' ||
-      /(?:NTFY_TOPIC|runtime-live|python\\s+lottery_checker\\.py|workflow_dispatch|schedule:)/.test(jobs))
+      /(?:NTFY_TOPIC|runtime-live|python\s+lottery_checker\.py|workflow_dispatch|schedule:)/.test(jobs))
       throw new Error('writer_mode');
     // Query each active state: an old queued run must not be hidden by newer completed runs.
     for (const status of ['queued', 'in_progress', 'waiting', 'pending', 'requested']) {
