@@ -54,7 +54,7 @@ export const Header: React.FC<Props> = ({
       <span
         role="status"
         className={`badge ${health === "connected" ? "green" : "gold"}`}
-        title={health === "checker-stale" ? "เว็บโหลดข้อมูลได้ แต่ตัวตรวจผลฝั่งเซิร์ฟเวอร์ไม่ได้อัปเดตภายใน 15 นาที" : undefined}
+        title={health === "checker-stale" ? "เว็บโหลดข้อมูลได้ แต่ยืนยันไม่ได้ว่าตัวตรวจผลฝั่งเซิร์ฟเวอร์อัปเดตภายใน 15 นาที" : undefined}
       >
         <Radio size={13} />
         {connectionLabels[health]}
