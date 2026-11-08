@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-08T23:24:12.563+07:00",
-  "last_run_date_thai": "08/11/2026 23:24:12",
-  "total_checks": 2221,
+  "last_run_timestamp": "2026-11-08T23:25:12.564+07:00",
+  "last_run_date_thai": "08/11/2026 23:25:12",
+  "total_checks": 2222,
   "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 45 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 15 รายการ ค้างส่ง 15 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 54 รายการ",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 45 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 15 รายการ ค้างส่ง 15 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 55 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "08.11.2026",
   "notifications_sent_today": 7,
   "notification_failures": 15,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-08T23:25:12.564+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 45 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 15 รายการ ค้างส่ง 15 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 55 รายการ"
+    },
     {
       "timestamp": "2026-11-08T23:24:12.563+07:00",
       "level": "WARNING",
@@ -104,14 +109,9 @@
       "timestamp": "2026-11-08T23:06:12.339+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 39 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 15 รายการ ค้างส่ง 15 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 53 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ"
-    },
-    {
-      "timestamp": "2026-11-08T23:05:12.453+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 42 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 15 รายการ ค้างส่ง 15 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 53 รายการ"
     }
   ],
-  "uncertain_deliveries": 54,
+  "uncertain_deliveries": 55,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
   "schedule_alerts_sent_today": 12,
