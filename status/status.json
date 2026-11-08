@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-08T18:24:12.253+07:00",
-  "last_run_date_thai": "08/11/2026 18:24:12",
-  "total_checks": 1921,
+  "last_run_timestamp": "2026-11-08T18:25:12.307+07:00",
+  "last_run_date_thai": "08/11/2026 18:25:12",
+  "total_checks": 1922,
   "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 33 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 9 รายการ ค้างส่ง 12 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 37 รายการ รอผลจากแหล่งข้อมูล 2 รายการ",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 33 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 9 รายการ ค้างส่ง 12 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 38 รายการ รอผลจากแหล่งข้อมูล 2 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "08.11.2026",
   "notifications_sent_today": 6,
   "notification_failures": 12,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-08T18:25:12.307+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 33 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 9 รายการ ค้างส่ง 12 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 38 รายการ รอผลจากแหล่งข้อมูล 2 รายการ"
+    },
     {
       "timestamp": "2026-11-08T18:24:12.253+07:00",
       "level": "WARNING",
@@ -104,14 +109,9 @@
       "timestamp": "2026-11-08T18:06:12.511+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 33 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 9 รายการ ค้างส่ง 12 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 37 รายการ รอผลจากแหล่งข้อมูล 2 รายการ"
-    },
-    {
-      "timestamp": "2026-11-08T18:05:12.356+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 33 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 9 รายการ ค้างส่ง 12 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 37 รายการ รอผลจากแหล่งข้อมูล 2 รายการ"
     }
   ],
-  "uncertain_deliveries": 37,
+  "uncertain_deliveries": 38,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
   "schedule_alerts_sent_today": 10,
