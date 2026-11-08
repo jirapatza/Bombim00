@@ -38,7 +38,10 @@ function scheduleMessage(alert) {
     message: `${alert.name} ${closing ? 'ปิดรับ' : 'ออกผลตามตาราง'} เวลา ${alert.clock} น.`,
     tags: ['alarm_clock'] };
 }
-async function publishNtfy(settings, message, topic, request) {
+// Fixed labels only (never URLs, bodies or error text) so /health can show why a send was not accepted.
+const failureCode = error => error?.message === 'request_budget' ? 'request_budget' : error?.message === 'https_required' ? 'https_required'
+  : error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'timeout' : 'network';
+async function publishNtfy(settings, message, topic, request, detail = {}) {
   const cfg = settings.channels?.ntfy || {};
   const server = (cfg.server || settings.ntfy?.server || 'https://ntfy.sh').replace(/\/+$/, '');
   const click = cfg.click_url || settings.ntfy?.click_url || '';
@@ -47,12 +50,13 @@ async function publishNtfy(settings, message, topic, request) {
       body: JSON.stringify({ topic, ...message, priority: 4,
         click: !click || click.includes('sanook') ? 'https://bombim00.onrender.com' : click }) });
     await response.body?.cancel();
+    detail.code = `http_${response.status}`;
     if (response.status === 200) return 'sent';
     // A definite rejection is retryable. A timeout or 5xx might follow acceptance.
     return [400, 401, 403, 404, 413, 422, 429].includes(response.status) ? 'failed' : 'uncertain';
-  } catch (error) { return error instanceof PreflightError ? 'failed' : 'uncertain'; }
+  } catch (error) { detail.code = failureCode(error); return error instanceof PreflightError ? 'failed' : 'uncertain'; }
 }
-export const sendNotification = (settings, row, topic, request) => publishNtfy(settings, resultMessage(row), topic, request);
+export const sendNotification = (settings, row, topic, request, detail) => publishNtfy(settings, resultMessage(row), topic, request, detail);
 const safeError = error => /^(github_http_\d{3}|github_network|github_invalid_response|github_(network|timeout|aborted)_(ref|commit|contents|writer|publish|other)|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
 function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertain, now) {
   const day = bangkokDay(now), time = new Date(+now + 7 * 3600000).toISOString().replace('Z', '+07:00');
@@ -143,7 +147,9 @@ export async function cycle(env, dependencies = {}) {
       const entry = { state: 'sending', date: today, kind };
       state.deliveries[key] = entry;
       await store.save(state); // Persist intent before touching ntfy.
-      entry.state = await send();
+      const detail = {};
+      entry.state = await send(detail);
+      if (detail.code) entry.code = detail.code;
       await store.save(state); // A lost write leaves 'sending', never an implicit retry.
       stage = 'process';
       return entry.state;
@@ -161,7 +167,7 @@ export async function cycle(env, dependencies = {}) {
       if (!active) { row.สถานะการแจ้งเตือน = 'disabled'; continue; }
       if (observing) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
       if (attempts >= MAX_SENDS) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
-      const result = await recordDelivery(key, () => (dependencies.send || sendNotification)(settings, row, topic, request), 'result');
+      const result = await recordDelivery(key, detail => (dependencies.send || sendNotification)(settings, row, topic, request, detail), 'result');
       row.notification_channels.ntfy = result; row.สถานะการแจ้งเตือน = result;
       if (result === 'sent') sent++;
     }
@@ -172,7 +178,7 @@ export async function cycle(env, dependencies = {}) {
         if (attempts >= MAX_SENDS) break;
         const entry = state.deliveries[alert.key];
         if ((entry && entry.state !== 'failed') || clock() >= alert.at) continue;
-        await recordDelivery(alert.key, () => publishNtfy(settings, scheduleMessage(alert), topic, request), 'schedule');
+        await recordDelivery(alert.key, detail => publishNtfy(settings, scheduleMessage(alert), topic, request, detail), 'schedule');
       }
     }
     const merged = mergeRows(rows, history);
@@ -222,11 +228,16 @@ export default {
       const fresh = state.lastSuccess && Date.now() - Date.parse(state.lastSuccess) < 5 * 60000;
       const paused = env.ENABLED !== 'true', uncertain = Object.values(state.deliveries).filter(x => ['sending', 'uncertain'].includes(x.state)).length;
       const healthy = !paused && fresh && !state.error && !state.pending && !uncertain && state.lastCheck?.status === 'healthy';
+      const delivery_codes = {};
+      for (const x of Object.values(state.deliveries)) if (['failed', 'sending', 'uncertain'].includes(x.state)) {
+        const code = /^(http_\d{3}|timeout|network|request_budget|https_required)$/.test(x.code) ? x.code : 'unknown';
+        delivery_codes[code] = (delivery_codes[code] || 0) + 1;
+      }
       const observing = env.MODE !== 'deliver', observed = state.lastObservation;
       const ready = !paused && (observing ? observed && Date.now() - Date.parse(observed.at) < 5 * 60000 && !observed.sourceErrors && !state.error : healthy);
       return Response.json({ status: paused ? 'paused' : observing ? 'observing' : healthy ? 'healthy' : 'degraded', last_success: state.lastSuccess,
         last_observation: observed || null, last_check: state.lastCheck || null, error: state.error, error_stage: state.error_stage || null,
-        publish_pending: Boolean(state.pending), uncertain_deliveries: uncertain, poll_seconds: 60 },
+        publish_pending: Boolean(state.pending), uncertain_deliveries: uncertain, delivery_codes, poll_seconds: 60 },
       { status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
     } catch { return Response.json({ status: 'unavailable' }, { status: 503 }); }
   },
