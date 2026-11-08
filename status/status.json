@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-08T10:51:12.233+07:00",
-  "last_run_date_thai": "08/11/2026 10:51:12",
-  "total_checks": 1468,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 11 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 4 รายการ ค้างส่ง 4 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 7 รายการ รอผลจากแหล่งข้อมูล 7 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ",
-  "active_sources_count": 5,
+  "last_run_timestamp": "2026-11-08T10:52:12.282+07:00",
+  "last_run_date_thai": "08/11/2026 10:52:12",
+  "total_checks": 1469,
+  "last_source_used": "ผลหวย.com stock groups + ผลหวย.com Lao EXTRA + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 11 รายการ ส่งสำเร็จ 1 รายการ ส่งเตือนตามตารางไม่สำเร็จ 4 รายการ ค้างส่ง 3 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 7 รายการ รอผลจากแหล่งข้อมูล 7 รายการ",
+  "active_sources_count": 6,
   "latest_draw_detected": "8 พฤศจิกายน 2569",
-  "notifications_sent_today": 2,
-  "notification_failures": 4,
+  "notifications_sent_today": 3,
+  "notification_failures": 3,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-08T10:52:12.282+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 11 รายการ ส่งสำเร็จ 1 รายการ ส่งเตือนตามตารางไม่สำเร็จ 4 รายการ ค้างส่ง 3 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 7 รายการ รอผลจากแหล่งข้อมูล 7 รายการ"
+    },
     {
       "timestamp": "2026-11-08T10:51:12.233+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-08T10:33:12.346+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 8 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 4 รายการ ค้างส่ง 3 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 7 รายการ รอผลจากแหล่งข้อมูล 8 รายการ"
-    },
-    {
-      "timestamp": "2026-11-08T10:32:12.176+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 8 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 4 รายการ ค้างส่ง 3 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 7 รายการ รอผลจากแหล่งข้อมูล 8 รายการ"
     }
   ],
   "uncertain_deliveries": 7,
@@ -120,17 +120,17 @@
     "waiting": [
       {
         "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ลาวสามัคคี",
+        "status": 404
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ฮานอย HD",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ฮานอยพัฒนา",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
         "status": 404
       },
       {
@@ -154,12 +154,6 @@
         "status": 404
       }
     ],
-    "errors": [
-      {
-        "source": "ThaiLottoAPI",
-        "status": null,
-        "reason": "timeout"
-      }
-    ]
+    "errors": []
   }
 }
