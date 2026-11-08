@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-08T16:44:12.406+07:00",
-  "last_run_date_thai": "08/11/2026 16:44:12",
-  "total_checks": 1821,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 31 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 8 รายการ ค้างส่ง 10 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 29 รายการ รอผลจากแหล่งข้อมูล 2 รายการ",
+  "last_run_timestamp": "2026-11-08T16:45:12.406+07:00",
+  "last_run_date_thai": "08/11/2026 16:45:12",
+  "total_checks": 1822,
+  "last_source_used": "ผลหวย.com stock groups + ผลหวย.com Lao EXTRA + ThaiLottoAPI + glo + lotterychecks + LotteryChecks Lao/Hanoi",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 31 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 9 รายการ ค้างส่ง 10 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 29 รายการ รอผลจากแหล่งข้อมูล 2 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "8 พฤศจิกายน 2569",
   "notifications_sent_today": 6,
   "notification_failures": 10,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-08T16:45:12.406+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 31 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 9 รายการ ค้างส่ง 10 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 29 รายการ รอผลจากแหล่งข้อมูล 2 รายการ"
+    },
     {
       "timestamp": "2026-11-08T16:44:12.406+07:00",
       "level": "WARNING",
@@ -104,18 +109,13 @@
       "timestamp": "2026-11-08T16:26:12.519+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 31 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 9 รายการ ค้างส่ง 10 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 28 รายการ รอผลจากแหล่งข้อมูล 2 รายการ"
-    },
-    {
-      "timestamp": "2026-11-08T16:25:12.246+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 31 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 9 รายการ ค้างส่ง 10 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 28 รายการ รอผลจากแหล่งข้อมูล 2 รายการ"
     }
   ],
   "uncertain_deliveries": 29,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
   "schedule_alerts_sent_today": 10,
-  "schedule_alert_failures": 8,
+  "schedule_alert_failures": 9,
   "source_checks": {
     "waiting": [
       {
