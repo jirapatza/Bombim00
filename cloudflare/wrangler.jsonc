@@ -3,19 +3,19 @@
   "name": "bombim00-lottery-checker",
   "main": "src/worker.js",
   "compatibility_date": "2026-11-01",
-  "workers_dev": true,
-  "preview_urls": false,
+  "workers_dev": false,
+  "preview_urls": true,
   "send_metrics": false,
   "triggers": { "crons": ["* * * * *"] },
   "vars": {
     "GITHUB_REPOSITORY": "jirapatza/Bombim00",
-    "MODE": "observe",
-    "ENABLED": "false"
+    "MODE": "deliver",
+    "ENABLED": "true"
   },
   "d1_databases": [{
     "binding": "DB",
     "database_name": "bombim00-lottery-state",
-    "database_id": "00000000-0000-0000-0000-000000000000",
+    "database_id": "6a4a88e4-8eca-4291-a23b-d58caf0a236e",
     "migrations_dir": "migrations"
   }],
   "observability": { "enabled": false }
