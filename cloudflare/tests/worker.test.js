@@ -410,3 +410,29 @@ test('durable pending stores changes and an immutable Git base, not the growing 
   assert.ok(JSON.stringify(f.db.state()).length < 20000);
   assert.equal(f.db.state().pending.baseHead, 'a'.repeat(40));
 });
+test('ntfy outcome codes are fixed labels and never change the delivery decision', async () => {
+  const code = async (request, settings = {}) => { const detail = {}; const state = await sendNotification(settings, result(), 'x', request, detail); return [state, detail.code]; };
+  assert.deepEqual(await code(async () => new Response('', { status: 200 })), ['sent', 'http_200']);
+  assert.deepEqual(await code(async () => new Response('', { status: 429 })), ['failed', 'http_429']);
+  assert.deepEqual(await code(async () => new Response('', { status: 503 })), ['uncertain', 'http_503']);
+  assert.deepEqual(await code(async () => { throw new Error('synthetic private diagnostic'); }), ['uncertain', 'network']);
+  assert.deepEqual(await code(async () => { const error = new Error('x'); error.name = 'TimeoutError'; throw error; }), ['uncertain', 'timeout']);
+  const insecure = boundedRequest(async () => assert.fail('must not fetch'));
+  assert.deepEqual(await code(insecure, { channels: { ntfy: { server: 'http://example.test' } } }), ['failed', 'https_required']);
+  // The detail argument is optional: existing callers keep working.
+  assert.equal(await sendNotification({}, result(), 'x', async () => new Response('', { status: 200 })), 'sent');
+});
+test('health counts unresolved delivery codes without exposing text, topic or history', async t => {
+  const f = fixture(t);
+  f.dependencies.send = async (_s, _row, _t, _r, detail) => { detail.code = 'http_429'; return 'failed'; };
+  await f.run();
+  assert.equal(f.db.state().deliveries[Object.keys(f.db.state().deliveries)[0]].code, 'http_429');
+  const state = f.db.state();
+  state.deliveries.legacy = { state: 'uncertain', date: today, kind: 'result' };
+  state.deliveries.hostile = { state: 'failed', date: today, kind: 'result', code: 'https://secret.example/token' };
+  state.deliveries.ok = { state: 'sent', date: today, kind: 'result', code: 'http_200' };
+  f.db.setState(state);
+  const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
+  assert.deepEqual(body.delivery_codes, { http_429: 1, unknown: 2 });
+  assert.ok(!JSON.stringify(body).includes('secret.example') && !JSON.stringify(body).includes('synthetic-local-topic'));
+});
