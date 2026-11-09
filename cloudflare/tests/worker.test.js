@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { cycle, sendNotification, boundedRequest } from '../src/worker.js';
+import worker, { cycle, sendNotification, boundedRequest, retryAfterDelay } from '../src/worker.js';
 import { DurableState, RuntimeRepository, validateSnapshot, OUTPUTS } from '../src/storage.js';
 import { database } from './state-helper.js';
 import { drawDate, dueScheduleAlerts, scheduled, numbers, mergeRows } from '../src/domain.js';
@@ -435,4 +435,30 @@ test('health counts unresolved delivery codes without exposing text, topic or hi
   const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
   assert.deepEqual(body.delivery_codes, { http_429: 1, unknown: 2 });
   assert.ok(!JSON.stringify(body).includes('secret.example') && !JSON.stringify(body).includes('synthetic-local-topic'));
+});
+
+test('Retry-After delay accepts seconds and dates and falls back safely', () => {
+  assert.equal(retryAfterDelay('120', 0), 120000);
+  assert.equal(retryAfterDelay('Thu, 01 Jan 1970 00:02:00 GMT', 0), 120000);
+  assert.equal(retryAfterDelay(null, 0), 60000);
+  assert.equal(retryAfterDelay('invalid', 0), 60000);
+});
+
+test('ntfy 429 persists cooldown and does not send again until it expires', async t => {
+  const f = fixture(t);
+  let attempts = 0;
+  f.dependencies.send = async (_settings, _row, _topic, _request, detail) => {
+    attempts++;
+    if (attempts === 1) { detail.code = 'http_429'; detail.retry_after_ms = 120000; return 'failed'; }
+    detail.code = 'http_200'; return 'sent';
+  };
+  await f.run();
+  assert.equal(attempts, 1);
+  assert.equal(f.db.state().ntfyBackoffUntil, new Date(+now + 120000).toISOString());
+  f.dependencies.now = new Date(+now + 60000);
+  await f.run();
+  assert.equal(attempts, 1);
+  f.dependencies.now = new Date(+now + 121000);
+  await f.run();
+  assert.equal(attempts, 2);
 });
