@@ -45,10 +45,19 @@ async function publishNtfy(settings, message, topic, request, detail = {}) {
   const cfg = settings.channels?.ntfy || {};
   const server = (cfg.server || settings.ntfy?.server || 'https://ntfy.sh').replace(/\/+$/, '');
   const click = cfg.click_url || settings.ntfy?.click_url || '';
+  let clickTarget = 'https://bombim00.pages.dev';
+  if (click) {
+    try {
+      const url = new URL(click);
+      const host = url.hostname.toLowerCase();
+      if (url.protocol === 'https:' && host !== 'bombim00.onrender.com' &&
+          host !== 'sanook.com' && !host.endsWith('.sanook.com')) clickTarget = url.href;
+    } catch { /* An invalid historical click URL falls back to Pages. */ }
+  }
   try {
     const response = await request(server + '/', { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ topic, ...message, priority: 4,
-        click: !click || click.includes('sanook') ? 'https://bombim00.onrender.com' : click }) });
+        click: clickTarget }) });
     await response.body?.cancel();
     detail.code = `http_${response.status}`;
     if (response.status === 200) return 'sent';

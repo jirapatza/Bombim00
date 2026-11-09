@@ -436,3 +436,22 @@ test('health counts unresolved delivery codes without exposing text, topic or hi
   assert.deepEqual(body.delivery_codes, { http_429: 1, unknown: 2 });
   assert.ok(!JSON.stringify(body).includes('secret.example') && !JSON.stringify(body).includes('synthetic-local-topic'));
 });
+
+test('ntfy click link resolves to Pages even when runtime config contains legacy Render URL', async () => {
+  const links = [];
+  const request = async (_url, options) => {
+    links.push(JSON.parse(options.body).click);
+    return new Response(null, { status: 200 });
+  };
+  await sendNotification({ channels: { ntfy: { click_url: 'https://bombim00.onrender.com' } } }, result(), 'synthetic-topic', request);
+  await sendNotification({}, result(), 'synthetic-topic', request);
+  await sendNotification({ channels: { ntfy: { click_url: 'https://bombim00.onrender.com.evil.example/path' } } }, result(), 'synthetic-topic', request);
+  await sendNotification({ channels: { ntfy: { click_url: 'https://safe.example/path?next=bombim00.onrender.com' } } }, result(), 'synthetic-topic', request);
+  await sendNotification({ channels: { ntfy: { click_url: 'https://news.sanook.com/lottery' } } }, result(), 'synthetic-topic', request);
+  assert.deepEqual(links, [
+    'https://bombim00.pages.dev', 'https://bombim00.pages.dev',
+    'https://bombim00.onrender.com.evil.example/path',
+    'https://safe.example/path?next=bombim00.onrender.com',
+    'https://bombim00.pages.dev',
+  ]);
+});
