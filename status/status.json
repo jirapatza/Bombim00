@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-09T11:26:12.609+07:00",
-  "last_run_date_thai": "09/11/2026 11:26:12",
-  "total_checks": 2942,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 15 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 2 รายการ ค้างส่ง 9 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 86 รายการ รอผลจากแหล่งข้อมูล 7 รายการ",
+  "last_run_timestamp": "2026-11-09T11:27:12.920+07:00",
+  "last_run_date_thai": "09/11/2026 11:27:12",
+  "total_checks": 2943,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 15 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 9 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 87 รายการ รอผลจากแหล่งข้อมูล 7 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "09.11.2026",
   "notifications_sent_today": 0,
   "notification_failures": 9,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-09T11:27:12.920+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 15 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 9 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 87 รายการ รอผลจากแหล่งข้อมูล 7 รายการ"
+    },
     {
       "timestamp": "2026-11-09T11:26:12.609+07:00",
       "level": "WARNING",
@@ -104,18 +109,13 @@
       "timestamp": "2026-11-09T11:08:12.365+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 13 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 8 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 84 รายการ รอผลจากแหล่งข้อมูล 7 รายการ"
-    },
-    {
-      "timestamp": "2026-11-09T11:07:12.233+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 13 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 8 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 84 รายการ รอผลจากแหล่งข้อมูล 7 รายการ"
     }
   ],
-  "uncertain_deliveries": 86,
+  "uncertain_deliveries": 87,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
   "schedule_alerts_sent_today": 3,
-  "schedule_alert_failures": 2,
+  "schedule_alert_failures": 1,
   "source_checks": {
     "waiting": [
       {
@@ -135,7 +135,7 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย TV",
+        "lottery": "ลาว HD",
         "status": 404
       },
       {
@@ -145,7 +145,7 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาว HD",
+        "lottery": "ฮานอย TV",
         "status": 404
       },
       {
