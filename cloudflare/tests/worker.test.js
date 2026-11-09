@@ -445,5 +445,13 @@ test('ntfy click link resolves to Pages even when runtime config contains legacy
   };
   await sendNotification({ channels: { ntfy: { click_url: 'https://bombim00.onrender.com' } } }, result(), 'synthetic-topic', request);
   await sendNotification({}, result(), 'synthetic-topic', request);
-  assert.deepEqual(links, ['https://bombim00.pages.dev', 'https://bombim00.pages.dev']);
+  await sendNotification({ channels: { ntfy: { click_url: 'https://bombim00.onrender.com.evil.example/path' } } }, result(), 'synthetic-topic', request);
+  await sendNotification({ channels: { ntfy: { click_url: 'https://safe.example/path?next=bombim00.onrender.com' } } }, result(), 'synthetic-topic', request);
+  await sendNotification({ channels: { ntfy: { click_url: 'https://news.sanook.com/lottery' } } }, result(), 'synthetic-topic', request);
+  assert.deepEqual(links, [
+    'https://bombim00.pages.dev', 'https://bombim00.pages.dev',
+    'https://bombim00.onrender.com.evil.example/path',
+    'https://safe.example/path?next=bombim00.onrender.com',
+    'https://bombim00.pages.dev',
+  ]);
 });
