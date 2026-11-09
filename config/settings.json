@@ -80,7 +80,7 @@
         "dart",
         "loudspeaker"
       ],
-      "click_url": "https://bombim00.onrender.com"
+      "click_url": "https://bombim00.pages.dev"
     }
   },
   "ntfy": {
@@ -91,7 +91,7 @@
       "dart",
       "loudspeaker"
     ],
-    "click_url": "https://bombim00.onrender.com",
+    "click_url": "https://bombim00.pages.dev",
     "attach_results": true,
     "enabled": true,
     "topic": "lottery-alert-live"
