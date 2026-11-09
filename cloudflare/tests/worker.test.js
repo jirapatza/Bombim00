@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { cycle, sendNotification, boundedRequest } from '../src/worker.js';
+import worker, { cycle, sendNotification, boundedRequest, deliveryUncertainty } from '../src/worker.js';
 import { DurableState, RuntimeRepository, validateSnapshot, OUTPUTS } from '../src/storage.js';
 import { database } from './state-helper.js';
 import { drawDate, dueScheduleAlerts, scheduled, numbers, mergeRows } from '../src/domain.js';
@@ -435,4 +435,29 @@ test('health counts unresolved delivery codes without exposing text, topic or hi
   const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
   assert.deepEqual(body.delivery_codes, { http_429: 1, unknown: 2 });
   assert.ok(!JSON.stringify(body).includes('secret.example') && !JSON.stringify(body).includes('synthetic-local-topic'));
+});
+
+test('old uncertain delivery is retained but does not degrade current health', async t => {
+  t.mock.method(Date, 'now', () => +now);
+  const f = fixture(t);
+  const state = f.db.state();
+  state.deliveries.old = { state: 'uncertain', date: '2026-11-01', kind: 'result', code: 'timeout' };
+  f.db.setState(state);
+  await f.run();
+  const persisted = f.db.state();
+  assert.ok(persisted.deliveries.old);
+  assert.equal(f.data[OUTPUTS[1]].system_status, 'healthy');
+  const health = await worker.fetch(new Request('https://local/health'), f.env);
+  assert.equal(health.status, 200);
+  const body = await health.json();
+  assert.equal(body.old_uncertain_deliveries, 1);
+  assert.equal(body.active_uncertain_deliveries, 0);
+  assert.equal(body.uncertain_deliveries, 1);
+});
+test('recent uncertain stays degraded; missing timestamps use conservative Bangkok date', () => {
+  assert.deepEqual(deliveryUncertainty({
+    new: { state: 'uncertain', date: today, startedAt: now.toISOString() },
+    legacy: { state: 'uncertain', date: today },
+    historic: { state: 'uncertain', date: '2026-11-01' },
+  }, now), { recent: 2, old: 1, total: 3 });
 });
