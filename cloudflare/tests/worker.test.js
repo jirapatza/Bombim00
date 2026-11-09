@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { cycle, sendNotification, boundedRequest } from '../src/worker.js';
+import worker, { cycle, sendNotification, boundedRequest, retryAfterDelay } from '../src/worker.js';
 import { DurableState, RuntimeRepository, validateSnapshot, OUTPUTS } from '../src/storage.js';
 import { database } from './state-helper.js';
 import { drawDate, dueScheduleAlerts, scheduled, numbers, mergeRows } from '../src/domain.js';
@@ -282,13 +282,22 @@ test('sends each schedule alert once via ntfy even with no source result, indepe
   assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 2);
 });
 
-test('retries a definite schedule rejection before the deadline and never repeats an uncertain send', async t => {
+test('retries a definite schedule rejection only after 429 cooldown and never repeats an uncertain send', async t => {
+  let clock = +bangkok('15:10');
+  t.mock.method(Date, 'now', () => clock);
   const f = scheduleFixture(t, [429, 503]);
   await f.run();
   assert.equal(f.data[OUTPUTS[1]].schedule_alert_failures, 1);
-  f.dependencies.now = bangkok('15:11');
+  // Cooldown is exactly 60 seconds when Retry-After is missing.
+  clock = +bangkok('15:10') + 30000;
+  f.dependencies.now = new Date(clock);
+  await f.run();
+  assert.equal(f.messages.length, 1);
+  clock = +bangkok('15:11');
+  f.dependencies.now = new Date(clock);
   await f.run();
   f.dependencies.now = bangkok('15:12');
+  clock = +f.dependencies.now;
   assert.equal((await f.run()).uncertain, 1);
   assert.equal(f.messages.length, 2);
   assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 0);
@@ -435,4 +444,45 @@ test('health counts unresolved delivery codes without exposing text, topic or hi
   const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
   assert.deepEqual(body.delivery_codes, { http_429: 1, unknown: 2 });
   assert.ok(!JSON.stringify(body).includes('secret.example') && !JSON.stringify(body).includes('synthetic-local-topic'));
+});
+
+test('Retry-After delay accepts seconds and dates and falls back safely', () => {
+  assert.equal(retryAfterDelay('120', 0), 120000);
+  assert.equal(retryAfterDelay('7200', 0), 3600000);
+  assert.equal(retryAfterDelay('Thu, 01 Jan 1970 00:02:00 GMT', 0), 120000);
+  assert.equal(retryAfterDelay(null, 0), 60000);
+  assert.equal(retryAfterDelay('invalid', 0), 60000);
+});
+
+test('ntfy 429 persists cooldown and does not send again until it expires', async t => {
+  let current = +now;
+  t.mock.method(Date, 'now', () => current);
+  const f = fixture(t);
+  let attempts = 0;
+  f.dependencies.send = async (_settings, _row, _topic, _request, detail) => {
+    attempts++;
+    if (attempts === 1) { detail.code = 'http_429'; detail.retry_after_ms = 120000; return 'failed'; }
+    detail.code = 'http_200'; return 'sent';
+  };
+  await f.run();
+  assert.equal(attempts, 1);
+  assert.equal(f.db.state().ntfyBackoffUntil, new Date(+now + 120000).toISOString());
+  current = +now + 60000;
+  f.dependencies.now = new Date(current);
+  await f.run();
+  assert.equal(attempts, 1);
+  current = +now + 121000;
+  f.dependencies.now = new Date(current);
+  await f.run();
+  assert.equal(attempts, 2);
+});
+
+test('ntfy 429 anchors Retry-After timestamp at response time and caps long waits', async t => {
+  t.mock.method(Date, 'now', () => 1_700_000_030_000);
+  const detail = {};
+  const response = await sendNotification({}, result(), 'synthetic-topic', async () =>
+    new Response(null, { status: 429, headers: { 'Retry-After': '7200' } }), detail);
+  assert.equal(response, 'failed');
+  assert.equal(detail.retry_after_until, new Date(1_700_000_030_000 + 3600000).toISOString());
+  assert.equal(retryAfterDelay('not-a-date', Date.now()), 60000);
 });
