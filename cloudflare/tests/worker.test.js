@@ -439,12 +439,15 @@ test('health counts unresolved delivery codes without exposing text, topic or hi
 
 test('Retry-After delay accepts seconds and dates and falls back safely', () => {
   assert.equal(retryAfterDelay('120', 0), 120000);
+  assert.equal(retryAfterDelay('7200', 0), 3600000);
   assert.equal(retryAfterDelay('Thu, 01 Jan 1970 00:02:00 GMT', 0), 120000);
   assert.equal(retryAfterDelay(null, 0), 60000);
   assert.equal(retryAfterDelay('invalid', 0), 60000);
 });
 
 test('ntfy 429 persists cooldown and does not send again until it expires', async t => {
+  let current = +now;
+  t.mock.method(Date, 'now', () => current);
   const f = fixture(t);
   let attempts = 0;
   f.dependencies.send = async (_settings, _row, _topic, _request, detail) => {
@@ -455,10 +458,22 @@ test('ntfy 429 persists cooldown and does not send again until it expires', asyn
   await f.run();
   assert.equal(attempts, 1);
   assert.equal(f.db.state().ntfyBackoffUntil, new Date(+now + 120000).toISOString());
-  f.dependencies.now = new Date(+now + 60000);
+  current = +now + 60000;
+  f.dependencies.now = new Date(current);
   await f.run();
   assert.equal(attempts, 1);
-  f.dependencies.now = new Date(+now + 121000);
+  current = +now + 121000;
+  f.dependencies.now = new Date(current);
   await f.run();
   assert.equal(attempts, 2);
+});
+
+test('ntfy 429 anchors Retry-After timestamp at response time and caps long waits', async t => {
+  t.mock.method(Date, 'now', () => 1_700_000_030_000);
+  const detail = {};
+  const response = await sendNotification({}, result(), 'synthetic-topic', async () =>
+    new Response(null, { status: 429, headers: { 'Retry-After': '7200' } }), detail);
+  assert.equal(response, 'failed');
+  assert.equal(detail.retry_after_until, new Date(1_700_000_030_000 + 3600000).toISOString());
+  assert.equal(retryAfterDelay('not-a-date', Date.now()), 60000);
 });
