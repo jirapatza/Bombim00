@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-09T20:13:12.958+07:00",
-  "last_run_date_thai": "09/11/2026 20:13:12",
-  "total_checks": 3468,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 46 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 30 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 154 รายการ รอผลจากแหล่งข้อมูล 1 รายการ",
+  "last_run_timestamp": "2026-11-09T20:14:12.191+07:00",
+  "last_run_date_thai": "09/11/2026 20:14:12",
+  "total_checks": 3469,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 47 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 30 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 154 รายการ รอผลจากแหล่งข้อมูล 1 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "09.11.2026",
   "notifications_sent_today": 1,
   "notification_failures": 30,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-09T20:14:12.191+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 47 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 30 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 154 รายการ รอผลจากแหล่งข้อมูล 1 รายการ"
+    },
     {
       "timestamp": "2026-11-09T20:13:12.958+07:00",
       "level": "WARNING",
@@ -102,11 +107,6 @@
     },
     {
       "timestamp": "2026-11-09T19:55:12.226+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 46 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 30 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 152 รายการ รอผลจากแหล่งข้อมูล 1 รายการ"
-    },
-    {
-      "timestamp": "2026-11-09T19:54:12.321+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 46 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 30 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 152 รายการ รอผลจากแหล่งข้อมูล 1 รายการ"
     }
