@@ -282,13 +282,22 @@ test('sends each schedule alert once via ntfy even with no source result, indepe
   assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 2);
 });
 
-test('retries a definite schedule rejection before the deadline and never repeats an uncertain send', async t => {
+test('retries a definite schedule rejection only after 429 cooldown and never repeats an uncertain send', async t => {
+  let clock = +bangkok('15:10');
+  t.mock.method(Date, 'now', () => clock);
   const f = scheduleFixture(t, [429, 503]);
   await f.run();
   assert.equal(f.data[OUTPUTS[1]].schedule_alert_failures, 1);
-  f.dependencies.now = bangkok('15:11');
+  // Cooldown is exactly 60 seconds when Retry-After is missing.
+  clock = +bangkok('15:10') + 30000;
+  f.dependencies.now = new Date(clock);
+  await f.run();
+  assert.equal(f.messages.length, 1);
+  clock = +bangkok('15:11');
+  f.dependencies.now = new Date(clock);
   await f.run();
   f.dependencies.now = bangkok('15:12');
+  clock = +f.dependencies.now;
   assert.equal((await f.run()).uncertain, 1);
   assert.equal(f.messages.length, 2);
   assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 0);
