@@ -4,7 +4,7 @@ import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './st
 
 const MAX_SENDS = 3;
 const DEFAULT_NTFY_BACKOFF_MS = 60000;
-const MAX_NTFY_BACKOFF_MS = 24 * 60 * 60 * 1000;
+const MAX_NTFY_BACKOFF_MS = 60 * 60 * 1000;
 export function retryAfterDelay(header, now = Date.now()) {
   if (!header) return DEFAULT_NTFY_BACKOFF_MS;
   const seconds = Number(header);
@@ -59,7 +59,10 @@ async function publishNtfy(settings, message, topic, request, detail = {}) {
         click: !click || click.includes('sanook') ? 'https://bombim00.onrender.com' : click }) });
     await response.body?.cancel();
     detail.code = `http_${response.status}`;
-    if (response.status === 429) detail.retry_after_ms = retryAfterDelay(response.headers.get('Retry-After'));
+    if (response.status === 429) {
+      // Anchor the cooldown to the actual HTTP response time, not cycle start.
+      detail.retry_after_until = new Date(Date.now() + retryAfterDelay(response.headers.get('Retry-After'))).toISOString();
+    }
     if (response.status === 200) return 'sent';
     // A definite rejection is retryable. A timeout or 5xx might follow acceptance.
     return [400, 401, 403, 404, 413, 422, 429].includes(response.status) ? 'failed' : 'uncertain';
@@ -160,7 +163,8 @@ export async function cycle(env, dependencies = {}) {
       entry.state = await send(detail);
       if (detail.code) entry.code = detail.code;
       if (detail.code === 'http_429') {
-        state.ntfyBackoffUntil = new Date(+now + (detail.retry_after_ms || DEFAULT_NTFY_BACKOFF_MS)).toISOString();
+        state.ntfyBackoffUntil = detail.retry_after_until ||
+          new Date(Date.now() + (detail.retry_after_ms || DEFAULT_NTFY_BACKOFF_MS)).toISOString();
       }
       await store.save(state); // A lost write leaves 'sending', never an implicit retry.
       stage = 'process';
@@ -178,7 +182,7 @@ export async function cycle(env, dependencies = {}) {
       if (!eligible(settings, row)) { row.สถานะการแจ้งเตือน = 'not_eligible'; continue; }
       if (!active) { row.สถานะการแจ้งเตือน = 'disabled'; continue; }
       if (observing) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
-      if (Date.parse(state.ntfyBackoffUntil || '') > +now) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
+      if (Date.parse(state.ntfyBackoffUntil || '') > Date.now()) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
       if (attempts >= MAX_SENDS) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
       const result = await recordDelivery(key, detail => (dependencies.send || sendNotification)(settings, row, topic, request, detail), 'result');
       row.notification_channels.ntfy = result; row.สถานะการแจ้งเตือน = result;
@@ -186,7 +190,7 @@ export async function cycle(env, dependencies = {}) {
     }
     // Reserve the existing send budget for results first and use the time after provider I/O.
     if (!observing && active && settings.notifications?.enabled !== false && attempts < MAX_SENDS &&
-      !(Date.parse(state.ntfyBackoffUntil || '') > +now)) {
+      !(Date.parse(state.ntfyBackoffUntil || '') > Date.now())) {
       const clock = () => +(dependencies.now || new Date());
       for (const alert of dueScheduleAlerts(catalog, today, new Date(clock()))) {
         if (attempts >= MAX_SENDS) break;
