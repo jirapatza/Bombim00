@@ -442,10 +442,13 @@ test('old uncertain delivery is retained but does not degrade current health', a
   const f = fixture(t);
   const state = f.db.state();
   state.deliveries.old = { state: 'uncertain', date: '2026-11-01', kind: 'result', code: 'timeout' };
+  state.deliveries.oldFailed = { state: 'failed', date: '2026-11-01', kind: 'result', code: 'http_429' };
   f.db.setState(state);
   await f.run();
   const persisted = f.db.state();
   assert.ok(persisted.deliveries.old);
+  assert.ok(persisted.deliveries.oldFailed);
+  assert.equal(f.data[OUTPUTS[1]].notification_failures, 0);
   assert.equal(f.data[OUTPUTS[1]].system_status, 'healthy');
   const health = await worker.fetch(new Request('https://local/health'), f.env);
   assert.equal(health.status, 200);
@@ -460,4 +463,23 @@ test('recent uncertain stays degraded; missing timestamps use conservative Bangk
     legacy: { state: 'uncertain', date: today },
     historic: { state: 'uncertain', date: '2026-11-01' },
   }, now), { recent: 2, old: 1, total: 3 });
+});
+
+test('stale uncertain on an otherwise current result stays recorded but does not degrade makeStatus', async t => {
+  t.mock.method(Date, 'now', () => +now);
+  const f = fixture(t);
+  const old = { state: 'uncertain', date: today, kind: 'result',
+    startedAt: new Date(+now - 48 * 3600000).toISOString(), code: 'timeout' };
+  const state = f.db.state();
+  // Use the same stable identity as the synthetic row.
+  const { drawIdentity } = await import('../src/domain.js');
+  const key = drawIdentity(result());
+  state.deliveries[key] = old;
+  f.db.setState(state);
+  f.dependencies.send = async () => assert.fail('old uncertain must not be resent');
+  await f.run();
+  assert.equal(f.data[OUTPUTS[1]].system_status, 'healthy');
+  assert.equal(f.data[OUTPUTS[1]].notification_failures, 0);
+  assert.equal(f.data[OUTPUTS[1]].old_uncertain_deliveries, 1);
+  assert.equal(f.db.state().deliveries[key].state, 'uncertain');
 });
