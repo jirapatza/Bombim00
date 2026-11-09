@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-09T10:32:11.976+07:00",
-  "last_run_date_thai": "09/11/2026 10:32:11",
-  "total_checks": 2888,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "last_run_timestamp": "2026-11-09T10:33:12.282+07:00",
+  "last_run_date_thai": "09/11/2026 10:33:12",
+  "total_checks": 2889,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
   "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 9 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 2 รายการ ค้างส่ง 5 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 77 รายการ รอผลจากแหล่งข้อมูล 8 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "09.11.2026",
   "notifications_sent_today": 0,
   "notification_failures": 5,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-09T10:33:12.282+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 9 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 2 รายการ ค้างส่ง 5 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 77 รายการ รอผลจากแหล่งข้อมูล 8 รายการ"
+    },
     {
       "timestamp": "2026-11-09T10:32:11.976+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-09T10:14:12.373+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 5 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 75 รายการ รอผลจากแหล่งข้อมูล 8 รายการ"
-    },
-    {
-      "timestamp": "2026-11-09T10:13:12.196+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 5 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 75 รายการ รอผลจากแหล่งข้อมูล 8 รายการ"
     }
   ],
   "uncertain_deliveries": 77,
@@ -118,6 +118,11 @@
   "schedule_alert_failures": 2,
   "source_checks": {
     "waiting": [
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอยพัฒนา",
+        "status": 404
+      },
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ลาวสามัคคี",
@@ -130,17 +135,12 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพัฒนา",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาว TV",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ฮานอย STAR",
+        "status": 404
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอย TV",
         "status": 404
       },
       {
@@ -150,12 +150,12 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาว STAR",
+        "lottery": "ลาว TV",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย TV",
+        "lottery": "ลาว STAR",
         "status": 404
       }
     ],
