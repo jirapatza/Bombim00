@@ -48,7 +48,8 @@ async function publishNtfy(settings, message, topic, request, detail = {}) {
   try {
     const response = await request(server + '/', { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ topic, ...message, priority: 4,
-        click: !click || click.includes('sanook') ? 'https://bombim00.onrender.com' : click }) });
+        click: !click || click.includes('sanook') || click.includes('bombim00.onrender.com')
+          ? 'https://bombim00.pages.dev' : click }) });
     await response.body?.cancel();
     detail.code = `http_${response.status}`;
     if (response.status === 200) return 'sent';
