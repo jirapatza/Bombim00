@@ -4,6 +4,11 @@ import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './st
 
 const MAX_SENDS = 3;
 const UNCERTAIN_HEALTH_WINDOW_MS = 24 * 60 * 60 * 1000;
+function isOldUncertain(entry, now) {
+  if (!entry || entry.state !== 'uncertain') return false;
+  const recordedAt = Date.parse(entry.startedAt || `${entry.date}T23:59:59+07:00`);
+  return Number.isFinite(recordedAt) && +now - recordedAt > UNCERTAIN_HEALTH_WINDOW_MS;
+}
 export function deliveryUncertainty(deliveries, now = new Date()) {
   let recent = 0, old = 0;
   for (const entry of Object.values(deliveries)) {
@@ -12,8 +17,7 @@ export function deliveryUncertainty(deliveries, now = new Date()) {
     if (entry.state === 'sending') { recent++; continue; }
     // Older ledgers only store the Bangkok draw date, not the attempt timestamp.
     // Use the END of that day to avoid falsely aging out an uncertain send.
-    const recordedAt = Date.parse(entry.startedAt || `${entry.date}T23:59:59+07:00`);
-    if (Number.isFinite(recordedAt) && +now - recordedAt > UNCERTAIN_HEALTH_WINDOW_MS) old++;
+    if (isOldUncertain(entry, now)) old++;
     else recent++;
   }
   return { recent, old, total: recent + old };
@@ -73,11 +77,17 @@ async function publishNtfy(settings, message, topic, request, detail = {}) {
 }
 export const sendNotification = (settings, row, topic, request, detail) => publishNtfy(settings, resultMessage(row), topic, request, detail);
 const safeError = error => /^(github_http_\d{3}|github_network|github_invalid_response|github_(network|timeout|aborted)_(ref|commit|contents|writer|publish|other)|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
-function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertainCounts, now) {
+function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertainCounts, deliveries, now) {
   const { recent: uncertain, old: oldUncertain, total: allUncertain } = uncertainCounts;
   const day = bangkokDay(now), time = new Date(+now + 7 * 3600000).toISOString().replace('Z', '+07:00');
   const thaiDate = `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;
-  const failed = rows.filter(x => ['failed', 'partial', 'queued', 'uncertain'].includes(x.สถานะการแจ้งเตือน)).length;
+  // Old unknown outcomes stay visible in history, but are not current-cycle failures.
+  // An old failed delivery from a prior draw is likewise not a current-day failure.
+  const failed = rows.filter(x => {
+    if (drawDate(x) !== day) return false;
+    if (!['failed', 'partial', 'queued', 'uncertain'].includes(x.สถานะการแจ้งเตือน)) return false;
+    return !isOldUncertain(deliveries[drawIdentity(x)], now);
+  }).length;
   const healthy = !checks.errors.length && !failed && !alerts.failed && !uncertain;
   const sameDay = String(previous.last_run_date_thai || '').split(' ')[0] === thaiDate;
   const message = `Cloudflare ตรวจทุกนาที พบผลวันนี้ ${rows.length} รายการ ส่งสำเร็จ ${sent} รายการ` +
@@ -206,7 +216,7 @@ export async function cycle(env, dependencies = {}) {
     const alerts = { sent: unpublished.filter(x => x.kind === 'schedule').length,
       failed: todayDeliveries.filter(x => x.kind === 'schedule' && x.state === 'failed').length };
     const outputs = { 'lottery_previous_results.json': merged, 'status/status.json': makeStatus(status, rows,
-      fetched.some(x => scheduled(x, catalog, today)), sources, { waiting, errors }, unpublished.length - alerts.sent, alerts, uncertainCounts, now) };
+      fetched.some(x => scheduled(x, catalog, today)), sources, { waiting, errors }, unpublished.length - alerts.sent, alerts, uncertainCounts, state.deliveries, now) };
     if (observing) {
       state.lastObservation = { at: now.toISOString(), results: fetched.length,
         scheduled: fetched.filter(x => scheduled(x, catalog, today)).length, sourceErrors: errors.length,
