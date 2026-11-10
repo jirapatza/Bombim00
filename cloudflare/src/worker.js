@@ -70,8 +70,11 @@ async function publishNtfy(settings, message, topic, request, detail = {}, token
     const response = await request(server + '/', { method: 'POST', headers,
       body: JSON.stringify({ topic, ...message, priority: 4,
         click: !click || click.includes('sanook') ? 'https://bombim00.onrender.com' : click }) });
-    await response.body?.cancel();
+    // Once fetch has returned an HTTP response, its status is authoritative.
+    // Releasing the unused response body is best-effort: a cancelled/failed
+    // stream must never turn an accepted 200 or rejected 429 into 'uncertain'.
     detail.code = `http_${response.status}`;
+    try { void response.body?.cancel()?.catch(() => {}); } catch { /* Ignore body cleanup failure. */ }
     if (response.status === 429) {
       // Anchor the cooldown to the actual HTTP response time, not cycle start.
       detail.retry_after_until = new Date(Date.now() + retryAfterDelay(response.headers.get('Retry-After'))).toISOString();

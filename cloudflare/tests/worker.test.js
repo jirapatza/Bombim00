@@ -224,6 +224,23 @@ test('ntfy uses Thai JSON with distinct lower prize; rejects/timeouts do not bec
   assert.equal(await sendNotification({}, result(), 'x', async () => new Response('', { status: 503 })), 'uncertain');
   assert.equal(await sendNotification({}, result(), 'x', async () => { throw new Error('timeout'); }), 'uncertain');
 });
+test('ntfy HTTP status survives response body cancellation failure without duplicate risk', async () => {
+  const response = status => ({ status, headers: new Headers({ 'Retry-After': '120' }),
+    body: { cancel: () => Promise.reject(new Error('synthetic stream cleanup failure')) } });
+  const accepted = {};
+  assert.equal(await sendNotification({}, result(), 'synthetic-topic', async () => response(200), accepted), 'sent');
+  assert.equal(accepted.code, 'http_200');
+  const rejected = {};
+  assert.equal(await sendNotification({}, result(), 'synthetic-topic', async () => response(429), rejected), 'failed');
+  assert.equal(rejected.code, 'http_429');
+  assert.ok(Date.parse(rejected.retry_after_until) > 0);
+  const transport = {};
+  assert.equal(await sendNotification({}, result(), 'synthetic-topic', async () => {
+    const err = new Error('synthetic HTTP connection timeout'); err.name = 'TimeoutError'; throw err;
+  }, transport), 'uncertain');
+  assert.equal(transport.code, 'timeout');
+});
+
 test('ntfy sends an Authorization header only when a token is given', async () => {
   let headers;
   const request = async (_url, options) => { headers = options.headers; return new Response('', { status: 200 }); };
