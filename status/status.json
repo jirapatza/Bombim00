@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-10T19:40:12.282+07:00",
-  "last_run_date_thai": "10/11/2026 19:40:12",
-  "total_checks": 4874,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 45 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 2 รายการ ค้างส่ง 28 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 221 รายการ รอผลจากแหล่งข้อมูล 1 รายการ",
-  "active_sources_count": 6,
-  "latest_draw_detected": "10.11.2026",
+  "last_run_timestamp": "2026-11-10T19:41:12.448+07:00",
+  "last_run_date_thai": "10/11/2026 19:41:12",
+  "total_checks": 4875,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 45 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 2 รายการ ค้างส่ง 28 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 221 รายการ รอผลจากแหล่งข้อมูล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ",
+  "active_sources_count": 5,
+  "latest_draw_detected": "10 พฤศจิกายน 2569",
   "notifications_sent_today": 2,
   "notification_failures": 28,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-10T19:41:12.448+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 45 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 2 รายการ ค้างส่ง 28 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 221 รายการ รอผลจากแหล่งข้อมูล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ"
+    },
     {
       "timestamp": "2026-11-10T19:40:12.282+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-10T19:22:12.334+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 44 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 2 รายการ ค้างส่ง 27 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 221 รายการ รอผลจากแหล่งข้อมูล 2 รายการ"
-    },
-    {
-      "timestamp": "2026-11-10T19:21:12.330+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 44 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 2 รายการ ค้างส่ง 27 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 221 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ"
     }
   ],
   "uncertain_deliveries": 221,
@@ -124,6 +124,12 @@
         "status": 404
       }
     ],
-    "errors": []
+    "errors": [
+      {
+        "source": "ThaiLottoAPI",
+        "status": null,
+        "reason": "timeout"
+      }
+    ]
   }
 }
