@@ -1,0 +1,68 @@
+name: Deploy Cloudflare Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cloudflare/**"
+      - ".github/workflows/deploy-cloudflare-worker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-cloudflare-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy existing production Worker
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: cloudflare/package-lock.json
+      - name: Install dependencies
+        working-directory: cloudflare
+        run: npm ci
+      - name: Run tests
+        working-directory: cloudflare
+        run: npm test
+      - name: Validate required deployment credentials
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CF_API_TOKEN" || { echo "::error::Missing CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "$CF_ACCOUNT_ID" || { echo "::error::Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+      - name: Generate production config from checked-in configuration
+        working-directory: cloudflare
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const config = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
+          if (config.name !== 'bombim00-lottery-checker') throw Error('Unexpected Worker name');
+          if (config.d1_databases?.length !== 1 || config.d1_databases[0].binding !== 'DB') throw Error('Unexpected D1 bindings');
+          config.d1_databases[0].database_id = '6a4a88e4-8eca-4291-a23b-d58caf0a236e';
+          config.vars = { ...config.vars, MODE: 'deliver', ENABLED: 'true' };
+          config.observability = { enabled: true };
+          fs.writeFileSync('wrangler.production.json', JSON.stringify(config, null, 2));
+          NODE
+      - name: Build Worker
+        working-directory: cloudflare
+        run: npx wrangler deploy --dry-run --config wrangler.production.json --outdir dist
+      - name: Deploy Worker to production
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.production.json
