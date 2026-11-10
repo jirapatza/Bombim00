@@ -224,6 +224,14 @@ test('ntfy uses Thai JSON with distinct lower prize; rejects/timeouts do not bec
   assert.equal(await sendNotification({}, result(), 'x', async () => new Response('', { status: 503 })), 'uncertain');
   assert.equal(await sendNotification({}, result(), 'x', async () => { throw new Error('timeout'); }), 'uncertain');
 });
+test('ntfy sends an Authorization header only when a token is given', async () => {
+  let headers;
+  const request = async (_url, options) => { headers = options.headers; return new Response('', { status: 200 }); };
+  await sendNotification({}, result(), 'synthetic-topic', request, {});
+  assert.equal(headers.Authorization, undefined);
+  await sendNotification({}, result(), 'synthetic-topic', request, {}, 'tk_example_secret');
+  assert.equal(headers.Authorization, 'Bearer tk_example_secret');
+});
 
 const scheduledLottery = { id: 'scheduled-test', name: 'หวยทดสอบ', drawDays: 'อังคาร-เสาร์',
   closeTimeStr: '15:20 น.', drawTimeStr: '15:30 น.' };
@@ -245,17 +253,18 @@ test('schedule alerts honor Bangkok day, individual deadlines and confirmed sche
 });
 
 function scheduleFixture(t, responses = []) {
-  const messages = [];
+  const messages = [], headers = [];
   const f = fixture(t, {
     now: bangkok('15:10'),
     collect: async () => ({ rows: [], sources: [], errors: ['synthetic unavailable source'] }),
-    request: async (_url, { body }) => {
-      messages.push(JSON.parse(body));
+    request: async (_url, options) => {
+      messages.push(JSON.parse(options.body));
+      headers.push(options.headers);
       return new Response(null, { status: responses.shift() ?? 200 });
     },
   });
   f.data['data/all_lotteries.json'] = [scheduledLottery];
-  return { ...f, messages };
+  return { ...f, messages, headers };
 }
 
 test('sends each schedule alert once via ntfy even with no source result, independently of the result ledger', async t => {
@@ -302,6 +311,29 @@ test('retries a definite schedule rejection only after 429 cooldown and never re
   assert.equal(f.messages.length, 2);
   assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 0);
 });
+test('schedule alerts due in the same cycle for multiple lotteries go out as one combined ntfy send', async t => {
+  const second = { ...scheduledLottery, id: 'scheduled-test-2', name: 'หวยทดสอบสอง' };
+  const f = scheduleFixture(t);
+  f.data['data/all_lotteries.json'] = [scheduledLottery, second];
+  const result = await f.run();
+  assert.equal(f.messages.length, 1); // one HTTP call, not one per lottery
+  assert.deepEqual(f.messages[0], { topic: 'synthetic-local-topic', title: 'แจ้งเตือนตามตาราง (2 รายการ)',
+    message: 'หวยทดสอบ ปิดรับ เวลา 15:20 น.\nหวยทดสอบสอง ปิดรับ เวลา 15:20 น.', tags: ['alarm_clock'],
+    priority: 4, click: 'https://bombim00.onrender.com' });
+  assert.equal(result.sent, 0);
+  assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 2); // both lotteries still tracked as sent
+});
+
+test('NTFY_TOKEN secret, when set, is sent as a Bearer header on real deliveries', async t => {
+  const f = scheduleFixture(t);
+  await f.run(); // no NTFY_TOKEN set
+  assert.equal(f.headers[0].Authorization, undefined);
+  f.env.NTFY_TOKEN = 'tk_env_secret';
+  f.dependencies.now = bangkok('15:25'); // next distinct alert, avoids the already-sent 'closing' key
+  await f.run();
+  assert.equal(f.headers[1].Authorization, 'Bearer tk_env_secret');
+});
+
 test('preflight rejects are retryable, while same-named transport errors remain uncertain', async t => {
   let fetches = 0;
   const neverSent = boundedRequest(async () => { fetches++; return new Response(); }, Date.now() - 1);
@@ -475,6 +507,27 @@ test('ntfy 429 persists cooldown and does not send again until it expires', asyn
   f.dependencies.now = new Date(current);
   await f.run();
   assert.equal(attempts, 2);
+});
+
+test('/health explains a queue: how many hit the per-cycle send quota last cycle', async t => {
+  const f = fixture(t);
+  f.dependencies.collect = async () => ({ rows: [['lao_tv', 'ลาว TV'], ['lao_hd', 'ลาว HD'], ['lao_star', 'ลาว STAR'], ['lao_extra', 'ลาว EXTRA']]
+    .map(([id, name]) => result(id, name)), sources: ['synthetic'], errors: [] });
+  assert.equal((await f.run()).queued, 1); // 3 sent, 1 over MAX_SENDS
+  const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
+  assert.equal(body.ntfy_backoff_until, null); // no 429 here, so no backoff reason
+  assert.equal(body.last_queue_summary.quota, 1);
+  assert.equal(body.last_queue_summary.backoff, 0);
+});
+
+test('/health explains a queue: an active ntfy 429 cooldown and exactly when it lifts', async t => {
+  t.mock.method(Date, 'now', () => +now);
+  const f = fixture(t);
+  f.dependencies.send = async (_s, _row, _t, _r, detail) => { detail.code = 'http_429'; detail.retry_after_ms = 120000; return 'failed'; };
+  await f.run();
+  const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
+  assert.equal(body.ntfy_backoff_until, new Date(+now + 120000).toISOString());
+  assert.equal(body.last_queue_summary.backoff, 0); // the row that triggered the 429 is 'failed', not 'queued'
 });
 
 test('ntfy 429 anchors Retry-After timestamp at response time and caps long waits', async t => {
