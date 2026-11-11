@@ -1,0 +1,179 @@
+name: Code Quality Analysis
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  python-static-analysis:
+    name: Python static analysis (advisory)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install analysis tools
+        run: python -m pip install --disable-pip-version-check pylint bandit pycodestyle radon
+
+      - name: Analyze tracked Python files
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          output_dir = Path('analysis')
+          output_dir.mkdir(exist_ok=True)
+          paths = subprocess.check_output(['git', 'ls-files', '-z', '--', '*.py']).decode().strip('\0').split('\0')
+          paths = [path for path in paths if path]
+          report = {'python_files': len(paths), 'tools': {}, 'findings': []}
+          failures = []
+
+          def execute(name, command):
+              result = subprocess.run(command, capture_output=True, text=True, check=False)
+              report['tools'][name] = {'exit_code': result.returncode}
+              return result.stdout
+
+          def parse_json(name, raw):
+              try:
+                  return json.loads(raw)
+              except (ValueError, TypeError):
+                  failures.append(name)
+                  return None
+
+          if paths:
+              pylint = parse_json('pylint', execute('pylint', ['pylint', '--output-format=json', *paths]))
+              if isinstance(pylint, list):
+                  report['tools']['pylint']['issues'] = len(pylint)
+                  report['findings'] += [
+                      {'tool': 'pylint', 'path': item.get('path'), 'line': item.get('line'), 'rule': item.get('message-id')}
+                      for item in pylint[:100]
+                  ]
+              else:
+                  failures.append('pylint output')
+
+              bandit = parse_json('bandit', execute('bandit', ['bandit', '-f', 'json', *paths]))
+              if isinstance(bandit, dict) and isinstance(bandit.get('results'), list):
+                  findings = bandit['results']
+                  report['tools']['bandit']['issues'] = len(findings)
+                  report['tools']['bandit']['high_severity'] = sum(
+                      item.get('issue_severity') == 'HIGH' for item in findings
+                  )
+                  report['findings'] += [
+                      {'tool': 'bandit', 'path': item.get('filename'), 'line': item.get('line_number'),
+                       'rule': item.get('test_id'), 'severity': item.get('issue_severity')}
+                      for item in findings[:100]
+                  ]
+              else:
+                  failures.append('bandit output')
+
+              style = execute('pycodestyle', ['pycodestyle', *paths])
+              style_lines = [line for line in style.splitlines() if line.strip()]
+              report['tools']['pycodestyle']['issues'] = len(style_lines)
+              report['findings'] += [
+                  {'tool': 'pycodestyle', 'path_and_line': line.split(': ', 1)[0],
+                   'rule': line.split(': ', 1)[-1].split(' ', 1)[0]}
+                  for line in style_lines[:100]
+              ]
+
+              radon = parse_json('radon', execute('radon', ['radon', 'cc', '-j', *paths]))
+              if isinstance(radon, dict):
+                  blocks = [block for group in radon.values() if isinstance(group, list)
+                            for block in group if isinstance(block, dict)]
+                  report['tools']['radon']['blocks'] = len(blocks)
+                  report['tools']['radon']['complex_blocks'] = sum(
+                      block.get('rank') in ('C', 'D', 'E', 'F') for block in blocks
+                  )
+              else:
+                  failures.append('radon output')
+          else:
+              report['tools']['note'] = 'No tracked Python files found'
+
+          summary = [
+              '<!-- bombim00-static-analysis -->',
+              '### Automated code quality (Python)',
+              f'- Python files scanned: **{len(paths)}**',
+              '- Findings are advisory; they do not by themselves fail this check.',
+          ]
+          for name in ('pylint', 'bandit', 'pycodestyle', 'radon'):
+              if name in report['tools']:
+                  values = report['tools'][name]
+                  details = ', '.join(f'{k}={v}' for k, v in values.items() if k != 'exit_code')
+                  summary.append(f'- **{name}**: {details}; exit code {values.get("exit_code", "n/a")}')
+          if failures:
+              summary.append(f'- **Tool execution / report errors:** {", ".join(sorted(set(failures)))}')
+          summary.append('Detailed sanitized findings are available in the workflow artifact code-quality-report.')
+          (output_dir / 'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+          (output_dir / 'summary.md').write_text('\n'.join(summary) + '\n', encoding='utf-8')
+          if failures:
+              raise SystemExit('Analysis tool produced an invalid report; see workflow summary.')
+          PY
+
+      - name: Show workflow summary
+        if: always()
+        run: |
+          if [ -f analysis/summary.md ]; then cat analysis/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Save analysis report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-quality-report
+          path: |
+            analysis/report.json
+            analysis/summary.md
+          if-no-files-found: warn
+
+      - name: Add or update a comment on same-repository PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'analysis/summary.md';
+            if (!fs.existsSync(path)) return;
+            const body = fs.readFileSync(path, 'utf8');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100
+            });
+            const marker = '<!-- bombim00-static-analysis -->';
+            const prior = comments.find(c => c.user?.type === 'Bot' && c.body?.includes(marker));
+            if (prior) {
+              await github.rest.issues.updateComment({owner, repo, comment_id: prior.id, body});
+            } else {
+              await github.rest.issues.createComment({owner, repo, issue_number, body});
+            }
+
+  javascript-typecheck:
+    name: JavaScript/TypeScript static checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: TypeScript check
+        run: npm run lint
+      - name: Worker JavaScript syntax check (no deployment)
+        run: node --check cloudflare/src/worker.js
