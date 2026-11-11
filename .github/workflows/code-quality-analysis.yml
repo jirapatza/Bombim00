@@ -8,12 +8,14 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   python-static-analysis:
     name: Python static analysis (advisory)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout reviewed source
         uses: actions/checkout@v4
@@ -67,6 +69,10 @@ jobs:
 
               bandit = parse_json('bandit', execute('bandit', ['bandit', '-f', 'json', *paths]))
               if isinstance(bandit, dict) and isinstance(bandit.get('results'), list):
+                  bandit_errors = bandit.get('errors', [])
+                  report['tools']['bandit']['file_errors'] = len(bandit_errors) if isinstance(bandit_errors, list) else 1
+                  if bandit_errors:
+                      failures.append('bandit file errors')
                   findings = bandit['results']
                   report['tools']['bandit']['issues'] = len(findings)
                   report['tools']['bandit']['high_severity'] = sum(
@@ -91,6 +97,11 @@ jobs:
 
               radon = parse_json('radon', execute('radon', ['radon', 'cc', '-j', *paths]))
               if isinstance(radon, dict):
+                  radon_errors = [path for path, entry in radon.items()
+                                  if isinstance(entry, dict) and ('error' in entry or 'errors' in entry)]
+                  report['tools']['radon']['file_errors'] = len(radon_errors)
+                  if radon_errors:
+                      failures.append('radon file errors')
                   blocks = [block for group in radon.values() if isinstance(group, list)
                             for block in group if isinstance(block, dict)]
                   report['tools']['radon']['blocks'] = len(blocks)
@@ -138,7 +149,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Add or update a comment on same-repository PR
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
         continue-on-error: true
         uses: actions/github-script@v7
         with:
