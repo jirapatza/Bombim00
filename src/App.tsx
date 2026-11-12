@@ -20,6 +20,39 @@ const SummaryScreen = lazy(() => import("./screens/SummaryScreen").then((m) => (
 const TicketCheckerScreen = lazy(() => import("./screens/TicketCheckerScreen").then((m) => ({ default: m.TicketCheckerScreen })));
 const SettingsScreen = lazy(() => import("./screens/SettingsScreen").then((m) => ({ default: m.SettingsScreen })));
 
+class LazyScreenErrorBoundary extends React.Component<
+  React.PropsWithChildren,
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          role="alert"
+          className="rounded-xl border border-amber-800 bg-amber-950 p-4 text-sm text-amber-100"
+        >
+          <p>โหลดหน้านี้ไม่สำเร็จ</p>
+          <button
+            type="button"
+            className="mt-3 rounded-lg bg-amber-700 px-3 py-2 font-medium text-white hover:bg-amber-600"
+            onClick={() => window.location.reload()}
+          >
+            โหลดหน้าใหม่
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<AppTab>("live");
   const [currentTimeString, setCurrentTimeString] = useState("");
@@ -220,7 +253,8 @@ export const App: React.FC = () => {
 
         {/* Main Content Area */}
         <main className="app-main">
-          <Suspense fallback={<p role="status" className="p-4 text-sm text-slate-400">กำลังโหลด…</p>}>
+          <LazyScreenErrorBoundary key={currentTab}>
+            <Suspense fallback={<p role="status" className="p-4 text-sm text-slate-400">กำลังโหลด…</p>}>
           {liveDataError && (
             <p
               role="status"
@@ -282,7 +316,8 @@ export const App: React.FC = () => {
               </div>
             </>
           )}
-          </Suspense>
+            </Suspense>
+          </LazyScreenErrorBoundary>
         </main>
 
         <footer className="app-footer">
