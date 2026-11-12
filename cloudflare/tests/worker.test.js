@@ -589,8 +589,10 @@ test('/health names the cooldown reason: auth_rejected for 403, rate_limit for 4
 test('an expired rate-limit cooldown is replaced by the auth cooldown when the next send is rejected with 401', async t => {
   t.mock.method(Date, 'now', () => +now);
   const f = fixture(t);
-  f.db.state().ntfyBackoffUntil = new Date(+now - 1000).toISOString(); // already lifted
-  f.db.state().ntfyBackoffReason = 'rate_limit';
+  const state = f.db.state();
+  state.ntfyBackoffUntil = new Date(+now - 1000).toISOString(); // already lifted
+  state.ntfyBackoffReason = 'rate_limit';
+  f.db.setState(state);
   f.dependencies.send = async (_s, _row, _t, _r, detail) => { detail.code = 'http_401'; return 'failed'; };
   await f.run();
   assert.equal(f.db.state().ntfyBackoffReason, 'auth_rejected');
