@@ -5,6 +5,9 @@ import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './st
 const MAX_SENDS = 3;
 const DEFAULT_NTFY_BACKOFF_MS = 60000;
 const MAX_NTFY_BACKOFF_MS = 60 * 60 * 1000;
+// A rejected token/permission (401/403) will not fix itself within a minute, so stop
+// re-sending every cycle: one probe per 15 minutes instead of up to 3 sends per minute.
+const AUTH_REJECT_BACKOFF_MS = 15 * 60 * 1000;
 export function retryAfterDelay(header, now = Date.now()) {
   if (!header) return DEFAULT_NTFY_BACKOFF_MS;
   const seconds = Number(header);
@@ -190,6 +193,14 @@ export async function cycle(env, dependencies = {}) {
       if (detail.code === 'http_429') {
         state.ntfyBackoffUntil = detail.retry_after_until ||
           new Date(Date.now() + (detail.retry_after_ms || DEFAULT_NTFY_BACKOFF_MS)).toISOString();
+        state.ntfyBackoffReason = 'rate_limit';
+      } else if (detail.code === 'http_401' || detail.code === 'http_403') {
+        const until = Date.now() + AUTH_REJECT_BACKOFF_MS;
+        // Never shorten a longer cooldown that is already in effect.
+        if (!(Date.parse(state.ntfyBackoffUntil || '') > until)) {
+          state.ntfyBackoffUntil = new Date(until).toISOString();
+          state.ntfyBackoffReason = 'auth_rejected';
+        }
       }
       await store.save(state); // A lost write leaves 'sending', never an implicit retry.
       stage = 'process';
@@ -304,7 +315,8 @@ export default {
       return Response.json({ status: paused ? 'paused' : observing ? 'observing' : healthy ? 'healthy' : 'degraded', last_success: state.lastSuccess,
         last_observation: observed || null, last_check: state.lastCheck || null, error: state.error, error_stage: state.error_stage || null,
         publish_pending: Boolean(state.pending), uncertain_deliveries: uncertain, delivery_codes, poll_seconds: 60,
-        ntfy_backoff_until: backoffActive ? state.ntfyBackoffUntil : null, last_queue_summary: state.lastQueueSummary || null },
+        ntfy_backoff_until: backoffActive ? state.ntfyBackoffUntil : null,
+        ntfy_backoff_reason: backoffActive ? (state.ntfyBackoffReason || 'rate_limit') : null, last_queue_summary: state.lastQueueSummary || null },
       { status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
     } catch { return Response.json({ status: 'unavailable' }, { status: 503 }); }
   },
