@@ -1,12 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { Suspense, lazy, useState, useEffect, useMemo, useCallback } from "react";
 import { DeviceHealthPanel } from "./components/DeviceHealthPanel";
 import { Header } from "./components/Header";
 import { BottomNavigation, AppTab } from "./components/BottomNavigation";
 import { LiveResultsScreen } from "./screens/LiveResultsScreen";
-import { HistoryScreen } from "./screens/HistoryScreen";
-import { SummaryScreen } from "./screens/SummaryScreen";
-import { TicketCheckerScreen } from "./screens/TicketCheckerScreen";
-import { SettingsScreen } from "./screens/SettingsScreen";
 import { LotteryRepository } from "./data/lotteryRepository";
 import { ThaiTtsService } from "./utils/thaiTts";
 import {
@@ -17,6 +13,12 @@ import {
   TicketCheckReport,
   FrequencyStat,
 } from "./types/lottery";
+
+// Secondary screens load on demand so the first paint ships less JavaScript.
+const HistoryScreen = lazy(() => import("./screens/HistoryScreen").then((m) => ({ default: m.HistoryScreen })));
+const SummaryScreen = lazy(() => import("./screens/SummaryScreen").then((m) => ({ default: m.SummaryScreen })));
+const TicketCheckerScreen = lazy(() => import("./screens/TicketCheckerScreen").then((m) => ({ default: m.TicketCheckerScreen })));
+const SettingsScreen = lazy(() => import("./screens/SettingsScreen").then((m) => ({ default: m.SettingsScreen })));
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<AppTab>("live");
@@ -218,6 +220,7 @@ export const App: React.FC = () => {
 
         {/* Main Content Area */}
         <main className="app-main">
+          <Suspense fallback={<p role="status" className="p-4 text-sm text-slate-400">กำลังโหลด…</p>}>
           {liveDataError && (
             <p
               role="status"
@@ -279,6 +282,7 @@ export const App: React.FC = () => {
               </div>
             </>
           )}
+          </Suspense>
         </main>
 
         <footer className="app-footer">
