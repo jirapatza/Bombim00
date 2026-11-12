@@ -25,6 +25,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+      # Never publish a build that fails type-checking or the frontend tests.
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
 
       # Create the Pages project once; ignore the error if it already exists
