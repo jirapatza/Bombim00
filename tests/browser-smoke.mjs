@@ -35,6 +35,8 @@ async function run() {
           await nav.getByRole('button', { name: label, exact: true }).click();
           await page.locator(selector).waitFor({ timeout: 15000 });
           assert.equal(await nav.getByRole('button', { name: label, exact: true }).getAttribute('aria-current'), 'page');
+          const tabOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+          assert.ok(tabOverflow <= 2, 'Horizontal overflow in ' + name + ' / ' + label + ': ' + tabOverflow + 'px');
         }
 
         // Live data controls: refresh, query, and reset.
@@ -91,9 +93,6 @@ async function run() {
         await toggle.click();
         assert.equal(await toggle.getAttribute('aria-checked'), before);
 
-        // Responsive check: no horizontal overflow of the overall page.
-        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-        assert.ok(overflow <= 2, 'Horizontal overflow in ' + name + ': ' + overflow + 'px');
         assert.deepEqual(errors, [], name + ' browser errors');
         console.log('PASS ' + name + ': navigation, refresh, filters, history, sharing UI, ticket check, settings, keyboard/mobile layout');
       } catch (error) {
