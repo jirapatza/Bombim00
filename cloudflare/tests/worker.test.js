@@ -336,7 +336,7 @@ test('schedule alerts due in the same cycle for multiple lotteries go out as one
   assert.equal(f.messages.length, 1); // one HTTP call, not one per lottery
   assert.deepEqual(f.messages[0], { topic: 'synthetic-local-topic', title: 'แจ้งเตือนตามตาราง (2 รายการ)',
     message: 'หวยทดสอบ ปิดรับ เวลา 15:20 น.\nหวยทดสอบสอง ปิดรับ เวลา 15:20 น.', tags: ['alarm_clock'],
-    priority: 4, click: 'https://bombim00.onrender.com' });
+    priority: 4, click: 'https://bombim00.pages.dev' });
   assert.equal(result.sent, 0);
   assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 2); // both lotteries still tracked as sent
 });
@@ -597,4 +597,18 @@ test('an expired rate-limit cooldown is replaced by the auth cooldown when the n
   await f.run();
   assert.equal(f.db.state().ntfyBackoffReason, 'auth_rejected');
   assert.equal(f.db.state().ntfyBackoffUntil, new Date(+now + 15 * 60000).toISOString());
+});
+
+test('a retired click URL in runtime settings falls back to the Pages dashboard', async t => {
+  const f = scheduleFixture(t);
+  f.data['config/settings.json'].channels.ntfy.click_url = 'https://bombim00.onrender.com';
+  await f.run();
+  assert.equal(f.messages[0].click, 'https://bombim00.pages.dev');
+});
+
+test('an explicit https click URL that is not retired is kept as configured', async t => {
+  const f = scheduleFixture(t);
+  f.data['config/settings.json'].channels.ntfy.click_url = 'https://dashboard.example.com/draw';
+  await f.run();
+  assert.equal(f.messages[0].click, 'https://dashboard.example.com/draw');
 });
