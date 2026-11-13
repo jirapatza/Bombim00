@@ -72,7 +72,7 @@ jobs:
         run: |
           npm run preview -- --host 127.0.0.1 > /tmp/bombim-preview.log 2>&1 &
           for attempt in $(seq 1 30); do
-            if curl --silent --fail http://127.0.0.1:4173/ > /dev/null; then break; fi
+            if curl --silent --fail http://127.0.0.1:3000/ > /dev/null; then break; fi
             sleep 2
           done
           node tests/browser-smoke.mjs
