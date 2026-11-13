@@ -44,6 +44,21 @@ const chunkRecovery = new ChunkRecovery({
   reload: () => window.location.reload(),
 });
 
+// A recovery reload rebuilds the app, so the active tab is kept across it:
+// otherwise a chunk failure on Settings would always drop the user on the live tab.
+const TAB_STORAGE_KEY = "lottery_active_tab";
+const APP_TABS: AppTab[] = ["live", "history", "summary", "checker", "settings"];
+
+const initialTab = (): AppTab => {
+  try {
+    const saved = window.sessionStorage.getItem(TAB_STORAGE_KEY);
+    if (saved && (APP_TABS as string[]).includes(saved)) return saved as AppTab;
+  } catch {
+    /* Storage can be blocked; the live tab is the safe default. */
+  }
+  return "live";
+};
+
 // React.lazy caches a rejected import forever, so a retry needs a fresh lazy
 // component rather than a re-render of the same one.
 const lazyScreens = new Map<string, React.ComponentType<any>>();
@@ -52,6 +67,9 @@ const getScreenComponent = (key: ScreenKey, attempt: number): React.ComponentTyp
   const cacheKey = `${key}#${attempt}`;
   const cached = lazyScreens.get(cacheKey);
   if (cached) return cached;
+  // Only the current attempt is reachable, so earlier ones are dropped instead
+  // of accumulating a rejected lazy component per retry tap.
+  if (attempt > 0) lazyScreens.delete(`${key}#${attempt - 1}`);
   const created = lazy(async () => {
     const mod = await screenLoaders[key]();
     // Reaching a chunk proves the cached index.html is current, so a later
@@ -148,7 +166,7 @@ const installChunkRecovery = (): void => {
 installChunkRecovery();
 
 export const App: React.FC = () => {
-  const [currentTab, setCurrentTab] = useState<AppTab>("live");
+  const [currentTab, setCurrentTab] = useState<AppTab>(initialTab);
   const [currentTimeString, setCurrentTimeString] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
@@ -156,6 +174,14 @@ export const App: React.FC = () => {
   const [liveDataError, setLiveDataError] = useState(false);
   const [screenAttempts, setScreenAttempts] = useState<Partial<Record<ScreenKey, number>>>({});
   const [contentAttempt, setContentAttempt] = useState(0);
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(TAB_STORAGE_KEY, currentTab);
+    } catch {
+      /* Storage can be blocked; the tab simply will not survive a reload. */
+    }
+  }, [currentTab]);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(() => {
     try {
       return localStorage.getItem("lottery_voice_enabled") !== "false";
