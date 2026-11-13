@@ -1,30 +1,27 @@
-// Read-only production inspection. Never POST, mutate D1, or publish an ntfy message.
+// Read-only /health inspection. No POST, no ntfy messages, no D1 writes.
+// curl uses the runner's proxy and CA configuration when Node fetch cannot connect.
+import { execFileSync } from 'node:child_process';
+
 const endpoint = process.env.BOMBIM_WORKER_HEALTH_URL ||
   'https://bombim00-lottery-checker.jirapatcip2557.workers.dev/health';
 
-let response;
+let raw;
 try {
-  response = await fetch(endpoint, {
-    method: 'GET',
-    redirect: 'error',
-    headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(20000),
-  });
+  raw = execFileSync('curl', [
+    '--silent', '--show-error', '--fail-with-body', '--max-time', '20',
+    '--retry', '2', '--retry-delay', '1', '--header', 'Accept: application/json',
+    endpoint,
+  ], { encoding: 'utf8', timeout: 70000 });
 } catch (error) {
-  console.error('Worker /health is unreachable:', error.cause?.code || error.message);
-  process.exit(1);
-}
-
-if (!response.ok) {
-  console.error('Worker /health HTTP status:', response.status);
+  console.error('Worker /health GET failed:', String(error.stderr || error.message).slice(0, 600));
   process.exit(1);
 }
 
 let data;
 try {
-  data = await response.json();
+  data = JSON.parse(raw);
 } catch {
-  console.error('Worker /health returned invalid JSON');
+  console.error('Worker /health returned invalid JSON, first chars:', raw.slice(0, 140));
   process.exit(1);
 }
 
@@ -33,7 +30,6 @@ const valid = typeof data.status === 'string' &&
   fields.every(key => Number.isInteger(data[key]) && data[key] >= 0);
 
 console.log(JSON.stringify({
-  http_status: response.status,
   status: data.status ?? null,
   active_uncertain_deliveries: data.active_uncertain_deliveries ?? null,
   old_uncertain_deliveries: data.old_uncertain_deliveries ?? null,
@@ -41,7 +37,7 @@ console.log(JSON.stringify({
 }, null, 2));
 
 if (!valid) {
-  console.error('Worker /health is missing the PR #87 counters or the status field.');
+  console.error('Worker /health is missing the PR #87 counters or status.');
   process.exit(1);
 }
 if (data.active_uncertain_deliveries + data.old_uncertain_deliveries !== data.uncertain_deliveries) {
