@@ -243,7 +243,7 @@ export const SettingsScreen: React.FC<Props> = ({
             </h3>
             <p className="text-xs text-slate-400">
               ค่าที่บันทึกในเบราว์เซอร์นี้เท่านั้น ระบบส่งผลอัตโนมัติใช้ค่าจาก
-              GitHub Actions
+              Cloudflare Worker
             </p>
           </div>
         </div>

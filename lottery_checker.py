@@ -728,9 +728,9 @@ def send_ntfy_notification(row: dict) -> bool:
     if not top3 or not bottom2:
         return False
 
-    app_url = os.environ.get("APP_URL") or "https://bombim00.onrender.com"
+    app_url = os.environ.get("APP_URL") or "https://bombim00.pages.dev"
     configured_click = S.get("channels", {}).get("ntfy", {}).get("click_url") or S.get("ntfy", {}).get("click_url") or ""
-    click_url = app_url if (not configured_click or "sanook" in configured_click) else configured_click
+    click_url = app_url if (not configured_click or "sanook" in configured_click or "bombim00.onrender.com" in configured_click) else configured_click
     display_name = canonical_name
     if _lottery_category(row) not in {"government", "gov_savings"} and not display_name.startswith("หวย"):
         display_name = f"หวย{display_name}"

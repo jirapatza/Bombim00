@@ -46,3 +46,28 @@ test('settings and status JSON expose required top-level structure', async () =>
   assert.ok(['healthy', 'degraded', 'error'].includes(status.system_status));
   assert.equal(typeof status.status_message, 'string');
 });
+
+
+test('Bombim00 v1.1.0 app entry and notification links point to the current Pages deployment', async () => {
+  const settings = await readJson('../config/settings.json');
+  const pkg = await readJson('../package.json');
+  const lock = await readJson('../package-lock.json');
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
+  const nav = await readFile(new URL('../src/components/BottomNavigation.tsx', import.meta.url), 'utf8');
+  const legacy = await readFile(new URL('../lottery_checker.py', import.meta.url), 'utf8');
+  const pages = 'https://bombim00.pages.dev';
+  assert.equal(settings.channels.ntfy.click_url, pages);
+  assert.equal(settings.ntfy.click_url, pages);
+  assert.equal(pkg.version, '1.1.0');
+  assert.equal(lock.version, pkg.version);
+  assert.equal(lock.packages[''].version, pkg.version);
+  assert.match(html, /<title>Bombim00/);
+  assert.match(app, /Bombim00 Web v1\.1\.0/);
+  assert.match(legacy, /https:\/\/bombim00\.pages\.dev/);
+  assert.ok(!html.includes('user-scalable=no'), 'allow the user to zoom on mobile');
+  for (const tab of ['live', 'history', 'summary', 'checker', 'settings']) {
+    assert.ok(nav.includes('id: "' + tab + '"'), 'missing navigation tab ' + tab);
+    assert.ok(app.includes('currentTab === "' + tab + '"'), 'unreachable tab ' + tab);
+  }
+});

@@ -69,7 +69,7 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
       const top = it.firstPrize ? `รางวัลที่ 1 ${it.firstPrize}` : `3 ตัว ${it.top3}`;
       lines.push(`${it.flag} ${it.name}: ${top} / 2 ตัว ${it.bottom2}`);
     });
-    lines.push('\nติดตามผลหวยสดได้ที่ Lottery Alert');
+    lines.push('\nติดตามผลหวยสดได้ที่ Bombim00: https://bombim00.pages.dev');
 
     const ok = await copyText(lines.join('\n'));
     setCopyError(!ok);

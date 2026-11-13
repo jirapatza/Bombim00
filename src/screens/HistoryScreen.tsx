@@ -13,6 +13,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
   const [activeSubTab, setActiveSubTab] = useState<0 | 1>(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   const filteredResults = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -46,6 +47,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
 
     const text = `${name} งวด ${date}\n${first ? `รางวัลที่ 1: ${first}\n` : ''}บน: ${top3} / ล่าง: ${bottom2}`;
     const ok = await copyText(text);
+    setCopyFailed(!ok);
     if (ok) {
       setCopiedIndex(index);
       setTimeout(() => setCopiedIndex(null), 2000);
@@ -57,6 +59,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
 
   return (
     <div className="space-y-4 pb-20">
+      {copyFailed && <p role="alert" className="rounded-xl border border-amber-600 bg-amber-950 p-3 text-sm text-amber-200">คัดลอกไม่ได้ กรุณาตรวจสิทธิ์คลิปบอร์ด</p>}
       {/* Subtab Switcher */}
       <div className="flex rounded-2xl border border-slate-800 bg-slate-900 p-1">
         <button
@@ -99,6 +102,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
+                aria-label="ล้างคำค้นหาผลย้อนหลัง"
                 className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:text-slate-200"
               >
                 <X className="h-4 w-4" />
@@ -148,6 +152,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
                     <span>แหล่ง: {item.แหล่งข้อมูล || 'ระบบหลัก'}</span>
                     <button
                       onClick={() => handleCopy(item, idx)}
+                      aria-label={`คัดลอกผล ${name} งวด ${date}`}
                       title="คัดลอกผลหวย"
                       className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition-colors"
                     >

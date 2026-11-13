@@ -463,8 +463,8 @@ export const App: React.FC = () => {
         </main>
 
         <footer className="app-footer">
-          ข้อมูลจากแหล่งประกาศผล • ตรวจสอบกับผู้จัดสลากก่อนใช้ผลรางวัล{" "}
-          <span>Asia/Bangkok (UTC+7)</span>
+          <span>ข้อมูลจากแหล่งประกาศผล • ตรวจสอบกับผู้จัดสลากก่อนใช้ผลรางวัล</span>
+          <span>Bombim00 Web v1.1.0 • Asia/Bangkok (UTC+7)</span>
         </footer>
       </div>
     </div>
