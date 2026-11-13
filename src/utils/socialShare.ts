@@ -118,7 +118,7 @@ export async function generateSummaryCanvas(
   ctx.fillStyle = '#64748B';
   ctx.font = '28px Prompt, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('✦ ระบบแจ้งเตือนผลหวยอัตโนมัติ • Lottery Alert Pro ✦', width / 2, totalHeight - 45);
+  ctx.fillText('✦ BOMBI M00 • ระบบแจ้งเตือนผลหวยอัตโนมัติ ✦', width / 2, totalHeight - 45);
 
   return canvas;
 }
