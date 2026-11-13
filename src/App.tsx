@@ -1,10 +1,12 @@
-import React, { Suspense, lazy, useState, useEffect, useMemo, useCallback } from "react";
+import React, { Component, Suspense, lazy, useState, useEffect, useMemo, useCallback } from "react";
 import { DeviceHealthPanel } from "./components/DeviceHealthPanel";
 import { Header } from "./components/Header";
 import { BottomNavigation, AppTab } from "./components/BottomNavigation";
 import { LiveResultsScreen } from "./screens/LiveResultsScreen";
 import { LotteryRepository } from "./data/lotteryRepository";
 import { ThaiTtsService } from "./utils/thaiTts";
+import { trackDiagnostic } from "./utils/siteDiagnostics";
+import { ChunkRecovery } from "./utils/chunkRecovery";
 import {
   LotteryCatalogItem,
   RawLotteryResult,
@@ -15,43 +17,135 @@ import {
 } from "./types/lottery";
 
 // Secondary screens load on demand so the first paint ships less JavaScript.
-const HistoryScreen = lazy(() => import("./screens/HistoryScreen").then((m) => ({ default: m.HistoryScreen })));
-const SummaryScreen = lazy(() => import("./screens/SummaryScreen").then((m) => ({ default: m.SummaryScreen })));
-const TicketCheckerScreen = lazy(() => import("./screens/TicketCheckerScreen").then((m) => ({ default: m.TicketCheckerScreen })));
-const SettingsScreen = lazy(() => import("./screens/SettingsScreen").then((m) => ({ default: m.SettingsScreen })));
+// Each screen has its own factory so one failed chunk cannot blank the others,
+// and each gets its own boundary and Suspense slot.
+export type ScreenKey = "history" | "summary" | "checker" | "settings";
 
-class LazyScreenErrorBoundary extends React.Component<
-  React.PropsWithChildren,
-  { hasError: boolean }
-> {
+const screenLoaders: Record<
+  ScreenKey,
+  () => Promise<{ default: React.ComponentType<any> }>
+> = {
+  history: () => import("./screens/HistoryScreen").then((m) => ({ default: m.HistoryScreen })),
+  summary: () => import("./screens/SummaryScreen").then((m) => ({ default: m.SummaryScreen })),
+  checker: () => import("./screens/TicketCheckerScreen").then((m) => ({ default: m.TicketCheckerScreen })),
+  settings: () => import("./screens/SettingsScreen").then((m) => ({ default: m.SettingsScreen })),
+};
+
+const chunkRecovery = new ChunkRecovery({
+  storage: (() => {
+    try {
+      return typeof window === "undefined" ? null : window.sessionStorage;
+    } catch {
+      // Some privacy modes throw on access itself.
+      return null;
+    }
+  })(),
+  isOnline: () => (typeof navigator === "undefined" ? true : navigator.onLine),
+  reload: () => window.location.reload(),
+});
+
+// React.lazy caches a rejected import forever, so a retry needs a fresh lazy
+// component rather than a re-render of the same one.
+const lazyScreens = new Map<string, React.ComponentType<any>>();
+
+const getScreenComponent = (key: ScreenKey, attempt: number): React.ComponentType<any> => {
+  const cacheKey = `${key}#${attempt}`;
+  const cached = lazyScreens.get(cacheKey);
+  if (cached) return cached;
+  const created = lazy(async () => {
+    const mod = await screenLoaders[key]();
+    // Reaching a chunk proves the cached index.html is current, so a later
+    // failure is allowed to trigger one more automatic reload.
+    chunkRecovery.markChunkReady();
+    return mod;
+  });
+  lazyScreens.set(cacheKey, created);
+  return created;
+};
+
+const screenFallback = (
+  <p role="status" className="p-4 text-sm text-slate-400">
+    กำลังโหลด…
+  </p>
+);
+
+type ScreenBoundaryProps = React.PropsWithChildren<{
+  onError?: (error: unknown) => void;
+  onRetry?: () => void;
+}>;
+
+class ScreenErrorBoundary extends Component<ScreenBoundaryProps, { hasError: boolean }> {
   state = { hasError: false };
 
   static getDerivedStateFromError() {
     return { hasError: true };
   }
 
+  componentDidCatch(error: unknown): void {
+    // Anonymous health signal only: no message, stack or component tree leaves the browser.
+    trackDiagnostic("frontend_render_error", "app");
+    this.props.onError?.(error);
+  }
+
   render() {
-    if (this.state.hasError) {
-      return (
-        <div
-          role="alert"
-          className="rounded-xl border border-amber-800 bg-amber-950 p-4 text-sm text-amber-100"
-        >
-          <p>โหลดหน้านี้ไม่สำเร็จ</p>
-          <button
-            type="button"
-            className="mt-3 rounded-lg bg-amber-700 px-3 py-2 font-medium text-white hover:bg-amber-600"
-            onClick={() => window.location.reload()}
-          >
-            โหลดหน้าใหม่
-          </button>
-        </div>
-      );
+    if (!this.state.hasError) {
+      return this.props.children;
     }
 
-    return this.props.children;
+    return (
+      <div
+        role="alert"
+        className="rounded-xl border border-amber-800 bg-amber-950 p-4 text-sm text-amber-100"
+      >
+        <p>โหลดหน้านี้ไม่สำเร็จ ส่วนอื่นของระบบยังใช้งานได้ตามปกติ</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {this.props.onRetry && (
+            <button
+              type="button"
+              className="rounded-lg bg-amber-700 px-3 py-2 font-medium text-white hover:bg-amber-600"
+              onClick={() => {
+                this.setState({ hasError: false });
+                this.props.onRetry?.();
+              }}
+            >
+              ลองโหลดหน้านี้อีกครั้ง
+            </button>
+          )}
+          <button
+            type="button"
+            className="rounded-lg border border-amber-700 px-3 py-2 font-medium text-amber-100 hover:bg-amber-900"
+            onClick={() => window.location.reload()}
+          >
+            โหลดหน้าเว็บใหม่
+          </button>
+        </div>
+      </div>
+    );
   }
 }
+
+// A boundary per lazy screen: a chunk failure must never hide the live tab, the
+// header, or the eagerly imported recovery panel on the settings tab.
+const LazyScreen: React.FC<ScreenBoundaryProps> = ({ children, onError, onRetry }) => (
+  <Suspense fallback={screenFallback}>
+    <ScreenErrorBoundary onError={onError} onRetry={onRetry}>
+      {children}
+    </ScreenErrorBoundary>
+  </Suspense>
+);
+
+// Vite reports a retired chunk as a failed dynamic import. Only swallow the error
+// when a reload actually follows; otherwise the real reason must reach the boundary.
+const installChunkRecovery = (): void => {
+  if (typeof window === "undefined") return;
+  window.addEventListener("vite:preloadError", (event) => {
+    if (chunkRecovery.reloadAfterChunkError()) {
+      event.preventDefault();
+    }
+  });
+};
+
+installChunkRecovery();
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<AppTab>("live");
@@ -60,6 +154,8 @@ export const App: React.FC = () => {
   const [online, setOnline] = useState(navigator.onLine);
   const [lastSynced, setLastSynced] = useState("");
   const [liveDataError, setLiveDataError] = useState(false);
+  const [screenAttempts, setScreenAttempts] = useState<Partial<Record<ScreenKey, number>>>({});
+  const [contentAttempt, setContentAttempt] = useState(0);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(() => {
     try {
       return localStorage.getItem("lottery_voice_enabled") !== "false";
@@ -78,9 +174,8 @@ export const App: React.FC = () => {
   const [status, setStatus] = useState<SystemStatus>(() =>
     LotteryRepository.getStatus(),
   );
-  const [settings, setSettings] = useState<AppSettings>(() =>
-    LotteryRepository.getSettings(),
-  );
+  const [settings, setSettings] =
+    useState<AppSettings>(() => LotteryRepository.getSettings());
   const [watchedNumbers, setWatchedNumbers] = useState<string[]>(() =>
     LotteryRepository.getWatchedNumbers(),
   );
@@ -233,6 +328,34 @@ export const App: React.FC = () => {
     setTicketReports([]);
   }, []);
 
+  const retryScreen = useCallback((key: ScreenKey) => {
+    setScreenAttempts((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
+  }, []);
+
+  // Only genuine chunk failures reload; ordinary render bugs must stay on screen
+  // so the user keeps the dashboard and its data instead of losing the tab.
+  const handleScreenError = useCallback((error: unknown) => {
+    if (!(error instanceof Error)) return;
+    const chunkFailure =
+      /dynamically imported module|Importing a module script failed|Failed to fetch dynamically|error loading dynamically|ChunkLoadError|Loading chunk [\w-]+ failed/i.test(
+        error.message,
+      );
+    if (chunkFailure) chunkRecovery.reloadAfterChunkError();
+  }, []);
+
+  const renderScreen = (key: ScreenKey, props: Record<string, unknown>) => {
+    const Screen = getScreenComponent(key, screenAttempts[key] ?? 0);
+    return (
+      <LazyScreen
+        key={key}
+        onError={handleScreenError}
+        onRetry={() => retryScreen(key)}
+      >
+        <Screen {...props} />
+      </LazyScreen>
+    );
+  };
+
   return (
     <div className="app-shell">
       <BottomNavigation currentTab={currentTab} onChangeTab={setCurrentTab} />
@@ -251,49 +374,44 @@ export const App: React.FC = () => {
           onRefresh={handleRefresh}
         />
 
-        {/* Main Content Area */}
+        {/* Main Content Area. The outer boundary keeps a render bug in the eager
+            live screen or the recovery panel from blanking the whole dashboard. */}
         <main className="app-main">
-          <LazyScreenErrorBoundary key={currentTab}>
-            <Suspense fallback={<p role="status" className="p-4 text-sm text-slate-400">กำลังโหลด…</p>}>
-          {liveDataError && (
-            <p
-              role="status"
-              className="mb-3 rounded-xl bg-amber-950 p-3 text-sm text-amber-200"
-            >
-              โหลดข้อมูลล่าสุดไม่สำเร็จ กำลังแสดงข้อมูลที่มีอยู่
-            </p>
-          )}
-          {currentTab === "live" && (
-            <LiveResultsScreen
-              lotteries={todayLotteries}
-              watchedNumbers={watchedNumbers}
-              isVoiceEnabled={isVoiceEnabled}
-              onSettings={() => setCurrentTab("settings")}
-            />
-          )}
+          <ScreenErrorBoundary
+            key={`content-${contentAttempt}`}
+            onError={handleScreenError}
+            onRetry={() => setContentAttempt((n) => n + 1)}
+          >
+            {liveDataError && (
+              <p
+                role="status"
+                className="mb-3 rounded-xl bg-amber-950 p-3 text-sm text-amber-200"
+              >
+                โหลดข้อมูลล่าสุดไม่สำเร็จ กำลังแสดงข้อมูลที่มีอยู่
+              </p>
+            )}
+            {currentTab === "live" && (
+              <LiveResultsScreen
+                lotteries={todayLotteries}
+                watchedNumbers={watchedNumbers}
+                isVoiceEnabled={isVoiceEnabled}
+                onSettings={() => setCurrentTab("settings")}
+              />
+            )}
 
-          {currentTab === "history" && (
-            <HistoryScreen
-              results={results}
-              top2Stats={top2Stats}
-              top3Stats={top3Stats}
-            />
-          )}
+            {currentTab === "history" &&
+              renderScreen("history", { results, top2Stats, top3Stats })}
 
-          {currentTab === "summary" && (
-            <SummaryScreen lotteries={todayLotteries} />
-          )}
+            {currentTab === "summary" && renderScreen("summary", { lotteries: todayLotteries })}
 
-          {currentTab === "checker" && (
-            <TicketCheckerScreen
-              reports={ticketReports}
-              onCheck={handleCheckTickets}
-              onClear={handleClearTickets}
-            />
-          )}
+            {currentTab === "checker" &&
+              renderScreen("checker", {
+                reports: ticketReports,
+                onCheck: handleCheckTickets,
+                onClear: handleClearTickets,
+              })}
 
-          {currentTab === "settings" && (
-            <>
+            {currentTab === "settings" && (
               <div className="settings-layout">
                 <DeviceHealthPanel
                   online={online}
@@ -303,21 +421,19 @@ export const App: React.FC = () => {
                   isRefreshing={isRefreshing}
                   onRecover={handleRefresh}
                 />
-                <SettingsScreen
-                  settings={settings}
-                  status={status}
-                  watchedNumbers={watchedNumbers}
-                  isVoiceEnabled={isVoiceEnabled}
-                  onToggleVoice={handleToggleVoice}
-                  onAddWatchedNumber={handleAddWatchedNumber}
-                  onRemoveWatchedNumber={handleRemoveWatchedNumber}
-                  onUpdateNtfy={handleUpdateNtfy}
-                />
+                {renderScreen("settings", {
+                  settings,
+                  status,
+                  watchedNumbers,
+                  isVoiceEnabled,
+                  onToggleVoice: handleToggleVoice,
+                  onAddWatchedNumber: handleAddWatchedNumber,
+                  onRemoveWatchedNumber: handleRemoveWatchedNumber,
+                  onUpdateNtfy: handleUpdateNtfy,
+                })}
               </div>
-            </>
-          )}
-            </Suspense>
-          </LazyScreenErrorBoundary>
+            )}
+          </ScreenErrorBoundary>
         </main>
 
         <footer className="app-footer">
