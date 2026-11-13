@@ -60,6 +60,26 @@ test('HTTP 429 honors Retry-After, and 5xx/timeout remain uncertain (no retries)
   assert.equal(await publishNtfy({}, { title: 'x' }, 'existing-topic', async () => new Response(null, { status: 503 }), {}), 'uncertain');
 });
 
+test('429 without Retry-After waits for exhausted ntfy daily bucket reset', async () => {
+  const detail = {};
+  const request = async () => new Response(null, {
+    status: 429, headers: { RateLimit: '"requests";r=3;t=5, "messages";r=0;t=3600' },
+  });
+  assert.equal(await publishNtfy({}, { message: 'x' }, 'existing-topic', request, detail), 'failed');
+  assert.equal(detail.code, 'http_429');
+  assert.ok(Date.parse(detail.retry_after_until) > Date.now() + 3500_000);
+});
+
+test('429 with Retry-After preserves server delay over fallback hints', async () => {
+  const detail = {};
+  const request = async () => new Response(null, {
+    status: 429, headers: { 'Retry-After': '240', RateLimit: '"messages";r=0;t=3600' },
+  });
+  assert.equal(await publishNtfy({}, { message: 'x' }, 'existing-topic', request, detail), 'failed');
+  const ms = Date.parse(detail.retry_after_until) - Date.now();
+  assert.ok(ms > 230_000 && ms < 250_000);
+});
+
 test('Gateway v2 fails closed on malformed topic or insecure URL without network access', async () => {
   let calls = 0;
   const request = async () => { calls++; return new Response(null, { status: 200 }); };
