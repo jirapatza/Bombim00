@@ -39,7 +39,7 @@ test("a chunk failure reloads once and marks the session as reloaded", () => {
   assert.equal(reloads, 1);
 });
 
-test("blocked storage still allows exactly one reload instead of looping", () => {
+test("blocked storage keeps the recovery panel instead of looping the reload", () => {
   const broken = {
     getItem: () => {
       throw Error("storage blocked");
@@ -54,9 +54,18 @@ test("blocked storage still allows exactly one reload instead of looping", () =>
   let reloads = 0;
   const recovery = new ChunkRecovery({ storage: broken, isOnline: () => true, reload: () => reloads++ });
 
-  assert.equal(recovery.reloadAfterChunkError(), true);
+  assert.equal(recovery.shouldReload(), false);
   assert.equal(recovery.reloadAfterChunkError(), false);
-  assert.equal(reloads, 1);
+  assert.equal(reloads, 0);
+});
+
+test("missing storage never reloads, so the error panel stays usable", () => {
+  let reloads = 0;
+  const recovery = new ChunkRecovery({ storage: null, isOnline: () => true, reload: () => reloads++ });
+
+  assert.equal(recovery.shouldReload(), false);
+  assert.equal(recovery.reloadAfterChunkError(), false);
+  assert.equal(reloads, 0);
 });
 
 test("an offline browser keeps the in-app recovery panel and never reloads", () => {

@@ -39,27 +39,27 @@ export class ChunkRecovery {
   shouldReload(): boolean {
     if (this.reloaded) return false;
     if (this.isOnline() === false) return false;
-    if (!this.storage) return true;
+    if (!this.storage) return false;
     try {
       return this.storage.getItem(CHUNK_RELOAD_KEY) !== "1";
     } catch {
-      // Unreadable storage must not block the first reload, and the in-memory
-      // flag above is what prevents a loop when writes keep failing.
-      return true;
+      return false;
     }
   }
 
-  /** Arms the guard, then reloads. Returns false when it declines to reload. */
+  /**
+   * Persists the guard first and only then reloads. The guard has to survive the
+   * reload, so a storage area that cannot be written leaves the user on the
+   * in-page recovery panel instead of risking a reload loop.
+   */
   reloadAfterChunkError(): boolean {
-    if (!this.shouldReload()) return false;
-    this.reloaded = true;
-    if (this.storage) {
-      try {
-        this.storage.setItem(CHUNK_RELOAD_KEY, "1");
-      } catch {
-        // Private modes can reject writes; the in-memory flag still guards.
-      }
+    if (!this.shouldReload() || !this.storage) return false;
+    try {
+      this.storage.setItem(CHUNK_RELOAD_KEY, "1");
+    } catch {
+      return false;
     }
+    this.reloaded = true;
     this.reload();
     return true;
   }
