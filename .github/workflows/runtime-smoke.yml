@@ -78,13 +78,7 @@ jobs:
           node tests/browser-smoke.mjs
 
       - name: Inspect production Worker health (GET only; no ntfy or D1 writes)
-        id: health_probe
-        continue-on-error: true
         run: node tests/read-only-health.mjs
-
-      - name: Report Access-protected health check
-        if: steps.health_probe.outcome == 'failure'
-        run: echo "::warning::Production /health was not independently verified; Cloudflare Access requires sign-in. Browser tests remain separately checked."
 
       - name: Install checker dependencies and run Python tests
         run: |
