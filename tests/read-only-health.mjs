@@ -8,7 +8,7 @@ const endpoint = process.env.BOMBIM_WORKER_HEALTH_URL ||
 let raw;
 try {
   raw = execFileSync('curl', [
-    '--silent', '--show-error', '--fail-with-body', '--max-time', '20',
+    '--silent', '--show-error', '--fail-with-body', '--location', '--max-redirs', '3', '--proto-redir', '=https', '--max-time', '20',
     '--retry', '2', '--retry-delay', '1', '--header', 'Accept: application/json',
     endpoint,
   ], { encoding: 'utf8', timeout: 70000 });
