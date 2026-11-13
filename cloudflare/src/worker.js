@@ -1,20 +1,13 @@
 import { bangkokDay, canonical, drawDate, drawIdentity, dueScheduleAlerts, eligible, mergeRows, normalize, numbers, previousChannels, rawName, scheduled } from './domain.js';
 import { collect } from './providers.js';
 import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './storage.js';
+import { DEFAULT_NTFY_BACKOFF_MS, PreflightError, publishNtfy } from './ntfy-gateway-v2.js';
+export { retryAfterDelay } from './ntfy-gateway-v2.js';
 
 const MAX_SENDS = 3;
 const MAX_RESULT_BATCH = 6; // One ntfy message per cluster; never bulk-retry uncertain outcomes.
-const DEFAULT_NTFY_BACKOFF_MS = 60000;
-const MAX_NTFY_BACKOFF_MS = 26 * 60 * 60 * 1000; // Honour ntfy daily-limit Retry-After.
-// A rejected token/permission (401/403) will not fix itself within a minute, so stop
-// re-sending every cycle: one probe per 15 minutes instead of up to 3 sends per minute.
+// A rejected token/permission needs a cooldown; repeated probes only worsen limits.
 const AUTH_REJECT_BACKOFF_MS = 15 * 60 * 1000;
-export function retryAfterDelay(header, now = Date.now()) {
-  if (!header) return DEFAULT_NTFY_BACKOFF_MS;
-  const seconds = Number(header);
-  const delay = Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : Date.parse(header) - now;
-  return Number.isFinite(delay) && delay > 0 ? Math.min(delay, MAX_NTFY_BACKOFF_MS) : DEFAULT_NTFY_BACKOFF_MS;
-}
 const UNCERTAIN_HEALTH_WINDOW_MS = 24 * 60 * 60 * 1000;
 function isOldUncertain(entry, now) {
   if (!entry || entry.state !== 'uncertain') return false;
@@ -35,7 +28,6 @@ export function deliveryUncertainty(deliveries, now = new Date()) {
   return { recent, old, total: recent + old };
 }
 // Only raised locally before fetch begins. A transport failure must stay uncertain.
-class PreflightError extends Error {}
 function finishPublish(state, now) {
   const status = state.pending.status;
   state.lastCheck = { status: status.system_status, notification_failures: status.notification_failures,
@@ -93,48 +85,6 @@ function scheduleBatchMessage(alerts) {
   return { title: `แจ้งเตือนตามตาราง (${alerts.length} รายการ)`, message: lines.join('\n'), tags: ['alarm_clock'] };
 }
 // Fixed labels only (never URLs, bodies or error text) so /health can show why a send was not accepted.
-const failureCode = error => error?.message === 'request_budget' ? 'request_budget' : error?.message === 'https_required' ? 'https_required'
-  : error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'timeout' : 'network';
-async function publishNtfy(settings, message, topic, request, detail = {}, token = '') {
-  const cfg = settings.channels?.ntfy || {};
-  const server = (cfg.server || settings.ntfy?.server || 'https://ntfy.sh').replace(/\/+$/, '');
-  const click = cfg.click_url || settings.ntfy?.click_url || '';
-  // Notification links must land on the dashboard that is actually served. The
-  // runtime config still carries the retired Render hostname, so validate the
-  // configured target and fall back to Pages for anything unexpected.
-  let clickTarget = 'https://bombim00.pages.dev';
-  if (click) {
-    try {
-      const url = new URL(click);
-      const host = url.hostname.toLowerCase();
-      const retired = host === 'bombim00.onrender.com' || host === 'sanook.com' || host.endsWith('.sanook.com');
-      if (url.protocol === 'https:' && !retired) clickTarget = url.href;
-    } catch {
-      /* An invalid historical click URL falls back to Pages. */
-    }
-  }
-  // Token comes from the Worker secret NTFY_TOKEN, never from settings.json
-  // (which is committed to runtime-live), so it never lands in source or logs.
-  const headers = { 'Content-Type': 'application/json; charset=utf-8' };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  try {
-    const response = await request(server + '/', { method: 'POST', headers,
-      body: JSON.stringify({ topic, ...message, priority: 4,
-        click: clickTarget }), timeoutMs: 12000 });
-    // Once fetch has returned an HTTP response, its status is authoritative.
-    // Releasing the unused response body is best-effort: a cancelled/failed
-    // stream must never turn an accepted 200 or rejected 429 into 'uncertain'.
-    detail.code = `http_${response.status}`;
-    try { void response.body?.cancel()?.catch(() => {}); } catch { /* Ignore body cleanup failure. */ }
-    if (response.status === 429) {
-      // Anchor the cooldown to the actual HTTP response time, not cycle start.
-      detail.retry_after_until = new Date(Date.now() + retryAfterDelay(response.headers.get('Retry-After'))).toISOString();
-    }
-    if (response.status === 200) return 'sent';
-    // A definite rejection is retryable. A timeout or 5xx might follow acceptance.
-    return [400, 401, 403, 404, 413, 422, 429].includes(response.status) ? 'failed' : 'uncertain';
-  } catch (error) { detail.code = failureCode(error); return error instanceof PreflightError ? 'failed' : 'uncertain'; }
-}
 export const sendNotification = (settings, row, topic, request, detail, token) => publishNtfy(settings, resultMessage(row), topic, request, detail, token);
 const safeError = error => /^(github_http_\d{3}|github_network|github_invalid_response|github_(network|timeout|aborted)_(ref|commit|contents|writer|publish|other)|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
 function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertainCounts, deliveries, now) {
@@ -247,9 +197,14 @@ export async function cycle(env, dependencies = {}) {
         entry.state = result;
         if (detail.code) entry.code = detail.code;
       }
-      if (detail.code === 'http_429') {
-        state.ntfyBackoffUntil = detail.retry_after_until ||
-          new Date(Date.now() + (detail.retry_after_ms || DEFAULT_NTFY_BACKOFF_MS)).toISOString();
+      if (detail.code === 'http_429' || detail.quota_until) {
+        // A 429 is a definite rejection. A successful send with zero remaining
+        // quota stays 'sent', but future sends pause before triggering a 429.
+        const until = detail.retry_after_until || detail.quota_until ||
+          new Date(Date.now() + DEFAULT_NTFY_BACKOFF_MS).toISOString();
+        if (!(Date.parse(state.ntfyBackoffUntil || '') > Date.parse(until))) {
+          state.ntfyBackoffUntil = until;
+        }
         state.ntfyBackoffReason = 'rate_limit';
       } else if (detail.code === 'http_401' || detail.code === 'http_403') {
         const until = Date.now() + AUTH_REJECT_BACKOFF_MS;
