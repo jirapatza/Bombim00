@@ -84,7 +84,7 @@ async function run() {
           await del.waitFor();
           await del.click();
         }
-        const toggle = page.getByRole('button', { name: 'เปิดหรือปิดเสียงอ่านผล' });
+        const toggle = page.getByRole('switch', { name: 'เปิดหรือปิดเสียงอ่านผล' });
         const before = await toggle.getAttribute('aria-checked');
         await toggle.click();
         assert.notEqual(await toggle.getAttribute('aria-checked'), before);
