@@ -211,13 +211,6 @@ export class LotteryRepository {
   static getSettings(): AppSettings {
     const defaultVal: AppSettings = {
       app_name: (rawSettings as any).app_name || 'Lottery Alert System Pro',
-      ntfy: {
-        enabled: (rawSettings as any).channels?.ntfy?.enabled ?? true,
-        server: (rawSettings as any).channels?.ntfy?.server || 'https://ntfy.sh',
-        topic: (rawSettings as any).channels?.ntfy?.topic || 'lottery-alert-live',
-        priority: (rawSettings as any).channels?.ntfy?.priority || 'high',
-        tags: (rawSettings as any).channels?.ntfy?.tags || ['moneybag', 'dart', 'loudspeaker'],
-      },
       custom_watched_numbers: this.getWatchedNumbers(),
       speech_polite_ending: (rawSettings as any).message_template?.polite_particle || 'ครับ',
       speech_rate: 1.0,

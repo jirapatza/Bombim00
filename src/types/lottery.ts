@@ -69,17 +69,8 @@ export interface SystemStatus {
   source_checks?: { waiting: SourceCheck[]; errors: SourceCheck[] };
 }
 
-export interface NtfyConfig {
-  enabled: boolean;
-  server: string;
-  topic: string;
-  priority: string;
-  tags: string[];
-}
-
 export interface AppSettings {
   app_name: string;
-  ntfy: NtfyConfig;
   custom_watched_numbers: string[];
   speech_polite_ending: string;
   speech_rate: number;

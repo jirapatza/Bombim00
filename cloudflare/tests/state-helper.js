@@ -5,9 +5,11 @@ import { readFileSync } from 'node:fs';
 export function database() {
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec(readFileSync(new URL('../migrations/0001_state.sql', import.meta.url), 'utf8'));
+  sqlite.exec(readFileSync(new URL('../migrations/0002_browser_push.sql', import.meta.url), 'utf8'));
   return {
     prepare(sql) {
       const bind = (...values) => ({
+        all: async () => ({ results: sqlite.prepare(sql).all(...values) }),
         first: async () => sqlite.prepare(sql).get(...values) || null,
         run: async () => ({ meta: { changes: sqlite.prepare(sql).run(...values).changes } }),
       });

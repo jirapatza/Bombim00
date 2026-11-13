@@ -1,3 +1,4 @@
+import { BrowserPush } from "./components/BrowserPush";
 import React, { Component, Suspense, lazy, useState, useEffect, useMemo, useCallback } from "react";
 import { DeviceHealthPanel } from "./components/DeviceHealthPanel";
 import { Header } from "./components/Header";
@@ -327,23 +328,6 @@ export const App: React.FC = () => {
     [watchedNumbers],
   );
 
-  const handleUpdateNtfy = useCallback(
-    (server: string, topic: string, priority: string) => {
-      const updated: AppSettings = {
-        ...settings,
-        ntfy: {
-          ...settings.ntfy,
-          server,
-          topic,
-          priority,
-        },
-      };
-      LotteryRepository.saveSettings(updated);
-      setSettings(updated);
-    },
-    [settings],
-  );
-
   const handleCheckTickets = useCallback((input: string, drawKey: string) => {
     const reports = LotteryRepository.checkTickets(input, drawKey);
     setTicketReports(reports);
@@ -441,6 +425,12 @@ export const App: React.FC = () => {
 
             {currentTab === "settings" && (
               <div className="settings-layout">
+                <BrowserPush />
+                <section className="panel">
+                  <a className="quiet-button" href="https://github.com/jirapatza/Bombim00/releases/tag/latest-apk">
+                    ดาวน์โหลดแอป Android (APK)
+                  </a>
+                </section>
                 <DeviceHealthPanel
                   online={online}
                   lastSynced={lastSynced}
@@ -450,14 +440,12 @@ export const App: React.FC = () => {
                   onRecover={handleRefresh}
                 />
                 {renderScreen("settings", {
-                  settings,
                   status,
                   watchedNumbers,
                   isVoiceEnabled,
                   onToggleVoice: handleToggleVoice,
                   onAddWatchedNumber: handleAddWatchedNumber,
                   onRemoveWatchedNumber: handleRemoveWatchedNumber,
-                  onUpdateNtfy: handleUpdateNtfy,
                 })}
               </div>
             )}
@@ -466,7 +454,7 @@ export const App: React.FC = () => {
 
         <footer className="app-footer">
           <span>ข้อมูลจากแหล่งประกาศผล • ตรวจสอบกับผู้จัดสลากก่อนใช้ผลรางวัล</span>
-          <span>Bombim00 Web v1.1.0 • Asia/Bangkok (UTC+7)</span>
+          <span>Bombim00 Web v1.2.0 • Asia/Bangkok (UTC+7)</span>
         </footer>
       </div>
     </div>

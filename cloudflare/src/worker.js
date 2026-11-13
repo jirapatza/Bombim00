@@ -1,8 +1,7 @@
 import { bangkokDay, canonical, drawDate, drawIdentity, dueScheduleAlerts, eligible, mergeRows, normalize, numbers, previousChannels, rawName, scheduled } from './domain.js';
 import { collect } from './providers.js';
 import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './storage.js';
-import { DEFAULT_NTFY_BACKOFF_MS, PreflightError, publishNtfy } from './ntfy-gateway-v2.js';
-export { retryAfterDelay } from './ntfy-gateway-v2.js';
+import { browserPushApi, DEFAULT_PUSH_BACKOFF_MS, PreflightError, publishBrowserPush, pushKeys } from './browser-push.js';
 
 const MAX_SENDS = 3;
 const MAX_RESULT_BATCH = 6; // One ntfy message per cluster; never bulk-retry uncertain outcomes.
@@ -76,7 +75,7 @@ function scheduleMessage(alert) {
     message: `${alert.name} ${closing ? 'ปิดรับ' : 'ออกผลตามตาราง'} เวลา ${alert.clock} น.`,
     tags: ['alarm_clock'] };
 }
-// Several lotteries can share a closing/draw minute. One ntfy send for all of
+// Several lotteries can share a closing/draw minute. One push for all of
 // them (instead of one per lottery) cuts schedule-alert volume without
 // changing per-lottery delivery tracking below. A single-alert batch keeps the
 // exact prior title/message so existing behavior for the common case is unchanged.
@@ -86,7 +85,6 @@ function scheduleBatchMessage(alerts) {
   return { title: `แจ้งเตือนตามตาราง (${alerts.length} รายการ)`, message: lines.join('\n'), tags: ['alarm_clock'] };
 }
 // Fixed labels only (never URLs, bodies or error text) so /health can show why a send was not accepted.
-export const sendNotification = (settings, row, topic, request, detail, token) => publishNtfy(settings, resultMessage(row), topic, request, detail, token);
 const safeError = error => /^(github_http_\d{3}|github_network|github_invalid_response|github_(network|timeout|aborted)_(ref|commit|contents|writer|publish|other)|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
 function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertainCounts, deliveries, now) {
   const { recent: uncertain, old: oldUncertain, total: allUncertain } = uncertainCounts;
@@ -143,12 +141,8 @@ export async function cycle(env, dependencies = {}) {
     const snapshot = await remote.snapshot();
     stage = 'validate';
     const { settings, catalog, history, status } = validateSnapshot(snapshot);
-    const active = settings.channels?.ntfy?.enabled !== false;
-    const topic = String(env.NTFY_TOPIC || '').trim();
-    if (!observing && active && !/^[A-Za-z0-9_-]{1,64}$/.test(topic)) throw new Error('notification_configuration');
-    // Optional: a Worker secret (wrangler secret put NTFY_TOKEN), never a
-    // committed setting. Empty means anonymous ntfy.sh, same as before.
-    const ntfyToken = String(env.NTFY_TOKEN || '').trim();
+    const active = settings.channels?.browser_push?.enabled !== false &&
+      Boolean(pushKeys(env) || dependencies.send || dependencies.sendBatch || dependencies.sendSchedule);
     // Keep unresolved sends indefinitely. Successful/definitely rejected entries older
     // than 14 days are already in runtime history and cannot be today's candidates.
     const cutoff = new Date(+now - 14 * 86400000).toISOString().slice(0, 10);
@@ -182,15 +176,15 @@ export async function cycle(env, dependencies = {}) {
       [row.เลขบน_3_ตัว, row.เลขล่าง_2_ตัว] = numbers(row);
     }
     let sent = 0, attempts = 0;
-    // keys: one delivery key, or several when one ntfy send covers multiple
+    // keys: one delivery key, or several when one push covers multiple
     // schedule alerts at once. Every key gets the same outcome and counts as
     // a single attempt against MAX_SENDS, since only one HTTP call was made.
     async function recordDelivery(keys, send, kind) {
       attempts++;
       stage = 'delivery';
       const startedAt = now.toISOString();
-      for (const key of keys) state.deliveries[key] = { state: 'sending', date: today, kind, startedAt };
-      await store.save(state); // Persist intent before touching ntfy.
+      for (const key of keys) state.deliveries[key] = { state: 'sending', date: today, kind, startedAt, channel: 'browser_push' };
+      await store.save(state); // Persist intent before sending.
       const detail = {};
       const result = await send(detail);
       for (const key of keys) {
@@ -198,30 +192,28 @@ export async function cycle(env, dependencies = {}) {
         entry.state = result;
         if (detail.code) entry.code = detail.code;
       }
-      if (detail.code === 'http_429' || detail.quota_until) {
-        // A 429 is a definite rejection. A successful send with zero remaining
-        // quota stays 'sent', but future sends pause before triggering a 429.
-        const until = detail.retry_after_until || detail.quota_until ||
-          new Date(Date.now() + (detail.retry_after_ms || DEFAULT_NTFY_BACKOFF_MS)).toISOString();
-        if (!(Date.parse(state.ntfyBackoffUntil || '') > Date.parse(until))) {
-          state.ntfyBackoffUntil = until;
+      if (detail.code === 'http_429') {
+        const until = detail.retry_after_until ||
+          new Date(Date.now() + (detail.retry_after_ms || DEFAULT_PUSH_BACKOFF_MS)).toISOString();
+        if (!(Date.parse(state.pushBackoffUntil || '') > Date.parse(until))) {
+          state.pushBackoffUntil = until;
         }
-        state.ntfyBackoffReason = 'rate_limit';
+        state.pushBackoffReason = 'rate_limit';
       } else if (detail.code === 'http_401' || detail.code === 'http_403') {
         const until = Date.now() + AUTH_REJECT_BACKOFF_MS;
         // Never shorten a longer cooldown that is already in effect.
-        if (!(Date.parse(state.ntfyBackoffUntil || '') > until)) {
-          state.ntfyBackoffUntil = new Date(until).toISOString();
-          state.ntfyBackoffReason = 'auth_rejected';
+        if (!(Date.parse(state.pushBackoffUntil || '') > until)) {
+          state.pushBackoffUntil = new Date(until).toISOString();
+          state.pushBackoffReason = 'auth_rejected';
         }
       } else if (result === 'uncertain') {
-        // A timeout/network failure/5xx may have been accepted by ntfy.
+        // A timeout/network failure/5xx may have been accepted by the push service.
         // Never automatically resend this item. Pause the next batches too,
         // otherwise every minute can create many new ambiguous deliveries.
         const until = Date.now() + UNCERTAIN_TRANSPORT_BACKOFF_MS;
-        if (!(Date.parse(state.ntfyBackoffUntil || '') > until)) {
-          state.ntfyBackoffUntil = new Date(until).toISOString();
-          state.ntfyBackoffReason = 'transport_uncertain';
+        if (!(Date.parse(state.pushBackoffUntil || '') > until)) {
+          state.pushBackoffUntil = new Date(until).toISOString();
+          state.pushBackoffReason = 'transport_uncertain';
         }
       }
       await store.save(state); // A lost write leaves 'sending', never an implicit retry.
@@ -237,33 +229,36 @@ export async function cycle(env, dependencies = {}) {
     for (const row of rows) {
       const key = drawIdentity(row), entry = state.deliveries[key];
       row.notification_channels = previousChannels(row, historyByDraw.get(historyKey(row)) || []);
-      if (entry?.state === 'sent') row.notification_channels.ntfy = 'sent';
-      if (!scheduled(row, catalog, today)) { row.สถานะการแจ้งเตือน = row.notification_channels.ntfy === 'sent' ? 'sent' : 'not_scheduled'; continue; }
-      if (row.notification_channels.ntfy === 'sent') { row.สถานะการแจ้งเตือน = 'sent'; continue; }
+      const delivered = entry?.state === 'sent' || Object.values(row.notification_channels).includes('sent');
+      if (entry?.state === 'sent' && !Object.values(row.notification_channels).includes('sent')) {
+        row.notification_channels[entry.channel || 'ntfy'] = 'sent';
+      }
+      if (!scheduled(row, catalog, today)) { row.สถานะการแจ้งเตือน = delivered ? 'sent' : 'not_scheduled'; continue; }
+      if (delivered) { row.สถานะการแจ้งเตือน = 'sent'; continue; }
       // Restore unresolved delivery even if config is disabled: it must remain visible.
-      if (entry?.state === 'uncertain') { row.notification_channels.ntfy = 'uncertain'; row.สถานะการแจ้งเตือน = 'uncertain'; continue; }
+      if (entry?.state === 'uncertain') { row.notification_channels[entry.channel || 'ntfy'] = 'uncertain'; row.สถานะการแจ้งเตือน = 'uncertain'; continue; }
       row.สถานะการแจ้งเตือน = 'pending';
       if (!eligible(settings, row)) { row.สถานะการแจ้งเตือน = 'not_eligible'; continue; }
       if (!active) { row.สถานะการแจ้งเตือน = 'disabled'; continue; }
       if (observing) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
-      if (Date.parse(state.ntfyBackoffUntil || '') > Date.now()) { row.สถานะการแจ้งเตือน = 'queued'; queuedBy.backoff++; continue; }
+      if (Date.parse(state.pushBackoffUntil || '') > Date.now()) { row.สถานะการแจ้งเตือน = 'queued'; queuedBy.backoff++; continue; }
       // Existing injected single-send tests still exercise the individual delivery path.
       if (dependencies.send) {
         if (attempts >= MAX_SENDS) { row.สถานะการแจ้งเตือน = 'queued'; queuedBy.quota++; continue; }
-        const result = await recordDelivery([key], detail => dependencies.send(settings, row, topic, request, detail, ntfyToken), 'result');
-        row.notification_channels.ntfy = result; row.สถานะการแจ้งเตือน = result;
+        const result = await recordDelivery([key], detail => dependencies.send(settings, row, request, detail), 'result');
+        row.notification_channels.browser_push = result; row.สถานะการแจ้งเตือน = result;
         if (result === 'sent') sent++;
       } else {
         batchedResults.push(row);
       }
     }
     // Production sends at most MAX_SENDS requests per cycle, but bundles multiple
-    // results in each publish to avoid the ntfy.sh daily message/request limits.
+    // results in each publish to avoid push volume.
     // Each row still has a distinct durable key. If a batch times out, every key
     // remains uncertain and is NEVER automatically re-sent.
     for (let i = 0; i < batchedResults.length; i += MAX_RESULT_BATCH) {
       const batch = batchedResults.slice(i, i + MAX_RESULT_BATCH);
-      if (Date.parse(state.ntfyBackoffUntil || '') > Date.now()) {
+      if (Date.parse(state.pushBackoffUntil || '') > Date.now()) {
         for (const row of batch) row.สถานะการแจ้งเตือน = 'queued';
         queuedBy.backoff += batch.length;
         continue;
@@ -276,9 +271,9 @@ export async function cycle(env, dependencies = {}) {
       const result = await recordDelivery(batch.map(drawIdentity), detail =>
         dependencies.sendBatch
           ? dependencies.sendBatch(batch, detail)
-          : publishNtfy(settings, resultBatchMessage(batch), topic, request, detail, ntfyToken), 'result');
+          : publishBrowserPush(env, resultBatchMessage(batch), request, detail), 'result');
       for (const row of batch) {
-        row.notification_channels.ntfy = result;
+        row.notification_channels.browser_push = result;
         row.สถานะการแจ้งเตือน = result;
       }
       if (result === 'sent') sent += batch.length;
@@ -290,15 +285,17 @@ export async function cycle(env, dependencies = {}) {
         const entry = state.deliveries[alert.key];
         return !(entry && entry.state !== 'failed') && clock() < alert.at;
       });
-      // One ntfy send per cycle for every alert due right now, instead of one
+      // One push per cycle for every alert due right now, instead of one
       // send per lottery. Order is kept (dueScheduleAlerts sorts by time) so
       // the combined message still lists closings before upcoming draws.
       if (dueAlerts.length) {
-        if (Date.parse(state.ntfyBackoffUntil || '') > Date.now()) queuedBy.backoff += dueAlerts.length;
+        if (Date.parse(state.pushBackoffUntil || '') > Date.now()) queuedBy.backoff += dueAlerts.length;
         else if (attempts >= MAX_SENDS) queuedBy.quota += dueAlerts.length;
         else {
           await recordDelivery(dueAlerts.map(a => a.key),
-            detail => publishNtfy(settings, scheduleBatchMessage(dueAlerts), topic, request, detail, ntfyToken), 'schedule');
+            detail => dependencies.sendSchedule
+              ? dependencies.sendSchedule(scheduleBatchMessage(dueAlerts), detail)
+              : publishBrowserPush(env, scheduleBatchMessage(dueAlerts), request, detail, 60), 'schedule');
         }
       }
     }
@@ -347,6 +344,7 @@ export async function cycle(env, dependencies = {}) {
 export default {
   async scheduled(_event, env, ctx) { ctx.waitUntil(cycle(env)); },
   async fetch(request, env) {
+    if (new URL(request.url).pathname.startsWith('/push/')) return browserPushApi(request, env);
     if (request.method !== 'GET' || new URL(request.url).pathname !== '/health') return new Response('Not found', { status: 404 });
     try {
       const row = await env.DB.prepare('SELECT payload FROM worker_state WHERE id = 1').first();
@@ -362,19 +360,15 @@ export default {
       }
       const observing = env.MODE !== 'deliver', observed = state.lastObservation;
       const ready = !paused && (observing ? observed && Date.now() - Date.parse(observed.at) < 5 * 60000 && !observed.sourceErrors && !state.error : healthy);
-      // Why items are queued, not just that they are: an active ntfy 429
-      // cooldown (and when it lifts), and/or how many hit the per-cycle
-      // MAX_SENDS budget last cycle. Both were already tracked internally;
-      // this only exposes them. Null fields mean "not currently applicable",
-      // not "unknown".
-      const backoffActive = Date.parse(state.ntfyBackoffUntil || '') > Date.now();
+      // Expose the current cooldown and the previous cycle's send budget.
+      const backoffActive = Date.parse(state.pushBackoffUntil || '') > Date.now();
       return Response.json({ status: paused ? 'paused' : observing ? 'observing' : healthy ? 'healthy' : 'degraded', last_success: state.lastSuccess,
         last_observation: observed || null, last_check: state.lastCheck || null, error: state.error, error_stage: state.error_stage || null,
         publish_pending: Boolean(state.pending), uncertain_deliveries: uncertainty.total,
         active_uncertain_deliveries: uncertain, old_uncertain_deliveries: uncertainty.old,
         delivery_codes, poll_seconds: 60,
-        ntfy_backoff_until: backoffActive ? state.ntfyBackoffUntil : null,
-        ntfy_backoff_reason: backoffActive ? (state.ntfyBackoffReason || 'rate_limit') : null,
+        push_backoff_until: backoffActive ? state.pushBackoffUntil : null,
+        push_backoff_reason: backoffActive ? (state.pushBackoffReason || 'rate_limit') : null,
         last_queue_summary: state.lastQueueSummary || null },
       { status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
     } catch { return Response.json({ status: 'unavailable' }, { status: 503 }); }
