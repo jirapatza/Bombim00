@@ -723,6 +723,35 @@ test('uncertain batch persists all identities without automatic retry', async t 
   assert.equal(Object.values(f.db.state().deliveries).filter(entry => entry.state === 'uncertain').length, 2);
 });
 
+test('timeout opens a durable circuit breaker before later sends, without retrying uncertain result', async t => {
+  let current = +now;
+  t.mock.method(Date, 'now', () => current);
+  const f = fixture(t);
+  f.dependencies.collect = async () => ({ rows: [
+    result('lao_tv', 'ลาว TV'),
+    result('lao_hd', 'ลาว HD'),
+    result('lao_star', 'ลาว STAR'),
+  ], sources: ['synthetic'], errors: [] });
+  let calls = 0;
+  f.dependencies.send = async (_settings, _row, _topic, _request, detail) => {
+    calls++;
+    detail.code = 'timeout';
+    return 'uncertain';
+  };
+  const first = await f.run();
+  assert.equal(calls, 1, 'no more HTTP calls after first ambiguous send');
+  assert.equal(first.uncertain, 1);
+  assert.equal(f.db.state().lastQueueSummary.backoff, 2);
+  assert.equal(f.db.state().ntfyBackoffReason, 'transport_uncertain');
+  assert.equal(f.db.state().ntfyBackoffUntil, new Date(current + 15 * 60_000).toISOString());
+
+  current += 60_000;
+  f.dependencies.now = new Date(current);
+  await f.run();
+  assert.equal(calls, 1, 'the uncertain send must not repeat on subsequent cycles');
+  assert.equal(f.db.state().ntfyBackoffReason, 'transport_uncertain');
+});
+
 test('batched 429 holds subsequent results during Retry-After and retries definite rejection', async t => {
   let time = +now;
   t.mock.method(Date, 'now', () => time);
