@@ -497,7 +497,8 @@ test('health counts unresolved delivery codes without exposing text, topic or hi
 
 test('Retry-After delay accepts seconds and dates and falls back safely', () => {
   assert.equal(retryAfterDelay('120', 0), 120000);
-  assert.equal(retryAfterDelay('7200', 0), 3600000);
+  assert.equal(retryAfterDelay('7200', 0), 7200000);
+  assert.equal(retryAfterDelay('999999', 0), 26 * 3600000);
   assert.equal(retryAfterDelay('Thu, 01 Jan 1970 00:02:00 GMT', 0), 120000);
   assert.equal(retryAfterDelay(null, 0), 60000);
   assert.equal(retryAfterDelay('invalid', 0), 60000);
@@ -553,7 +554,7 @@ test('ntfy 429 anchors Retry-After timestamp at response time and caps long wait
   const response = await sendNotification({}, result(), 'synthetic-topic', async () =>
     new Response(null, { status: 429, headers: { 'Retry-After': '7200' } }), detail);
   assert.equal(response, 'failed');
-  assert.equal(detail.retry_after_until, new Date(1_700_000_030_000 + 3600000).toISOString());
+  assert.equal(detail.retry_after_until, new Date(1_700_000_030_000 + 7200000).toISOString());
   assert.equal(retryAfterDelay('not-a-date', Date.now()), 60000);
 });
 test('ntfy 401 starts a 15-minute cooldown instead of retrying every cycle', async t => {
@@ -658,4 +659,68 @@ test('stale uncertain on an otherwise current result stays recorded but does not
   assert.equal(f.data[OUTPUTS[1]].notification_failures, 0);
   assert.equal(f.data[OUTPUTS[1]].old_uncertain_deliveries, 1);
   assert.equal(f.db.state().deliveries[key].state, 'uncertain');
+});
+
+test('production result batches reduce ntfy requests and persist sent status per draw', async t => {
+  const f = fixture(t), groups = [];
+  delete f.dependencies.send;
+  f.dependencies.collect = async () => ({ rows: [
+    result('lao_tv', 'ลาว TV'),
+    result('lao_hd', 'ลาว HD'),
+    result('lao_star', 'ลาว STAR'),
+    result('lao_extra', 'ลาว EXTRA'),
+  ], sources: ['synthetic'], errors: [] });
+  f.dependencies.sendBatch = async (rows, detail) => {
+    groups.push(rows.map(row => row.หวย));
+    detail.code = 'http_200';
+    return 'sent';
+  };
+  assert.equal((await f.run()).sent, 4);
+  assert.deepEqual(groups, [['lao_tv', 'lao_hd', 'lao_star', 'lao_extra']]);
+  assert.equal((await f.run()).sent, 0);
+  assert.equal(groups.length, 1, 'already sent rows must not be resent');
+  assert.equal(Object.values(f.db.state().deliveries).filter(entry => entry.state === 'sent').length, 4);
+});
+
+test('uncertain batch persists all identities without automatic retry', async t => {
+  const f = fixture(t), groups = [];
+  delete f.dependencies.send;
+  f.dependencies.collect = async () => ({ rows: [
+    result('lao_tv', 'ลาว TV'), result('lao_hd', 'ลาว HD'),
+  ], sources: ['synthetic'], errors: [] });
+  f.dependencies.sendBatch = async (rows, detail) => {
+    groups.push(rows.map(row => row.หวย));
+    detail.code = 'timeout';
+    return 'uncertain';
+  };
+  assert.equal((await f.run()).uncertain, 2);
+  f.dependencies.sendBatch = async () => assert.fail('ambiguous ntfy acceptance must never retry');
+  assert.equal((await f.run()).uncertain, 2);
+  assert.equal(groups.length, 1);
+  assert.equal(Object.values(f.db.state().deliveries).filter(entry => entry.state === 'uncertain').length, 2);
+});
+
+test('batched 429 holds subsequent results during Retry-After and retries definite rejection', async t => {
+  let time = +now;
+  t.mock.method(Date, 'now', () => time);
+  const f = fixture(t);
+  delete f.dependencies.send;
+  f.dependencies.collect = async () => ({ rows: [
+    result('lao_tv', 'ลาว TV'), result('lao_hd', 'ลาว HD'),
+  ], sources: ['synthetic'], errors: [] });
+  const batches = [];
+  f.dependencies.sendBatch = async (rows, detail) => {
+    batches.push(rows.map(row => row.หวย));
+    detail.code = 'http_429';
+    detail.retry_after_until = new Date(time + 120000).toISOString();
+    return 'failed';
+  };
+  await f.run();
+  assert.equal(batches.length, 1);
+  assert.equal((await f.run()).queued, 2);
+  assert.equal(batches.length, 1, 'backoff must suppress another publish');
+  time += 120001;
+  f.dependencies.sendBatch = async rows => { batches.push(rows.map(row => row.หวย)); return 'sent'; };
+  assert.equal((await f.run()).sent, 2);
+  assert.equal(batches.length, 2);
 });
