@@ -201,7 +201,7 @@ export async function cycle(env, dependencies = {}) {
         // A 429 is a definite rejection. A successful send with zero remaining
         // quota stays 'sent', but future sends pause before triggering a 429.
         const until = detail.retry_after_until || detail.quota_until ||
-          new Date(Date.now() + DEFAULT_NTFY_BACKOFF_MS).toISOString();
+          new Date(Date.now() + (detail.retry_after_ms || DEFAULT_NTFY_BACKOFF_MS)).toISOString();
         if (!(Date.parse(state.ntfyBackoffUntil || '') > Date.parse(until))) {
           state.ntfyBackoffUntil = until;
         }
