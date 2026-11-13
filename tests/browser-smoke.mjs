@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { chromium, devices } from 'playwright';
+import { mkdirSync } from 'node:fs';
 
 const url = process.env.BOMBIM_BROWSER_URL || 'http://127.0.0.1:3000';
 const profiles = [
@@ -10,6 +11,7 @@ const profiles = [
 ];
 
 async function run() {
+  mkdirSync('artifacts/ui', { recursive: true });
   const browser = await chromium.launch({ headless: true });
   let failed = false;
   try {
@@ -22,6 +24,7 @@ async function run() {
       try {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
         await page.getByRole('navigation', { name: 'เมนูหลัก' }).waitFor({ timeout: 15000 });
+        await page.screenshot({ path: 'artifacts/ui/' + name + '-home.png', fullPage: true });
         assert.match(await page.title(), /Bombim00/i);
         const nav = page.getByRole('navigation', { name: 'เมนูหลัก' });
         const tabs = [
