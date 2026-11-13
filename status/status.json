@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-13T23:22:12.685+07:00",
-  "last_run_date_thai": "13/11/2026 23:22:12",
-  "total_checks": 6000,
+  "last_run_timestamp": "2026-11-13T23:23:12.350+07:00",
+  "last_run_date_thai": "13/11/2026 23:23:12",
+  "total_checks": 6001,
   "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 54 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 33 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 33 รายการ",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 54 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 33 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 34 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "13.11.2026",
   "notifications_sent_today": 1,
   "notification_failures": 33,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-13T23:23:12.350+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 54 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 33 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 34 รายการ"
+    },
     {
       "timestamp": "2026-11-13T23:22:12.685+07:00",
       "level": "WARNING",
@@ -104,14 +109,9 @@
       "timestamp": "2026-11-13T23:04:12.467+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 51 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 33 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 33 รายการ"
-    },
-    {
-      "timestamp": "2026-11-13T23:03:12.302+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 51 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 33 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 33 รายการ"
     }
   ],
-  "uncertain_deliveries": 256,
+  "uncertain_deliveries": 257,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
   "schedule_alerts_sent_today": 1,
@@ -120,6 +120,6 @@
     "waiting": [],
     "errors": []
   },
-  "active_uncertain_deliveries": 33,
+  "active_uncertain_deliveries": 34,
   "old_uncertain_deliveries": 223
 }
