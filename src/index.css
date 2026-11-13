@@ -973,7 +973,7 @@ select:focus-visible {
   }
 }
 
-/* Bombim00 Web v1.1.0 — responsive touch and keyboard polish */
+/* Bombim00 Web v1.2.0 — responsive touch and keyboard polish */
 .result-dialog { overscroll-behavior: contain; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #38bdf8; outline-offset: 3px; }
 @media (pointer: coarse) {

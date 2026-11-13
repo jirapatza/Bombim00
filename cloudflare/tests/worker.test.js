@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { cycle, sendNotification, boundedRequest, retryAfterDelay, deliveryUncertainty } from '../src/worker.js';
+import worker, { cycle, boundedRequest, deliveryUncertainty } from '../src/worker.js';
 import { DurableState, RuntimeRepository, validateSnapshot, OUTPUTS } from '../src/storage.js';
 import { database } from './state-helper.js';
 import { drawDate, dueScheduleAlerts, scheduled, numbers, mergeRows } from '../src/domain.js';
@@ -12,8 +12,8 @@ const result = (id = 'lao_tv', name = 'ลาว TV', top = '007') => ({ หว�
   งวดวันที่: today, วันที่จัดรูปแบบ: today, เลขบน_3_ตัว: top, เลขล่าง_2_ตัว: '90', รางวัลที่_1: top, เลขท้าย_2_ตัว: '90' });
 function fixture(t, extra = {}) {
   const db = database(); t.after(() => db.close());
-  const env = { ENABLED: 'true', MODE: 'deliver', DB: db, NTFY_TOPIC: 'synthetic-local-topic' };
-  const data = { 'config/settings.json': { channels: { ntfy: { enabled: true } } },
+  const env = { ENABLED: 'true', MODE: 'deliver', DB: db,  };
+  const data = { 'config/settings.json': { channels: { browser_push: { enabled: true } } },
     'data/all_lotteries.json': catalog, 'lottery_previous_results.json': [], 'status/status.json': { total_checks: 1 } };
   const sends = [], published = [];
   const remote = {
@@ -68,7 +68,7 @@ test('definite rejection is retried without refetching the missing draw', async 
   await f.run();
   f.dependencies.collect = async () => ({ rows: [], sources: [], errors: ['synthetic timeout'] });
   await f.run(); await f.run();
-  assert.equal(attempt, 2); assert.equal(f.data[OUTPUTS[0]][0].notification_channels.ntfy, 'sent');
+  assert.equal(attempt, 2); assert.equal(f.data[OUTPUTS[0]][0].notification_channels.browser_push, 'sent');
 });
 test('limits a result burst to three sends, keeps remaining results queued and drains next minute', async t => {
   const f = fixture(t);
@@ -215,41 +215,6 @@ test('waiting for a draw publishes diagnostics without degrading a successful ch
   assert.doesNotMatch(status.status_message, /ขัดข้อง/);
   assert.deepEqual(status.source_checks, { waiting, errors: [] });
 });
-test('ntfy uses Thai JSON with distinct lower prize; rejects/timeouts do not become sent', async () => {
-  let posted;
-  const request = async (url, options) => { posted = [url, JSON.parse(options.body)]; return new Response('', { status: 200 }); };
-  assert.equal(await sendNotification({}, result(), 'synthetic-topic', request), 'sent');
-  assert.equal(posted[1].message, 'ลาว TV\nงวด 2026-11-07\n007 - 90');
-  assert.equal(await sendNotification({}, result(), 'x', async () => new Response('', { status: 429 })), 'failed');
-  assert.equal(await sendNotification({}, result(), 'x', async () => new Response('', { status: 503 })), 'uncertain');
-  assert.equal(await sendNotification({}, result(), 'x', async () => { throw new Error('timeout'); }), 'uncertain');
-});
-test('ntfy HTTP status survives response body cancellation failure without duplicate risk', async () => {
-  const response = status => ({ status, headers: new Headers({ 'Retry-After': '120' }),
-    body: { cancel: () => Promise.reject(new Error('synthetic stream cleanup failure')) } });
-  const accepted = {};
-  assert.equal(await sendNotification({}, result(), 'synthetic-topic', async () => response(200), accepted), 'sent');
-  assert.equal(accepted.code, 'http_200');
-  const rejected = {};
-  assert.equal(await sendNotification({}, result(), 'synthetic-topic', async () => response(429), rejected), 'failed');
-  assert.equal(rejected.code, 'http_429');
-  assert.ok(Date.parse(rejected.retry_after_until) > 0);
-  const transport = {};
-  assert.equal(await sendNotification({}, result(), 'synthetic-topic', async () => {
-    const err = new Error('synthetic HTTP connection timeout'); err.name = 'TimeoutError'; throw err;
-  }, transport), 'uncertain');
-  assert.equal(transport.code, 'timeout');
-});
-
-test('ntfy sends an Authorization header only when a token is given', async () => {
-  let headers;
-  const request = async (_url, options) => { headers = options.headers; return new Response('', { status: 200 }); };
-  await sendNotification({}, result(), 'synthetic-topic', request, {});
-  assert.equal(headers.Authorization, undefined);
-  await sendNotification({}, result(), 'synthetic-topic', request, {}, 'tk_example_secret');
-  assert.equal(headers.Authorization, 'Bearer tk_example_secret');
-});
-
 const scheduledLottery = { id: 'scheduled-test', name: 'หวยทดสอบ', drawDays: 'อังคาร-เสาร์',
   closeTimeStr: '15:20 น.', drawTimeStr: '15:30 น.' };
 const bangkok = (time, date = today) => new Date(`${date}T${time}:00+07:00`);
@@ -274,10 +239,11 @@ function scheduleFixture(t, responses = []) {
   const f = fixture(t, {
     now: bangkok('15:10'),
     collect: async () => ({ rows: [], sources: [], errors: ['synthetic unavailable source'] }),
-    request: async (_url, options) => {
-      messages.push(JSON.parse(options.body));
-      headers.push(options.headers);
-      return new Response(null, { status: responses.shift() ?? 200 });
+    sendSchedule: async (message, detail) => {
+      messages.push(message);
+      const status = responses.shift() ?? 200;
+      if (status === 429) detail.code = 'http_429';
+      return status === 429 ? 'failed' : status >= 500 ? 'uncertain' : 'sent';
     },
   });
   f.data['data/all_lotteries.json'] = [scheduledLottery];
@@ -299,9 +265,9 @@ test('sends each schedule alert once via ntfy even with no source result, indepe
   f.dependencies.now = bangkok('15:25');
   await f.run();
   await f.run();
-  assert.deepEqual(f.messages.map(({ topic, title, message }) => [topic, title, message]), [
-    ['synthetic-local-topic', 'ใกล้ปิดรับ', 'หวยทดสอบ ปิดรับ เวลา 15:20 น.'],
-    ['synthetic-local-topic', 'หวยรายการถัดไป', 'หวยทดสอบ ออกผลตามตาราง เวลา 15:30 น.'],
+  assert.deepEqual(f.messages.map(({ title, message }) => [title, message]), [
+    ['ใกล้ปิดรับ', 'หวยทดสอบ ปิดรับ เวลา 15:20 น.'],
+    ['หวยรายการถัดไป', 'หวยทดสอบ ออกผลตามตาราง เวลา 15:30 น.'],
   ]);
   assert.deepEqual(f.data[OUTPUTS[0]], []);
   assert.equal(f.data[OUTPUTS[1]].notifications_sent_today, 0);
@@ -334,68 +300,12 @@ test('schedule alerts due in the same cycle for multiple lotteries go out as one
   f.data['data/all_lotteries.json'] = [scheduledLottery, second];
   const result = await f.run();
   assert.equal(f.messages.length, 1); // one HTTP call, not one per lottery
-  assert.deepEqual(f.messages[0], { topic: 'synthetic-local-topic', title: 'แจ้งเตือนตามตาราง (2 รายการ)',
-    message: 'หวยทดสอบ ปิดรับ เวลา 15:20 น.\nหวยทดสอบสอง ปิดรับ เวลา 15:20 น.', tags: ['alarm_clock'],
-    priority: 4, click: 'https://bombim00.pages.dev' });
+  assert.deepEqual(f.messages[0], { title: 'แจ้งเตือนตามตาราง (2 รายการ)',
+    message: 'หวยทดสอบ ปิดรับ เวลา 15:20 น.\nหวยทดสอบสอง ปิดรับ เวลา 15:20 น.', tags: ['alarm_clock'] });
   assert.equal(result.sent, 0);
   assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 2); // both lotteries still tracked as sent
 });
 
-test('Gateway v2 honors 200 quota-exhausted response: save success, pause the next schedule send', async t => {
-  const f = scheduleFixture(t);
-  const start = +bangkok('15:10');
-  t.mock.method(Date, 'now', () => start);
-  let requests = 0;
-  f.dependencies.request = async () => {
-    requests++;
-    return new Response(null, { status: 200, headers: { RateLimit: '"messages";r=0;t=3600' } });
-  };
-  await f.run();
-  assert.equal(requests, 1);
-  assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 1);
-  assert.equal(f.db.state().ntfyBackoffReason, 'rate_limit');
-  assert.ok(Date.parse(f.db.state().ntfyBackoffUntil) > start);
-
-  f.dependencies.now = bangkok('15:25');
-  await f.run();
-  assert.equal(requests, 1, 'subsequent alert must wait for quota reset');
-  assert.equal(f.db.state().lastQueueSummary.backoff, 1);
-});
-
-test('NTFY_TOKEN secret, when set, is sent as a Bearer header on real deliveries', async t => {
-  const f = scheduleFixture(t);
-  await f.run(); // no NTFY_TOKEN set
-  assert.equal(f.headers[0].Authorization, undefined);
-  f.env.NTFY_TOKEN = 'tk_env_secret';
-  f.dependencies.now = bangkok('15:25'); // next distinct alert, avoids the already-sent 'closing' key
-  await f.run();
-  assert.equal(f.headers[1].Authorization, 'Bearer tk_env_secret');
-});
-
-test('preflight rejects are retryable, while same-named transport errors remain uncertain', async t => {
-  let fetches = 0;
-  const neverSent = boundedRequest(async () => { fetches++; return new Response(); }, Date.now() - 1);
-  assert.equal(await sendNotification({}, result(), 'x', neverSent), 'failed');
-  const insecure = boundedRequest(async () => { fetches++; return new Response(); });
-  assert.equal(await sendNotification({ channels: { ntfy: { server: 'http://example.test' } } }, result(), 'x', insecure), 'failed');
-  assert.equal(await sendNotification({ channels: { ntfy: { server: 'invalid' } } }, result(), 'x', insecure), 'failed');
-  assert.equal(fetches, 0);
-  const transport = boundedRequest(async () => { throw new Error('request_budget'); });
-  assert.equal(await sendNotification({}, result(), 'x', transport), 'uncertain');
-
-  const f = fixture(t);
-  delete f.dependencies.send;
-  f.dependencies.request = neverSent;
-  await f.run();
-  assert.equal(f.data[OUTPUTS[0]][0].สถานะการแจ้งเตือน, 'failed');
-  assert.equal(Object.values(f.db.state().deliveries)[0].state, 'failed');
-  let accepted = 0;
-  f.dependencies.collect = async () => ({ rows: [], sources: [], errors: ['synthetic timeout'] });
-  f.dependencies.request = boundedRequest(async () => { accepted++; return new Response(); });
-  await f.run(); await f.run();
-  assert.equal(accepted, 1);
-  assert.equal(f.data[OUTPUTS[0]][0].สถานะการแจ้งเตือน, 'sent');
-});
 test('request budget and redirects prevent unbounded subrequests or token forwarding', async () => {
   const options = [], request = boundedRequest(async (_url, o) => { options.push(o); return new Response(''); });
   for (let i = 0; i < 38; i++) await request('https://example.test');
@@ -411,15 +321,6 @@ test('a redirect response is rejected without forwarding the GitHub authorizatio
   const remote = new RuntimeRepository('owner/repo', 'synthetic-token', request);
   await assert.rejects(remote.api('GET', '/git/ref/heads/runtime-live'), { message: 'github_http_302' });
   assert.deepEqual(calls, [{ url: 'https://api.github.com/repos/owner/repo/git/ref/heads/runtime-live', redirect: 'manual' }]);
-});
-test('a redirected ntfy publish is uncertain and is not automatically repeated', async () => {
-  const options = [];
-  const request = boundedRequest(async (_url, init) => {
-    options.push(init.redirect);
-    return new Response(null, { status: 307, headers: { Location: 'https://other.example.test/' } });
-  });
-  assert.equal(await sendNotification({}, result(), 'synthetic-topic', request), 'uncertain');
-  assert.deepEqual(options, ['manual']);
 });
 test('GitHub publish preserves config tree, writes only two files and never forces the runtime ref', async () => {
   const calls = [], before = Object.fromEntries(OUTPUTS.map(x => [x, []])), outputs = { ...before, [OUTPUTS[1]]: { changed: true } };
@@ -465,7 +366,6 @@ test('worst-case source fallback cycle fits 38 network calls and at most 12 D1 o
       if (path.includes('/contents/')) return Response.json(data[path.split('/contents/')[1]]);
       return Response.json({ sha: 'b'.repeat(40) });
     }
-    if (url.startsWith('https://ntfy.sh/')) { notifications++; return new Response(''); }
     if (url.includes('thailottoapi')) return Response.json({ ok: false });
     if (url.includes('xn--t3cmiit')) return new Response('');
     if (url.includes('api.pholhuay')) return Response.json({ first: '900007', last2: '90', date: today });
@@ -477,9 +377,9 @@ test('worst-case source fallback cycle fits 38 network calls and at most 12 D1 o
         [{ name: '3 ตัวบน', numbers: ['007'] }, { name: '2 ตัวล่าง', numbers: ['90'] }] }] });
   });
   const outcome = await cycle({ ENABLED: 'true', MODE: 'deliver', DB: db, GITHUB_REPOSITORY: 'owner/repo',
-    LOTTERY_RUNTIME_TOKEN: 'synthetic', NTFY_TOPIC: 'synthetic' }, { now, request });
+    LOTTERY_RUNTIME_TOKEN: 'synthetic' }, { now, request, sendBatch: async () => { notifications++; return 'sent'; } });
   assert.ok(outcome.sent > 3, `batched results delivered: ${outcome.sent}`);
-  assert.ok(notifications > 0 && notifications <= 3, `ntfy requests: ${notifications}`);
+  assert.ok(notifications > 0 && notifications <= 3, `push batches: ${notifications}`);
   assert.ok(calls <= 38, `network calls: ${calls}`);
   assert.ok(sqlCalls <= 12, `D1 operations: ${sqlCalls}`);
 });
@@ -491,21 +391,9 @@ test('durable pending stores changes and an immutable Git base, not the growing 
   assert.ok(JSON.stringify(f.db.state()).length < 20000);
   assert.equal(f.db.state().pending.baseHead, 'a'.repeat(40));
 });
-test('ntfy outcome codes are fixed labels and never change the delivery decision', async () => {
-  const code = async (request, settings = {}) => { const detail = {}; const state = await sendNotification(settings, result(), 'x', request, detail); return [state, detail.code]; };
-  assert.deepEqual(await code(async () => new Response('', { status: 200 })), ['sent', 'http_200']);
-  assert.deepEqual(await code(async () => new Response('', { status: 429 })), ['failed', 'http_429']);
-  assert.deepEqual(await code(async () => new Response('', { status: 503 })), ['uncertain', 'http_503']);
-  assert.deepEqual(await code(async () => { throw new Error('synthetic private diagnostic'); }), ['uncertain', 'network']);
-  assert.deepEqual(await code(async () => { const error = new Error('x'); error.name = 'TimeoutError'; throw error; }), ['uncertain', 'timeout']);
-  const insecure = boundedRequest(async () => assert.fail('must not fetch'));
-  assert.deepEqual(await code(insecure, { channels: { ntfy: { server: 'http://example.test' } } }), ['failed', 'https_required']);
-  // The detail argument is optional: existing callers keep working.
-  assert.equal(await sendNotification({}, result(), 'x', async () => new Response('', { status: 200 })), 'sent');
-});
 test('health counts unresolved delivery codes without exposing text, topic or history', async t => {
   const f = fixture(t);
-  f.dependencies.send = async (_s, _row, _t, _r, detail) => { detail.code = 'http_429'; return 'failed'; };
+  f.dependencies.send = async (_s, _row, _r, detail) => { detail.code = 'http_429'; return 'failed'; };
   await f.run();
   assert.equal(f.db.state().deliveries[Object.keys(f.db.state().deliveries)[0]].code, 'http_429');
   const state = f.db.state();
@@ -518,28 +406,19 @@ test('health counts unresolved delivery codes without exposing text, topic or hi
   assert.ok(!JSON.stringify(body).includes('secret.example') && !JSON.stringify(body).includes('synthetic-local-topic'));
 });
 
-test('Retry-After delay accepts seconds and dates and falls back safely', () => {
-  assert.equal(retryAfterDelay('120', 0), 120000);
-  assert.equal(retryAfterDelay('7200', 0), 7200000);
-  assert.equal(retryAfterDelay('999999', 0), 26 * 3600000);
-  assert.equal(retryAfterDelay('Thu, 01 Jan 1970 00:02:00 GMT', 0), 120000);
-  assert.equal(retryAfterDelay(null, 0), 60000);
-  assert.equal(retryAfterDelay('invalid', 0), 60000);
-});
-
 test('ntfy 429 persists cooldown and does not send again until it expires', async t => {
   let current = +now;
   t.mock.method(Date, 'now', () => current);
   const f = fixture(t);
   let attempts = 0;
-  f.dependencies.send = async (_settings, _row, _topic, _request, detail) => {
+  f.dependencies.send = async (_settings, _row, _request, detail) => {
     attempts++;
     if (attempts === 1) { detail.code = 'http_429'; detail.retry_after_ms = 120000; return 'failed'; }
     detail.code = 'http_200'; return 'sent';
   };
   await f.run();
   assert.equal(attempts, 1);
-  assert.equal(f.db.state().ntfyBackoffUntil, new Date(+now + 120000).toISOString());
+  assert.equal(f.db.state().pushBackoffUntil, new Date(+now + 120000).toISOString());
   current = +now + 60000;
   f.dependencies.now = new Date(current);
   await f.run();
@@ -556,7 +435,7 @@ test('/health explains a queue: how many hit the per-cycle send quota last cycle
     .map(([id, name]) => result(id, name)), sources: ['synthetic'], errors: [] });
   assert.equal((await f.run()).queued, 1); // 3 sent, 1 over MAX_SENDS
   const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
-  assert.equal(body.ntfy_backoff_until, null); // no 429 here, so no backoff reason
+  assert.equal(body.push_backoff_until, null); // no 429 here, so no backoff reason
   assert.equal(body.last_queue_summary.quota, 1);
   assert.equal(body.last_queue_summary.backoff, 0);
 });
@@ -564,33 +443,24 @@ test('/health explains a queue: how many hit the per-cycle send quota last cycle
 test('/health explains a queue: an active ntfy 429 cooldown and exactly when it lifts', async t => {
   t.mock.method(Date, 'now', () => +now);
   const f = fixture(t);
-  f.dependencies.send = async (_s, _row, _t, _r, detail) => { detail.code = 'http_429'; detail.retry_after_ms = 120000; return 'failed'; };
+  f.dependencies.send = async (_s, _row, _r, detail) => { detail.code = 'http_429'; detail.retry_after_ms = 120000; return 'failed'; };
   await f.run();
   const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
-  assert.equal(body.ntfy_backoff_until, new Date(+now + 120000).toISOString());
+  assert.equal(body.push_backoff_until, new Date(+now + 120000).toISOString());
   assert.equal(body.last_queue_summary.backoff, 0); // the row that triggered the 429 is 'failed', not 'queued'
 });
 
-test('ntfy 429 anchors Retry-After timestamp at response time and caps long waits', async t => {
-  t.mock.method(Date, 'now', () => 1_700_000_030_000);
-  const detail = {};
-  const response = await sendNotification({}, result(), 'synthetic-topic', async () =>
-    new Response(null, { status: 429, headers: { 'Retry-After': '7200' } }), detail);
-  assert.equal(response, 'failed');
-  assert.equal(detail.retry_after_until, new Date(1_700_000_030_000 + 7200000).toISOString());
-  assert.equal(retryAfterDelay('not-a-date', Date.now()), 60000);
-});
 test('ntfy 401 starts a 15-minute cooldown instead of retrying every cycle', async t => {
   let current = +now;
   t.mock.method(Date, 'now', () => current);
   const f = fixture(t);
   f.dependencies.collect = async () => ({ rows: [['lao_tv', 'ลาว TV'], ['lao_hd', 'ลาว HD']].map(([id, name]) => result(id, name)), sources: ['synthetic'], errors: [] });
   let attempts = 0, code = 'http_401';
-  f.dependencies.send = async (_s, _row, _t, _r, detail) => { attempts++; detail.code = code; return code === 'http_200' ? 'sent' : 'failed'; };
+  f.dependencies.send = async (_s, _row, _r, detail) => { attempts++; detail.code = code; return code === 'http_200' ? 'sent' : 'failed'; };
   await f.run();
   assert.equal(attempts, 1); // the second result is held back, not also rejected
-  assert.equal(f.db.state().ntfyBackoffUntil, new Date(+now + 15 * 60000).toISOString());
-  assert.equal(f.db.state().ntfyBackoffReason, 'auth_rejected');
+  assert.equal(f.db.state().pushBackoffUntil, new Date(+now + 15 * 60000).toISOString());
+  assert.equal(f.db.state().pushBackoffReason, 'auth_rejected');
   current = +now + 14 * 60000; f.dependencies.now = new Date(current);
   await f.run();
   assert.equal(attempts, 1); // still cooling down
@@ -603,10 +473,10 @@ test('/health names the cooldown reason: auth_rejected for 403, rate_limit for 4
   t.mock.method(Date, 'now', () => +now);
   for (const [code, reason] of [['http_403', 'auth_rejected'], ['http_429', 'rate_limit']]) {
     const f = fixture(t);
-    f.dependencies.send = async (_s, _row, _t, _r, detail) => { detail.code = code; detail.retry_after_ms = 120000; return 'failed'; };
+    f.dependencies.send = async (_s, _row, _r, detail) => { detail.code = code; detail.retry_after_ms = 120000; return 'failed'; };
     await f.run();
     const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
-    assert.equal(body.ntfy_backoff_reason, reason);
+    assert.equal(body.push_backoff_reason, reason);
   }
 });
 
@@ -614,27 +484,13 @@ test('an expired rate-limit cooldown is replaced by the auth cooldown when the n
   t.mock.method(Date, 'now', () => +now);
   const f = fixture(t);
   const state = f.db.state();
-  state.ntfyBackoffUntil = new Date(+now - 1000).toISOString(); // already lifted
-  state.ntfyBackoffReason = 'rate_limit';
+  state.pushBackoffUntil = new Date(+now - 1000).toISOString(); // already lifted
+  state.pushBackoffReason = 'rate_limit';
   f.db.setState(state);
-  f.dependencies.send = async (_s, _row, _t, _r, detail) => { detail.code = 'http_401'; return 'failed'; };
+  f.dependencies.send = async (_s, _row, _r, detail) => { detail.code = 'http_401'; return 'failed'; };
   await f.run();
-  assert.equal(f.db.state().ntfyBackoffReason, 'auth_rejected');
-  assert.equal(f.db.state().ntfyBackoffUntil, new Date(+now + 15 * 60000).toISOString());
-});
-
-test('a retired click URL in runtime settings falls back to the Pages dashboard', async t => {
-  const f = scheduleFixture(t);
-  f.data['config/settings.json'].channels.ntfy.click_url = 'https://bombim00.onrender.com';
-  await f.run();
-  assert.equal(f.messages[0].click, 'https://bombim00.pages.dev');
-});
-
-test('an explicit https click URL that is not retired is kept as configured', async t => {
-  const f = scheduleFixture(t);
-  f.data['config/settings.json'].channels.ntfy.click_url = 'https://dashboard.example.com/draw';
-  await f.run();
-  assert.equal(f.messages[0].click, 'https://dashboard.example.com/draw');
+  assert.equal(f.db.state().pushBackoffReason, 'auth_rejected');
+  assert.equal(f.db.state().pushBackoffUntil, new Date(+now + 15 * 60000).toISOString());
 });
 
 test('old uncertain delivery is retained but does not degrade current health', async t => {
@@ -733,7 +589,7 @@ test('timeout opens a durable circuit breaker before later sends, without retryi
     result('lao_star', 'ลาว STAR'),
   ], sources: ['synthetic'], errors: [] });
   let calls = 0;
-  f.dependencies.send = async (_settings, _row, _topic, _request, detail) => {
+  f.dependencies.send = async (_settings, _row, _request, detail) => {
     calls++;
     detail.code = 'timeout';
     return 'uncertain';
@@ -742,14 +598,14 @@ test('timeout opens a durable circuit breaker before later sends, without retryi
   assert.equal(calls, 1, 'no more HTTP calls after first ambiguous send');
   assert.equal(first.uncertain, 1);
   assert.equal(f.db.state().lastQueueSummary.backoff, 2);
-  assert.equal(f.db.state().ntfyBackoffReason, 'transport_uncertain');
-  assert.equal(f.db.state().ntfyBackoffUntil, new Date(current + 15 * 60_000).toISOString());
+  assert.equal(f.db.state().pushBackoffReason, 'transport_uncertain');
+  assert.equal(f.db.state().pushBackoffUntil, new Date(current + 15 * 60_000).toISOString());
 
   current += 60_000;
   f.dependencies.now = new Date(current);
   await f.run();
   assert.equal(calls, 1, 'the uncertain send must not repeat on subsequent cycles');
-  assert.equal(f.db.state().ntfyBackoffReason, 'transport_uncertain');
+  assert.equal(f.db.state().pushBackoffReason, 'transport_uncertain');
 });
 
 test('batched 429 holds subsequent results during Retry-After and retries definite rejection', async t => {

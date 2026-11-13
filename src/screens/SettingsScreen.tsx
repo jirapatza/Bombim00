@@ -6,43 +6,31 @@ import {
   Volume2,
   VolumeX,
   Play,
-  Bell,
-  Save,
   Activity,
-  Check,
 } from "lucide-react";
-import { AppSettings, SystemStatus } from "../types/lottery";
+import { SystemStatus } from "../types/lottery";
 import { ThaiTtsService } from "../utils/thaiTts";
 import { checkerHeartbeatFresh } from "../utils/checkerHealth";
 
 interface Props {
-  settings: AppSettings;
   status: SystemStatus;
   watchedNumbers: string[];
   isVoiceEnabled: boolean;
   onToggleVoice: () => void;
   onAddWatchedNumber: (num: string) => void;
   onRemoveWatchedNumber: (num: string) => void;
-  onUpdateNtfy: (server: string, topic: string, priority: string) => void;
 }
 
 export const SettingsScreen: React.FC<Props> = ({
-  settings,
   status,
   watchedNumbers,
   isVoiceEnabled,
   onToggleVoice,
   onAddWatchedNumber,
   onRemoveWatchedNumber,
-  onUpdateNtfy,
 }) => {
   const [newNum, setNewNum] = useState("");
-  const [ntfyServer, setNtfyServer] = useState(settings.ntfy.server);
-  const [ntfyTopic, setNtfyTopic] = useState(settings.ntfy.topic);
-  const [ntfyPriority, setNtfyPriority] = useState(settings.ntfy.priority);
   const [formError, setFormError] = useState("");
-  const [ntfyError, setNtfyError] = useState("");
-  const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleAddNumber = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,38 +46,6 @@ export const SettingsScreen: React.FC<Props> = ({
     } catch {
       setFormError("บันทึกไม่ได้ เบราว์เซอร์อาจปิดการใช้พื้นที่จัดเก็บ");
     }
-  };
-
-  const handleSaveNtfy = () => {
-    setSavedSuccess(false);
-    try {
-      const server = new URL(ntfyServer);
-      if (
-        !["https:", "http:"].includes(server.protocol) ||
-        server.username ||
-        server.password ||
-        server.search ||
-        server.hash ||
-        !/^[A-Za-z0-9_-]+$/.test(ntfyTopic)
-      ) {
-        setNtfyError(
-          "ใช้ Server URL แบบ HTTP/HTTPS และ topic ที่มีตัวอักษรอังกฤษ ตัวเลข _ หรือ - เท่านั้น",
-        );
-        return;
-      }
-      onUpdateNtfy(
-        server.toString().replace(/\/$/, ""),
-        ntfyTopic,
-        ntfyPriority,
-      );
-      setNtfyError("");
-      setSavedSuccess(true);
-    } catch {
-      setNtfyError(
-        "บันทึกไม่ได้ ตรวจ URL และสิทธิ์พื้นที่จัดเก็บของเบราว์เซอร์",
-      );
-    }
-    setTimeout(() => setSavedSuccess(false), 2500);
   };
 
   const handleTestTts = () => {
@@ -232,80 +188,6 @@ export const SettingsScreen: React.FC<Props> = ({
             ทดสอบเสียงอ่านตัวอย่าง
           </button>
         )}
-      </div>
-
-      {/* Push Notifications (ntfy) Settings */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg space-y-3.5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-400 text-slate-950 shadow-md">
-            <Bell className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-100">
-              การแจ้งเตือน Push Notification (ntfy)
-            </h3>
-            <p className="text-xs text-slate-400">
-              ค่าที่บันทึกในเบราว์เซอร์นี้เท่านั้น ระบบส่งผลอัตโนมัติใช้ค่าจาก
-              Cloudflare Worker
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-2.5 text-xs">
-          <div>
-            <label
-              htmlFor="ntfy-server"
-              className="text-slate-400 font-medium block mb-1"
-            >
-              Server URL
-            </label>
-            <input
-              type="text"
-              id="ntfy-server"
-              value={ntfyServer}
-              onChange={(e) => setNtfyServer(e.target.value)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-slate-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono-numbers"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="ntfy-topic"
-              className="text-slate-400 font-medium block mb-1"
-            >
-              Topic Channel
-            </label>
-            <input
-              type="text"
-              id="ntfy-topic"
-              value={ntfyTopic}
-              onChange={(e) => setNtfyTopic(e.target.value)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-slate-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono-numbers"
-            />
-          </div>
-        </div>
-
-        {ntfyError && (
-          <p role="alert" className="rounded-xl bg-amber-950 p-3 text-amber-200">
-            {ntfyError}
-          </p>
-        )}
-        <button
-          onClick={handleSaveNtfy}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-slate-950 shadow-md hover:bg-amber-400 transition-colors"
-        >
-          {savedSuccess ? (
-            <>
-              <Check className="h-4 w-4" />
-              บันทึกในเบราว์เซอร์แล้ว
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              บันทึกการตั้งค่า
-            </>
-          )}
-        </button>
       </div>
 
       {/* Diagnostics & System Health */}

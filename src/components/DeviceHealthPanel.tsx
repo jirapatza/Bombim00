@@ -4,7 +4,6 @@ import {
   MonitorSmartphone,
   RefreshCw,
   VolumeX,
-  Bell,
 } from "lucide-react";
 import { ThaiTtsService } from "../utils/thaiTts";
 import { connectionHealth, connectionLabels } from "../utils/checkerHealth";
@@ -32,11 +31,6 @@ export function DeviceHealthPanel({
     status.last_run_timestamp,
     status.system_status,
   );
-  const [permission, setPermission] = useState(
-    typeof Notification === "undefined"
-      ? "unsupported"
-      : Notification.permission,
-  );
   const [report, setReport] = useState("");
   const [busy, setBusy] = useState(false);
   const recover = async () => {
@@ -55,40 +49,6 @@ export function DeviceHealthPanel({
     } finally {
       setBusy(false);
     }
-  };
-  const requestPermission = async () => {
-    setReport(
-      "กรุณาตอบคำขอสิทธิ์ของเบราว์เซอร์ หากไม่แสดงให้ตรวจการตั้งค่าเว็บไซต์",
-    );
-    try {
-      const result = await Notification.requestPermission();
-      setPermission(result);
-      setReport(
-        result === "granted"
-          ? "อนุญาตแล้ว ปุ่มทดสอบใช้ตรวจการแจ้งเตือนในเบราว์เซอร์นี้ได้"
-          : "ยังไม่ได้รับอนุญาต เปลี่ยนสิทธิ์ได้ในการตั้งค่าเว็บไซต์ของเบราว์เซอร์",
-      );
-    } catch {
-      setReport("ขอสิทธิ์ไม่ได้ ตรวจว่าใช้ HTTPS และเบราว์เซอร์รองรับ");
-    }
-  };
-  const testNotification = () => {
-    try {
-      new Notification("BOMBIM00 • ทดสอบอุปกรณ์", {
-        body: "การแจ้งเตือนในเบราว์เซอร์นี้ทำงาน นี่ไม่ใช่ผลหวยหรือการทดสอบ ntfy",
-      });
-      setReport("ส่งคำขอแจ้งเตือนทดสอบในเครื่องนี้แล้ว กรุณาตรวจหน้าจอของคุณ");
-    } catch {
-      setReport(
-        "เบราว์เซอร์นี้ส่งการแจ้งเตือนไม่ได้ ลองตรวจสิทธิ์หรือใช้แอป ntfy",
-      );
-    }
-  };
-  const permissionLabels: Record<string, string> = {
-    granted: "อนุญาตแล้ว",
-    denied: "ถูกปิดกั้น",
-    default: "ยังไม่ได้อนุญาต",
-    unsupported: "ไม่รองรับ",
   };
   return (
     <section className="panel device-panel" aria-labelledby="device-heading">
@@ -123,12 +83,6 @@ export function DeviceHealthPanel({
           </strong>
           <small>เสียงภาษาไทยขึ้นกับเสียงที่ติดตั้งในเครื่อง</small>
         </div>
-        <div>
-          <Bell size={18} />
-          <p>สิทธิ์แจ้งเตือน</p>
-          <strong>{permissionLabels[permission]}</strong>
-          <small>สิทธิ์นี้แยกจากการรับ ntfy บนโทรศัพท์</small>
-        </div>
       </div>
       <div className="hero-actions">
         <button
@@ -148,16 +102,6 @@ export function DeviceHealthPanel({
         >
           หยุดเสียงค้าง
         </button>
-        {permission === "default" && (
-          <button className="quiet-button" onClick={requestPermission}>
-            ขอสิทธิ์แจ้งเตือน
-          </button>
-        )}
-        {permission === "granted" && (
-          <button className="quiet-button" onClick={testNotification}>
-            ทดสอบแจ้งเตือนเครื่องนี้
-          </button>
-        )}
       </div>
       <p role="status" className="muted">
         {report}

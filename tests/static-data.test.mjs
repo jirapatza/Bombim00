@@ -48,7 +48,7 @@ test('settings and status JSON expose required top-level structure', async () =>
 });
 
 
-test('Bombim00 v1.1.0 app entry and notification links point to the current Pages deployment', async () => {
+test('Bombim00 v1.2.0 app entry and notification links point to the current Pages deployment', async () => {
   const settings = await readJson('../config/settings.json');
   const pkg = await readJson('../package.json');
   const lock = await readJson('../package-lock.json');
@@ -59,11 +59,11 @@ test('Bombim00 v1.1.0 app entry and notification links point to the current Page
   const pages = 'https://bombim00.pages.dev';
   assert.equal(settings.channels.ntfy.click_url, pages);
   assert.equal(settings.ntfy.click_url, pages);
-  assert.equal(pkg.version, '1.1.0');
+  assert.equal(pkg.version, '1.2.0');
   assert.equal(lock.version, pkg.version);
   assert.equal(lock.packages[''].version, pkg.version);
   assert.match(html, /<title>Bombim00/);
-  assert.match(app, /Bombim00 Web v1\.1\.0/);
+  assert.match(app, /Bombim00 Web v1\.2\.0/);
   assert.match(legacy, /https:\/\/bombim00\.pages\.dev/);
   assert.ok(!html.includes('user-scalable=no'), 'allow the user to zoom on mobile');
   for (const tab of ['live', 'history', 'summary', 'checker', 'settings']) {
