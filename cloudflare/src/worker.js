@@ -3,8 +3,9 @@ import { collect } from './providers.js';
 import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './storage.js';
 
 const MAX_SENDS = 3;
+const MAX_RESULT_BATCH = 6; // One ntfy message per cluster; never bulk-retry uncertain outcomes.
 const DEFAULT_NTFY_BACKOFF_MS = 60000;
-const MAX_NTFY_BACKOFF_MS = 60 * 60 * 1000;
+const MAX_NTFY_BACKOFF_MS = 26 * 60 * 60 * 1000; // Honour ntfy daily-limit Retry-After.
 // A rejected token/permission (401/403) will not fix itself within a minute, so stop
 // re-sending every cycle: one probe per 15 minutes instead of up to 3 sends per minute.
 const AUTH_REJECT_BACKOFF_MS = 15 * 60 * 1000;
@@ -52,7 +53,10 @@ export function boundedRequest(fetcher, deadline = Date.now() + 50000) {
     if (target.protocol !== 'https:' || target.username || target.password) throw new PreflightError('https_required');
     // Workers does not implement redirect: 'error'. Manual keeps credentials on
     // the original host; callers reject the returned non-2xx redirect response.
-    return fetcher(url, { ...options, redirect: 'manual', signal: AbortSignal.timeout(Math.max(1, Math.min(7000, deadline - Date.now()))) });
+    const { timeoutMs, ...safeOptions } = options;
+    const perCallMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? Math.min(timeoutMs, 12000) : 7000;
+    return fetcher(url, { ...safeOptions, redirect: 'manual',
+      signal: AbortSignal.timeout(Math.max(1, Math.min(perCallMs, deadline - Date.now()))) });
   };
 }
 function resultMessage(row) {
@@ -61,6 +65,17 @@ function resultMessage(row) {
   const display = /รัฐบาล|ออมสิน|ธ\.ก\.ส/.test(name) || name.startsWith('หวย') ? name : `หวย${name}`;
   return { title: `📢 ผล${display} งวด ${date}`, message: `${name}\nงวด ${date}\n${top} - ${bottom}`,
     tags: ['loudspeaker', 'dart'] };
+}
+function resultBatchMessage(rows) {
+  if (rows.length === 1) return resultMessage(rows[0]);
+  const date = rows[0].งวดวันที่ || rows[0].วันที่จัดรูปแบบ;
+  const lines = rows.map(row => {
+    const name = canonical(rawName(row)).slice(0, 72);
+    const [top, bottom] = numbers(row);
+    return `${name}: ${top} - ${bottom}`;
+  });
+  return { title: `📢 ผลหวยงวด ${date} (${rows.length} รายการ)`,
+    message: lines.join('\n'), tags: ['loudspeaker', 'dart'] };
 }
 function scheduleMessage(alert) {
   const closing = alert.kind === 'closing';
@@ -105,7 +120,7 @@ async function publishNtfy(settings, message, topic, request, detail = {}, token
   try {
     const response = await request(server + '/', { method: 'POST', headers,
       body: JSON.stringify({ topic, ...message, priority: 4,
-        click: clickTarget }) });
+        click: clickTarget }), timeoutMs: 12000 });
     // Once fetch has returned an HTTP response, its status is authoritative.
     // Releasing the unused response body is best-effort: a cancelled/failed
     // stream must never turn an accepted 200 or rejected 429 into 'uncertain'.
@@ -253,6 +268,7 @@ export async function cycle(env, dependencies = {}) {
     // (observe mode queues everything too, but that already shows as
     // status: 'observing' and needs no extra reason here.)
     const queuedBy = { backoff: 0, quota: 0 };
+    const batchedResults = [];
     for (const row of rows) {
       const key = drawIdentity(row), entry = state.deliveries[key];
       row.notification_channels = previousChannels(row, historyByDraw.get(historyKey(row)) || []);
@@ -266,10 +282,41 @@ export async function cycle(env, dependencies = {}) {
       if (!active) { row.สถานะการแจ้งเตือน = 'disabled'; continue; }
       if (observing) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
       if (Date.parse(state.ntfyBackoffUntil || '') > Date.now()) { row.สถานะการแจ้งเตือน = 'queued'; queuedBy.backoff++; continue; }
-      if (attempts >= MAX_SENDS) { row.สถานะการแจ้งเตือน = 'queued'; queuedBy.quota++; continue; }
-      const result = await recordDelivery([key], detail => (dependencies.send || sendNotification)(settings, row, topic, request, detail, ntfyToken), 'result');
-      row.notification_channels.ntfy = result; row.สถานะการแจ้งเตือน = result;
-      if (result === 'sent') sent++;
+      // Existing injected single-send tests still exercise the individual delivery path.
+      if (dependencies.send) {
+        if (attempts >= MAX_SENDS) { row.สถานะการแจ้งเตือน = 'queued'; queuedBy.quota++; continue; }
+        const result = await recordDelivery([key], detail => dependencies.send(settings, row, topic, request, detail, ntfyToken), 'result');
+        row.notification_channels.ntfy = result; row.สถานะการแจ้งเตือน = result;
+        if (result === 'sent') sent++;
+      } else {
+        batchedResults.push(row);
+      }
+    }
+    // Production sends at most MAX_SENDS requests per cycle, but bundles multiple
+    // results in each publish to avoid the ntfy.sh daily message/request limits.
+    // Each row still has a distinct durable key. If a batch times out, every key
+    // remains uncertain and is NEVER automatically re-sent.
+    for (let i = 0; i < batchedResults.length; i += MAX_RESULT_BATCH) {
+      const batch = batchedResults.slice(i, i + MAX_RESULT_BATCH);
+      if (Date.parse(state.ntfyBackoffUntil || '') > Date.now()) {
+        for (const row of batch) row.สถานะการแจ้งเตือน = 'queued';
+        queuedBy.backoff += batch.length;
+        continue;
+      }
+      if (attempts >= MAX_SENDS) {
+        for (const row of batch) row.สถานะการแจ้งเตือน = 'queued';
+        queuedBy.quota += batch.length;
+        continue;
+      }
+      const result = await recordDelivery(batch.map(drawIdentity), detail =>
+        dependencies.sendBatch
+          ? dependencies.sendBatch(batch, detail)
+          : publishNtfy(settings, resultBatchMessage(batch), topic, request, detail, ntfyToken), 'result');
+      for (const row of batch) {
+        row.notification_channels.ntfy = result;
+        row.สถานะการแจ้งเตือน = result;
+      }
+      if (result === 'sent') sent += batch.length;
     }
     // Reserve the existing send budget for results first and use the time after provider I/O.
     if (!observing && active && settings.notifications?.enabled !== false) {
