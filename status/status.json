@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-13T14:17:12.293+07:00",
-  "last_run_date_thai": "13/11/2026 14:17:12",
-  "total_checks": 5455,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 27 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 18 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 236 รายการ รอผลจากแหล่งข้อมูล 5 รายการ",
-  "active_sources_count": 6,
+  "last_run_timestamp": "2026-11-13T14:18:12.247+07:00",
+  "last_run_date_thai": "13/11/2026 14:18:12",
+  "total_checks": 5456,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 27 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 18 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 236 รายการ รอผลจากแหล่งข้อมูล 1 รายการ แหล่งข้อมูลขัดข้อง 9 คำขอ",
+  "active_sources_count": 4,
   "latest_draw_detected": "13.11.2026",
   "notifications_sent_today": 0,
   "notification_failures": 18,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-13T14:18:12.247+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 27 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 18 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 236 รายการ รอผลจากแหล่งข้อมูล 1 รายการ แหล่งข้อมูลขัดข้อง 9 คำขอ"
+    },
     {
       "timestamp": "2026-11-13T14:17:12.293+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-13T13:59:12.217+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 23 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 14 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 236 รายการ รอผลจากแหล่งข้อมูล 6 รายการ"
-    },
-    {
-      "timestamp": "2026-11-13T13:58:12.058+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 23 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 14 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 236 รายการ รอผลจากแหล่งข้อมูล 6 รายการ"
     }
   ],
   "uncertain_deliveries": 236,
@@ -120,30 +120,65 @@
     "waiting": [
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย HD",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพัฒนา",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย TV",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ลาว STAR",
         "status": 404
       }
     ],
-    "errors": []
+    "errors": [
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ลาวสามัคคี",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอยพัฒนา",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอยอาเซียน",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอย HD",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "lotterychecks",
+        "lottery": "สลากกินแบ่งรัฐบาล",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ลาว TV",
+        "status": 520,
+        "reason": "http"
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอย STAR",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอย TV",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ลาว HD",
+        "status": null,
+        "reason": "timeout"
+      }
+    ]
   }
 }
