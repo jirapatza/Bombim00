@@ -36,6 +36,13 @@ async function run() {
           await page.locator(selector).waitFor({ timeout: 15000 });
           assert.equal(await nav.getByRole('button', { name: label, exact: true }).getAttribute('aria-current'), 'page');
           const tabOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+          if (tabOverflow > 2) {
+            const offenders = await page.evaluate(() => Array.from(document.querySelectorAll('body *')).map(el => {
+              const rect = el.getBoundingClientRect();
+              return { tag: el.tagName.toLowerCase(), className: typeof el.className === 'string' ? el.className.slice(0, 75) : '', right: Math.round(rect.right), width: Math.round(rect.width), text: (el.textContent || '').trim().slice(0, 40) };
+            }).filter(el => el.right > document.documentElement.clientWidth + 2).slice(0, 12));
+            console.error('Overflow offenders ' + name + ' / ' + label + ': ' + JSON.stringify(offenders));
+          }
           assert.ok(tabOverflow <= 2, 'Horizontal overflow in ' + name + ' / ' + label + ': ' + tabOverflow + 'px');
         }
 
