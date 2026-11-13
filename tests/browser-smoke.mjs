@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { chromium, devices } from 'playwright';
 
-const url = process.env.BOMBIM_BROWSER_URL || 'http://127.0.0.1:4173';
+const url = process.env.BOMBIM_BROWSER_URL || 'http://127.0.0.1:3000';
 const profiles = [
   { name: 'desktop-1440', viewport: { width: 1440, height: 900 } },
   { name: 'tablet-768', viewport: { width: 768, height: 1024 } },
