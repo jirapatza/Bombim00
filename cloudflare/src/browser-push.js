@@ -25,12 +25,12 @@ function subscriptionFrom(value) {
 async function sendToDevice(message, subscription, keys, request, ttl) {
   const payload = await buildPushPayload({
     data: JSON.stringify({ title: message.title, body: message.message }),
-    options: { ttl },
+    options: { ttl, urgency: 'high' },
   }, subscription, keys);
-  return request(subscription.endpoint, { ...payload, method: 'POST', redirect: 'error', signal: AbortSignal.timeout(5000) });
+  return request(subscription.endpoint, { ...payload, method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(5000) });
 }
 
-export async function publishBrowserPush(env, message, request, detail = {}, ttl = 300) {
+export async function publishBrowserPush(env, message, request, detail = {}, ttl = 21600) {
   const keys = pushKeys(env);
   if (!keys) return 'failed';
   const { results } = await env.DB.prepare(

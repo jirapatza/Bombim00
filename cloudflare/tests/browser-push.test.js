@@ -28,7 +28,9 @@ test('enrolls Chrome, sends encrypted Web Push, handles 429, and removes expired
     assert.equal(url, endpoint);
     assert.match(init.headers.authorization, /^vapid t=/);
     assert.equal(init.headers['content-encoding'], 'aes128gcm');
-    assert.equal(init.redirect, 'error');
+    assert.equal(init.redirect, 'manual');
+    assert.equal(init.headers.urgency, 'high');
+    assert.equal(init.headers.ttl, '21600');
     assert.ok(init.body.byteLength > 100);
     return new Response(null, { status: 201 });
   }), 'sent');
