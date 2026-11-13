@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-13T16:45:12.250+07:00",
-  "last_run_date_thai": "13/11/2026 16:45:12",
-  "total_checks": 5603,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 40 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 25 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 237 รายการ รอผลจากแหล่งข้อมูล 2 รายการ",
-  "active_sources_count": 6,
-  "latest_draw_detected": "13.11.2026",
+  "last_run_timestamp": "2026-11-13T16:46:12.525+07:00",
+  "last_run_date_thai": "13/11/2026 16:46:12",
+  "total_checks": 5604,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 40 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 25 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 237 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ",
+  "active_sources_count": 5,
+  "latest_draw_detected": "13 พฤศจิกายน 2569",
   "notifications_sent_today": 0,
   "notification_failures": 25,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-13T16:46:12.525+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 40 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 25 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 237 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ"
+    },
     {
       "timestamp": "2026-11-13T16:45:12.250+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-13T16:27:12.578+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 23 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 237 รายการ รอผลจากแหล่งข้อมูล 3 รายการ"
-    },
-    {
-      "timestamp": "2026-11-13T16:26:12.638+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 23 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 237 รายการ รอผลจากแหล่งข้อมูล 3 รายการ"
     }
   ],
   "uncertain_deliveries": 237,
@@ -120,15 +120,21 @@
     "waiting": [
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
+        "lottery": "ฮานอยพัฒนา",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพัฒนา",
+        "lottery": "ลาวสามัคคี",
         "status": 404
       }
     ],
-    "errors": []
+    "errors": [
+      {
+        "source": "ThaiLottoAPI",
+        "status": null,
+        "reason": "timeout"
+      }
+    ]
   }
 }
