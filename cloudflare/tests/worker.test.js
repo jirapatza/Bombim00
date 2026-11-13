@@ -341,6 +341,27 @@ test('schedule alerts due in the same cycle for multiple lotteries go out as one
   assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 2); // both lotteries still tracked as sent
 });
 
+test('Gateway v2 honors 200 quota-exhausted response: save success, pause the next schedule send', async t => {
+  const f = scheduleFixture(t);
+  const start = +bangkok('15:10');
+  t.mock.method(Date, 'now', () => start);
+  let requests = 0;
+  f.dependencies.request = async () => {
+    requests++;
+    return new Response(null, { status: 200, headers: { RateLimit: '"messages";r=0;t=3600' } });
+  };
+  await f.run();
+  assert.equal(requests, 1);
+  assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 1);
+  assert.equal(f.db.state().ntfyBackoffReason, 'rate_limit');
+  assert.ok(Date.parse(f.db.state().ntfyBackoffUntil) > start);
+
+  f.dependencies.now = bangkok('15:25');
+  await f.run();
+  assert.equal(requests, 1, 'subsequent alert must wait for quota reset');
+  assert.equal(f.db.state().lastQueueSummary.backoff, 1);
+});
+
 test('NTFY_TOKEN secret, when set, is sent as a Bearer header on real deliveries', async t => {
   const f = scheduleFixture(t);
   await f.run(); // no NTFY_TOKEN set
