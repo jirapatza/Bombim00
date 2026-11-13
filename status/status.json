@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-13T20:32:12.195+07:00",
-  "last_run_date_thai": "13/11/2026 20:32:12",
-  "total_checks": 5830,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
+  "last_run_timestamp": "2026-11-13T20:33:12.222+07:00",
+  "last_run_date_thai": "13/11/2026 20:33:12",
+  "total_checks": 5831,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
   "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 49 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 32 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 21 รายการ รอผลจากแหล่งข้อมูล 1 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "13.11.2026",
   "notifications_sent_today": 1,
   "notification_failures": 32,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-13T20:33:12.222+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 49 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 32 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 21 รายการ รอผลจากแหล่งข้อมูล 1 รายการ"
+    },
     {
       "timestamp": "2026-11-13T20:32:12.195+07:00",
       "level": "WARNING",
@@ -102,11 +107,6 @@
     },
     {
       "timestamp": "2026-11-13T20:14:12.340+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 48 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 32 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 21 รายการ รอผลจากแหล่งข้อมูล 1 รายการ"
-    },
-    {
-      "timestamp": "2026-11-13T20:13:12.342+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 48 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 32 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 21 รายการ รอผลจากแหล่งข้อมูล 1 รายการ"
     }
