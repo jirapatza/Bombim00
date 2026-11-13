@@ -1,8 +1,8 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-13T15:20:12.411+07:00",
-  "last_run_date_thai": "13/11/2026 15:20:12",
-  "total_checks": 5518,
+  "last_run_timestamp": "2026-11-13T15:21:12.104+07:00",
+  "last_run_date_thai": "13/11/2026 15:21:12",
+  "total_checks": 5519,
   "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
   "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 32 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 20 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 237 รายการ รอผลจากแหล่งข้อมูล 4 รายการ",
   "active_sources_count": 6,
@@ -10,6 +10,11 @@
   "notifications_sent_today": 0,
   "notification_failures": 20,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-13T15:21:12.104+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 32 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 20 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 237 รายการ รอผลจากแหล่งข้อมูล 4 รายการ"
+    },
     {
       "timestamp": "2026-11-13T15:20:12.411+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-13T15:02:12.397+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 29 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 18 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 237 รายการ รอผลจากแหล่งข้อมูล 5 รายการ"
-    },
-    {
-      "timestamp": "2026-11-13T15:01:12.195+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 29 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 18 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 237 รายการ รอผลจากแหล่งข้อมูล 5 รายการ"
     }
   ],
   "uncertain_deliveries": 237,
@@ -120,7 +120,7 @@
     "waiting": [
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพัฒนา",
+        "lottery": "ฮานอย HD",
         "status": 404
       },
       {
@@ -130,7 +130,7 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย HD",
+        "lottery": "ฮานอยพัฒนา",
         "status": 404
       },
       {
