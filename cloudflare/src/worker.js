@@ -8,6 +8,7 @@ const MAX_SENDS = 3;
 const MAX_RESULT_BATCH = 6; // One ntfy message per cluster; never bulk-retry uncertain outcomes.
 // A rejected token/permission needs a cooldown; repeated probes only worsen limits.
 const AUTH_REJECT_BACKOFF_MS = 15 * 60 * 1000;
+const UNCERTAIN_TRANSPORT_BACKOFF_MS = 15 * 60 * 1000; // Circuit breaker after ambiguous delivery.
 const UNCERTAIN_HEALTH_WINDOW_MS = 24 * 60 * 60 * 1000;
 function isOldUncertain(entry, now) {
   if (!entry || entry.state !== 'uncertain') return false;
@@ -212,6 +213,15 @@ export async function cycle(env, dependencies = {}) {
         if (!(Date.parse(state.ntfyBackoffUntil || '') > until)) {
           state.ntfyBackoffUntil = new Date(until).toISOString();
           state.ntfyBackoffReason = 'auth_rejected';
+        }
+      } else if (result === 'uncertain') {
+        // A timeout/network failure/5xx may have been accepted by ntfy.
+        // Never automatically resend this item. Pause the next batches too,
+        // otherwise every minute can create many new ambiguous deliveries.
+        const until = Date.now() + UNCERTAIN_TRANSPORT_BACKOFF_MS;
+        if (!(Date.parse(state.ntfyBackoffUntil || '') > until)) {
+          state.ntfyBackoffUntil = new Date(until).toISOString();
+          state.ntfyBackoffReason = 'transport_uncertain';
         }
       }
       await store.save(state); // A lost write leaves 'sending', never an implicit retry.
