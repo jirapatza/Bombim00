@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-13T23:38:12.431+07:00",
-  "last_run_date_thai": "13/11/2026 23:38:12",
-  "total_checks": 6016,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 55 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 33 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 34 รายการ",
+  "last_run_timestamp": "2026-11-13T23:39:12.921+07:00",
+  "last_run_date_thai": "13/11/2026 23:39:12",
+  "total_checks": 6017,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 55 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 33 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 34 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "13.11.2026",
   "notifications_sent_today": 1,
   "notification_failures": 33,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-13T23:39:12.921+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 55 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตารางไม่สำเร็จ 1 รายการ ค้างส่ง 33 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 34 รายการ"
+    },
     {
       "timestamp": "2026-11-13T23:38:12.431+07:00",
       "level": "WARNING",
@@ -104,18 +109,13 @@
       "timestamp": "2026-11-13T23:20:12.132+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 49 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 32 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 33 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ"
-    },
-    {
-      "timestamp": "2026-11-13T23:19:12.516+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 52 รายการ ส่งสำเร็จ 0 รายการ ค้างส่ง 33 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 33 รายการ"
     }
   ],
   "uncertain_deliveries": 257,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
   "schedule_alerts_sent_today": 1,
-  "schedule_alert_failures": 0,
+  "schedule_alert_failures": 1,
   "source_checks": {
     "waiting": [],
     "errors": []
