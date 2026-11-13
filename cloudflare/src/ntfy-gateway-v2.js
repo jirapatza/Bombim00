@@ -89,8 +89,14 @@ export async function publishNtfy(settings, message, topic, request, detail = {}
     // The response status is final even if cancelling its unused stream fails.
     try { void response.body?.cancel()?.catch(() => {}); } catch { /* no-op */ }
     if (response.status === 429) {
-      detail.retry_after_until = new Date(Date.now() +
-        retryAfterDelay(response.headers?.get('Retry-After'))).toISOString();
+      // ntfy supplies RateLimit on rejected requests too. When Retry-After
+      // is absent, use the actual exhausted bucket's reset time instead of
+      // probing again after the generic one-minute fallback.
+      const retryHeader = response.headers?.get('Retry-After');
+      const rateLimitUntil = quotaCooldownUntil(response.headers?.get('RateLimit'));
+      const retryUntil = new Date(Date.now() + retryAfterDelay(retryHeader)).toISOString();
+      detail.retry_after_until = rateLimitUntil && !retryHeader
+        ? rateLimitUntil : retryUntil;
     }
     if (response.status === 200) {
       const until = quotaCooldownUntil(response.headers?.get('RateLimit'));
