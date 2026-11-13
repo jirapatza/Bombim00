@@ -12,3 +12,5 @@ __pycache__/
 .wrangler/
 cloudflare/wrangler.local.json
 cloudflare/.dev.vars*
+.gradle/
+.aistudio/

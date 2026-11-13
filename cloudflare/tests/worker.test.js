@@ -556,3 +556,45 @@ test('ntfy 429 anchors Retry-After timestamp at response time and caps long wait
   assert.equal(detail.retry_after_until, new Date(1_700_000_030_000 + 3600000).toISOString());
   assert.equal(retryAfterDelay('not-a-date', Date.now()), 60000);
 });
+test('ntfy 401 starts a 15-minute cooldown instead of retrying every cycle', async t => {
+  let current = +now;
+  t.mock.method(Date, 'now', () => current);
+  const f = fixture(t);
+  f.dependencies.collect = async () => ({ rows: [['lao_tv', 'ลาว TV'], ['lao_hd', 'ลาว HD']].map(([id, name]) => result(id, name)), sources: ['synthetic'], errors: [] });
+  let attempts = 0, code = 'http_401';
+  f.dependencies.send = async (_s, _row, _t, _r, detail) => { attempts++; detail.code = code; return code === 'http_200' ? 'sent' : 'failed'; };
+  await f.run();
+  assert.equal(attempts, 1); // the second result is held back, not also rejected
+  assert.equal(f.db.state().ntfyBackoffUntil, new Date(+now + 15 * 60000).toISOString());
+  assert.equal(f.db.state().ntfyBackoffReason, 'auth_rejected');
+  current = +now + 14 * 60000; f.dependencies.now = new Date(current);
+  await f.run();
+  assert.equal(attempts, 1); // still cooling down
+  current = +now + 15 * 60000 + 1000; f.dependencies.now = new Date(current); code = 'http_200';
+  await f.run();
+  assert.ok(attempts >= 2); // retried once the cooldown lifted, so a fixed token recovers by itself
+});
+
+test('/health names the cooldown reason: auth_rejected for 403, rate_limit for 429', async t => {
+  t.mock.method(Date, 'now', () => +now);
+  for (const [code, reason] of [['http_403', 'auth_rejected'], ['http_429', 'rate_limit']]) {
+    const f = fixture(t);
+    f.dependencies.send = async (_s, _row, _t, _r, detail) => { detail.code = code; detail.retry_after_ms = 120000; return 'failed'; };
+    await f.run();
+    const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
+    assert.equal(body.ntfy_backoff_reason, reason);
+  }
+});
+
+test('an expired rate-limit cooldown is replaced by the auth cooldown when the next send is rejected with 401', async t => {
+  t.mock.method(Date, 'now', () => +now);
+  const f = fixture(t);
+  const state = f.db.state();
+  state.ntfyBackoffUntil = new Date(+now - 1000).toISOString(); // already lifted
+  state.ntfyBackoffReason = 'rate_limit';
+  f.db.setState(state);
+  f.dependencies.send = async (_s, _row, _t, _r, detail) => { detail.code = 'http_401'; return 'failed'; };
+  await f.run();
+  assert.equal(f.db.state().ntfyBackoffReason, 'auth_rejected');
+  assert.equal(f.db.state().ntfyBackoffUntil, new Date(+now + 15 * 60000).toISOString());
+});
