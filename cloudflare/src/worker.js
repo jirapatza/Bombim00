@@ -65,6 +65,20 @@ async function publishNtfy(settings, message, topic, request, detail = {}, token
   const cfg = settings.channels?.ntfy || {};
   const server = (cfg.server || settings.ntfy?.server || 'https://ntfy.sh').replace(/\/+$/, '');
   const click = cfg.click_url || settings.ntfy?.click_url || '';
+  // Notification links must land on the dashboard that is actually served. The
+  // runtime config still carries the retired Render hostname, so validate the
+  // configured target and fall back to Pages for anything unexpected.
+  let clickTarget = 'https://bombim00.pages.dev';
+  if (click) {
+    try {
+      const url = new URL(click);
+      const host = url.hostname.toLowerCase();
+      const retired = host === 'bombim00.onrender.com' || host === 'sanook.com' || host.endsWith('.sanook.com');
+      if (url.protocol === 'https:' && !retired) clickTarget = url.href;
+    } catch {
+      /* An invalid historical click URL falls back to Pages. */
+    }
+  }
   // Token comes from the Worker secret NTFY_TOKEN, never from settings.json
   // (which is committed to runtime-live), so it never lands in source or logs.
   const headers = { 'Content-Type': 'application/json; charset=utf-8' };
@@ -72,7 +86,7 @@ async function publishNtfy(settings, message, topic, request, detail = {}, token
   try {
     const response = await request(server + '/', { method: 'POST', headers,
       body: JSON.stringify({ topic, ...message, priority: 4,
-        click: !click || click.includes('sanook') ? 'https://bombim00.onrender.com' : click }) });
+        click: clickTarget }) });
     // Once fetch has returned an HTTP response, its status is authoritative.
     // Releasing the unused response body is best-effort: a cancelled/failed
     // stream must never turn an accepted 200 or rejected 429 into 'uncertain'.
