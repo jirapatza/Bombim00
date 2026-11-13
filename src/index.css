@@ -990,3 +990,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* 320px phones: allow countdown contents to wrap instead of widening the page. */
+@media (max-width: 360px) {
+  .next-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .next-grid > * {
+    min-width: 0;
+  }
+  .draw-countdown {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .draw-countdown > div + div {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .draw-countdown strong.countdown {
+    font-size: 22px;
+    letter-spacing: 0;
+  }
+  .waiting-results {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

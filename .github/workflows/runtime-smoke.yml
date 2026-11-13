@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -62,6 +62,31 @@ jobs:
 
       - name: Verify static build output
         run: test -s dist/index.html
+
+      - name: Install browser test tooling
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium
+
+      - name: Exercise buttons and routes in desktop and mobile Chromium
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/bombim-preview.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:3000/ > /dev/null; then break; fi
+            sleep 2
+          done
+          node tests/browser-smoke.mjs
+
+      - name: Upload mobile and desktop screenshot evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: bombim00-ui-screenshots
+          path: artifacts/ui/*-home.png
+          if-no-files-found: warn
+
+      - name: Inspect production Worker health (GET only; no ntfy or D1 writes)
+        run: node tests/read-only-health.mjs
 
       - name: Install checker dependencies and run Python tests
         run: |
