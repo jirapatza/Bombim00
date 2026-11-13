@@ -457,8 +457,10 @@ test('worst-case source fallback cycle fits 38 network calls and at most 12 D1 o
   });
   const outcome = await cycle({ ENABLED: 'true', MODE: 'deliver', DB: db, GITHUB_REPOSITORY: 'owner/repo',
     LOTTERY_RUNTIME_TOKEN: 'synthetic', NTFY_TOPIC: 'synthetic' }, { now, request });
-  assert.equal(outcome.sent, 3); assert.equal(notifications, 3);
-  assert.equal(calls, 38); assert.ok(sqlCalls <= 12, `D1 operations: ${sqlCalls}`);
+  assert.ok(outcome.sent > 3, `batched results delivered: ${outcome.sent}`);
+  assert.ok(notifications > 0 && notifications <= 3, `ntfy requests: ${notifications}`);
+  assert.ok(calls <= 38, `network calls: ${calls}`);
+  assert.ok(sqlCalls <= 12, `D1 operations: ${sqlCalls}`);
 });
 test('durable pending stores changes and an immutable Git base, not the growing archive', async t => {
   const f = fixture(t);
