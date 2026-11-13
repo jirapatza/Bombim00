@@ -343,7 +343,7 @@ export const SettingsScreen: React.FC<Props> = ({
             <p>ค้างส่ง: {status.notification_failures || 0} รายการ · ไม่ทราบผลการส่งช่วงปัจจุบัน: {status.active_uncertain_deliveries || 0} รายการ</p>
             <p className="text-amber-200/85">รายการที่ยังไม่ทราบผลจะไม่ส่งซ้ำอัตโนมัติ เพื่อป้องกันข้อความซ้ำ</p>
           </div>
-        )
+        )}
         {status.source_checks && [
           { label: "รอผลจากแหล่งข้อมูล", entries: status.source_checks.waiting },
           { label: "แหล่งข้อมูลขัดข้อง", entries: status.source_checks.errors },
