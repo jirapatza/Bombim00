@@ -972,3 +972,21 @@ select:focus-visible {
     font-size: 14px;
   }
 }
+
+/* Bombim00 Web v1.1.0 — responsive touch and keyboard polish */
+.result-dialog { overscroll-behavior: contain; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #38bdf8; outline-offset: 3px; }
+@media (pointer: coarse) {
+  .app-sidebar nav button { min-height: 48px; }
+  .quiet-button, .primary-button, .text-button { min-height: 42px; }
+  .filter-tabs button { min-height: 42px; }
+}
+@media (max-width: 640px) {
+  .app-sidebar nav button { min-height: 52px; }
+  .hero-actions { width: 100%; }
+  .hero-actions > button { min-height: 44px; }
+  .result-dialog { width: min(96vw, 520px); max-height: min(85vh, 700px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
