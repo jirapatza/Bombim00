@@ -3,6 +3,17 @@ import { collect } from './providers.js';
 import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './storage.js';
 
 const MAX_SENDS = 3;
+const DEFAULT_NTFY_BACKOFF_MS = 60000;
+const MAX_NTFY_BACKOFF_MS = 60 * 60 * 1000;
+// A rejected token/permission (401/403) will not fix itself within a minute, so stop
+// re-sending every cycle: one probe per 15 minutes instead of up to 3 sends per minute.
+const AUTH_REJECT_BACKOFF_MS = 15 * 60 * 1000;
+export function retryAfterDelay(header, now = Date.now()) {
+  if (!header) return DEFAULT_NTFY_BACKOFF_MS;
+  const seconds = Number(header);
+  const delay = Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : Date.parse(header) - now;
+  return Number.isFinite(delay) && delay > 0 ? Math.min(delay, MAX_NTFY_BACKOFF_MS) : DEFAULT_NTFY_BACKOFF_MS;
+}
 // Only raised locally before fetch begins. A transport failure must stay uncertain.
 class PreflightError extends Error {}
 function finishPublish(state, now) {
@@ -38,25 +49,45 @@ function scheduleMessage(alert) {
     message: `${alert.name} ${closing ? 'ปิดรับ' : 'ออกผลตามตาราง'} เวลา ${alert.clock} น.`,
     tags: ['alarm_clock'] };
 }
+// Several lotteries can share a closing/draw minute. One ntfy send for all of
+// them (instead of one per lottery) cuts schedule-alert volume without
+// changing per-lottery delivery tracking below. A single-alert batch keeps the
+// exact prior title/message so existing behavior for the common case is unchanged.
+function scheduleBatchMessage(alerts) {
+  if (alerts.length === 1) return scheduleMessage(alerts[0]);
+  const lines = alerts.map(a => `${a.name} ${a.kind === 'closing' ? 'ปิดรับ' : 'ออกผลตามตาราง'} เวลา ${a.clock} น.`);
+  return { title: `แจ้งเตือนตามตาราง (${alerts.length} รายการ)`, message: lines.join('\n'), tags: ['alarm_clock'] };
+}
 // Fixed labels only (never URLs, bodies or error text) so /health can show why a send was not accepted.
 const failureCode = error => error?.message === 'request_budget' ? 'request_budget' : error?.message === 'https_required' ? 'https_required'
   : error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'timeout' : 'network';
-async function publishNtfy(settings, message, topic, request, detail = {}) {
+async function publishNtfy(settings, message, topic, request, detail = {}, token = '') {
   const cfg = settings.channels?.ntfy || {};
   const server = (cfg.server || settings.ntfy?.server || 'https://ntfy.sh').replace(/\/+$/, '');
   const click = cfg.click_url || settings.ntfy?.click_url || '';
+  // Token comes from the Worker secret NTFY_TOKEN, never from settings.json
+  // (which is committed to runtime-live), so it never lands in source or logs.
+  const headers = { 'Content-Type': 'application/json; charset=utf-8' };
+  if (token) headers.Authorization = `Bearer ${token}`;
   try {
-    const response = await request(server + '/', { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    const response = await request(server + '/', { method: 'POST', headers,
       body: JSON.stringify({ topic, ...message, priority: 4,
         click: !click || click.includes('sanook') ? 'https://bombim00.onrender.com' : click }) });
-    await response.body?.cancel();
+    // Once fetch has returned an HTTP response, its status is authoritative.
+    // Releasing the unused response body is best-effort: a cancelled/failed
+    // stream must never turn an accepted 200 or rejected 429 into 'uncertain'.
     detail.code = `http_${response.status}`;
+    try { void response.body?.cancel()?.catch(() => {}); } catch { /* Ignore body cleanup failure. */ }
+    if (response.status === 429) {
+      // Anchor the cooldown to the actual HTTP response time, not cycle start.
+      detail.retry_after_until = new Date(Date.now() + retryAfterDelay(response.headers.get('Retry-After'))).toISOString();
+    }
     if (response.status === 200) return 'sent';
     // A definite rejection is retryable. A timeout or 5xx might follow acceptance.
     return [400, 401, 403, 404, 413, 422, 429].includes(response.status) ? 'failed' : 'uncertain';
   } catch (error) { detail.code = failureCode(error); return error instanceof PreflightError ? 'failed' : 'uncertain'; }
 }
-export const sendNotification = (settings, row, topic, request, detail) => publishNtfy(settings, resultMessage(row), topic, request, detail);
+export const sendNotification = (settings, row, topic, request, detail, token) => publishNtfy(settings, resultMessage(row), topic, request, detail, token);
 const safeError = error => /^(github_http_\d{3}|github_network|github_invalid_response|github_(network|timeout|aborted)_(ref|commit|contents|writer|publish|other)|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
 function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertain, now) {
   const day = bangkokDay(now), time = new Date(+now + 7 * 3600000).toISOString().replace('Z', '+07:00');
@@ -108,6 +139,9 @@ export async function cycle(env, dependencies = {}) {
     const active = settings.channels?.ntfy?.enabled !== false;
     const topic = String(env.NTFY_TOPIC || '').trim();
     if (!observing && active && !/^[A-Za-z0-9_-]{1,64}$/.test(topic)) throw new Error('notification_configuration');
+    // Optional: a Worker secret (wrangler secret put NTFY_TOKEN), never a
+    // committed setting. Empty means anonymous ntfy.sh, same as before.
+    const ntfyToken = String(env.NTFY_TOKEN || '').trim();
     // Keep unresolved sends indefinitely. Successful/definitely rejected entries older
     // than 14 days are already in runtime history and cannot be today's candidates.
     const cutoff = new Date(+now - 14 * 86400000).toISOString().slice(0, 10);
@@ -141,19 +175,42 @@ export async function cycle(env, dependencies = {}) {
       [row.เลขบน_3_ตัว, row.เลขล่าง_2_ตัว] = numbers(row);
     }
     let sent = 0, attempts = 0;
-    async function recordDelivery(key, send, kind) {
+    // keys: one delivery key, or several when one ntfy send covers multiple
+    // schedule alerts at once. Every key gets the same outcome and counts as
+    // a single attempt against MAX_SENDS, since only one HTTP call was made.
+    async function recordDelivery(keys, send, kind) {
       attempts++;
       stage = 'delivery';
-      const entry = { state: 'sending', date: today, kind };
-      state.deliveries[key] = entry;
+      for (const key of keys) state.deliveries[key] = { state: 'sending', date: today, kind };
       await store.save(state); // Persist intent before touching ntfy.
       const detail = {};
-      entry.state = await send(detail);
-      if (detail.code) entry.code = detail.code;
+      const result = await send(detail);
+      for (const key of keys) {
+        const entry = state.deliveries[key];
+        entry.state = result;
+        if (detail.code) entry.code = detail.code;
+      }
+      if (detail.code === 'http_429') {
+        state.ntfyBackoffUntil = detail.retry_after_until ||
+          new Date(Date.now() + (detail.retry_after_ms || DEFAULT_NTFY_BACKOFF_MS)).toISOString();
+        state.ntfyBackoffReason = 'rate_limit';
+      } else if (detail.code === 'http_401' || detail.code === 'http_403') {
+        const until = Date.now() + AUTH_REJECT_BACKOFF_MS;
+        // Never shorten a longer cooldown that is already in effect.
+        if (!(Date.parse(state.ntfyBackoffUntil || '') > until)) {
+          state.ntfyBackoffUntil = new Date(until).toISOString();
+          state.ntfyBackoffReason = 'auth_rejected';
+        }
+      }
       await store.save(state); // A lost write leaves 'sending', never an implicit retry.
       stage = 'process';
-      return entry.state;
+      return result;
     }
+    // Why something is still 'queued' after this cycle, for /health: a 429
+    // cooldown in effect, or the per-cycle MAX_SENDS budget already spent.
+    // (observe mode queues everything too, but that already shows as
+    // status: 'observing' and needs no extra reason here.)
+    const queuedBy = { backoff: 0, quota: 0 };
     for (const row of rows) {
       const key = drawIdentity(row), entry = state.deliveries[key];
       row.notification_channels = previousChannels(row, historyByDraw.get(historyKey(row)) || []);
@@ -166,21 +223,35 @@ export async function cycle(env, dependencies = {}) {
       if (!eligible(settings, row)) { row.สถานะการแจ้งเตือน = 'not_eligible'; continue; }
       if (!active) { row.สถานะการแจ้งเตือน = 'disabled'; continue; }
       if (observing) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
-      if (attempts >= MAX_SENDS) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
-      const result = await recordDelivery(key, detail => (dependencies.send || sendNotification)(settings, row, topic, request, detail), 'result');
+      if (Date.parse(state.ntfyBackoffUntil || '') > Date.now()) { row.สถานะการแจ้งเตือน = 'queued'; queuedBy.backoff++; continue; }
+      if (attempts >= MAX_SENDS) { row.สถานะการแจ้งเตือน = 'queued'; queuedBy.quota++; continue; }
+      const result = await recordDelivery([key], detail => (dependencies.send || sendNotification)(settings, row, topic, request, detail, ntfyToken), 'result');
       row.notification_channels.ntfy = result; row.สถานะการแจ้งเตือน = result;
       if (result === 'sent') sent++;
     }
     // Reserve the existing send budget for results first and use the time after provider I/O.
-    if (!observing && active && settings.notifications?.enabled !== false && attempts < MAX_SENDS) {
+    if (!observing && active && settings.notifications?.enabled !== false) {
       const clock = () => +(dependencies.now || new Date());
-      for (const alert of dueScheduleAlerts(catalog, today, new Date(clock()))) {
-        if (attempts >= MAX_SENDS) break;
+      const dueAlerts = dueScheduleAlerts(catalog, today, new Date(clock())).filter(alert => {
         const entry = state.deliveries[alert.key];
-        if ((entry && entry.state !== 'failed') || clock() >= alert.at) continue;
-        await recordDelivery(alert.key, detail => publishNtfy(settings, scheduleMessage(alert), topic, request, detail), 'schedule');
+        return !(entry && entry.state !== 'failed') && clock() < alert.at;
+      });
+      // One ntfy send per cycle for every alert due right now, instead of one
+      // send per lottery. Order is kept (dueScheduleAlerts sorts by time) so
+      // the combined message still lists closings before upcoming draws.
+      if (dueAlerts.length) {
+        if (Date.parse(state.ntfyBackoffUntil || '') > Date.now()) queuedBy.backoff += dueAlerts.length;
+        else if (attempts >= MAX_SENDS) queuedBy.quota += dueAlerts.length;
+        else {
+          await recordDelivery(dueAlerts.map(a => a.key),
+            detail => publishNtfy(settings, scheduleBatchMessage(dueAlerts), topic, request, detail, ntfyToken), 'schedule');
+        }
       }
     }
+    // Overwritten every deliver cycle (not an array, so no retention/growth
+    // concern); stays from the last deliver cycle if a later cycle is
+    // observe/paused, which is fine since nothing is attempted there anyway.
+    state.lastQueueSummary = { at: now.toISOString(), backoff: queuedBy.backoff, quota: queuedBy.quota };
     const merged = mergeRows(rows, history);
     const uncertain = Object.values(state.deliveries).filter(x => ['sending', 'uncertain'].includes(x.state)).length;
     const todayDeliveries = Object.values(state.deliveries).filter(x => x.date === today);
@@ -235,9 +306,17 @@ export default {
       }
       const observing = env.MODE !== 'deliver', observed = state.lastObservation;
       const ready = !paused && (observing ? observed && Date.now() - Date.parse(observed.at) < 5 * 60000 && !observed.sourceErrors && !state.error : healthy);
+      // Why items are queued, not just that they are: an active ntfy 429
+      // cooldown (and when it lifts), and/or how many hit the per-cycle
+      // MAX_SENDS budget last cycle. Both were already tracked internally;
+      // this only exposes them. Null fields mean "not currently applicable",
+      // not "unknown".
+      const backoffActive = Date.parse(state.ntfyBackoffUntil || '') > Date.now();
       return Response.json({ status: paused ? 'paused' : observing ? 'observing' : healthy ? 'healthy' : 'degraded', last_success: state.lastSuccess,
         last_observation: observed || null, last_check: state.lastCheck || null, error: state.error, error_stage: state.error_stage || null,
-        publish_pending: Boolean(state.pending), uncertain_deliveries: uncertain, delivery_codes, poll_seconds: 60 },
+        publish_pending: Boolean(state.pending), uncertain_deliveries: uncertain, delivery_codes, poll_seconds: 60,
+        ntfy_backoff_until: backoffActive ? state.ntfyBackoffUntil : null,
+        ntfy_backoff_reason: backoffActive ? (state.ntfyBackoffReason || 'rate_limit') : null, last_queue_summary: state.lastQueueSummary || null },
       { status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
     } catch { return Response.json({ status: 'unavailable' }, { status: 503 }); }
   },

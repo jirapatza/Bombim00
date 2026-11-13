@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { cycle, sendNotification, boundedRequest } from '../src/worker.js';
+import worker, { cycle, sendNotification, boundedRequest, retryAfterDelay } from '../src/worker.js';
 import { DurableState, RuntimeRepository, validateSnapshot, OUTPUTS } from '../src/storage.js';
 import { database } from './state-helper.js';
 import { drawDate, dueScheduleAlerts, scheduled, numbers, mergeRows } from '../src/domain.js';
@@ -224,6 +224,31 @@ test('ntfy uses Thai JSON with distinct lower prize; rejects/timeouts do not bec
   assert.equal(await sendNotification({}, result(), 'x', async () => new Response('', { status: 503 })), 'uncertain');
   assert.equal(await sendNotification({}, result(), 'x', async () => { throw new Error('timeout'); }), 'uncertain');
 });
+test('ntfy HTTP status survives response body cancellation failure without duplicate risk', async () => {
+  const response = status => ({ status, headers: new Headers({ 'Retry-After': '120' }),
+    body: { cancel: () => Promise.reject(new Error('synthetic stream cleanup failure')) } });
+  const accepted = {};
+  assert.equal(await sendNotification({}, result(), 'synthetic-topic', async () => response(200), accepted), 'sent');
+  assert.equal(accepted.code, 'http_200');
+  const rejected = {};
+  assert.equal(await sendNotification({}, result(), 'synthetic-topic', async () => response(429), rejected), 'failed');
+  assert.equal(rejected.code, 'http_429');
+  assert.ok(Date.parse(rejected.retry_after_until) > 0);
+  const transport = {};
+  assert.equal(await sendNotification({}, result(), 'synthetic-topic', async () => {
+    const err = new Error('synthetic HTTP connection timeout'); err.name = 'TimeoutError'; throw err;
+  }, transport), 'uncertain');
+  assert.equal(transport.code, 'timeout');
+});
+
+test('ntfy sends an Authorization header only when a token is given', async () => {
+  let headers;
+  const request = async (_url, options) => { headers = options.headers; return new Response('', { status: 200 }); };
+  await sendNotification({}, result(), 'synthetic-topic', request, {});
+  assert.equal(headers.Authorization, undefined);
+  await sendNotification({}, result(), 'synthetic-topic', request, {}, 'tk_example_secret');
+  assert.equal(headers.Authorization, 'Bearer tk_example_secret');
+});
 
 const scheduledLottery = { id: 'scheduled-test', name: 'หวยทดสอบ', drawDays: 'อังคาร-เสาร์',
   closeTimeStr: '15:20 น.', drawTimeStr: '15:30 น.' };
@@ -245,17 +270,18 @@ test('schedule alerts honor Bangkok day, individual deadlines and confirmed sche
 });
 
 function scheduleFixture(t, responses = []) {
-  const messages = [];
+  const messages = [], headers = [];
   const f = fixture(t, {
     now: bangkok('15:10'),
     collect: async () => ({ rows: [], sources: [], errors: ['synthetic unavailable source'] }),
-    request: async (_url, { body }) => {
-      messages.push(JSON.parse(body));
+    request: async (_url, options) => {
+      messages.push(JSON.parse(options.body));
+      headers.push(options.headers);
       return new Response(null, { status: responses.shift() ?? 200 });
     },
   });
   f.data['data/all_lotteries.json'] = [scheduledLottery];
-  return { ...f, messages };
+  return { ...f, messages, headers };
 }
 
 test('sends each schedule alert once via ntfy even with no source result, independently of the result ledger', async t => {
@@ -282,17 +308,49 @@ test('sends each schedule alert once via ntfy even with no source result, indepe
   assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 2);
 });
 
-test('retries a definite schedule rejection before the deadline and never repeats an uncertain send', async t => {
+test('retries a definite schedule rejection only after 429 cooldown and never repeats an uncertain send', async t => {
+  let clock = +bangkok('15:10');
+  t.mock.method(Date, 'now', () => clock);
   const f = scheduleFixture(t, [429, 503]);
   await f.run();
   assert.equal(f.data[OUTPUTS[1]].schedule_alert_failures, 1);
-  f.dependencies.now = bangkok('15:11');
+  // Cooldown is exactly 60 seconds when Retry-After is missing.
+  clock = +bangkok('15:10') + 30000;
+  f.dependencies.now = new Date(clock);
+  await f.run();
+  assert.equal(f.messages.length, 1);
+  clock = +bangkok('15:11');
+  f.dependencies.now = new Date(clock);
   await f.run();
   f.dependencies.now = bangkok('15:12');
+  clock = +f.dependencies.now;
   assert.equal((await f.run()).uncertain, 1);
   assert.equal(f.messages.length, 2);
   assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 0);
 });
+test('schedule alerts due in the same cycle for multiple lotteries go out as one combined ntfy send', async t => {
+  const second = { ...scheduledLottery, id: 'scheduled-test-2', name: 'หวยทดสอบสอง' };
+  const f = scheduleFixture(t);
+  f.data['data/all_lotteries.json'] = [scheduledLottery, second];
+  const result = await f.run();
+  assert.equal(f.messages.length, 1); // one HTTP call, not one per lottery
+  assert.deepEqual(f.messages[0], { topic: 'synthetic-local-topic', title: 'แจ้งเตือนตามตาราง (2 รายการ)',
+    message: 'หวยทดสอบ ปิดรับ เวลา 15:20 น.\nหวยทดสอบสอง ปิดรับ เวลา 15:20 น.', tags: ['alarm_clock'],
+    priority: 4, click: 'https://bombim00.onrender.com' });
+  assert.equal(result.sent, 0);
+  assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 2); // both lotteries still tracked as sent
+});
+
+test('NTFY_TOKEN secret, when set, is sent as a Bearer header on real deliveries', async t => {
+  const f = scheduleFixture(t);
+  await f.run(); // no NTFY_TOKEN set
+  assert.equal(f.headers[0].Authorization, undefined);
+  f.env.NTFY_TOKEN = 'tk_env_secret';
+  f.dependencies.now = bangkok('15:25'); // next distinct alert, avoids the already-sent 'closing' key
+  await f.run();
+  assert.equal(f.headers[1].Authorization, 'Bearer tk_env_secret');
+});
+
 test('preflight rejects are retryable, while same-named transport errors remain uncertain', async t => {
   let fetches = 0;
   const neverSent = boundedRequest(async () => { fetches++; return new Response(); }, Date.now() - 1);
@@ -435,4 +493,108 @@ test('health counts unresolved delivery codes without exposing text, topic or hi
   const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
   assert.deepEqual(body.delivery_codes, { http_429: 1, unknown: 2 });
   assert.ok(!JSON.stringify(body).includes('secret.example') && !JSON.stringify(body).includes('synthetic-local-topic'));
+});
+
+test('Retry-After delay accepts seconds and dates and falls back safely', () => {
+  assert.equal(retryAfterDelay('120', 0), 120000);
+  assert.equal(retryAfterDelay('7200', 0), 3600000);
+  assert.equal(retryAfterDelay('Thu, 01 Jan 1970 00:02:00 GMT', 0), 120000);
+  assert.equal(retryAfterDelay(null, 0), 60000);
+  assert.equal(retryAfterDelay('invalid', 0), 60000);
+});
+
+test('ntfy 429 persists cooldown and does not send again until it expires', async t => {
+  let current = +now;
+  t.mock.method(Date, 'now', () => current);
+  const f = fixture(t);
+  let attempts = 0;
+  f.dependencies.send = async (_settings, _row, _topic, _request, detail) => {
+    attempts++;
+    if (attempts === 1) { detail.code = 'http_429'; detail.retry_after_ms = 120000; return 'failed'; }
+    detail.code = 'http_200'; return 'sent';
+  };
+  await f.run();
+  assert.equal(attempts, 1);
+  assert.equal(f.db.state().ntfyBackoffUntil, new Date(+now + 120000).toISOString());
+  current = +now + 60000;
+  f.dependencies.now = new Date(current);
+  await f.run();
+  assert.equal(attempts, 1);
+  current = +now + 121000;
+  f.dependencies.now = new Date(current);
+  await f.run();
+  assert.equal(attempts, 2);
+});
+
+test('/health explains a queue: how many hit the per-cycle send quota last cycle', async t => {
+  const f = fixture(t);
+  f.dependencies.collect = async () => ({ rows: [['lao_tv', 'ลาว TV'], ['lao_hd', 'ลาว HD'], ['lao_star', 'ลาว STAR'], ['lao_extra', 'ลาว EXTRA']]
+    .map(([id, name]) => result(id, name)), sources: ['synthetic'], errors: [] });
+  assert.equal((await f.run()).queued, 1); // 3 sent, 1 over MAX_SENDS
+  const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
+  assert.equal(body.ntfy_backoff_until, null); // no 429 here, so no backoff reason
+  assert.equal(body.last_queue_summary.quota, 1);
+  assert.equal(body.last_queue_summary.backoff, 0);
+});
+
+test('/health explains a queue: an active ntfy 429 cooldown and exactly when it lifts', async t => {
+  t.mock.method(Date, 'now', () => +now);
+  const f = fixture(t);
+  f.dependencies.send = async (_s, _row, _t, _r, detail) => { detail.code = 'http_429'; detail.retry_after_ms = 120000; return 'failed'; };
+  await f.run();
+  const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
+  assert.equal(body.ntfy_backoff_until, new Date(+now + 120000).toISOString());
+  assert.equal(body.last_queue_summary.backoff, 0); // the row that triggered the 429 is 'failed', not 'queued'
+});
+
+test('ntfy 429 anchors Retry-After timestamp at response time and caps long waits', async t => {
+  t.mock.method(Date, 'now', () => 1_700_000_030_000);
+  const detail = {};
+  const response = await sendNotification({}, result(), 'synthetic-topic', async () =>
+    new Response(null, { status: 429, headers: { 'Retry-After': '7200' } }), detail);
+  assert.equal(response, 'failed');
+  assert.equal(detail.retry_after_until, new Date(1_700_000_030_000 + 3600000).toISOString());
+  assert.equal(retryAfterDelay('not-a-date', Date.now()), 60000);
+});
+test('ntfy 401 starts a 15-minute cooldown instead of retrying every cycle', async t => {
+  let current = +now;
+  t.mock.method(Date, 'now', () => current);
+  const f = fixture(t);
+  f.dependencies.collect = async () => ({ rows: [['lao_tv', 'ลาว TV'], ['lao_hd', 'ลาว HD']].map(([id, name]) => result(id, name)), sources: ['synthetic'], errors: [] });
+  let attempts = 0, code = 'http_401';
+  f.dependencies.send = async (_s, _row, _t, _r, detail) => { attempts++; detail.code = code; return code === 'http_200' ? 'sent' : 'failed'; };
+  await f.run();
+  assert.equal(attempts, 1); // the second result is held back, not also rejected
+  assert.equal(f.db.state().ntfyBackoffUntil, new Date(+now + 15 * 60000).toISOString());
+  assert.equal(f.db.state().ntfyBackoffReason, 'auth_rejected');
+  current = +now + 14 * 60000; f.dependencies.now = new Date(current);
+  await f.run();
+  assert.equal(attempts, 1); // still cooling down
+  current = +now + 15 * 60000 + 1000; f.dependencies.now = new Date(current); code = 'http_200';
+  await f.run();
+  assert.ok(attempts >= 2); // retried once the cooldown lifted, so a fixed token recovers by itself
+});
+
+test('/health names the cooldown reason: auth_rejected for 403, rate_limit for 429', async t => {
+  t.mock.method(Date, 'now', () => +now);
+  for (const [code, reason] of [['http_403', 'auth_rejected'], ['http_429', 'rate_limit']]) {
+    const f = fixture(t);
+    f.dependencies.send = async (_s, _row, _t, _r, detail) => { detail.code = code; detail.retry_after_ms = 120000; return 'failed'; };
+    await f.run();
+    const body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
+    assert.equal(body.ntfy_backoff_reason, reason);
+  }
+});
+
+test('an expired rate-limit cooldown is replaced by the auth cooldown when the next send is rejected with 401', async t => {
+  t.mock.method(Date, 'now', () => +now);
+  const f = fixture(t);
+  const state = f.db.state();
+  state.ntfyBackoffUntil = new Date(+now - 1000).toISOString(); // already lifted
+  state.ntfyBackoffReason = 'rate_limit';
+  f.db.setState(state);
+  f.dependencies.send = async (_s, _row, _t, _r, detail) => { detail.code = 'http_401'; return 'failed'; };
+  await f.run();
+  assert.equal(f.db.state().ntfyBackoffReason, 'auth_rejected');
+  assert.equal(f.db.state().ntfyBackoffUntil, new Date(+now + 15 * 60000).toISOString());
 });

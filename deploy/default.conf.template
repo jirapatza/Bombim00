@@ -4,6 +4,33 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # Baseline hardening plus a Content-Security-Policy verified against the
+    # built dashboard: no inline script, fonts come from Google, data comes from
+    # the runtime branch on raw.githubusercontent.com, and diagnostics post only
+    # to the two allowlisted PostHog ingestion hosts.
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://raw.githubusercontent.com https://us.i.posthog.com https://eu.i.posthog.com; media-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    gzip on;
+    gzip_min_length 1024;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # Vite emits content-hashed files under /assets/, so they can be cached for a year.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
+    # The HTML shell must always be revalidated so new releases are picked up.
+    location = /index.html {
+        expires -1;
+        add_header Cache-Control "no-cache" always;
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }
