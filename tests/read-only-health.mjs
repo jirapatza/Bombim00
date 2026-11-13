@@ -21,6 +21,10 @@ let data;
 try {
   data = JSON.parse(raw);
 } catch {
+  if (raw.includes('Cloudflare Access')) {
+    console.error('ACCESS_PROTECTED: Cloudflare Access requires sign-in for /health; no bypass attempted.');
+    process.exit(1);
+  }
   console.error('Worker /health returned invalid JSON, first chars:', raw.slice(0, 140));
   process.exit(1);
 }
