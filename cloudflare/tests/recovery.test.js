@@ -9,6 +9,15 @@ test('configuration stays paused/observing and rejects missing or placeholder da
   assert.throws(() => configuration('00000000-0000-0000-0000-000000000000'));
   const config = configuration('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
   assert.equal(config.vars.ENABLED, 'false'); assert.equal(config.vars.MODE, 'observe');
+  const raw = JSON.parse(readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
+  assert.equal(raw.vars.ENABLED, 'false');
+  assert.equal(raw.vars.MODE, 'observe');
+  assert.equal(raw.d1_databases[0].database_id, '00000000-0000-0000-0000-000000000000');
+  assert.equal(raw.env.production.name, 'bombim00-lottery-checker');
+  assert.equal(raw.env.production.vars.MODE, 'deliver');
+  assert.equal(raw.env.production.vars.ENABLED, 'true');
+  assert.equal(raw.env.production.d1_databases[0].database_id, '6a4a88e4-8eca-4291-a23b-d58caf0a236e');
+  assert.equal(config.vars.ENABLED, 'false'); assert.equal(config.vars.MODE, 'observe');
 });
 test('recovery updates only an unresolved result after lease expiry with no pending publication', t => {
   const db = new DatabaseSync(':memory:'); t.after(() => db.close());

@@ -6,17 +6,43 @@
   "workers_dev": true,
   "preview_urls": false,
   "send_metrics": false,
-  "triggers": { "crons": ["* * * * *"] },
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
   "vars": {
     "GITHUB_REPOSITORY": "jirapatza/Bombim00",
     "MODE": "observe",
     "ENABLED": "false"
   },
-  "d1_databases": [{
-    "binding": "DB",
-    "database_name": "bombim00-lottery-state",
-    "database_id": "00000000-0000-0000-0000-000000000000",
-    "migrations_dir": "migrations"
-  }],
-  "observability": { "enabled": false }
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bombim00-lottery-state",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": false
+  },
+  "env": {
+    "production": {
+      "name": "bombim00-lottery-checker",
+      "vars": {
+        "GITHUB_REPOSITORY": "jirapatza/Bombim00",
+        "MODE": "deliver",
+        "ENABLED": "true"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bombim00-lottery-state",
+          "database_id": "6a4a88e4-8eca-4291-a23b-d58caf0a236e",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
 }
