@@ -14,6 +14,25 @@ export function retryAfterDelay(header, now = Date.now()) {
   const delay = Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : Date.parse(header) - now;
   return Number.isFinite(delay) && delay > 0 ? Math.min(delay, MAX_NTFY_BACKOFF_MS) : DEFAULT_NTFY_BACKOFF_MS;
 }
+const UNCERTAIN_HEALTH_WINDOW_MS = 24 * 60 * 60 * 1000;
+function isOldUncertain(entry, now) {
+  if (!entry || entry.state !== 'uncertain') return false;
+  const recordedAt = Date.parse(entry.startedAt || `${entry.date}T23:59:59+07:00`);
+  return Number.isFinite(recordedAt) && +now - recordedAt > UNCERTAIN_HEALTH_WINDOW_MS;
+}
+export function deliveryUncertainty(deliveries, now = new Date()) {
+  let recent = 0, old = 0;
+  for (const entry of Object.values(deliveries)) {
+    if (entry.state !== 'sending' && entry.state !== 'uncertain') continue;
+    // A sending intent remains active until the normal recovery cycle classifies it.
+    if (entry.state === 'sending') { recent++; continue; }
+    // Older ledgers only store the Bangkok draw date, not the attempt timestamp.
+    // Use the END of that day to avoid falsely aging out an uncertain send.
+    if (isOldUncertain(entry, now)) old++;
+    else recent++;
+  }
+  return { recent, old, total: recent + old };
+}
 // Only raised locally before fetch begins. A transport failure must stay uncertain.
 class PreflightError extends Error {}
 function finishPublish(state, now) {
@@ -103,10 +122,17 @@ async function publishNtfy(settings, message, topic, request, detail = {}, token
 }
 export const sendNotification = (settings, row, topic, request, detail, token) => publishNtfy(settings, resultMessage(row), topic, request, detail, token);
 const safeError = error => /^(github_http_\d{3}|github_network|github_invalid_response|github_(network|timeout|aborted)_(ref|commit|contents|writer|publish|other)|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
-function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertain, now) {
+function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertainCounts, deliveries, now) {
+  const { recent: uncertain, old: oldUncertain, total: allUncertain } = uncertainCounts;
   const day = bangkokDay(now), time = new Date(+now + 7 * 3600000).toISOString().replace('Z', '+07:00');
   const thaiDate = `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;
-  const failed = rows.filter(x => ['failed', 'partial', 'queued', 'uncertain'].includes(x.สถานะการแจ้งเตือน)).length;
+  // Old unknown outcomes stay visible in history, but are not current-cycle failures.
+  // An old failed delivery from a prior draw is likewise not a current-day failure.
+  const failed = rows.filter(x => {
+    if (drawDate(x) !== day) return false;
+    if (!['failed', 'partial', 'queued', 'uncertain'].includes(x.สถานะการแจ้งเตือน)) return false;
+    return !isOldUncertain(deliveries[drawIdentity(x)], now);
+  }).length;
   const healthy = !checks.errors.length && !failed && !alerts.failed && !uncertain;
   const sameDay = String(previous.last_run_date_thai || '').split(' ')[0] === thaiDate;
   const message = `Cloudflare ตรวจทุกนาที พบผลวันนี้ ${rows.length} รายการ ส่งสำเร็จ ${sent} รายการ` +
@@ -122,7 +148,8 @@ function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncerta
     notifications_sent_today: (sameDay ? Number(previous.notifications_sent_today) || 0 : 0) + sent,
     schedule_alerts_sent_today: (sameDay ? Number(previous.schedule_alerts_sent_today) || 0 : 0) + alerts.sent,
     schedule_alert_failures: alerts.failed, source_checks: checks,
-    notification_failures: failed, uncertain_deliveries: uncertain, checker_mode: 'cloudflare', poll_interval_seconds: 60,
+    notification_failures: failed, uncertain_deliveries: allUncertain,
+    active_uncertain_deliveries: uncertain, old_uncertain_deliveries: oldUncertain, checker_mode: 'cloudflare', poll_interval_seconds: 60,
     recent_logs: [{ timestamp: time, level: healthy ? 'INFO' : 'WARNING', message }, ...(Array.isArray(previous.recent_logs) ? previous.recent_logs : [])].slice(0, 20) };
 }
 export async function cycle(env, dependencies = {}) {
@@ -195,7 +222,8 @@ export async function cycle(env, dependencies = {}) {
     async function recordDelivery(keys, send, kind) {
       attempts++;
       stage = 'delivery';
-      for (const key of keys) state.deliveries[key] = { state: 'sending', date: today, kind };
+      const startedAt = now.toISOString();
+      for (const key of keys) state.deliveries[key] = { state: 'sending', date: today, kind, startedAt };
       await store.save(state); // Persist intent before touching ntfy.
       const detail = {};
       const result = await send(detail);
@@ -267,13 +295,14 @@ export async function cycle(env, dependencies = {}) {
     // observe/paused, which is fine since nothing is attempted there anyway.
     state.lastQueueSummary = { at: now.toISOString(), backoff: queuedBy.backoff, quota: queuedBy.quota };
     const merged = mergeRows(rows, history);
-    const uncertain = Object.values(state.deliveries).filter(x => ['sending', 'uncertain'].includes(x.state)).length;
+    const uncertainCounts = deliveryUncertainty(state.deliveries, now);
+    const uncertain = uncertainCounts.recent;
     const todayDeliveries = Object.values(state.deliveries).filter(x => x.date === today);
     const unpublished = todayDeliveries.filter(x => x.state === 'sent' && !x.published);
     const alerts = { sent: unpublished.filter(x => x.kind === 'schedule').length,
       failed: todayDeliveries.filter(x => x.kind === 'schedule' && x.state === 'failed').length };
     const outputs = { 'lottery_previous_results.json': merged, 'status/status.json': makeStatus(status, rows,
-      fetched.some(x => scheduled(x, catalog, today)), sources, { waiting, errors }, unpublished.length - alerts.sent, alerts, uncertain, now) };
+      fetched.some(x => scheduled(x, catalog, today)), sources, { waiting, errors }, unpublished.length - alerts.sent, alerts, uncertainCounts, state.deliveries, now) };
     if (observing) {
       state.lastObservation = { at: now.toISOString(), results: fetched.length,
         scheduled: fetched.filter(x => scheduled(x, catalog, today)).length, sourceErrors: errors.length,
@@ -311,7 +340,8 @@ export default {
       const row = await env.DB.prepare('SELECT payload FROM worker_state WHERE id = 1').first();
       const state = JSON.parse(row.payload);
       const fresh = state.lastSuccess && Date.now() - Date.parse(state.lastSuccess) < 5 * 60000;
-      const paused = env.ENABLED !== 'true', uncertain = Object.values(state.deliveries).filter(x => ['sending', 'uncertain'].includes(x.state)).length;
+      const paused = env.ENABLED !== 'true', uncertainty = deliveryUncertainty(state.deliveries);
+      const uncertain = uncertainty.recent;
       const healthy = !paused && fresh && !state.error && !state.pending && !uncertain && state.lastCheck?.status === 'healthy';
       const delivery_codes = {};
       for (const x of Object.values(state.deliveries)) if (['failed', 'sending', 'uncertain'].includes(x.state)) {
@@ -328,9 +358,12 @@ export default {
       const backoffActive = Date.parse(state.ntfyBackoffUntil || '') > Date.now();
       return Response.json({ status: paused ? 'paused' : observing ? 'observing' : healthy ? 'healthy' : 'degraded', last_success: state.lastSuccess,
         last_observation: observed || null, last_check: state.lastCheck || null, error: state.error, error_stage: state.error_stage || null,
-        publish_pending: Boolean(state.pending), uncertain_deliveries: uncertain, delivery_codes, poll_seconds: 60,
+        publish_pending: Boolean(state.pending), uncertain_deliveries: uncertainty.total,
+        active_uncertain_deliveries: uncertain, old_uncertain_deliveries: uncertainty.old,
+        delivery_codes, poll_seconds: 60,
         ntfy_backoff_until: backoffActive ? state.ntfyBackoffUntil : null,
-        ntfy_backoff_reason: backoffActive ? (state.ntfyBackoffReason || 'rate_limit') : null, last_queue_summary: state.lastQueueSummary || null },
+        ntfy_backoff_reason: backoffActive ? (state.ntfyBackoffReason || 'rate_limit') : null,
+        last_queue_summary: state.lastQueueSummary || null },
       { status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
     } catch { return Response.json({ status: 'unavailable' }, { status: 503 }); }
   },
