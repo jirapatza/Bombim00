@@ -12,6 +12,8 @@ interface Props {
   liveDataError: boolean;
   lastRunTimestamp: string;
   checkerStatus: string;
+  notificationFailures?: number;
+  activeUncertainDeliveries?: number;
 }
 export const Header: React.FC<Props> = ({
   currentTimeString,
@@ -24,6 +26,8 @@ export const Header: React.FC<Props> = ({
   liveDataError,
   lastRunTimestamp,
   checkerStatus,
+  notificationFailures = 0,
+  activeUncertainDeliveries = 0,
 }) => {
   const health = connectionHealth(online, lastSynced, liveDataError, lastRunTimestamp, checkerStatus);
   return (
@@ -57,7 +61,9 @@ export const Header: React.FC<Props> = ({
         title={health === "checker-stale" ? "เว็บโหลดข้อมูลได้ แต่ยืนยันไม่ได้ว่าตัวตรวจผลฝั่งเซิร์ฟเวอร์อัปเดตภายใน 15 นาที" : undefined}
       >
         <Radio size={13} />
-        {connectionLabels[health]}
+        {health === "checker-unhealthy" && (notificationFailures > 0 || activeUncertainDeliveries > 0)
+          ? "ตรวจผลได้ แต่แจ้งเตือนติดขัด"
+          : connectionLabels[health]}
       </span>
       <button
         className="quiet-button"

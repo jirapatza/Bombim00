@@ -100,6 +100,9 @@ export const SettingsScreen: React.FC<Props> = ({
 
   const delayed = !checkerHeartbeatFresh(status.last_run_timestamp);
   const healthy = status.system_status === "healthy" && !delayed;
+  const notificationTrouble = (status.notification_failures || 0) > 0 ||
+    (status.active_uncertain_deliveries || 0) > 0 ||
+    (status.schedule_alert_failures || 0) > 0;
 
   return (
     <div className="space-y-4 pb-6">
@@ -328,10 +331,19 @@ export const SettingsScreen: React.FC<Props> = ({
                 ? "ทำงานปกติ"
                 : status.system_status === "error"
                   ? "ตรวจผลไม่สำเร็จ"
-                  : "ทำงานได้บางส่วน"}
+                  : notificationTrouble
+                    ? "ตรวจผลได้ แต่แจ้งเตือนติดขัด"
+                    : "ทำงานได้บางส่วน"}
           </span>
         </p>
         <p className="text-slate-300">{status.status_message}</p>
+        {notificationTrouble && (
+          <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-950/30 p-3 text-amber-100 space-y-1">
+            <p>ระบบยังรับผลหวยได้ แต่มีรายการแจ้งเตือนที่ส่งไม่สำเร็จหรือยังไม่ทราบผล</p>
+            <p>ค้างส่ง: {status.notification_failures || 0} รายการ · ไม่ทราบผลการส่งช่วงปัจจุบัน: {status.active_uncertain_deliveries || 0} รายการ</p>
+            <p className="text-amber-200/85">รายการที่ยังไม่ทราบผลจะไม่ส่งซ้ำอัตโนมัติ เพื่อป้องกันข้อความซ้ำ</p>
+          </div>
+        )}
         {status.source_checks && [
           { label: "รอผลจากแหล่งข้อมูล", entries: status.source_checks.waiting },
           { label: "แหล่งข้อมูลขัดข้อง", entries: status.source_checks.errors },

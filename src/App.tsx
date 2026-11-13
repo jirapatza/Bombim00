@@ -393,6 +393,8 @@ export const App: React.FC = () => {
           liveDataError={liveDataError}
           lastRunTimestamp={status.last_run_timestamp}
           checkerStatus={status.system_status}
+          notificationFailures={status.notification_failures}
+          activeUncertainDeliveries={status.active_uncertain_deliveries}
           currentTimeString={currentTimeString}
           isVoiceEnabled={isVoiceEnabled}
           isRefreshing={isRefreshing}
