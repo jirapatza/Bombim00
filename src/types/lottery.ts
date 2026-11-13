@@ -61,6 +61,10 @@ export interface SystemStatus {
   latest_draw_detected: string;
   notifications_sent_today: number;
   notification_failures: number;
+  active_uncertain_deliveries?: number;
+  old_uncertain_deliveries?: number;
+  uncertain_deliveries?: number;
+  schedule_alert_failures?: number;
   recent_logs: SystemStatusLog[];
   source_checks?: { waiting: SourceCheck[]; errors: SourceCheck[] };
 }
