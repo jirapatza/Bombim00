@@ -9,5 +9,6 @@ test('distinguishes stale heartbeat from unreadable health', () => {
   assert.equal(classifyHealth(403, null, now).state, 'unreachable');
   assert.equal(classifyHealth(200, { status: 'healthy', last_success: 'invalid' }, now).state, 'unreachable');
   assert.equal(classifyHealth(200, { status: 'healthy', last_success: '2026-11-14T00:20:01Z' }, now).state, 'unreachable');
-  assert.equal(classifyHealth(200, { status: 'healthy', last_success: '2026-11-14T00:10:00Z' }, now).state, 'healthy');
+  assert.equal(classifyHealth(200, { status: 'healthy', last_success: '2026-11-14T00:16:00Z' }, now).state, 'stale');
+  assert.equal(classifyHealth(200, { status: 'healthy', last_success: '2026-11-14T00:16:01Z' }, now).state, 'healthy');
 });

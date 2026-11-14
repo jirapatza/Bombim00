@@ -10,7 +10,10 @@ export function classifyHealth(httpStatus, body, now = Date.now()) {
   if (body.last_success === null) return { state: 'stale', last_success: null };
   const timestamp = typeof body.last_success === 'string' ? Date.parse(body.last_success) : NaN;
   if (!Number.isFinite(timestamp) || timestamp > now) return { state: 'unreachable' };
-  if (now - timestamp > 600000) return { state: 'stale', last_success: body.last_success };
+  // A five-minute polling interval and a four-minute threshold aim to detect
+  // missed heartbeats before ten minutes under normal scheduler operation.
+  // Cron and email latency mean this cannot guarantee a ten-minute delivery.
+  if (now - timestamp >= 240000) return { state: 'stale', last_success: body.last_success };
   // Treat contradictory HTTP and body statuses as an unreadable check.
   if (httpStatus !== 200 || body.status !== 'healthy') return { state: 'unreachable' };
   return { state: 'healthy', last_success: body.last_success };

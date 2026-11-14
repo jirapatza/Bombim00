@@ -25,7 +25,7 @@ export async function sendWatchdogAlert(config, state, request = fetch) {
     const data = await auth.json();
     if (typeof data.access_token !== 'string' || !data.access_token) return { status: 'authentication_error' };
     const subject = state === 'stale' ? 'Bombim00 watchdog: heartbeat stale' : 'Bombim00 watchdog: health unavailable';
-    const body = state === 'stale' ? 'The latest successful heartbeat is older than 10 minutes.' : 'The watchdog cannot read a valid health status.';
+    const body = state === 'stale' ? 'The latest successful heartbeat is at least 4 minutes old.' : 'The watchdog cannot read a valid health status.';
     const mime = `To: ${recipient}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n${body}\r\n`;
     try {
       const response = await request(sendUrl, { method: 'POST', headers: { Authorization: `Bearer ${data.access_token}`, 'Content-Type': 'application/json' },
