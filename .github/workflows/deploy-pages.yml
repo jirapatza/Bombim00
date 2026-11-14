@@ -22,7 +22,7 @@ jobs:
       - name: Validate required deployment credentials
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_ACCOUNT_ID: a95b2f6bee36ee81dbfb9f3a7c56ffa8
         run: |
           test -n "$CF_API_TOKEN" || { echo "::error::Missing CLOUDFLARE_API_TOKEN"; exit 1; }
           if [[ ! "$CF_ACCOUNT_ID" =~ ^[0-9a-f]{32}$ ]]; then
@@ -45,7 +45,7 @@ jobs:
       - name: Deploy to existing Cloudflare Pages project
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: a95b2f6bee36ee81dbfb9f3a7c56ffa8
         run: |
           set -euo pipefail
           for attempt in 1 2 3 4; do
