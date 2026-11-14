@@ -1,0 +1,11 @@
+{
+  // Copy for an isolated test only; replace the database ID after creating
+  // a NEW D1 database. Never point this Worker at the production database.
+  "name": "bombim00-v2-phase1-test",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-11-14",
+  "workers_dev": true,
+  "triggers": { "crons": ["* * * * *"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "bombim00-v2-phase1-test", "database_id": "REPLACE_WITH_NEW_ISOLATED_D1_ID", "migrations_dir": "migrations" }],
+  "observability": { "enabled": true, "traces": { "enabled": true } }
+}

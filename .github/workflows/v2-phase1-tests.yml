@@ -1,0 +1,21 @@
+name: Bombim00 v2 phase 1 tests
+on:
+  pull_request:
+    paths:
+      - 'v2/**'
+      - '.github/workflows/v2-phase1-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - run: node --test v2/tests/*.test.mjs
+

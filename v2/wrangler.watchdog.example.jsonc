@@ -1,0 +1,13 @@
+{
+  // Copy for an isolated test only. Never point this DB binding at the main
+  // v2 database or any existing production database. HEALTH_URL must refer
+  // only to the NEW v2 test Worker, not the existing checker.
+  "name": "bombim00-v2-watchdog-test",
+  "main": "src/watchdog-worker.mjs",
+  "compatibility_date": "2026-11-14",
+  "workers_dev": false,
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "vars": { "HEALTH_URL": "https://REPLACE_WITH_ISOLATED_V2_TEST_URL/health" },
+  "d1_databases": [{ "binding": "WATCHDOG_DB", "database_name": "bombim00-v2-watchdog-test", "database_id": "REPLACE_WITH_NEW_INDEPENDENT_D1_ID", "migrations_dir": "watchdog-migrations" }],
+  "observability": { "enabled": true, "traces": { "enabled": true } }
+}
