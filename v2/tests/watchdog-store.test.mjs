@@ -27,3 +27,17 @@ test('uncertain sends remain claimed after recovery', async () => {
   await store.resolve();
   assert.equal(await store.claimAlert('stale'), null);
 });
+test('definite failure is retried after cooldown without retrying uncertain sends', async () => {
+  let time = '2026-11-14T00:00:00.000Z';
+  const store = createStore(database(), () => time);
+  const first = await store.claimAlert('unreachable');
+  await store.finishAlert(first, 'authentication_error');
+  time = '2026-11-14T00:14:59.000Z';
+  assert.equal(await store.claimAlert('unreachable'), null);
+  time = '2026-11-14T00:15:00.000Z';
+  const next = await store.claimAlert('unreachable');
+  assert.ok(next);
+  await store.finishAlert(next, 'uncertain');
+  time = '2026-11-14T01:00:00.000Z';
+  assert.equal(await store.claimAlert('unreachable'), null);
+});

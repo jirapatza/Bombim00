@@ -3,11 +3,15 @@ export function createStore(db, now = () => new Date().toISOString()) {
   return {
     async claimAlert(condition) {
       const id = crypto.randomUUID();
+      const time = now();
+      const retryBefore = new Date(Date.parse(time) - 15 * 60 * 1000).toISOString();
       const result = await db.prepare(`INSERT INTO watchdog_incident (id, incident_id, condition, status, updated_at)
         VALUES (1, ?, ?, 'sending', ?) ON CONFLICT(id) DO UPDATE SET
         incident_id = excluded.incident_id, condition = excluded.condition,
         status = excluded.status, updated_at = excluded.updated_at
-        WHERE watchdog_incident.status = 'resolved'`).bind(id, condition, now()).run();
+        WHERE watchdog_incident.status = 'resolved'
+          OR (watchdog_incident.status IN ('rejected', 'authentication_error', 'configuration_error')
+              AND watchdog_incident.updated_at <= ?)`).bind(id, condition, time, retryBefore).run();
       return result.meta.changes === 1 ? id : null;
     },
     async finishAlert(id, status) {
