@@ -33,7 +33,7 @@ function finishPublish(state, now) {
   state.lastCheck = { status: status.system_status, notification_failures: status.notification_failures,
     message: status.status_message };
   for (const entry of Object.values(state.deliveries)) if (entry.state === 'sent') entry.published = true;
-  state.pending = null; state.error = null; state.error_stage = null; state.lastSuccess = now.toISOString();
+  state.pending = null; state.error = null; state.error_stage = null; state.error_request = null; state.lastSuccess = now.toISOString();
 }
 // 38 external calls + at most 12 D1 calls per normal cycle. No automatic retries.
 export function boundedRequest(fetcher, deadline = Date.now() + 50000) {
@@ -86,6 +86,12 @@ function scheduleBatchMessage(alerts) {
 }
 // Fixed labels only (never URLs, bodies or error text) so /health can show why a send was not accepted.
 const safeError = error => /^(github_http_\d{3}|github_network|github_invalid_response|github_(network|timeout|aborted)_(ref|commit|contents|writer|publish|other)|writer_mode|actions_active|runtime_(encoding|schema|conflict|output_paths)|state_schema|lease_lost|request_budget|https_required|notification_configuration|pending_requires_deliver)$/.test(error?.message) ? error.message : 'cycle_failed';
+// Fixed labels only (never URLs, bodies or tokens): which GitHub request failed, e.g. "PATCH publish".
+const safeRequest = error => {
+  const g = error?.github;
+  return g && ['GET', 'POST', 'PATCH'].includes(g.method) && ['ref', 'commit', 'contents', 'writer', 'publish', 'other'].includes(g.endpoint)
+    ? `${g.method} ${g.endpoint}` : null;
+};
 function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertainCounts, deliveries, now) {
   const { recent: uncertain, old: oldUncertain, total: allUncertain } = uncertainCounts;
   const day = bangkokDay(now), time = new Date(+now + 7 * 3600000).toISOString().replace('Z', '+07:00');
@@ -316,7 +322,7 @@ export async function cycle(env, dependencies = {}) {
       state.lastObservation = { at: now.toISOString(), results: fetched.length,
         scheduled: fetched.filter(x => scheduled(x, catalog, today)).length, sourceErrors: errors.length,
         candidates: rows.filter(x => x.สถานะการแจ้งเตือน === 'queued').length };
-      state.error = null; state.error_stage = null;
+      state.error = null; state.error_stage = null; state.error_request = null;
       await store.save(state);
       return { observing: true, ...state.lastObservation };
     }
@@ -332,6 +338,7 @@ export async function cycle(env, dependencies = {}) {
   } catch (error) {
     state.error = safeError(error);
     state.error_stage = stage;
+    state.error_request = safeRequest(error);
     // Failed save cannot be treated as successful delivery. The prior durable intent
     // remains authoritative; do not overwrite it from a catch handler.
     if (!['lease_lost', 'state_schema'].includes(state.error)) {
@@ -363,7 +370,7 @@ export default {
       // Expose the current cooldown and the previous cycle's send budget.
       const backoffActive = Date.parse(state.pushBackoffUntil || '') > Date.now();
       return Response.json({ status: paused ? 'paused' : observing ? 'observing' : healthy ? 'healthy' : 'degraded', last_success: state.lastSuccess,
-        last_observation: observed || null, last_check: state.lastCheck || null, error: state.error, error_stage: state.error_stage || null,
+        last_observation: observed || null, last_check: state.lastCheck || null, error: state.error, error_stage: state.error_stage || null, error_request: state.error_request || null,
         publish_pending: Boolean(state.pending), uncertain_deliveries: uncertainty.total,
         active_uncertain_deliveries: uncertain, old_uncertain_deliveries: uncertainty.old,
         delivery_codes, poll_seconds: 60,
