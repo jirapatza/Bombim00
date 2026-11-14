@@ -2,5 +2,6 @@
 * @jirapatza
 /.github/ @jirapatza
 /AGENTS.md @jirapatza
+/scripts/verify_cloudflare_token.mjs @jirapatza
 /lottery_checker.py @jirapatza
 /settings_loader.py @jirapatza

@@ -5,6 +5,7 @@ import { Header } from "./components/Header";
 import { BottomNavigation, AppTab } from "./components/BottomNavigation";
 import { LiveResultsScreen } from "./screens/LiveResultsScreen";
 import { LotteryRepository } from "./data/lotteryRepository";
+import { useAnnouncer } from "./utils/useAnnouncer";
 import { ThaiTtsService } from "./utils/thaiTts";
 import { trackDiagnostic } from "./utils/siteDiagnostics";
 import { ChunkRecovery } from "./utils/chunkRecovery";
@@ -238,6 +239,14 @@ export const App: React.FC = () => {
 
   const todayLotteries = LotteryRepository.getLotteries();
 
+  // Spoken schedule: 10 and 5 minutes before each close, the close itself, the
+  // next draw, then the result. Nothing is spoken unless voice is turned on.
+  const announcer = useAnnouncer({
+    items: todayLotteries,
+    enabled: isVoiceEnabled,
+    rate: settings.speech_rate,
+  });
+
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -402,6 +411,26 @@ export const App: React.FC = () => {
                 โหลดข้อมูลล่าสุดไม่สำเร็จ กำลังแสดงข้อมูลที่มีอยู่
               </p>
             )}
+            {announcer.nextCloseName && (
+              <div
+                className="mb-3 flex items-center gap-2 rounded-xl bg-slate-900 p-3 text-sm text-slate-200"
+                role="status"
+              >
+                <span className="flex-1">
+                  ปิดรับถัดไป {announcer.nextCloseName}
+                  {announcer.nextCloseText ? ` • ${announcer.nextCloseText}` : ""}
+                </span>
+                {!isVoiceEnabled && (
+                  <button
+                    type="button"
+                    onClick={handleToggleVoice}
+                    className="shrink-0 rounded-lg bg-amber-600 px-3 py-2 text-xs font-medium text-slate-950"
+                  >
+                    เปิดเสียงแจ้งเตือน
+                  </button>
+                )}
+              </div>
+            )}
             {currentTab === "live" && (
               <LiveResultsScreen
                 lotteries={todayLotteries}
@@ -443,6 +472,7 @@ export const App: React.FC = () => {
                   status,
                   watchedNumbers,
                   isVoiceEnabled,
+                  nextCloses: announcer.queue,
                   onToggleVoice: handleToggleVoice,
                   onAddWatchedNumber: handleAddWatchedNumber,
                   onRemoveWatchedNumber: handleRemoveWatchedNumber,

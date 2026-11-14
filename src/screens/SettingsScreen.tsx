@@ -11,11 +11,15 @@ import {
 import { SystemStatus } from "../types/lottery";
 import { ThaiTtsService } from "../utils/thaiTts";
 import { checkerHeartbeatFresh } from "../utils/checkerHealth";
+import { DrawSlot } from "../data/drawSchedule";
+import { spokenCountdown } from "../data/drawSchedule";
 
 interface Props {
   status: SystemStatus;
   watchedNumbers: string[];
   isVoiceEnabled: boolean;
+  /** Closes still ahead, soonest first, from the announcement planner. */
+  nextCloses?: DrawSlot[];
   onToggleVoice: () => void;
   onAddWatchedNumber: (num: string) => void;
   onRemoveWatchedNumber: (num: string) => void;
@@ -25,6 +29,7 @@ export const SettingsScreen: React.FC<Props> = ({
   status,
   watchedNumbers,
   isVoiceEnabled,
+  nextCloses = [],
   onToggleVoice,
   onAddWatchedNumber,
   onRemoveWatchedNumber,
@@ -159,6 +164,11 @@ export const SettingsScreen: React.FC<Props> = ({
                   ? "เปิดใช้งานเสียงอ่านผลภาษาไทย"
                   : "ปิดเสียงอยู่"}
               </p>
+              {!ThaiTtsService.supported && (
+                <p className="mt-1 text-xs text-amber-400">
+                  เบราว์เซอร์นี้ไม่มีเสียงพูด ระบบจะแสดงเป็นข้อความเท่านั้น
+                </p>
+              )}
             </div>
           </div>
 
@@ -190,7 +200,36 @@ export const SettingsScreen: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Diagnostics & System Health */}
+      {/* Spoken schedule: what the announcer will say and when */}
+      {nextCloses.length > 0 && (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
+          <h3 className="text-base font-bold text-slate-100">ตารางประกาศเสียง</h3>
+          <p className="mt-1 text-xs text-slate-400">
+            แจ้งเตือนก่อนปิดรับ 10 และ 5 นาที เมื่อปิดรับแล้วจะแจ้งปิดรับ
+            จากนั้นเมื่อผลประกาศออกจะอ่านผลให้ทันที
+          </p>
+          <ul className="mt-3 space-y-2 text-sm">
+            {nextCloses.map((slot) => (
+              <li
+                key={`${slot.id}-${slot.closeAt}`}
+                className="flex items-center justify-between gap-3 rounded-xl bg-slate-950 px-3 py-2"
+              >
+                <span className="min-w-0 truncate text-slate-200">{slot.name}</span>
+                <span className="shrink-0 font-mono-numbers text-xs text-amber-400">
+                  ปิดรับ{" "}
+                  {new Intl.DateTimeFormat("th-TH", {
+                    timeZone: "Asia/Bangkok",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  }).format(new Date(slot.closeAt))}{" "}
+                  น. • {spokenCountdown(slot.closeAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg space-y-2.5 text-xs">
         <div className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-emerald-400" />
