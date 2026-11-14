@@ -1,0 +1,19 @@
+# Bombim00 v2 — phase 1 preparation
+
+This directory is isolated from the existing production Worker. Nothing here is deployed. The heartbeat only proves that the v2 cron can write to its own D1 database; it does not fetch lottery results or prove that notifications work.
+
+The schema is an initial phase 1 draft. Never apply it to the existing database. Create a separate D1 database and Worker only after the independent email alert provider and access method for health checks are chosen. No real email or lottery notification is sent by this code.
+
+The owner selected a public v2 `/health`; its draft response contains only status and the most recent successful timestamp. The two `wrangler.*.example.jsonc` files are intentionally non-deployable templates: each requires its own new D1 ID, and the watchdog needs the new test Worker's URL. Do not set Gmail credentials in `vars` or commit them. Once approved, provide `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, and `ALERT_RECIPIENT` as Worker secrets through Cloudflare's secret mechanism. The short-lived Gmail smoke test deliberately discards the OAuth token; it does not configure the watchdog.
+
+Run the local logic tests with `node --test v2/tests/*.test.mjs` from the repository root. The independent watchdog, email integration, infrastructure configuration, live failure drill and rollback verification are still required; phase 1 is not complete.
+
+`src/watchdog-worker.mjs` is an isolated watchdog draft that combines health classification, Gmail delivery, and a separate D1 incident store. It is not deployed. The incident store claims an alert before sending and does not automatically resend an ambiguous outcome. Authentication errors, rejected sends, in-flight claims and uncertain sends require operator attention; this is not yet a production-ready self-monitoring system. The watchdog cannot reliably alert by Gmail when its own Gmail authorization fails, so an independent failure signal must be designed and tested.
+
+`src/gmail.mjs` is an isolated Gmail sender draft tested with mock HTTP responses only. It needs OAuth client ID, client secret, refresh token and recipient injected securely. A successful Gmail API response means accepted, not confirmed inbox delivery. External OAuth applications in Testing receive refresh tokens that expire in seven days for the gmail.send scope; do not treat this as a reliable long-term alert until the authorization lifecycle is addressed.
+
+The existing Cloudflare account had three Cron Triggers when inspected on 14 November 2026. Adding two distinct triggers would consume all five free-plan slots; verify the account state again before provisioning. Checking every five minutes with a stale threshold of ten minutes can detect a failure nearly fifteen minutes after the last heartbeat, plus delivery time, and cannot guarantee the stated ten-minute alert target. Choose and verify a tighter schedule and budget, including the possibility that the email service or independent monitor is down.
+
+For planning only: a one-minute Worker cron is 1,440 invocations/day and a five-minute watcher is 288/day, together 1,728/day before HTTP traffic and existing account usage. A single heartbeat insert per minute means at least 1,440 row writes/day, excluding indexes and other tables. Account-wide Workers Free limits include 100,000 requests/day and five cron triggers; D1 Free includes 100,000 rows written/day, 5 million rows read/day, and 5 GB storage. Existing workloads share limits. CPU time, retries, index writes, retention, alerts and other traffic require measurement; this estimate is not a guarantee that production fits the free plan. D1 daily limits are enforced and reset at midnight UTC.
+
+References: https://developers.cloudflare.com/workers/platform/limits/ and https://developers.cloudflare.com/d1/platform/pricing/ .
