@@ -632,3 +632,38 @@ test('batched 429 holds subsequent results during Retry-After and retries defini
   assert.equal((await f.run()).sent, 2);
   assert.equal(batches.length, 2);
 });
+
+test('a GitHub 403 names the refused request via fixed labels while the message stays github_http_403', async t => {
+  const remote = new RuntimeRepository('owner/repo', 'token', async () => new Response('', { status: 403 }));
+  await assert.rejects(remote.api('POST', '/git/commits', { message: 'x' }), error => {
+    assert.equal(error.message, 'github_http_403');
+    assert.deepEqual(error.github, { method: 'POST', endpoint: 'commit' });
+    assert.ok(!JSON.stringify(error.github).includes('token'));
+    return true;
+  });
+  await assert.rejects(remote.api('GET', '/actions/workflows/lottery.yml/runs?status=queued'),
+    error => error.github.method === 'GET' && error.github.endpoint === 'writer');
+});
+
+test('/health shows error_request for a refused GitHub request and clears it after a successful cycle', async t => {
+  t.mock.method(Date, 'now', () => +now);
+  const f = fixture(t), publish = f.remote.publish;
+  f.remote.publish = async () => { throw Object.assign(new Error('github_http_403'), { github: { method: 'PATCH', endpoint: 'publish' } }); };
+  await assert.rejects(f.run(), /github_http_403/);
+  assert.equal(f.db.state().error_request, 'PATCH publish');
+  let body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
+  assert.equal(body.error, 'github_http_403');
+  assert.equal(body.error_request, 'PATCH publish');
+  f.remote.publish = publish;
+  await f.run();
+  body = await (await worker.fetch(new Request('https://local/health'), f.env)).json();
+  assert.equal(body.error_request, null);
+});
+
+test('error_request ignores unknown or unsafe labels', async t => {
+  t.mock.method(Date, 'now', () => +now);
+  const f = fixture(t);
+  f.remote.publish = async () => { throw Object.assign(new Error('github_http_403'), { github: { method: 'DELETE', endpoint: 'https://secret.example/?t=abc' } }); };
+  await assert.rejects(f.run(), /github_http_403/);
+  assert.equal(f.db.state().error_request, null);
+});
