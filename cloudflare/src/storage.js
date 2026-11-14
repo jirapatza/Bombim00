@@ -42,7 +42,8 @@ export class RuntimeRepository {
       if (!response.ok) {
         await response.body?.cancel();
         if (attempt + 1 < maxAttempts && [502, 503, 504].includes(response.status)) continue;
-        throw new Error(`github_http_${response.status}`);
+        // Keep the message stable; add fixed, non-secret labels so /health can show WHICH request was refused.
+        throw Object.assign(new Error(`github_http_${response.status}`), { github: { method, endpoint: githubEndpoint(path) } });
       }
       try { return await response.json(); } catch { throw new Error('github_invalid_response'); }
     }

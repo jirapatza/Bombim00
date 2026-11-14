@@ -2,7 +2,5 @@
 * @jirapatza
 /.github/ @jirapatza
 /AGENTS.md @jirapatza
-/server/ @jirapatza
-/server.ts @jirapatza
 /lottery_checker.py @jirapatza
 /settings_loader.py @jirapatza
