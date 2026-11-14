@@ -9,8 +9,8 @@ not authorization to expand a task.
 ## Code changes
 - Start from current main in a new task branch. Never push application code directly to main.
 - Make the smallest change for the requested task. Preserve unrelated user changes.
-- For UI-only work, limit edits to src/ and UI assets. Do not change server/,
-  server.ts, lottery_checker.py, settings_loader.py, workflows, deployment files,
+- For UI-only work, limit edits to src/ and UI assets. Do not change
+  lottery_checker.py, settings_loader.py, workflows, deployment files,
   credentials, storage, draw scheduling or notification delivery.
 - If a task needs a protected area, explain why and obtain explicit scope approval
   before editing that area. A general UI redesign is not backend authorization.
@@ -31,7 +31,8 @@ Never execute source code taken from the runtime data branch.
 Do not merge runtime-live back into main.
 
 ## Verification
-Run npm run lint, npm test and npm run build for frontend/server changes.
+Run npm run lint, npm test and npm run build for frontend changes.
+For Worker changes under cloudflare/, also run npm test inside cloudflare/.
 For Python or checker workflow changes, run Python tests and validate workflow YAML.
 Keep required CI checks enabled. Never put real credentials in source, logs or PRs.
 For screenshot-driven UI changes, inspect desktop and mobile layouts.
