@@ -1,15 +1,20 @@
 {
-  "system_status": "healthy",
-  "last_run_timestamp": "2026-11-16T15:39:12.216+07:00",
-  "last_run_date_thai": "16/11/2026 15:39:12",
-  "total_checks": 7342,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 3 รายการ",
+  "system_status": "degraded",
+  "last_run_timestamp": "2026-11-16T15:40:12.550+07:00",
+  "last_run_date_thai": "16/11/2026 15:40:12",
+  "total_checks": 7343,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 2 รายการ รอผลจากแหล่งข้อมูล 3 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ",
   "active_sources_count": 5,
   "latest_draw_detected": "16.11.2026",
   "notifications_sent_today": 24,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-16T15:40:12.550+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 2 รายการ รอผลจากแหล่งข้อมูล 3 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ"
+    },
     {
       "timestamp": "2026-11-16T15:39:12.216+07:00",
       "level": "INFO",
@@ -104,17 +109,12 @@
       "timestamp": "2026-11-16T15:21:12.297+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 36 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 3 รายการ"
-    },
-    {
-      "timestamp": "2026-11-16T15:20:12.317+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 36 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 1 รายการ รอผลจากแหล่งข้อมูล 3 รายการ"
     }
   ],
   "uncertain_deliveries": 257,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
-  "schedule_alerts_sent_today": 48,
+  "schedule_alerts_sent_today": 50,
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [
@@ -134,7 +134,14 @@
         "status": 404
       }
     ],
-    "errors": []
+    "errors": [
+      {
+        "source": "glo",
+        "lottery": "สลากกินแบ่งรัฐบาล",
+        "status": 503,
+        "reason": "http"
+      }
+    ]
   },
   "active_uncertain_deliveries": 0,
   "old_uncertain_deliveries": 257
