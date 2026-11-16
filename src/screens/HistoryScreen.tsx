@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { History, TrendingUp, Search, X, Copy, Check } from 'lucide-react';
+import { History, TrendingUp, Search, X, Copy, Check, BarChart3 } from 'lucide-react';
 import { RawLotteryResult, FrequencyStat } from '../types/lottery';
+import { StatKind, DigitStat, hottest, coldest, longestGap } from '../utils/statistics';
+import { LotteryRepository } from '../data/lotteryRepository';
 import { copyText } from '../utils/socialShare';
 
 interface Props {
@@ -10,10 +12,11 @@ interface Props {
 }
 
 export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }) => {
-  const [activeSubTab, setActiveSubTab] = useState<0 | 1>(0);
+  const [activeSubTab, setActiveSubTab] = useState<0 | 1 | 2>(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [copyFailed, setCopyFailed] = useState(false);
+  const [selectedKind, setSelectedKind] = useState<StatKind>('top3');
 
   const filteredResults = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -57,6 +60,31 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
   const maxTop2Count = top2Stats[0]?.count || 1;
   const maxTop3Count = top3Stats[0]?.count || 1;
 
+  const analysisStats = useMemo(() => {
+    if (activeSubTab !== 2) return [];
+    return LotteryRepository.getDetailedStats(selectedKind);
+  }, [activeSubTab, selectedKind, results]);
+
+  const hottestNumbers = useMemo(() => {
+    if (activeSubTab !== 2 || analysisStats.length === 0) return [];
+    return hottest(analysisStats, 15);
+  }, [activeSubTab, analysisStats]);
+
+  const coldestNumbers = useMemo(() => {
+    if (activeSubTab !== 2 || analysisStats.length === 0) return [];
+    return coldest(analysisStats, 15);
+  }, [activeSubTab, analysisStats]);
+
+  const longestGapNumbers = useMemo(() => {
+    if (activeSubTab !== 2 || analysisStats.length === 0) return [];
+    return longestGap(analysisStats, 15);
+  }, [activeSubTab, analysisStats]);
+
+  const backtestReport = useMemo(() => {
+    if (activeSubTab !== 2) return null;
+    return LotteryRepository.getBacktestReport(selectedKind, { pick: 15, window: 50 });
+  }, [activeSubTab, selectedKind, results]);
+
   return (
     <div className="space-y-4 pb-20">
       {copyFailed && <p role="alert" className="rounded-xl border border-amber-600 bg-amber-950 p-3 text-sm text-amber-200">คัดลอกไม่ได้ กรุณาตรวจสิทธิ์คลิปบอร์ด</p>}
@@ -83,6 +111,17 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
         >
           <TrendingUp className="h-4 w-4" />
           สถิติเลขเด็ดออกบ่อย
+        </button>
+        <button
+          onClick={() => setActiveSubTab(2)}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all ${
+            activeSubTab === 2
+              ? 'bg-amber-500 text-slate-950 shadow-md'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <BarChart3 className="h-4 w-4" />
+          วิเคราะห์เชิงลึก
         </button>
       </div>
 
@@ -168,7 +207,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
             })}
           </div>
         </div>
-      ) : (
+      ) : activeSubTab === 1 ? (
         /* Statistics Subtab */
         <div className="space-y-6">
           {/* Top 2-digit frequency */}
@@ -258,6 +297,162 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
               })}
             </div>
           </div>
+        </div>
+      ) : (
+        /* Deep Analysis Subtab */
+        <div className="space-y-6">
+          {/* Kind Selector */}
+          <div className="flex rounded-xl border border-slate-800 bg-slate-900 p-1">
+            <button
+              onClick={() => setSelectedKind('top3')}
+              className={`flex-1 rounded-lg py-2 text-xs font-bold transition-all ${
+                selectedKind === 'top3' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              3 ตัวบน
+            </button>
+            <button
+              onClick={() => setSelectedKind('bottom2')}
+              className={`flex-1 rounded-lg py-2 text-xs font-bold transition-all ${
+                selectedKind === 'bottom2' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              2 ตัวล่าง
+            </button>
+          </div>
+
+          {/* Backtest Report */}
+          {backtestReport && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+              <h3 className="text-sm font-black text-slate-100 flex items-center gap-2">
+                <span>📊 ผลทดสอบย้อนหลัง (Backtest)</span>
+              </h3>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-xl bg-slate-800/50 p-3 border border-slate-700/50">
+                  <div className="text-slate-400">จำนวนงวดทดสอบ</div>
+                  <div className="mt-1 text-lg font-black text-slate-100">{backtestReport.rounds}</div>
+                </div>
+                <div className="rounded-xl bg-slate-800/50 p-3 border border-slate-700/50">
+                  <div className="text-slate-400">อัตราการทายถูก</div>
+                  <div className="mt-1 text-lg font-black text-amber-400">{backtestReport.hitRate.toFixed(2)}%</div>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                ทายเลขจาก {backtestReport.window} งวดย้อนหลัง เทียบกับงวดถัดไป (pick={backtestReport.pick}) — ตัวเลขต่ำแปลว่าสูตรนี้ยังไม่น่าเชื่อถือ
+              </p>
+            </div>
+          )}
+
+          {/* Hottest Numbers */}
+          {hottestNumbers.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-black text-amber-400 flex items-center gap-1.5">
+                <span>🔥 เลขร้อน (ออกบ่อยที่สุด 15 อันดับ)</span>
+              </h3>
+              <div className="space-y-2">
+                {hottestNumbers.map((stat) => {
+                  const maxCount = hottestNumbers[0]?.count || 1;
+                  const barWidth = Math.min(Math.max((stat.count / maxCount) * 100, 5), 100);
+                  return (
+                    <div
+                      key={stat.number}
+                      className="flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-slate-900 p-3.5"
+                    >
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-slate-950 font-black font-mono-numbers text-xl shadow-md">
+                        {stat.number}
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-100">ออก {stat.count} ครั้ง</span>
+                          <span className="font-extrabold text-amber-400">{stat.percentage.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                          <div className="h-full rounded-full bg-amber-500 transition-all duration-500" style={{ width: `${barWidth}%` }} />
+                        </div>
+                        <p className="truncate text-[11px] text-slate-400">
+                          งวดล่าสุด: {stat.latestLottery} ({stat.latestDate})
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Coldest Numbers */}
+          {coldestNumbers.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-black text-blue-400 flex items-center gap-1.5">
+                <span>❄️ เลขเย็น (ออกน้อยที่สุด 15 อันดับ)</span>
+              </h3>
+              <div className="space-y-2">
+                {coldestNumbers.map((stat) => {
+                  const maxCount = coldestNumbers[0]?.count || 1;
+                  const barWidth = Math.min(Math.max((stat.count / maxCount) * 100, 5), 100);
+                  return (
+                    <div
+                      key={stat.number}
+                      className="flex items-center gap-3 rounded-2xl border border-blue-500/20 bg-slate-900 p-3.5"
+                    >
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-slate-950 font-black font-mono-numbers text-xl shadow-md">
+                        {stat.number}
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-100">ออก {stat.count} ครั้ง</span>
+                          <span className="font-extrabold text-blue-400">{stat.percentage.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                          <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${barWidth}%` }} />
+                        </div>
+                        <p className="truncate text-[11px] text-slate-400">
+                          งวดล่าสุด: {stat.latestLottery} ({stat.latestDate})
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Longest Gap */}
+          {longestGapNumbers.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-black text-purple-400 flex items-center gap-1.5">
+                <span>⏳ เลขขาดนาน (จำนวนงวดที่ไม่ออกมากที่สุด)</span>
+              </h3>
+              <div className="space-y-2">
+                {longestGapNumbers.map((stat) => {
+                  const maxGap = longestGapNumbers[0]?.gapRounds || 1;
+                  const barWidth = Math.min(Math.max((stat.gapRounds / maxGap) * 100, 5), 100);
+                  return (
+                    <div
+                      key={stat.number}
+                      className="flex items-center gap-3 rounded-2xl border border-purple-500/20 bg-slate-900 p-3.5"
+                    >
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-500 text-slate-950 font-black font-mono-numbers text-xl shadow-md">
+                        {stat.number}
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-100">ขาด {stat.gapRounds} งวด</span>
+                          <span className="font-extrabold text-purple-400">ออกแล้ว {stat.count} ครั้ง</span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                          <div className="h-full rounded-full bg-purple-500 transition-all duration-500" style={{ width: `${barWidth}%` }} />
+                        </div>
+                        <p className="truncate text-[11px] text-slate-400">
+                          งวดล่าสุด: {stat.latestLottery} ({stat.latestDate})
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

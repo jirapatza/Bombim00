@@ -6,6 +6,16 @@ import {
   TicketCheckReport,
   FrequencyStat,
 } from '../types/lottery';
+import {
+  DigitStat,
+  StatKind,
+  digitFrequency,
+  hottest,
+  coldest,
+  longestGap,
+  backtest,
+  BacktestReport,
+} from '../utils/statistics';
 
 // Import local JSON datasets
 import rawAllLotteries from '../../data/all_lotteries.json';
@@ -378,6 +388,29 @@ export class LotteryRepository {
           latestDate: pair.date,
         };
       });
+  }
+
+  static getDetailedStats(kind: StatKind): DigitStat[] {
+    return digitFrequency(this.results, kind);
+  }
+
+  static getHottestNumbers(kind: StatKind, limit: number = 15): DigitStat[] {
+    return hottest(this.getDetailedStats(kind), limit);
+  }
+
+  static getColdestNumbers(kind: StatKind, limit: number = 15): DigitStat[] {
+    return coldest(this.getDetailedStats(kind), limit);
+  }
+
+  static getLongestGapNumbers(kind: StatKind, limit: number = 15): DigitStat[] {
+    return longestGap(this.getDetailedStats(kind), limit);
+  }
+
+  static getBacktestReport(
+    kind: StatKind,
+    options: { pick?: number; window?: number } = {},
+  ): BacktestReport {
+    return backtest(this.results, kind, options);
   }
 
   static getNextClosingLottery(lotteries: LotteryCatalogItem[], now = new Date()): {
