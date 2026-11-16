@@ -1,15 +1,20 @@
 {
-  "system_status": "degraded",
-  "last_run_timestamp": "2026-11-16T21:23:12.413+07:00",
-  "last_run_date_thai": "16/11/2026 21:23:12",
-  "total_checks": 7648,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 46 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ",
-  "active_sources_count": 5,
+  "system_status": "healthy",
+  "last_run_timestamp": "2026-11-16T21:24:12.361+07:00",
+  "last_run_date_thai": "16/11/2026 21:24:12",
+  "total_checks": 7649,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 53 รายการ ส่งสำเร็จ 0 รายการ",
+  "active_sources_count": 6,
   "latest_draw_detected": "2026-11-16",
   "notifications_sent_today": 36,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-16T21:24:12.361+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 53 รายการ ส่งสำเร็จ 0 รายการ"
+    },
     {
       "timestamp": "2026-11-16T21:23:12.413+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-16T21:05:12.184+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 46 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ"
-    },
-    {
-      "timestamp": "2026-11-16T21:04:12.248+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 46 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ"
     }
   ],
   "uncertain_deliveries": 257,
@@ -118,13 +118,7 @@
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [],
-    "errors": [
-      {
-        "source": "ThaiLottoAPI",
-        "status": null,
-        "reason": "timeout"
-      }
-    ]
+    "errors": []
   },
   "active_uncertain_deliveries": 0,
   "old_uncertain_deliveries": 257
