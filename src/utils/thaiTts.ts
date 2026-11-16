@@ -54,12 +54,38 @@ export function buildAnnouncement(
   }
 }
 
+/**
+ * Thin wrapper around the Web Speech API.
+ *
+ * `onDone` matters: the announcement queue must wait for one sentence to finish
+ * before speaking the next, otherwise every sentence cancels the one before it.
+ */
 export class ThaiTtsService {
   private static synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
   private static isSpeaking = false;
+  private static thaiVoice: SpeechSynthesisVoice | null = null;
 
-  static speak(text: string, rate: number = 0.95): void {
-    if (!this.synth) return;
+  /** True when this browser has no speech engine, so the UI can say so. */
+  static get supported(): boolean {
+    return Boolean(this.synth && typeof window !== 'undefined' && 'SpeechSynthesisUtterance' in window);
+  }
+
+  private static voice(): SpeechSynthesisVoice | null {
+    if (!this.synth) return null;
+    if (this.thaiVoice) return this.thaiVoice;
+    const voices = this.synth.getVoices();
+    this.thaiVoice =
+      voices.find((v) => /^th(-|_)?/i.test(v.lang)) ??
+      voices.find((v) => v.lang.toLowerCase().includes('thai')) ??
+      null;
+    return this.thaiVoice;
+  }
+
+  static speak(text: string, rate: number = 0.95, onDone?: () => void): void {
+    if (!this.synth || !text) {
+      onDone?.();
+      return;
+    }
 
     try {
       this.synth.cancel();
@@ -67,32 +93,32 @@ export class ThaiTtsService {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = rate;
       utterance.lang = 'th-TH';
-
-      // Attempt to pick a Thai voice if available
-      const voices = this.synth.getVoices();
-      const thaiVoice = voices.find((v) => v.lang.includes('th') || v.lang.includes('TH'));
-      if (thaiVoice) {
-        utterance.voice = thaiVoice;
-      }
+      utterance.volume = 1;
+      const voice = this.voice();
+      if (voice) utterance.voice = voice;
 
       this.isSpeaking = true;
-      utterance.onend = () => {
+      const finish = () => {
         this.isSpeaking = false;
+        onDone?.();
       };
-      utterance.onerror = () => {
-        this.isSpeaking = false;
-      };
+      utterance.onend = finish;
+      utterance.onerror = finish;
 
       this.synth.speak(utterance);
-    } catch (e) {
-      console.warn('TTS error:', e);
+    } catch (error) {
+      this.isSpeaking = false;
+      onDone?.();
     }
   }
 
   static stop(): void {
-    if (this.synth) {
-      this.synth.cancel();
-      this.isSpeaking = false;
-    }
+    if (!this.synth) return;
+    this.synth.cancel();
+    this.isSpeaking = false;
+  }
+
+  static get speaking(): boolean {
+    return this.isSpeaking;
   }
 }
