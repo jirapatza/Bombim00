@@ -1,8 +1,10 @@
 <!-- coderabbit-ai-generated:v1 -->
 
+<!-- coderabbit-ai-generated-section:v1:7599332f1a53826525bd2c9dceff29cfad4689a7babb6c86683c4bddf9283686 -->
+
 # Cloudflare Workers Free: ตรวจผลหวยทุกนาที
 
-สถานะ ณ 7 พ.ย. 2026: Worker ติดตั้งจริงแล้ว, Cron ทุกนาที, `ENABLED=true`, `MODE=observe`; มีผล observe จริงแต่แหล่งข้อมูลภายนอกยังผิดพลาดบางแหล่ง การส่ง ntfy ต้องรอขั้นตอน cutover และการอนุมัติ PR ที่เปลี่ยน Workflow
+สถานะ ณ 7 พ.ย. 2026: Worker ติดตั้งจริงแล้ว, Cron ทุกนาที, `ENABLED=true`, `MODE=observe`; มีผล observe จริงแต่แหล่งข้อมูลภายนอกยังผิดพลาดบางแหล่ง การส่ง ntfy ต้องรอขั้นตอน cutover: PR นี้ถอด trigger ส่งผลของ Actions ดังนั้นการ merge PR นี้คือ cutover ต้องผ่านเกณฑ์ observe ทั้งหมดก่อน merge
 
 ## พิมพ์เขียว
 
@@ -36,15 +38,23 @@ flowchart TD
 
 ข้อจำกัดอ้างอิงเอกสารวันที่ 7 พ.ย. 2026: Workers Free 100,000 requests/วันต่อบัญชี, CPU 10 ms/invocation และ 50 subrequests/invocation; Cron ทุกนาทีประมาณ 1,440 ครั้ง/วันก่อนรวม health/การเรียกอื่น D1 Free มี 5 ล้าน rows read/วัน, 100,000 rows written/วัน, 5 GB รวม และสูงสุด 50 binding queries/invocation โค้ดจำกัด external fetch ไม่เกิน 38 ครั้งต่อรอบ รวมการลองซ้ำ GET ของ GitHub ได้อีกไม่เกินหนึ่งครั้งต่อคำขอเมื่อเกิดเครือข่ายล้มเหลว หมดเวลา หรือ HTTP 502/503/504; ไม่ลองซ้ำคำขอเขียน GitHub, คำขอที่ถูกยกเลิกด้วย `AbortError` หรือการส่ง ntfy เพื่อป้องกันการส่งซ้ำ และมี D1 ไม่เกินประมาณ 12 ครั้งในรอบปกติ
 
-**Build และการทดสอบในเครื่องไม่ยืนยัน CPU 10 ms บน Cloudflare** ต้องรันโหมด observe บนบัญชี Free และตรวจ CPU/subrequests/errors ใน Metrics หรือ `wrangler tail --format json` ทั้งรอบธรรมดาและรอบผลออกพร้อมกัน ก่อนเปลี่ยนเป็น deliver ถ้าเกินเพดานให้คง Actions และปรับแบ่งงานใน PR ถัดไป ห้ามแก้ด้วยการอัปเกรด Paid โดยไม่ได้รับอนุญาต การดึง HTML และประวัติที่โตขึ้นอาจทำให้เกิน CPU ในอนาคตได้
+**Build และการทดสอบในเครื่องไม่ยืนยัน CPU 10 ms บน Cloudflare** ต้องรันโหมด observe บนบัญชี Free และตรวจ CPU/subrequests/errors ใน Metrics หรือ `wrangler tail --format json` ทั้งรอบธรรมดาและรอบผลออกพร้อมกัน ก่อน merge PR นี้และก่อนเปลี่ยนเป็น deliver ถ้าเกินเพดานให้ยังไม่ merge คง Actions และปรับแบ่งงานก่อนทดสอบใหม่ ห้ามแก้ด้วยการอัปเกรด Paid โดยไม่ได้รับอนุญาต การดึง HTML และประวัติที่โตขึ้นอาจทำให้เกิน CPU ในอนาคตได้
 
 เมื่อชนโควตาฟรีอาจเกิด error/หยุดตรวจจนรีเซ็ต ไม่มีคำสั่งเปิดแผนเสียเงินจากระบบนี้ การใช้บริการอื่นหรือบัญชี Paid มีเงื่อนไขค่าบริการของตนเอง
 
 อ้างอิง: [Workers limits](https://developers.cloudflare.com/workers/platform/limits/), [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/), [D1 limits](https://developers.cloudflare.com/d1/platform/limits/), [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/), [Cron](https://developers.cloudflare.com/workers/configuration/cron-triggers/)
 
-## ติดตั้งหลังเจ้าของอนุมัติ PR นี้
+## เตรียมและทดสอบ observe ก่อน merge PR นี้
 
-ใช้ reviewed main ที่มีการแก้ครั้งนี้แล้ว ห้ามติดตั้งจาก runtime-live และห้ามนำ token ของ Coding Agent มาใช้เป็น runtime token
+PR นี้ถอด trigger ส่งผลของ Actions อยู่แล้ว จึงต้องเตรียม Worker และผ่านเกณฑ์ observe ก่อน merge โดยให้เจ้าของอนุมัติการติดตั้งเพื่อทดสอบจาก commit SHA ของ PR นี้ที่ผ่าน review และบันทึก SHA ไว้ ระหว่างขั้นตอน 1–8 ให้ Actions บน main เดิมทำงานต่อ ห้ามรอ merge เพื่อเริ่ม observe หากยังทดสอบไม่ผ่านต้องเลื่อน merge PR นี้
+
+ก่อน merge ใช้โค้ดจาก SHA ของ PR ที่ผ่าน review ดังกล่าวเฉพาะการเตรียมและ observe <!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:95cd560c56fcae75aeb179f4fc97af0600dce1849805b9d51097b4c10fb784c9 -->
+
+หลัง merge จึงใช้ reviewed main ที่มีโค้ดตรงกับ SHA ที่ทดสอบสำหรับ deliver หากโค้ดหรือ config ที่มีผลต่อการทำงานเปลี่ยน (นอกเหนือจากการเปลี่ยน MODE ตามขั้นตอน 10) ต้อง review และทดสอบ observe ใหม่ก่อน merge
+
+<!-- /coderabbit-ai-generated:v1 --> ห้ามติดตั้งจาก runtime-live และห้ามนำ token ของ Coding Agent มาใช้เป็น runtime token
 
 1. ใช้ Node 24/npm 11 แล้ว `cd cloudflare && npm ci` ตรวจว่าเป็นบัญชี Free: `npx --no-install wrangler login --device` และ `npx --no-install wrangler whoami` Device login ใช้ลิงก์กับรหัสชั่วคราว จึงอนุญาตจากมือถือได้โดยไม่ส่งรหัสผ่านในแชต
 2. สร้าง D1 เพียงครั้งเดียว: `npx --no-install wrangler d1 create bombim00-lottery-state --location apac --update-config=false` ถ้ามีฐานเดิมให้ใช้ฐานเดิม ห้ามสร้างซ้ำหรือล้าง ledger
@@ -54,18 +64,20 @@ flowchart TD
 6. เจ้าของสร้าง fine-grained GitHub PAT เฉพาะ `jirapatza/Bombim00`: Contents read/write, Actions read และ Variables read จากนั้นใส่ผ่าน `npx --no-install wrangler secret put LOTTERY_RUNTIME_TOKEN --config wrangler.local.json` ใช้ token ที่เจ้าของสร้างเท่านั้น ไม่ส่งลงแชต ไม่ commit และไม่คัดลอกจาก credential ของ Coding Agent
 7. ใส่ปลายทางเดิมผ่าน `npx --no-install wrangler secret put NTFY_TOPIC --config wrangler.local.json` ไม่ใช้ชื่อ topic สุ่มอัตโนมัติและไม่ส่งข้อความทดสอบโดยไม่ได้สั่ง
 8. ใน local config เปลี่ยน `ENABLED` เป็นสตริง `true` คง `MODE=observe` แล้ว deploy ด้วย config เดิม ตัวเดิมยังทำงานตามปกติ ตรวจ `/health` และ Metrics/CPU/ข้อผิดพลาดจริงตาม gate ข้างต้น ครอบคลุมแหล่งที่สำคัญและช่วงผลออกพร้อมกัน ตรวจ Settings ของ runtime-live ว่าแหล่งที่ต้องการเปิดใช้งานจริง
-9. เมื่อโหมดทดลองผ่านและเจ้าของอนุมัติ PR cutover แล้ว Merge Workflow ที่เหลือเพียง `pull_request` สำหรับ Python tests ไม่มี `schedule`, `push`, `workflow_dispatch`, `NTFY_TOPIC`, หรือการรัน `lottery_checker.py` เพื่อส่งผล รอให้ non-PR Actions runs เดิมทุกงานจบ Worker จะอ่าน Workflow จาก `main` ตรวจเงื่อนไขนี้และ active runs ก่อนส่งทุกครั้ง ถ้าตรวจไม่ได้จะหยุดแบบ fail-closed
+9. เมื่อขั้นตอน 8 และเกณฑ์ observe ด้านล่างผ่านครบ พร้อมเปิด deliver และเจ้าของอนุมัติ cutover แล้ว จึง merge **PR นี้** ซึ่งถอด trigger ส่งผลของ Actions ให้ Workflow เหลือเพียง `pull_request` สำหรับ Python tests ไม่มี `schedule`, `push`, `workflow_dispatch`, `NTFY_TOPIC`, หรือการรัน `lottery_checker.py` เพื่อส่งผล รอให้ non-PR Actions runs เดิมทุกงานจบ Worker จะอ่าน Workflow จาก `main` ตรวจเงื่อนไขนี้และ active runs ก่อนส่งทุกครั้ง ถ้าตรวจไม่ได้จะหยุดแบบ fail-closed
 10. เปลี่ยน local config เป็น `MODE=deliver` แล้ว deploy ตรวจ `/health`, GitHub runtime-live status/results, การยอมรับส่งจาก ntfy และให้เจ้าของยืนยันว่าโทรศัพท์ได้รับจริง การที่ ntfy HTTP200 ไม่พิสูจน์ว่าโทรศัพท์ได้รับหรือพูดเสียงไทยแล้ว
+
+เตรียม Cron, secrets และ config สำหรับ deliver ให้พร้อมก่อน merge โดยยังคง deploy เป็น observe จน Actions เดิมจบ แล้วทำขั้นตอน 10 ต่อทันที ช่วงรอ Actions จบและ deploy deliver เป็นช่วงส่งมอบที่ยังอาจไม่มีการส่งผล จึงต้องเลือกช่วงที่ไม่มีผลคาดว่าจะออกและเฝ้าดูจนยืนยันตัวส่งใหม่ ห้าม merge แล้วปล่อย Worker อยู่ observe โดยไม่มีผู้ดำเนินการต่อ
 
 Cron ของ Cloudflare อาจใช้เวลาถึง 15 นาทีในการกระจายตารางครั้งแรก ผลในเว็บยังอาจช้าจากการเผยแพร่ raw GitHub/cache และเวลาอัปเดตของแหล่งต้นทาง
 
 ## เหตุขัดข้องที่ตรวจพบ 7 พ.ย. 2026 และเงื่อนไขสลับตัวรัน
 
 - ตัวตั้งเวลา GitHub Actions ระบุทุก 5 นาที แต่รอบที่สังเกตจริงห่าง 40–61 นาที จึงไม่เหมาะเป็นตัวตรวจหลักที่ต้องการความเร็ว
-- Cloudflare Worker ที่ติดตั้งจริงตั้ง `ENABLED=true`, `MODE=observe`, Cron ทุกนาที แต่ D1 แสดง `error=github_network`, `error_stage=snapshot` และยังไม่มี `lastObservation` หรือ `lastSuccess` จึง **ห้ามเปิด deliver หรือปิด Actions** จนตรวจสำเร็จจริง
+- Cloudflare Worker ที่ติดตั้งจริงตั้ง `ENABLED=true`, `MODE=observe`, Cron ทุกนาที แต่ D1 แสดง `error=github_network`, `error_stage=snapshot` และยังไม่มี `lastObservation` หรือ `lastSuccess` จึง **ห้าม merge PR นี้ เปิด deliver หรือปิด Actions** จนผ่านเกณฑ์ observe จริง การ merge ก็เป็นการถอดตัวส่ง Actions แม้ไม่ได้กด Disable workflow
 - PR แก้การวินิจฉัยเพิ่มรหัสปลอดภัย เช่น `github_network_ref`, `github_timeout_contents` และ retry GET ที่ปลอดภัยหนึ่งครั้ง รหัสเหล่านี้บอกขั้นตอนที่ล้มเหลวเท่านั้น ไม่แสดง URL, token หรือข้อความ exception และไม่ยืนยันว่าต้นเหตุถูกแก้แล้ว
-- หลัง Deploy PR ที่ได้รับอนุมัติ ให้รอ Cron และอ่าน D1 `worker_state` / `/health` จน `lastObservation.at` สดภายใน 5 นาทีและไม่มี error ติดต่อกันหลายรอบ รวมช่วงเวลาที่แหล่งผลออกจริง; ตรวจ Free CPU และจำนวน subrequests
-- ก่อนสลับตัวส่งต้องมี `NTFY_TOPIC` เป็น secret ของ Worker, สิทธิ์ GitHub Contents/Actions read และ Contents write ที่จำเป็น, Workflow จาก reviewed `main` ต้องเป็น PR-only และไม่มี Actions checker non-PR ที่ยังทำงาน ตรวจ D1 ledger เพื่อไม่ส่งผลเดิมซ้ำ
+- หลัง deploy commit ของ PR ที่ผ่าน review และเจ้าของอนุมัติให้ทดสอบ observe โดยยังไม่ merge ให้รอ Cron และอ่าน D1 `worker_state` / `/health` จน `lastObservation.at` สดภายใน 5 นาทีและไม่มี error ติดต่อกันหลายรอบ รวมช่วงเวลาที่แหล่งผลออกจริง; ตรวจ Free CPU และจำนวน subrequests
+- ก่อน merge ต้องผ่าน observe ตามข้อก่อนหน้าและ Metrics/CPU/subrequests ตาม gate ข้างต้น พร้อมมี `NTFY_TOPIC` เป็น secret ของ Worker, สิทธิ์ GitHub Contents/Actions read และ Contents write ที่จำเป็น หลัง merge และก่อนเปิด deliver: Workflow จาก reviewed `main` ต้องเป็น PR-only และไม่มี Actions checker non-PR ที่ยังทำงาน ตรวจ D1 ledger เพื่อไม่ส่งผลเดิมซ้ำ
 - หลังเปิดส่งจริง ตรวจ ntfy HTTP acceptance, runtime-live status และการรับบน Android แยกกัน หากไม่ผ่านให้หยุด Worker อย่างปลอดภัยและย้อนกลับตามหัวข้อด้านล่าง **ห้ามเปิดสองตัวส่งพร้อมกัน**
 
 ## การตรวจสุขภาพและซ่อม
@@ -90,3 +102,6 @@ Cron ของ Cloudflare อาจใช้เวลาถึง 15 นาท�
 จาก cloudflare: `npm ci`, `npm test`, `npm audit --audit-level=high`, `npm run build`, `npm run db:local`, `npm run dev -- --port 8787`
 
 ในอีก terminal: `curl -i http://localhost:8787/health` ต้องคืน paused/503 ตามค่าเริ่มต้น แล้ว `curl 'http://localhost:8787/__scheduled?cron=*+*+*+*+*'` ต้องไม่เปลี่ยน ledger หรือส่งจริง Local workerd/D1 แยกจากฐาน production
+
+
+<!-- /coderabbit-ai-generated:v1 -->
