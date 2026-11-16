@@ -4,13 +4,12 @@ import { DeviceHealthPanel } from "./components/DeviceHealthPanel";
 import { Header } from "./components/Header";
 import { BottomNavigation, AppTab } from "./components/BottomNavigation";
 import { LiveResultsScreen } from "./screens/LiveResultsScreen";
-import { LotteryRepository } from "./data/lotteryRepository";
+import { bangkokDateKey, LotteryRepository } from "./data/lotteryRepository";
 import { useAnnouncer } from "./utils/useAnnouncer";
 import { ThaiTtsService } from "./utils/thaiTts";
 import { trackDiagnostic } from "./utils/siteDiagnostics";
 import { ChunkRecovery } from "./utils/chunkRecovery";
 import {
-  LotteryCatalogItem,
   RawLotteryResult,
   SystemStatus,
   AppSettings,
@@ -193,9 +192,6 @@ export const App: React.FC = () => {
   });
 
   // Core Data States
-  const [lotteries, setLotteries] = useState<LotteryCatalogItem[]>(() =>
-    LotteryRepository.getLotteries(),
-  );
   const [results, setResults] = useState<RawLotteryResult[]>(() =>
     LotteryRepository.getResults(),
   );
@@ -237,7 +233,17 @@ export const App: React.FC = () => {
     return LotteryRepository.getTop3DigitFrequency(15);
   }, [results]);
 
-  const todayLotteries = LotteryRepository.getLotteries();
+  const today = bangkokDateKey(new Date());
+  const todayLotteries = useMemo(
+    () => LotteryRepository.getLotteries(new Date(`${today}T00:00:00+07:00`)),
+    [today, results],
+  );
+
+  const dataNotice = !online
+    ? "อุปกรณ์ออฟไลน์ เว็บจะโหลดข้อมูลอีกครั้งเมื่อกลับมาออนไลน์"
+    : liveDataError
+      ? "โหลดข้อมูลล่าสุดไม่สำเร็จ ลองกดรีเฟรชข้อมูลอีกครั้ง"
+      : "";
 
   // Spoken schedule: 10 and 5 minutes before each close, the close itself, the
   // next draw, then the result. Nothing is spoken unless voice is turned on.
@@ -248,19 +254,18 @@ export const App: React.FC = () => {
   });
 
   const handleRefresh = useCallback(async () => {
+    if (!navigator.onLine) return false;
     setIsRefreshing(true);
     try {
       await LotteryRepository.refresh();
       setStatus(LotteryRepository.getStatus());
-      setLotteries(LotteryRepository.getLotteries());
       setResults(LotteryRepository.getResults());
       setLiveDataError(false);
       setLastSynced(
         new Intl.DateTimeFormat("th-TH", {
           timeZone: "Asia/Bangkok",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
+          dateStyle: "medium",
+          timeStyle: "medium",
         }).format(new Date()),
       );
       return true;
@@ -403,12 +408,15 @@ export const App: React.FC = () => {
             onError={handleScreenError}
             onRetry={() => setContentAttempt((n) => n + 1)}
           >
-            {liveDataError && (
+            {dataNotice && (
               <p
                 role="status"
                 className="mb-3 rounded-xl bg-amber-950 p-3 text-sm text-amber-200"
               >
-                โหลดข้อมูลล่าสุดไม่สำเร็จ กำลังแสดงข้อมูลที่มีอยู่
+                {dataNotice}{" "}
+                {lastSynced
+                  ? `กำลังแสดงข้อมูลที่โหลดสำเร็จล่าสุดเมื่อ ${lastSynced} (เวลาไทย)`
+                  : "กำลังแสดงข้อมูลที่มากับเว็บ อาจยังไม่มีผลล่าสุด"}
               </p>
             )}
             {announcer.nextCloseName && (
