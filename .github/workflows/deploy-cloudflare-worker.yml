@@ -64,6 +64,13 @@ jobs:
       - name: Build Worker
         working-directory: cloudflare
         run: npx wrangler deploy --dry-run --config wrangler.production.json --outdir dist
+      - name: Verify Cloudflare deployment credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: a95b2f6bee36ee81dbfb9f3a7c56ffa8
+          D1_DATABASE_ID: 6a4a88e4-8eca-4291-a23b-d58caf0a236e
+        run: node scripts/verify_cloudflare_token.mjs --target worker
+
       - name: Check production runtime secret
         shell: bash
         env:
