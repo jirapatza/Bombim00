@@ -40,6 +40,12 @@ jobs:
       - run: npm test
       - run: npm run build
 
+      - name: Verify Cloudflare deployment credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: a95b2f6bee36ee81dbfb9f3a7c56ffa8
+        run: node scripts/verify_cloudflare_token.mjs --target pages
+
       # Project bombim00 already exists. Never try to recreate it on each push.
       # Retry only Cloudflare's transient upstream/API failures (not auth/config errors).
       - name: Deploy to existing Cloudflare Pages project
