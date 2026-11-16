@@ -1,15 +1,20 @@
 {
-  "system_status": "healthy",
-  "last_run_timestamp": "2026-11-16T22:15:12.369+07:00",
-  "last_run_date_thai": "16/11/2026 22:15:12",
-  "total_checks": 7698,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 54 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 1 รายการ",
-  "active_sources_count": 6,
+  "system_status": "degraded",
+  "last_run_timestamp": "2026-11-16T22:16:12.452+07:00",
+  "last_run_date_thai": "16/11/2026 22:16:12",
+  "total_checks": 7699,
+  "last_source_used": "ผลหวย.com stock groups + ผลหวย.com Lao EXTRA + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 47 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ",
+  "active_sources_count": 5,
   "latest_draw_detected": "2026-11-16",
   "notifications_sent_today": 36,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-16T22:16:12.452+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 47 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ"
+    },
     {
       "timestamp": "2026-11-16T22:15:12.369+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-16T21:56:12.356+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 54 รายการ ส่งสำเร็จ 0 รายการ"
-    },
-    {
-      "timestamp": "2026-11-16T21:55:12.476+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 54 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 2 รายการ"
     }
   ],
   "uncertain_deliveries": 257,
@@ -118,7 +118,13 @@
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [],
-    "errors": []
+    "errors": [
+      {
+        "source": "ThaiLottoAPI",
+        "status": null,
+        "reason": "timeout"
+      }
+    ]
   },
   "active_uncertain_deliveries": 0,
   "old_uncertain_deliveries": 257
