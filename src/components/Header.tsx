@@ -48,7 +48,7 @@ export const Header: React.FC<Props> = ({
       <button
         className="quiet-button"
         onClick={onRefresh}
-        disabled={isRefreshing}
+        disabled={isRefreshing || !online}
         data-testid="top_refresh_button"
         aria-label="รีเฟรชข้อมูล"
       >
