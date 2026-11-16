@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { build } from "esbuild";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, mkdirSync } from "node:fs";
+mkdirSync(".harness", { recursive: true });
 
 // SettingsScreen pulls in browser-only helpers, so it is bundled with a minimal
 // DOM stub and rendered through react-dom/server: no browser, no timers.
