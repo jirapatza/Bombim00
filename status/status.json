@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-16T21:54:12.421+07:00",
-  "last_run_date_thai": "16/11/2026 21:54:12",
-  "total_checks": 7678,
+  "last_run_timestamp": "2026-11-16T21:55:12.476+07:00",
+  "last_run_date_thai": "16/11/2026 21:55:12",
+  "total_checks": 7679,
   "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 53 รายการ ส่งสำเร็จ 0 รายการ",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 54 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 2 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "2026-11-16",
   "notifications_sent_today": 36,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-16T21:55:12.476+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 54 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 2 รายการ"
+    },
     {
       "timestamp": "2026-11-16T21:54:12.421+07:00",
       "level": "INFO",
@@ -104,17 +109,12 @@
       "timestamp": "2026-11-16T21:36:12.776+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 53 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 1 รายการ"
-    },
-    {
-      "timestamp": "2026-11-16T21:34:12.190+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 53 รายการ ส่งสำเร็จ 0 รายการ"
     }
   ],
   "uncertain_deliveries": 257,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
-  "schedule_alerts_sent_today": 82,
+  "schedule_alerts_sent_today": 84,
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [],
