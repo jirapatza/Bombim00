@@ -1,15 +1,20 @@
 {
-  "system_status": "degraded",
-  "last_run_timestamp": "2026-11-17T19:49:12.479+07:00",
-  "last_run_date_thai": "17/11/2026 19:49:12",
-  "total_checks": 8988,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 44 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ",
-  "active_sources_count": 5,
-  "latest_draw_detected": "17 พฤศจิกายน 2569",
+  "system_status": "healthy",
+  "last_run_timestamp": "2026-11-17T19:50:12.204+07:00",
+  "last_run_date_thai": "17/11/2026 19:50:12",
+  "total_checks": 8989,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 47 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 1 รายการ",
+  "active_sources_count": 6,
+  "latest_draw_detected": "17.11.2026",
   "notifications_sent_today": 32,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-17T19:50:12.204+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 47 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 1 รายการ"
+    },
     {
       "timestamp": "2026-11-17T19:49:12.479+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-17T19:31:12.064+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 45 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 2 รายการ"
-    },
-    {
-      "timestamp": "2026-11-17T19:30:12.414+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 45 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 2 รายการ"
     }
   ],
   "uncertain_deliveries": 257,
@@ -124,13 +124,7 @@
         "status": 404
       }
     ],
-    "errors": [
-      {
-        "source": "ThaiLottoAPI",
-        "status": null,
-        "reason": "timeout"
-      }
-    ]
+    "errors": []
   },
   "active_uncertain_deliveries": 0,
   "old_uncertain_deliveries": 257
