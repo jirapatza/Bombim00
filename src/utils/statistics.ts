@@ -6,7 +6,7 @@ export interface DigitStat {
   number: string;
   count: number;
   percentage: number;
-  gapRounds: number | null;
+  gapRounds: number;
   latestDate: string;
   latestLottery: string;
 }
