@@ -133,6 +133,28 @@ test("splits comma- and space-separated three-digit prizes without padding or in
   assert.deepEqual(resolveNumbers(row, "front3"), ["123", "045", "678", "901"]);
   assert.deepEqual(resolveNumbers(row, "back3"), ["234", "567", "890", "012"]);
 });
+test("a number first seen in the oldest draw has a gap spanning the recorded history", () => {
+  const rows = [
+    { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-03", เลขบน_3_ตัว: "111" },
+    { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-02", เลขบน_3_ตัว: "222" },
+    { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-01", เลขบน_3_ตัว: "333" },
+  ];
+  const gap = longestGap(digitFrequency(rows, "top3"), 1)[0];
+  assert.equal(gap.number, "333");
+  assert.equal(gap.count, 1);
+  assert.equal(gap.gapRounds, 2);
+});
+test("cold ranking uses observed frequencies and ties use a stable numeric order", () => {
+  const rows = [
+    { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-03", เลขบน_3_ตัว: "111" },
+    { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-02", เลขบน_3_ตัว: "222" },
+  ];
+  const stats = digitFrequency(rows, "top3");
+  const ranking = coldest(stats, 3);
+  assert.deepEqual(ranking.map((stat) => stat.number), ["222", "111"]);
+  assert.deepEqual(ranking.map((stat) => stat.count), [1, 1]);
+  assert.equal(hottest(stats, 1)[0].number, "222");
+});
 test("backtest reports only rounds it could actually score", () => {
   const rows = [];
   for (let i = 6; i >= 1; i--) {

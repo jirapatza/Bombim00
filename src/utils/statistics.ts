@@ -6,7 +6,7 @@ export interface DigitStat {
   number: string;
   count: number;
   percentage: number;
-  gapRounds: number;
+  gapRounds: number | null;
   latestDate: string;
   latestLottery: string;
 }
@@ -15,6 +15,13 @@ export interface DrawNumbers {
   date: string;
   lottery: string;
   numbers: string[];
+}
+
+export interface AnalysisSummary {
+  numbers: number;
+  backtestRounds: number;
+  knownNumbers: number;
+  totalRounds: number;
 }
 
 export interface BacktestReport {
@@ -133,22 +140,33 @@ export function digitFrequency(
   return stats;
 }
 
+export function analysisSummary(stats: DigitStat[], backtest: BacktestReport): AnalysisSummary {
+  const numbers = poolSizeForKind(backtest.kind);
+  const knownNumbers = stats.length;
+  const totalRounds = Math.max(0, ...stats.map((stat) => stat.gapRounds ?? 0)) + 1;
+  return { numbers, backtestRounds: backtest.rounds, knownNumbers, totalRounds };
+}
+
 export function hottest(stats: DigitStat[], limit = 15): DigitStat[] {
   return [...stats]
-    .sort((a, b) => b.count - a.count || b.gapRounds - a.gapRounds)
+    .sort((a, b) => b.count - a.count || (b.gapRounds ?? 0) - (a.gapRounds ?? 0) || a.number.localeCompare(b.number, "en", { numeric: true }))
     .slice(0, limit);
 }
 
 export function coldest(stats: DigitStat[], limit = 15): DigitStat[] {
   return [...stats]
-    .sort((a, b) => a.count - b.count || b.gapRounds - a.gapRounds)
+    .sort((a, b) => a.count - b.count || (b.gapRounds ?? 0) - (a.gapRounds ?? 0) || a.number.localeCompare(b.number, "en", { numeric: true }))
     .slice(0, limit);
 }
 
 export function longestGap(stats: DigitStat[], limit = 15): DigitStat[] {
   return [...stats]
-    .sort((a, b) => b.gapRounds - a.gapRounds || a.count - b.count)
+    .sort((a, b) => (b.gapRounds ?? 0) - (a.gapRounds ?? 0) || a.count - b.count || a.number.localeCompare(b.number, "en", { numeric: true }))
     .slice(0, limit);
+}
+
+function poolSizeForKind(kind: StatKind): number {
+  return kind === "bottom2" ? 100 : 1000;
 }
 
 /**
