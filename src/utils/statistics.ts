@@ -143,8 +143,9 @@ export function coldest(
   stats: DigitStat[],
   limit = 15,
   kind?: StatKind,
+  totalDraws?: number,
 ): DigitStat[] {
-  const pool = kind ? fullNumberRange(stats, kind) : [...stats];
+  const pool = kind ? fullNumberRange(stats, kind, totalDraws) : [...stats];
   return pool
     .sort((a, b) => a.count - b.count || b.gapRounds - a.gapRounds || a.number.localeCompare(b.number, "en", { numeric: true }))
     .slice(0, limit);
@@ -154,17 +155,22 @@ export function longestGap(
   stats: DigitStat[],
   limit = 15,
   kind?: StatKind,
+  totalDraws?: number,
 ): DigitStat[] {
-  const pool = kind ? fullNumberRange(stats, kind) : [...stats];
+  const pool = kind ? fullNumberRange(stats, kind, totalDraws) : [...stats];
   return pool
     .sort((a, b) => b.gapRounds - a.gapRounds || a.count - b.count || a.number.localeCompare(b.number, "en", { numeric: true }))
     .slice(0, limit);
 }
 
-function fullNumberRange(stats: DigitStat[], kind: StatKind): DigitStat[] {
+function fullNumberRange(
+  stats: DigitStat[],
+  kind: StatKind,
+  totalDraws?: number,
+): DigitStat[] {
   const width = kind === "bottom2" ? 2 : 3;
   const total = poolSizeForKind(kind);
-  const gap = stats.length > 0 ? Math.max(0, ...stats.map((stat) => stat.gapRounds)) : 0;
+  const gap = totalDraws ?? (stats.length > 0 ? Math.max(0, ...stats.map((stat) => stat.gapRounds)) : 0);
   const known = new Map(stats.map((stat) => [stat.number, stat]));
   return Array.from({ length: total }, (_, number) => {
     const value = String(number).padStart(width, "0");
@@ -174,6 +180,11 @@ function fullNumberRange(stats: DigitStat[], kind: StatKind): DigitStat[] {
 
 function poolSizeForKind(kind: StatKind): number {
   return kind === "bottom2" ? 100 : 1000;
+}
+
+/** Number of draws that carry a usable value for the requested kind. */
+export function countDraws(results: RawLotteryResult[], kind: StatKind): number {
+  return toDraws(results, kind).length;
 }
 
 /**

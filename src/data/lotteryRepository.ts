@@ -14,6 +14,7 @@ import {
   coldest,
   longestGap,
   backtest,
+  countDraws,
   BacktestReport,
 } from '../utils/statistics';
 
@@ -395,16 +396,24 @@ export class LotteryRepository {
     return digitFrequency(rows, kind);
   }
 
+  /** Dated draws available for the requested kind, used as the gap basis. */
+  static getAnalysisDrawCount(kind: StatKind, lottery?: string): number {
+    const rows = lottery ? this.results.filter((row) => getDisplayName(row) === lottery) : this.results;
+    return countDraws(rows, kind);
+  }
+
   static getHottestNumbers(kind: StatKind, limit: number = 15): DigitStat[] {
     return hottest(this.getDetailedStats(kind), limit);
   }
 
-  static getColdestNumbers(kind: StatKind, limit: number = 15): DigitStat[] {
-    return coldest(this.getDetailedStats(kind), limit, kind);
+  static getColdestNumbers(kind: StatKind, limit: number = 15, lottery?: string): DigitStat[] {
+    const rows = lottery ? this.results.filter((row) => getDisplayName(row) === lottery) : this.results;
+    return coldest(digitFrequency(rows, kind), limit, kind, countDraws(rows, kind));
   }
 
-  static getLongestGapNumbers(kind: StatKind, limit: number = 15): DigitStat[] {
-    return longestGap(this.getDetailedStats(kind), limit, kind);
+  static getLongestGapNumbers(kind: StatKind, limit: number = 15, lottery?: string): DigitStat[] {
+    const rows = lottery ? this.results.filter((row) => getDisplayName(row) === lottery) : this.results;
+    return longestGap(digitFrequency(rows, kind), limit, kind, countDraws(rows, kind));
   }
 
   static getBacktestReport(

@@ -36,6 +36,18 @@ test('hot, cold and gap ranking helpers are consistent with the base stats', () 
   assert.equal(R.getLongestGapNumbers('top3', 1)[0].number, '000');
 });
 
+test('cold and gap helpers report never-drawn values with the real draw count', () => {
+  R.results = rows;
+  const cold = R.getColdestNumbers('top3', 1);
+  const gap = R.getLongestGapNumbers('top3', 1);
+  assert.equal(cold[0].number, '000');
+  assert.equal(cold[0].count, 0);
+  assert.equal(cold[0].gapRounds, 3);
+  assert.equal(gap[0].number, '000');
+  assert.equal(gap[0].gapRounds, 3);
+  assert.equal(R.getAnalysisDrawCount('top3'), 3);
+});
+
 test('getBacktestReport reports measured rounds and hit rate without inventing data', () => {
   R.results = rows;
   const report = R.getBacktestReport('top3', { pick: 1, window: 5 });

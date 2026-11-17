@@ -158,6 +158,25 @@ test("cold and gap rankings include unseen values from the complete prize range"
   assert.equal(coldest(rows, 1, "bottom2")[0].number, "00");
   assert.equal(longestGap(rows, 1, "front3")[0].number, "000");
 });
+test("never-drawn values use the real draw count as their gap", () => {
+  const twoDraws = [
+    { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-03", เลขบน_3_ตัว: "111" },
+    { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-02", เลขบน_3_ตัว: "222" },
+  ];
+  const repeated = Array.from({ length: 5 }, (_, index) => ({
+    ชื่อหวย: "A",
+    วันที่จัดรูปแบบ: `2026-11-0${index + 1}`,
+    เลขบน_3_ตัว: "111",
+  }));
+  const twoStats = digitFrequency(twoDraws, "top3");
+  const repeatStats = digitFrequency(repeated, "top3");
+  assert.equal(longestGap(twoStats, 1, "top3", 2)[0].gapRounds, 2);
+  assert.equal(longestGap(twoStats, 1, "top3", 2)[0].count, 0);
+  assert.equal(longestGap(twoStats, 1)[0].gapRounds, 1);
+  assert.equal(longestGap(repeatStats, 1, "top3", 5)[0].gapRounds, 5);
+  assert.equal(coldest(repeatStats, 1, "top3", 5)[0].count, 0);
+  assert.equal(repeatStats[0].gapRounds, 0);
+});
 test("backtest reports only rounds it could actually score", () => {
   const rows = [];
   for (let i = 6; i >= 1; i--) {

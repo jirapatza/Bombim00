@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { History, TrendingUp, Search, X, Copy, Check, BarChart3 } from 'lucide-react';
 import { RawLotteryResult, FrequencyStat } from '../types/lottery';
-import { StatKind, DigitStat, hottest, coldest, longestGap } from '../utils/statistics';
+import { StatKind, DigitStat, hottest, coldest, longestGap, countDraws } from '../utils/statistics';
 import { LotteryRepository } from '../data/lotteryRepository';
 import { copyText } from '../utils/socialShare';
 
@@ -68,6 +68,11 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
     return lottery ? LotteryRepository.getDetailedStats(selectedKind, lottery) : [];
   }, [activeSubTab, selectedKind, lottery, results]);
 
+  const analysisDraws = useMemo(() => {
+    if (activeSubTab !== 2) return 0;
+    return LotteryRepository.getAnalysisDrawCount(selectedKind, lottery);
+  }, [activeSubTab, selectedKind, lottery, results]);
+
   const hottestNumbers = useMemo(() => {
     if (activeSubTab !== 2 || analysisStats.length === 0) return [];
     return hottest(analysisStats, 15);
@@ -75,13 +80,13 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
 
   const coldestNumbers = useMemo(() => {
     if (activeSubTab !== 2 || analysisStats.length === 0) return [];
-    return coldest(analysisStats, 15, selectedKind);
-  }, [activeSubTab, analysisStats]);
+    return coldest(analysisStats, 15, selectedKind, analysisDraws);
+  }, [activeSubTab, analysisStats, selectedKind, analysisDraws]);
 
   const longestGapNumbers = useMemo(() => {
     if (activeSubTab !== 2 || analysisStats.length === 0) return [];
-    return longestGap(analysisStats, 15, selectedKind);
-  }, [activeSubTab, analysisStats]);
+    return longestGap(analysisStats, 15, selectedKind, analysisDraws);
+  }, [activeSubTab, analysisStats, selectedKind, analysisDraws]);
 
   const backtestReport = useMemo(() => {
     if (activeSubTab !== 2) return null;
