@@ -839,15 +839,18 @@ select:focus-visible {
   }
   .app-sidebar nav button {
     flex: 1;
+    min-width: 0;
     gap: 6px;
     padding: 8px 2px;
     flex-direction: column;
     font-size: 9px;
     border: 0;
     border-radius: 7px;
+    overflow: hidden;
   }
   .app-sidebar nav button span {
     max-width: 73px;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -993,6 +996,35 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* 320px phones: allow countdown contents to wrap instead of widening the page. */
 @media (max-width: 360px) {
+  .app-sidebar nav button span {
+    max-width: 100%;
+  }
+  .close-line {
+    display: block;
+  }
+  .close-line .close-time {
+    display: block;
+    margin-top: 2px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .app-main,
+  .app-header,
+  .panel,
+  .settings-layout {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .settings-layout ul,
+  .settings-layout li,
+  .settings-layout p {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .settings-layout li span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
   .next-grid {
     grid-template-columns: minmax(0, 1fr);
   }

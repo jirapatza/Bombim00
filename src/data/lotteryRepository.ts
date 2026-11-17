@@ -6,6 +6,17 @@ import {
   TicketCheckReport,
   FrequencyStat,
 } from '../types/lottery';
+import {
+  DigitStat,
+  StatKind,
+  digitFrequency,
+  hottest,
+  coldest,
+  longestGap,
+  backtest,
+  countDraws,
+  BacktestReport,
+} from '../utils/statistics';
 
 // Import local JSON datasets
 import rawAllLotteries from '../../data/all_lotteries.json';
@@ -378,6 +389,40 @@ export class LotteryRepository {
           latestDate: pair.date,
         };
       });
+  }
+
+  static getDetailedStats(kind: StatKind, lottery?: string): DigitStat[] {
+    const rows = lottery ? this.results.filter((row) => getDisplayName(row) === lottery) : this.results;
+    return digitFrequency(rows, kind);
+  }
+
+  /** Dated draws available for the requested kind, used as the gap basis. */
+  static getAnalysisDrawCount(kind: StatKind, lottery?: string): number {
+    const rows = lottery ? this.results.filter((row) => getDisplayName(row) === lottery) : this.results;
+    return countDraws(rows, kind);
+  }
+
+  static getHottestNumbers(kind: StatKind, limit: number = 15): DigitStat[] {
+    return hottest(this.getDetailedStats(kind), limit);
+  }
+
+  static getColdestNumbers(kind: StatKind, limit: number = 15, lottery?: string): DigitStat[] {
+    const rows = lottery ? this.results.filter((row) => getDisplayName(row) === lottery) : this.results;
+    return coldest(digitFrequency(rows, kind), limit, kind, countDraws(rows, kind));
+  }
+
+  static getLongestGapNumbers(kind: StatKind, limit: number = 15, lottery?: string): DigitStat[] {
+    const rows = lottery ? this.results.filter((row) => getDisplayName(row) === lottery) : this.results;
+    return longestGap(digitFrequency(rows, kind), limit, kind, countDraws(rows, kind));
+  }
+
+  static getBacktestReport(
+    kind: StatKind,
+    options: { pick?: number; window?: number } = {},
+    lottery?: string,
+  ): BacktestReport {
+    const rows = lottery ? this.results.filter((row) => getDisplayName(row) === lottery) : this.results;
+    return backtest(rows, kind, options);
   }
 
   static getNextClosingLottery(lotteries: LotteryCatalogItem[], now = new Date()): {
