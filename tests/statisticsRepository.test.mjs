@@ -46,6 +46,19 @@ test('getBacktestReport reports measured rounds and hit rate without inventing d
   assert.ok(report.hitRate >= 0 && report.hitRate <= 100);
 });
 
+test('analysis is scoped to one lottery, not the next draw of another lottery', () => {
+  R.results = [
+    { ชื่อหวย: 'A', งวดวันที่: '2026-11-03', เลขบน_3_ตัว: '111' },
+    { ชื่อหวย: 'B', งวดวันที่: '2026-11-02', เลขบน_3_ตัว: '222' },
+    { ชื่อหวย: 'A', งวดวันที่: '2026-11-01', เลขบน_3_ตัว: '111' },
+  ];
+  assert.equal(R.getDetailedStats('top3', 'A').find((s) => s.number === '111').count, 2);
+  assert.equal(R.getDetailedStats('top3', 'A').some((s) => s.number === '222'), false);
+  assert.equal(R.getBacktestReport('top3', { pick: 1 }, 'A').rounds, 1);
+  assert.equal(R.getBacktestReport('top3', { pick: 1 }, 'A').hits, 1);
+  assert.deepEqual(R.getDetailedStats('top3', 'missing'), []);
+});
+
 test('empty results yield empty rankings and a zeroed backtest', () => {
   R.results = [];
   assert.deepEqual(R.getDetailedStats('top3'), []);

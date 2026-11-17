@@ -96,6 +96,35 @@ test("rankings do not mutate the input and stay consistent", () => {
   assert.deepEqual(stats.map((s) => s.number).sort(), snapshot);
   assert.ok(hottest(stats, 99).length <= stats.length);
 });
+test("sorts mixed Thai and ISO draw dates before computing latest gap and backtest", () => {
+  const rows = [
+    { ชื่อหวย: "A", วันที่จัดรูปแบบ: "01 พฤศจิกายน 2569", เลขบน_3_ตัว: "111" },
+    { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-03", เลขบน_3_ตัว: "222" },
+    { ชื่อหวย: "A", วันที่จัดรูปแบบ: "02/11/2569", เลขบน_3_ตัว: "111" },
+  ];
+  assert.deepEqual(toDraws(rows, "top3").map((draw) => draw.numbers[0]), ["222", "111", "111"]);
+  const stats = digitFrequency(rows, "top3");
+  assert.equal(stats.find((stat) => stat.number === "111").gapRounds, 1);
+  assert.equal(stats.find((stat) => stat.number === "111").latestDate, "02/11/2569");
+  const report = backtest(rows, "top3", { pick: 1, window: 1 });
+  assert.equal(report.rounds, 2);
+  assert.equal(report.hits, 1);
+});
+test("rejects non-digit prizes and falls back to valid two-digit result", () => {
+  const row = { เลขบน_3_ตัว: "12x", รางวัลที่_1: "123456", เลขล่าง_2_ตัว: "x2", เลขท้าย_2_ตัว: "09", เลขหน้า_3_ตัว: ["123", "abc"] };
+  assert.deepEqual(resolveNumbers(row, "top3"), ["456"]);
+  assert.deepEqual(resolveNumbers(row, "bottom2"), ["09"]);
+  assert.deepEqual(resolveNumbers(row, "front3"), ["123"]);
+  assert.deepEqual(resolveNumbers({ เลขล่าง_2_ตัว: "xx", เลขท้าย_2_ตัว: "yy" }, "bottom2"), []);
+});
+test("backtest does not score rows without an orderable draw date", () => {
+  const rows = [
+    { ชื่อหวย: "A", เลขบน_3_ตัว: "111" },
+    { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-03", เลขบน_3_ตัว: "111" },
+    { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-02", เลขบน_3_ตัว: "111" },
+  ];
+  assert.equal(backtest(rows, "top3", { pick: 1 }).rounds, 1);
+});
 test("backtest reports only rounds it could actually score", () => {
   const rows = [];
   for (let i = 6; i >= 1; i--) {

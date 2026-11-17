@@ -37,23 +37,39 @@ export function resolveNumbers(
   switch (kind) {
     case "top3": {
       const direct = res.เลขบน_3_ตัว;
-      if (direct && direct.length === 3) return [direct];
+      if (direct && /^\d{3}$/.test(direct)) return [direct];
       const first = res.รางวัลที่_1;
-      return first && first.length >= 3 ? [first.slice(-3)] : [];
+      return first && /^\d{3,}$/.test(first) ? [first.slice(-3)] : [];
     }
     case "bottom2": {
-      const value = res.เลขล่าง_2_ตัว || res.เลขท้าย_2_ตัว || "";
-      return value.length === 2 ? [value] : [];
+      const value = [res.เลขล่าง_2_ตัว, res.เลขท้าย_2_ตัว].find((n) => n && /^\d{2}$/.test(n));
+      return value ? [value] : [];
     }
     case "front3":
-      return (res.เลขหน้า_3_ตัว ?? []).filter((n) => n.length === 3);
+      return (res.เลขหน้า_3_ตัว ?? []).filter((n) => /^\d{3}$/.test(n));
     case "back3":
-      return (res.เลขท้าย_3_ตัว ?? []).filter((n) => n.length === 3);
+      return (res.เลขท้าย_3_ตัว ?? []).filter((n) => /^\d{3}$/.test(n));
   }
 }
 
+const thaiMonths = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+];
+
+function dateKey(value: string): string {
+  const iso = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|[T ])/);
+  const numeric = value.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  const thai = value.match(/^(\d{1,2})\s+(\S+)\s+(\d{4})$/);
+  const year = Number(iso?.[1] ?? numeric?.[3] ?? thai?.[3]);
+  const month = iso ? Number(iso[2]) : numeric ? Number(numeric[2]) : thaiMonths.indexOf(thai?.[2] ?? "") + 1;
+  const day = Number(iso?.[3] ?? numeric?.[1] ?? thai?.[1]);
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return "";
+  return `${year >= 2400 ? year - 543 : year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 /**
- * Convert raw results into draws, keeping the caller's order.
+ * Convert raw results into newest-first draws, regardless of input order.
  * Rows without usable numbers for the requested kind are skipped.
  */
 export function toDraws(
@@ -70,7 +86,7 @@ export function toDraws(
       numbers,
     });
   }
-  return draws;
+  return draws.sort((a, b) => dateKey(b.date).localeCompare(dateKey(a.date)));
 }
 
 /**
@@ -78,7 +94,7 @@ export function toDraws(
  * - A number appearing in several prizes of the same draw counts once (Set).
  * - gapRounds counts draws since the latest appearance: 0 = appeared in the
  *   newest draw, 1 = skipped the newest draw, and so on.
- * Input order is newest-first, as stored by the checker.
+ * Draws are sorted newest-first by their dated results.
  */
 export function digitFrequency(
   results: RawLotteryResult[],
@@ -132,7 +148,7 @@ export function longestGap(stats: DigitStat[], limit = 15): DigitStat[] {
 
 /**
  * Backtest the "frequent numbers from the recent window predict the next draw"
- * rule. Input is newest-first; the window is rebuilt oldest-to-newest inside.
+ * rule. Draws are sorted newest-first, then rebuilt oldest-to-newest inside.
  * Only rounds with at least one scored number are counted, and the hit rate is
  * reported as measured, with no tuning of the data.
  */
@@ -143,7 +159,7 @@ export function backtest(
 ): BacktestReport {
   const pick = options.pick ?? 15;
   const windowSize = options.window ?? 50;
-  const chronological = toDraws([...results].reverse(), kind);
+  const chronological = toDraws(results, kind).filter((draw) => dateKey(draw.date)).reverse();
   let rounds = 0;
   let hits = 0;
 

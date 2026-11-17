@@ -390,8 +390,9 @@ export class LotteryRepository {
       });
   }
 
-  static getDetailedStats(kind: StatKind): DigitStat[] {
-    return digitFrequency(this.results, kind);
+  static getDetailedStats(kind: StatKind, lottery?: string): DigitStat[] {
+    const rows = lottery ? this.results.filter((row) => getDisplayName(row) === lottery) : this.results;
+    return digitFrequency(rows, kind);
   }
 
   static getHottestNumbers(kind: StatKind, limit: number = 15): DigitStat[] {
@@ -409,8 +410,10 @@ export class LotteryRepository {
   static getBacktestReport(
     kind: StatKind,
     options: { pick?: number; window?: number } = {},
+    lottery?: string,
   ): BacktestReport {
-    return backtest(this.results, kind, options);
+    const rows = lottery ? this.results.filter((row) => getDisplayName(row) === lottery) : this.results;
+    return backtest(rows, kind, options);
   }
 
   static getNextClosingLottery(lotteries: LotteryCatalogItem[], now = new Date()): {

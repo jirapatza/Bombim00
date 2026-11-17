@@ -17,6 +17,9 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [copyFailed, setCopyFailed] = useState(false);
   const [selectedKind, setSelectedKind] = useState<StatKind>('top3');
+  const [selectedLottery, setSelectedLottery] = useState('');
+  const lotteryNames = useMemo(() => [...new Set(results.map((row) => row.ชื่อหวย || row.หวย || '').filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th')), [results]);
+  const lottery = lotteryNames.includes(selectedLottery) ? selectedLottery : lotteryNames[0] || '';
 
   const filteredResults = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -62,8 +65,8 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
 
   const analysisStats = useMemo(() => {
     if (activeSubTab !== 2) return [];
-    return LotteryRepository.getDetailedStats(selectedKind);
-  }, [activeSubTab, selectedKind, results]);
+    return lottery ? LotteryRepository.getDetailedStats(selectedKind, lottery) : [];
+  }, [activeSubTab, selectedKind, lottery, results]);
 
   const hottestNumbers = useMemo(() => {
     if (activeSubTab !== 2 || analysisStats.length === 0) return [];
@@ -82,8 +85,8 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
 
   const backtestReport = useMemo(() => {
     if (activeSubTab !== 2) return null;
-    return LotteryRepository.getBacktestReport(selectedKind, { pick: 15, window: 50 });
-  }, [activeSubTab, selectedKind, results]);
+    return lottery ? LotteryRepository.getBacktestReport(selectedKind, { pick: 15, window: 50 }, lottery) : null;
+  }, [activeSubTab, selectedKind, lottery, results]);
 
   return (
     <div className="space-y-4 pb-20">
@@ -301,6 +304,14 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
       ) : (
         /* Deep Analysis Subtab */
         <div className="space-y-6">
+          <div className="space-y-1.5">
+            <label htmlFor="analysis-lottery" className="text-sm font-bold text-slate-200">เลือกหวยสำหรับวิเคราะห์</label>
+            <select id="analysis-lottery" value={lottery} onChange={(event) => setSelectedLottery(event.target.value)} className="w-full min-h-11 rounded-xl border border-slate-700 bg-slate-900 px-3 text-slate-100">
+              {lotteryNames.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+            <p className="text-xs text-slate-400">สถิติและงวดทดสอบนับเฉพาะหวยที่เลือก</p>
+            {!lottery && <p role="status" className="text-sm text-slate-300">ยังไม่มีผลหวยสำหรับวิเคราะห์</p>}
+          </div>
           {/* Kind Selector */}
           <div className="flex rounded-xl border border-slate-800 bg-slate-900 p-1">
             <button
@@ -334,11 +345,11 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
                 </div>
                 <div className="rounded-xl bg-slate-800/50 p-3 border border-slate-700/50">
                   <div className="text-slate-400">อัตราการทายถูก</div>
-                  <div className="mt-1 text-lg font-black text-amber-400">{backtestReport.hitRate.toFixed(2)}%</div>
+                  <div className="mt-1 text-lg font-black text-amber-400">{backtestReport.rounds ? `${backtestReport.hitRate.toFixed(2)}%` : 'ยังไม่มีงวดทดสอบ'}</div>
                 </div>
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                ทายเลขจาก {backtestReport.window} งวดย้อนหลัง เทียบกับงวดถัดไป (pick={backtestReport.pick}) — ตัวเลขต่ำแปลว่าสูตรนี้ยังไม่น่าเชื่อถือ
+                เลือกเลขที่ออกบ่อยสูงสุด {backtestReport.pick} เลขจากไม่เกิน {backtestReport.window} งวดก่อนหน้า เทียบกับงวดถัดไปของหวยเดียวกัน · ถูก {backtestReport.hits}/{backtestReport.rounds} งวด ไม่ใช่การรับประกันผลในอนาคต
               </p>
             </div>
           )}
@@ -388,7 +399,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
               </h3>
               <div className="space-y-2">
                 {coldestNumbers.map((stat) => {
-                  const maxCount = coldestNumbers[0]?.count || 1;
+                  const maxCount = coldestNumbers[coldestNumbers.length - 1]?.count || 1;
                   const barWidth = Math.min(Math.max((stat.count / maxCount) * 100, 5), 100);
                   return (
                     <div
