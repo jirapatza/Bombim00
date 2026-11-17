@@ -212,10 +212,10 @@ export const SettingsScreen: React.FC<Props> = ({
             {nextCloses.map((slot) => (
               <li
                 key={`${slot.id}-${slot.closeAt}`}
-                className="flex items-center justify-between gap-3 rounded-xl bg-slate-950 px-3 py-2"
+                className="close-line flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl bg-slate-950 px-3 py-2"
               >
-                <span className="min-w-0 truncate text-slate-200">{slot.name}</span>
-                <span className="shrink-0 font-mono-numbers text-xs text-amber-400">
+                <span className="min-w-0 flex-1 truncate text-slate-200">{slot.name}</span>
+                <span className="close-time shrink-0 font-mono-numbers text-xs text-amber-400">
                   ปิดรับ{" "}
                   {new Intl.DateTimeFormat("th-TH", {
                     timeZone: "Asia/Bangkok",
@@ -291,7 +291,7 @@ export const SettingsScreen: React.FC<Props> = ({
             {status.total_checks} ครั้ง
           </span>
         </p>
-        <p className="text-slate-300 truncate">
+        <p className="truncate text-slate-300">
           • แหล่งข้อมูลล่าสุด:{" "}
           <span className="text-slate-100">{status.last_source_used}</span>
         </p>
