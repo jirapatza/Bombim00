@@ -75,12 +75,12 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
 
   const coldestNumbers = useMemo(() => {
     if (activeSubTab !== 2 || analysisStats.length === 0) return [];
-    return coldest(analysisStats, 15);
+    return coldest(analysisStats, 15, selectedKind);
   }, [activeSubTab, analysisStats]);
 
   const longestGapNumbers = useMemo(() => {
     if (activeSubTab !== 2 || analysisStats.length === 0) return [];
-    return longestGap(analysisStats, 15);
+    return longestGap(analysisStats, 15, selectedKind);
   }, [activeSubTab, analysisStats]);
 
   const backtestReport = useMemo(() => {
@@ -395,7 +395,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
           {coldestNumbers.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-sm font-black text-blue-400 flex items-center gap-1.5">
-                <span>❄️ เลขเย็น (ออกน้อยที่สุด 15 อันดับ)</span>
+                <span>❄️ เลขเย็น (ยังไม่ออกจากข้อมูลที่มี 15 อันดับ)</span>
               </h3>
               <div className="space-y-2">
                 {coldestNumbers.map((stat) => {
@@ -418,7 +418,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
                           <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${barWidth}%` }} />
                         </div>
                         <p className="truncate text-[11px] text-slate-400">
-                          งวดล่าสุด: {stat.latestLottery} ({stat.latestDate})
+                          {stat.count === 0 ? `ยังไม่ออกจากข้อมูลที่มี (${stat.gapRounds} งวด)` : `งวดล่าสุด: ${stat.latestLottery} (${stat.latestDate})`}
                         </p>
                       </div>
                     </div>
@@ -432,7 +432,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
           {longestGapNumbers.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-sm font-black text-purple-400 flex items-center gap-1.5">
-                <span>⏳ เลขขาดนาน (จำนวนงวดที่ไม่ออกมากที่สุด)</span>
+                <span>⏳ เลขขาดนาน (นับจากข้อมูลที่มีมากที่สุด)</span>
               </h3>
               <div className="space-y-2">
                 {longestGapNumbers.map((stat) => {
@@ -455,7 +455,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
                           <div className="h-full rounded-full bg-purple-500 transition-all duration-500" style={{ width: `${barWidth}%` }} />
                         </div>
                         <p className="truncate text-[11px] text-slate-400">
-                          งวดล่าสุด: {stat.latestLottery} ({stat.latestDate})
+                          {stat.count === 0 ? `ยังไม่ออกจากข้อมูลที่มี (${stat.gapRounds} งวด)` : `งวดล่าสุด: ${stat.latestLottery} (${stat.latestDate})`}
                         </p>
                       </div>
                     </div>

@@ -32,8 +32,8 @@ test('getDetailedStats returns per-draw digit statistics for the requested kind'
 test('hot, cold and gap ranking helpers are consistent with the base stats', () => {
   R.results = rows;
   assert.equal(R.getHottestNumbers('top3', 1)[0].number, '111');
-  assert.equal(R.getColdestNumbers('top3', 1)[0].number, '222');
-  assert.equal(R.getLongestGapNumbers('top3', 1)[0].number, '222');
+  assert.equal(R.getColdestNumbers('top3', 1)[0].number, '000');
+  assert.equal(R.getLongestGapNumbers('top3', 1)[0].number, '000');
 });
 
 test('getBacktestReport reports measured rounds and hit rate without inventing data', () => {

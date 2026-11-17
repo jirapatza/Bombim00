@@ -400,11 +400,11 @@ export class LotteryRepository {
   }
 
   static getColdestNumbers(kind: StatKind, limit: number = 15): DigitStat[] {
-    return coldest(this.getDetailedStats(kind), limit);
+    return coldest(this.getDetailedStats(kind), limit, kind);
   }
 
   static getLongestGapNumbers(kind: StatKind, limit: number = 15): DigitStat[] {
-    return longestGap(this.getDetailedStats(kind), limit);
+    return longestGap(this.getDetailedStats(kind), limit, kind);
   }
 
   static getBacktestReport(

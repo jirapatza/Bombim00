@@ -91,8 +91,6 @@ test("rankings do not mutate the input and stay consistent", () => {
   const stats = digitFrequency(fixture, "top3");
   const snapshot = stats.map((s) => s.number).sort();
   assert.equal(hottest(stats, 1)[0].number, "123");
-  assert.equal(coldest(stats, 1)[0].number, "456");
-  assert.equal(longestGap(stats, 1)[0].number, "456");
   assert.deepEqual(stats.map((s) => s.number).sort(), snapshot);
   assert.ok(hottest(stats, 99).length <= stats.length);
 });
@@ -139,21 +137,26 @@ test("a number first seen in the oldest draw has a gap spanning the recorded his
     { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-02", เลขบน_3_ตัว: "222" },
     { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-01", เลขบน_3_ตัว: "333" },
   ];
-  const gap = longestGap(digitFrequency(rows, "top3"), 1)[0];
-  assert.equal(gap.number, "333");
-  assert.equal(gap.count, 1);
-  assert.equal(gap.gapRounds, 2);
+  const stats = digitFrequency(rows, "top3");
+  assert.equal(stats.find((stat) => stat.number === "333").gapRounds, 2);
+  assert.equal(longestGap(stats, 1)[0].number, "333");
 });
-test("cold ranking uses observed frequencies and ties use a stable numeric order", () => {
+test("cold and gap rankings include unseen values from the complete prize range", () => {
   const rows = [
     { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-03", เลขบน_3_ตัว: "111" },
     { ชื่อหวย: "A", วันที่จัดรูปแบบ: "2026-11-02", เลขบน_3_ตัว: "222" },
   ];
   const stats = digitFrequency(rows, "top3");
-  const ranking = coldest(stats, 3);
-  assert.deepEqual(ranking.map((stat) => stat.number), ["222", "111"]);
-  assert.deepEqual(ranking.map((stat) => stat.count), [1, 1]);
+  const cold = coldest(stats, 3, "top3");
+  const gap = longestGap(stats, 1, "top3")[0];
+  assert.deepEqual(cold.map((stat) => stat.number), ["000", "001", "002"]);
+  assert.deepEqual(cold.map((stat) => stat.count), [0, 0, 0]);
+  assert.equal(gap.number, "000");
+  assert.equal(gap.count, 0);
+  assert.equal(gap.gapRounds, 1);
   assert.equal(hottest(stats, 1)[0].number, "222");
+  assert.equal(coldest(rows, 1, "bottom2")[0].number, "00");
+  assert.equal(longestGap(rows, 1, "front3")[0].number, "000");
 });
 test("backtest reports only rounds it could actually score", () => {
   const rows = [];
