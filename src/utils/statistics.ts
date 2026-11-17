@@ -26,6 +26,11 @@ export interface BacktestReport {
   kind: StatKind;
 }
 
+function splitThreeDigitNumbers(value: string): string[] {
+  if (!value) return [];
+  return value.trim().split(/[,;\s]+/).filter((token) => /^\d{3}$/.test(token));
+}
+
 /**
  * Resolve the numbers of one draw for a given prize kind.
  * Never invents numbers: rows without a usable value return an empty list.
@@ -46,9 +51,9 @@ export function resolveNumbers(
       return value ? [value] : [];
     }
     case "front3":
-      return (res.เลขหน้า_3_ตัว ?? []).filter((n) => /^\d{3}$/.test(n));
+      return (res.เลขหน้า_3_ตัว ?? []).flatMap(splitThreeDigitNumbers);
     case "back3":
-      return (res.เลขท้าย_3_ตัว ?? []).filter((n) => /^\d{3}$/.test(n));
+      return (res.เลขท้าย_3_ตัว ?? []).flatMap(splitThreeDigitNumbers);
   }
 }
 

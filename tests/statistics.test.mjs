@@ -125,6 +125,14 @@ test("backtest does not score rows without an orderable draw date", () => {
   ];
   assert.equal(backtest(rows, "top3", { pick: 1 }).rounds, 1);
 });
+test("splits comma- and space-separated three-digit prizes without padding or inventing numbers", () => {
+  const row = {
+    เลขหน้า_3_ตัว: ["123, 045", " 678\t901 ", "12", "x34"],
+    เลขท้าย_3_ตัว: ["234; 567", "890 012"],
+  };
+  assert.deepEqual(resolveNumbers(row, "front3"), ["123", "045", "678", "901"]);
+  assert.deepEqual(resolveNumbers(row, "back3"), ["234", "567", "890", "012"]);
+});
 test("backtest reports only rounds it could actually score", () => {
   const rows = [];
   for (let i = 6; i >= 1; i--) {
