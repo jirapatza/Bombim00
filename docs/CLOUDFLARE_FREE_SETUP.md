@@ -2,7 +2,9 @@
 
 # Cloudflare Workers Free: ตรวจผลหวยทุกนาที
 
-สถานะ ณ 7 พ.ย. 2026: Cloudflare Worker ติดตั้งจริงและตรวจผลใน `MODE=observe` ทุกนาทีแล้ว; **ยังไม่ส่ง ntfy** จนกว่าจะ Merge PR สลับตัวหลัก, Deploy โค้ดใหม่ และเปิด `MODE=deliver` หลังตรวจเงื่อนไข
+สถานะ ณ 17 พ.ย. 2026: ระบบส่งจริงบน Cloudflare Worker แล้ว `cloudflare/PRIMARY_CHECKER.json` บน main ระบุ `mode: cloudflare`, `legacy_workflow: pr-only` และ `poll_seconds: 60`; workflow ตั้งค่า `MODE=deliver`, `ENABLED=true` และส่งผลผ่าน ntfy กับ Web Push จาก D1 ledger. GitHub Actions เหลือเฉพาะงานทดสอบใน PR ตามขอบเขตใน [AGENTS.md](../AGENTS.md)
+
+เอกสารส่วนที่เหลือคือคู่มือย้อนกลับของระบบเดิม: การอ่าน/แก้ไขข้อมูลฐาน D1 และการสลับกลับไปใช้ Python checker ต้องทำตามขั้นตอนในหน้านี้ด้วยความระมัดระวัง
 
 ## พิมพ์เขียว
 

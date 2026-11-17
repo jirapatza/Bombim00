@@ -10,12 +10,14 @@
 
 # คู่มือการติดตั้ง Bombim00
 
+> **เลิกใช้แล้วเป็นตัวส่งหลัก** ตั้งแต่ `cloudflare/PRIMARY_CHECKER.json` บน main ตั้งเป็น `mode: cloudflare` และ `legacy_workflow: pr-only` ตัวตรวจและตัวส่งจริงคือ Cloudflare Worker ใน `cloudflare/` พร้อม `poll_seconds: 60` ส่วน Render, `render.yaml`, `Dockerfile.worker`, `deploy/start_worker.py` และ `lottery_worker.py` เหลือเป็นทางสำรอง ส่วน `.github/workflows/lottery.yml` รันเฉพาะทดสอบใน PR ตาม [AGENTS.md](../AGENTS.md). ขั้นตอนสลับกลับไปใช้ระบบเดิมอยู่ใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md)
+
 ## โครงสร้างปัจจุบัน
 
-1. Render ใช้ Dockerfile build React ด้วย Vite แล้วให้บริการไฟล์ static ด้วย nginx
-2. GitHub Actions ใน `.github/workflows/lottery.yml` ตรวจผลและส่ง ntfy ตามกำหนดทุกห้านาที การรันอาจล่าช้าได้
+1. เว็บเป็น React + Vite ที่ build ผ่าน `npm run build` แล้วฮุงไฟล์ static บน Cloudflare Pages
+2. Cloudflare Worker ใน `cloudflare/` ตรวจผลทุก 60 วินาที เขียน runtime JSON ลง `runtime-live` และส่ง ntfy กับ Web Push จาก D1 ledger
 3. โค้ดที่ตรวจแล้วอยู่บน main ส่วน runtime JSON อยู่บน runtime-live ห้ามนำโค้ดจาก runtime-live มารันหรือ merge กลับ main
-4. หน้าเว็บอ่าน catalog, results และ status จาก runtime-live ผ่าน public GitHub raw URL ทุกหนึ่งนาทีเมื่อหน้าเว็บเปิดอยู่
+4. หน้าเว็บอ่าน catalog, results และ status จาก runtime-live ผ่าน public GitHub raw URL ทุก 15 วินาทีเมื่อหน้าเว็บเปิดอยู่
 
 ## ตั้งค่าและเปิดเว็บในเครื่อง
 
