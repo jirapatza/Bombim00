@@ -1,15 +1,20 @@
 {
-  "system_status": "healthy",
-  "last_run_timestamp": "2026-11-17T14:52:12.443+07:00",
-  "last_run_date_thai": "17/11/2026 14:52:12",
-  "total_checks": 8693,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 31 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 3 รายการ",
-  "active_sources_count": 6,
-  "latest_draw_detected": "17.11.2026",
+  "system_status": "degraded",
+  "last_run_timestamp": "2026-11-17T14:53:12.342+07:00",
+  "last_run_date_thai": "17/11/2026 14:53:12",
+  "total_checks": 8694,
+  "last_source_used": "LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 3 รายการ แหล่งข้อมูลขัดข้อง 3 คำขอ",
+  "active_sources_count": 3,
+  "latest_draw_detected": "2026-11-17",
   "notifications_sent_today": 20,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-17T14:53:12.342+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 3 รายการ แหล่งข้อมูลขัดข้อง 3 คำขอ"
+    },
     {
       "timestamp": "2026-11-17T14:52:12.443+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-17T14:34:12.478+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 31 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 3 รายการ"
-    },
-    {
-      "timestamp": "2026-11-17T14:33:12.108+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 31 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 3 รายการ"
     }
   ],
   "uncertain_deliveries": 257,
@@ -120,12 +120,12 @@
     "waiting": [
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
+        "lottery": "ฮานอยพัฒนา",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพัฒนา",
+        "lottery": "ลาวสามัคคี",
         "status": 404
       },
       {
@@ -134,7 +134,24 @@
         "status": 404
       }
     ],
-    "errors": []
+    "errors": [
+      {
+        "source": "ThaiLottoAPI",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "ผลหวย.com stock groups",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "ผลหวย.com Lao EXTRA",
+        "lottery": "ลาว EXTRA",
+        "status": null,
+        "reason": "timeout"
+      }
+    ]
   },
   "active_uncertain_deliveries": 0,
   "old_uncertain_deliveries": 257
