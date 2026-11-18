@@ -30,15 +30,17 @@ npm run dev
 
 เปิด http://localhost:3000 สำหรับทดสอบ frontend การเปิดหน้าเว็บไม่ได้เริ่มตัวตรวจผลหรือส่ง ntfy
 
-## ตั้งค่า GitHub Actions
+## ตั้งค่า Cloudflare Worker (ตัวส่งหลักจริง)
 
-กำหนด Actions secret `NTFY_TOPIC` ให้ตรงกับ topic ที่โทรศัพท์สมัครรับ และให้ workflow มี Contents Read/Write สำหรับบันทึกผลลง runtime-live
+ตั้งแต่ `cloudflare/PRIMARY_CHECKER.json` เป็น `mode: cloudflare` แล้ว `.github/workflows/lottery.yml` รันเฉพาะการทดสอบใน PR ไม่ตรวจผลตามกำหนดเวลาและไม่ส่ง ntfy จึงไม่ต้องตั้ง Actions secret สำหรับการส่งจริง
 
-ค่าแหล่งข้อมูลและช่องแจ้งเตือนใช้ `config/settings.json` จาก runtime-live; ต้องตรวจ server และสถานะเปิดช่องก่อนรัน อย่าเผยแพร่ token/password ในไฟล์หรือ log
+ตัวส่งจริงคือ Cloudflare Worker ให้ตั้งปลายทางไว้ที่ Worker ด้วยคำสั่ง `npx --no-install wrangler secret put NTFY_TOPIC` ตามขั้นตอนที่ 7 ของ [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) และ GitHub token ที่ Worker ต้องใช้คือสิทธิ์ Contents Read/Write พร้อม Actions Read
 
-การตั้งค่า ntfy และเลขเฝ้าดูในหน้าเว็บเก็บเฉพาะเบราว์เซอร์ ไม่ได้เปลี่ยนค่าของ Actions
+GitHub Actions ถูกใช้สำหรับ CI เท่านั้น (`npm run lint && npm test && npm run build`) และ seeding runtime JSON ใน PR ไม่ใช่ตัวส่งหลัก
 
-## Render และการตรวจสุขภาพ
+> **หมายเหตุ:** หากจำเป็นต้องย้อนกลับไปใช้ระบบเดิม (Render/Python worker) ให้ทำตามขั้นตอนการย้อนกลับใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ซึ่งรวมถึงการหยุด Cloudflare Worker ให้ปลอดภัยก่อน (`ENABLED=false` แล้ว deploy รอ invocation จบ ตรวจ D1 ไม่มี pending/uncertain)
+
+## Render และการตรวจสุขภาพ (ทางเลือกสำรอง / Legacy)
 
 ใช้ Dockerfile ของ repository ตัว nginx รับ `PORT` (ค่าเริ่มต้น 10000) ไม่ต้องใส่ DASH_PASSWORD หรือ GITHUB_TOKEN ให้ static frontend และไม่มี Express API หรือ `/api/health` ในเวอร์ชันนี้
 
@@ -72,7 +74,9 @@ python -m pytest -q tests
 
 ตารางวันใน catalog ยังไม่ใช่ปฏิทินวันหยุดตลาดเฉพาะประเทศ หากมีวันหยุดพิเศษ ต้องปรับ catalog ตามประกาศจริง ไม่ถือว่ามีผลเพียงเพราะถึงเวลาที่ระบุ
 
-## ทางเลือกตัวตรวจต่อเนื่อง (ยังไม่เปิดใช้โดยอัตโนมัติ)
+## ทางเลือกตัวตรวจต่อเนื่อง (ทางเลือกสำรอง / Legacy — ไม่ได้ใช้งานจริง)
+
+> **คำเตือน:** นี่คือระบบสำรอง (fallback) ตัวส่งหลักจริงคือ Cloudflare Worker หากต้องการสลับมาใช้ Python worker ต้องหยุด Cloudflare Worker ให้ปลอดภัยก่อน ตามขั้นตอนใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ห้ามเปิดตัวส่งทั้งสองพร้อมกัน
 
 Actions cron ยังคงเป็นค่าเริ่มต้น การตรวจพบเมื่อ 2026-11-07 พบ schedule runs ห่างกันประมาณ 43–64 นาที แม้ตั้ง cron ทุก 5 นาที ดังนั้นเปลี่ยน cron อย่างเดียวไม่รับประกันความเร็ว
 
@@ -81,6 +85,8 @@ Actions cron ยังคงเป็นค่าเริ่มต้น กา
 การเปิดใช้ต้องได้รับอนุมัติ deployment และใช้บริการที่ไม่พักเครื่องพร้อม persistent disk มี worker เพียงหนึ่ง instance ทั้งระบบ (file lock ป้องกันได้เฉพาะ instance ที่ใช้ disk เดียวกัน):
 
 1. Deploy PR ที่ review แล้วก่อน โดยยังไม่เริ่ม worker
+**ก่อนขั้นที่ 2:** ถ้า Cloudflare Worker ยังส่งอยู่ ให้ตั้ง `ENABLED=false` แล้ว deploy รอ invocation ล่าสุดจบก่อน ตรวจ D1 ว่าไม่มี pending publish และไม่เหลือ uncertain ค้าง ตามหัวข้อการย้อนกลับใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) เพราะ Python worker ไม่อ่าน ledger ของ Worker จึงตัดผลแพ้ถูกไม่ได้เหมือนกัน
+
 2. กำหนด repository Actions variable `LOTTERY_CHECKER_MODE=continuous` เพื่อหยุดตัวเขียนของ Actions และรอทุกงานเดิมจบ Worker ตรวจ variable และตรวจ active runs ก่อนทำงาน รอบ PR ยังคงทดสอบได้
 3. สร้าง background worker จาก `Dockerfile.worker` ด้วย reviewed release นี้ ห้ามใช้โค้ดจาก runtime-live
 4. Mount persistent disk ที่ `/var/data/lottery` และสร้างไฟล์ `.persistent-volume-confirmed` ใน disk นั้นเพื่อยืนยันการจัดเก็บถาวร
@@ -101,7 +107,9 @@ Worker อ่านเฉพาะ JSON 4 ไฟล์จาก commit ที่
 
 <!-- /coderabbit-ai-generated:v1 -->
 
-## เปิด worker บน Render ด้วย Blueprint
+## เปิด worker บน Render ด้วย Blueprint (ทางเลือกสำรอง / Legacy)
+
+> **คำเตือน:** นี่คือระบบสำรอง (fallback) ตัวส่งหลักจริงคือ Cloudflare Worker หากต้องการสลับมาใช้ Render worker ต้องหยุด Cloudflare Worker ให้ปลอดภัยก่อน ตามขั้นตอนใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ห้ามเปิดตัวส่งทั้งสองพร้อมกัน
 
 ไฟล์ `render.yaml` เตรียม service `bombim00-lottery-worker` แยกจากเว็บเดิม ใช้ Dockerfile.worker, main branch, persistent disk 1 GB และหนึ่ง instance ไม่แก้ configuration ของเว็บเดิม และปิด automatic deployment ของ worker ไว้เพื่อให้ตรวจแต่ละ release ก่อนใช้งาน Blueprint นี้ยังไม่ถูก apply และไม่ได้สร้างบริการที่มีค่าใช้จ่าย
 
@@ -113,6 +121,8 @@ Worker อ่านเฉพาะ JSON 4 ไฟล์จาก commit ที่
 2. หลัง merge ใช้ Render Dashboard > New Blueprint เลือก repository นี้และไฟล์ render.yaml ตรวจว่าแผนสร้างเฉพาะ worker แยกหนึ่งตัว พร้อม disk ที่ `/var/data/lottery` หากมี service ชื่อซ้ำให้ตรวจ configuration ก่อน apply
 3. ตั้ง LOTTERY_RUNTIME_TOKEN และ NTFY_TOPIC ในช่อง secret ของ Render ที่ Blueprint ถาม ห้ามส่งค่าลับในแชตหรือ commit token ใช้สิทธิ์ Contents Read/Write, Variables Read, Actions Read เฉพาะ repository นี้
 4. ปล่อยให้ service เตรียมพร้อมก่อน การเริ่ม worker จะตรวจ LOTTERY_CHECKER_MODE ที่ GitHub และปฏิเสธการส่งถ้า Actions ยังเป็นตัวเขียนอยู่ การที่เริ่มไม่สำเร็จตรงนี้ไม่ใช่เหตุให้ลบการตรวจ single writer
+**ก่อนขั้นที่ 5:** ถ้า Cloudflare Worker ยังส่งอยู่ ให้ตั้ง `ENABLED=false` แล้ว deploy รอ invocation ล่าสุดจบก่อน ตรวจ D1 ว่าไม่มี pending publish และไม่เหลือ uncertain ค้าง ตามหัวข้อการย้อนกลับใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) เพราะ Python worker ไม่อ่าน ledger ของ Worker จึงตัดผลแพ้ถูกไม่ได้เหมือนกัน
+
 5. เมื่อ service/disk/secrets พร้อมแล้ว ให้บัญชีที่มีสิทธิ์ตั้ง Actions variable LOTTERY_CHECKER_MODE=continuous และรอ checker เดิมจบทุกงาน จากนั้น restart/deploy worker เพื่อเริ่มรอบตรวจ ห้ามเปิดหลายตัวพร้อมกัน
 6. Render ใช้ `python /app/deploy/start_worker.py` ซึ่งตรวจ mount point จริงก่อนสร้าง marker `.persistent-volume-confirmed` แล้วเริ่ม worker ถ้าไม่ได้ mount disk จะหยุดก่อนใช้ storage ชั่วคราว จึงไม่ต้องเปิด shell เพื่อสร้าง marker เองเมื่อใช้ Blueprint นี้ การรัน worker โดยตรงตามคู่มือเดิมยังต้องยืนยัน disk เอง
 7. เปิดดู worker logs และ runtime-live/status/status.json ยืนยัน timestamp อัปเดตต่อเนื่อง จากนั้นรอผลงวดที่ตรงตารางและตรวจว่า ntfy/โทรศัพท์รับผล พร้อมเทียบเวลาต้นทาง–ตรวจพบ–server รับข้อความ การเห็นเว็บโหลดได้หรือ CI ผ่านไม่แทนขั้นตรวจผลจริงนี้
