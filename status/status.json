@@ -1,15 +1,20 @@
 {
-  "system_status": "healthy",
-  "last_run_timestamp": "2026-11-18T21:19:12.152+07:00",
-  "last_run_date_thai": "18/11/2026 21:19:12",
-  "total_checks": 10516,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 51 รายการ ส่งสำเร็จ 0 รายการ",
-  "active_sources_count": 6,
-  "latest_draw_detected": "18.11.2026",
+  "system_status": "degraded",
+  "last_run_timestamp": "2026-11-18T21:20:12.522+07:00",
+  "last_run_date_thai": "18/11/2026 21:20:12",
+  "total_checks": 10517,
+  "last_source_used": "LotteryChecks Lao/Hanoi + lotterychecks",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 9 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 4 คำขอ",
+  "active_sources_count": 2,
+  "latest_draw_detected": "2026-11-18",
   "notifications_sent_today": 33,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-18T21:20:12.522+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 9 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 4 คำขอ"
+    },
     {
       "timestamp": "2026-11-18T21:19:12.152+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-18T21:01:12.202+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 50 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 1 รายการ"
-    },
-    {
-      "timestamp": "2026-11-18T21:00:12.183+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 50 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 1 รายการ"
     }
   ],
   "uncertain_deliveries": 257,
@@ -118,7 +118,30 @@
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [],
-    "errors": []
+    "errors": [
+      {
+        "source": "ThaiLottoAPI",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "ผลหวย.com stock groups",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "ผลหวย.com Lao EXTRA",
+        "lottery": "ลาว EXTRA",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "glo",
+        "lottery": "สลากกินแบ่งรัฐบาล",
+        "status": null,
+        "reason": "timeout"
+      }
+    ]
   },
   "active_uncertain_deliveries": 0,
   "old_uncertain_deliveries": 257
