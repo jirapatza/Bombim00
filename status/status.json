@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-18T10:35:12.705+07:00",
-  "last_run_date_thai": "18/11/2026 10:35:12",
-  "total_checks": 9873,
+  "last_run_timestamp": "2026-11-18T10:36:12.169+07:00",
+  "last_run_date_thai": "18/11/2026 10:36:12",
+  "total_checks": 9874,
   "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 8 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 8 รายการ",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 9 รายการ ส่งสำเร็จ 1 รายการ รอผลจากแหล่งข้อมูล 7 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "18.11.2026",
-  "notifications_sent_today": 5,
+  "notifications_sent_today": 6,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-18T10:36:12.169+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 9 รายการ ส่งสำเร็จ 1 รายการ รอผลจากแหล่งข้อมูล 7 รายการ"
+    },
     {
       "timestamp": "2026-11-18T10:35:12.705+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-18T10:17:12.209+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 8 รายการ"
-    },
-    {
-      "timestamp": "2026-11-18T10:16:12.638+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 8 รายการ"
     }
   ],
   "uncertain_deliveries": 257,
@@ -125,12 +125,17 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอย HD",
+        "status": 404
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ฮานอยพัฒนา",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย HD",
+        "lottery": "ฮานอย STAR",
         "status": 404
       },
       {
@@ -140,17 +145,7 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาว TV",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ลาว HD",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย STAR",
         "status": 404
       },
       {
