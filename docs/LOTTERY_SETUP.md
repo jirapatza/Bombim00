@@ -14,7 +14,7 @@
 
 ## โครงสร้างปัจจุบัน
 
-1. เว็บเป็น React + Vite ที่ build ผ่าน `npm run build` แล้วฮุงไฟล์ static บน Cloudflare Pages
+1. เว็บเป็น React + Vite ที่ build ผ่าน `npm run build` แล้วโฮสต์ไฟล์ static บน Cloudflare Pages
 2. Cloudflare Worker ใน `cloudflare/` ตรวจผลทุก 60 วินาที เขียน runtime JSON ลง `runtime-live` และส่ง ntfy กับ Web Push จาก D1 ledger
 3. โค้ดที่ตรวจแล้วอยู่บน main ส่วน runtime JSON อยู่บน runtime-live ห้ามนำโค้ดจาก runtime-live มารันหรือ merge กลับ main
 4. หน้าเว็บอ่าน catalog, results และ status จาก runtime-live ผ่าน public GitHub raw URL ทุก 15 วินาทีเมื่อหน้าเว็บเปิดอยู่
@@ -36,7 +36,7 @@ npm run dev
 
 ตัวส่งจริงคือ Cloudflare Worker ให้ตั้งปลายทางไว้ที่ Worker ด้วยคำสั่ง `npx --no-install wrangler secret put NTFY_TOPIC` ตามขั้นตอนที่ 7 ของ [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) และ GitHub token ที่ Worker ต้องใช้คือสิทธิ์ Contents Read/Write พร้อม Actions Read
 
-GitHub Actions ถูกใช้สำหรับ CI เท่านั้น (`npm run lint && npm test && npm run build`) และ seeding runtime JSON ใน PR ไม่ใช่ตัวส่งหลัก
+GitHub Actions ปัจจุบันเป็นงาน CI/ทดสอบ PR ไม่ใช่ตัวตรวจหรือส่งผลตามกำหนดเวลา; โดยเฉพาะ `.github/workflows/lottery.yml` มีเพียง Python regression tests และไม่มี `schedule` หรือ `workflow_dispatch`
 
 > **หมายเหตุ:** หากจำเป็นต้องย้อนกลับไปใช้ระบบเดิม (Render/Python worker) ให้ทำตามขั้นตอนการย้อนกลับใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ซึ่งรวมถึงการหยุด Cloudflare Worker ให้ปลอดภัยก่อน (`ENABLED=false` แล้ว deploy รอ invocation จบ ตรวจ D1 ไม่มี pending/uncertain)
 
@@ -78,7 +78,7 @@ python -m pytest -q tests
 
 > **คำเตือน:** นี่คือระบบสำรอง (fallback) ตัวส่งหลักจริงคือ Cloudflare Worker หากต้องการสลับมาใช้ Python worker ต้องหยุด Cloudflare Worker ให้ปลอดภัยก่อน ตามขั้นตอนใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ห้ามเปิดตัวส่งทั้งสองพร้อมกัน
 
-Actions cron ยังคงเป็นค่าเริ่มต้น การตรวจพบเมื่อ 2026-11-07 พบ schedule runs ห่างกันประมาณ 43–64 นาที แม้ตั้ง cron ทุก 5 นาที ดังนั้นเปลี่ยน cron อย่างเดียวไม่รับประกันความเร็ว
+ในระบบเก่า Actions cron เคยเป็นค่าเริ่มต้น และเมื่อ 2026-11-07 เคยพบ schedule runs ห่างกันประมาณ 43–64 นาทีแม้ตั้ง cron ทุก 5 นาที แต่ปัจจุบัน `.github/workflows/lottery.yml` รันเฉพาะการทดสอบใน PR ไม่มี cron สำหรับส่งผล จึงไม่สามารถกลับไปใช้ Actions ได้ด้วยการเปลี่ยนตัวแปรเพียงอย่างเดียว
 
 `lottery_worker.py` และ `Dockerfile.worker` เตรียมทางเลือกใช้ process ที่เปิดตลอดเวลา รอบใหม่เริ่มทุก 15 วินาทีเมื่อรอบก่อนเสร็จ หากต้นทางช้ารอบอาจนานกว่า 15 วินาที Sources หลักดึงขนานกัน ไม่ต้องบวกรอ timeout ทีละแหล่ง Government fallbacks ยังคงเลือกตามลำดับเดิม แต่รอ network ขนานกัน
 
@@ -98,11 +98,11 @@ Worker อ่านเฉพาะ JSON 4 ไฟล์จาก commit ที่
 
 หาก process หยุดระหว่างส่งแล้วพบ `inflight.json` จะไม่ส่งต่ออัตโนมัติ ผู้ดูแลต้องตรวจ local history กับ ntfy และกระทบยอด runtime history ก่อนล้าง marker นี้ เพื่อไม่เดาว่าข้อความที่ค้างส่งสำเร็จหรือยัง ห้ามลบทั้ง state directory เพื่อบังคับให้เริ่มใหม่
 
-ก่อนกลับไปใช้ Actions ต้องหยุด worker ให้จบและ publish pending ให้เสร็จ แล้วจึงเปลี่ยน LOTTERY_CHECKER_MODE ออกจาก continuous ห้ามเปิดสองตัวพร้อมกัน
+**การกลับไปใช้ Actions:** ต้องเตรียม PR เพื่อคืน workflow ที่ตรวจผลและส่งจริงพร้อม `schedule`/`workflow_dispatch` ให้ผ่านการ review และได้รับอนุมัติก่อน ไม่ใช่แค่เปลี่ยน `LOTTERY_CHECKER_MODE` เพราะ workflow ปัจจุบันเป็น PR-only ก่อนเปิดตัวส่ง Actions ที่คืนมา ต้องหยุด Python worker ให้จบ รอ publish pending/การส่งที่ยังไม่แน่ชัดให้ตรวจสอบเสร็จ และยืนยันว่า Cloudflare Worker หยุดส่งอย่างปลอดภัยตาม [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) จากนั้นตั้ง `LOTTERY_CHECKER_MODE` ให้สอดคล้องกับ workflow ที่คืนมาและตรวจว่ามีตัวส่งเพียงตัวเดียว ห้ามเปิด Python/Actions/Cloudflare ส่งพร้อมกัน
 
 เป้าหมาย 15 วินาทีเป็นช่วง polling ไม่ใช่ SLA เวลาถึงโทรศัพท์ ยังขึ้นกับเวลาที่ provider เปิดเผยข้อมูล/แคช, network และ ntfy/Android โดย LotteryChecks fallback มี cache ที่เอกสารระบุ 300 วินาที จึงไม่กล่าวอ้างว่าแจ้งทันทีทุกแหล่ง ข้อมูลหน้าเว็บยังผ่าน GitHub raw/CDN และอาจมี cache แม้เปลี่ยน URL query ทุก polling bucket
 
-สถานะ ณ การพัฒนา: ทดสอบด้วย mocks และ Preview แล้ว ยังไม่ได้สลับ Actions variable, เพิ่มบริการภายนอก, ส่งข้อความจริง หรือ deploy จึงยังไม่ถือว่าการแจ้งผลแบบ realtime ใน production เปิดใช้งานแล้ว
+หมายเหตุสถานะ: ผลทดสอบด้วย mocks/Preview ที่กล่าวถึงในหัวข้อนี้เป็นประวัติการพัฒนา **ทางเลือก Python/Render รุ่นเดิม** ไม่ใช่สถานะของตัวส่งหลักปัจจุบัน ซึ่งได้ย้ายไปใช้ Cloudflare Worker ตามต้นเอกสารแล้ว
 
 
 <!-- /coderabbit-ai-generated:v1 -->
