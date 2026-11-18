@@ -106,6 +106,32 @@ export function numbers(row) {
     digits(['เลขล่าง_2_ตัว', 'เลขท้าย_2_ตัว', 'bottom2', 'last2'], 2)];
 }
 export const rawName = row => row.ชื่อหวย || row.lottery_name || row.หวย || row.id || 'หวยไม่ระบุชื่อ';
+/**
+ * The upper result exactly as published: only an explicit three-digit field
+ * counts. `numbers()` still resolves a first-prize tail for identity and
+ * completeness, so this is the value a payload may label as 3 ตัวบน.
+ */
+export function explicitTop3(row) {
+  for (const key of ['เลขบน_3_ตัว', 'top3']) {
+    const value = String(row[key] ?? '').trim();
+    if (value === '') continue;
+    return /^[0-9]{3}$/.test(value) ? value : '';
+  }
+  return '';
+}
+export function isFirstPrize(row) {
+  const value = String(row.รางวัลที่_1 ?? row.firstPrize ?? row.first ?? '').trim();
+  return /^[0-9]{5}$/.test(value) || /^[0-9]{6}$/.test(value);
+}
+/**
+ * A row is deliverable when the drawn lower-two prize is usable and the upper
+ * result is either a real three-digit prize or an explicit first prize. A long
+ * first prize is never sliced into a "3 ตัวบน" value.
+ */
+export function complete(row) {
+  if (!numbers(row)[1]) return false;
+  return Boolean(numbers(row)[0]) || isFirstPrize(row);
+}
 export function fingerprint(row) {
   const [top3, last2] = numbers(row);
   let category = String(row.หมวดหวย || row.category || '').trim().toLowerCase();
@@ -161,7 +187,7 @@ export function scheduled(row, catalog, today) {
   const item = index.ids.get(row.หวย) || index.names.get(scheduleName(rawName(row)));
   if (!item) return false;
   const rule = drawRule(item);
-  if (rule === 'ตามประกาศวันงวดจริง (อาจเลื่อน)') return numbers(row).every(Boolean) && (item.id !== 'thai_gov' || /^[0-9]{6}$/.test(row.รางวัลที่_1 || ''));
+  if (rule === 'ตามประกาศวันงวดจริง (อาจเลื่อน)') return complete(row) && (item.id !== 'thai_gov' || /^[0-9]{6}$/.test(String(row.รางวัลที่_1 ?? '')));
   return (weekdays[rule] || []).includes(new Date(today + 'T00:00:00Z').getUTCDay());
 }
 export function previousChannels(row, history) {
@@ -185,7 +211,7 @@ export function previousChannels(row, history) {
 }
 export function eligible(settings, row) {
   const n = settings.notifications || {};
-  if (n.enabled === false || disallowed(rawName(row)) || row.สถานะการแจ้งเตือน === 'sent' || !numbers(row).every(Boolean)) return false;
+  if (n.enabled === false || disallowed(rawName(row)) || row.สถานะการแจ้งเตือน === 'sent' || !complete(row)) return false;
   if (n.notify_on_new_draw !== false) return true;
   if (n.notify_on_prize_match === false) return false;
   const p = n.notify_prizes || {}, [top, bottom] = numbers(row), candidates = [];

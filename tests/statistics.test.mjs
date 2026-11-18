@@ -60,10 +60,11 @@ test("front3 and back3 read their arrays and drop wrong lengths", () => {
   assert.deepEqual(front, ["111", "333"]);
   assert.deepEqual(digitFrequency(rows, "back3").map((s) => s.number), ["444"]);
 });
-test("top3 falls back to the last three digits of the first prize", () => {
-  const rows = [{ ชื่อหวย: "glo", รางวัลที่_1: "987654", วันที่จัดรูปแบบ: "01/11/2569" }];
-  assert.deepEqual(digitFrequency(rows, "top3").map((s) => s.number), ["654"]);
-  assert.deepEqual(resolveNumbers({ เลขบน_3_ตัว: "12" }, "top3"), []);
+test("top3 never invents a three-digit result from a longer first prize", () => {
+  const sixDigitFirstPrize = { ชื่อหวย: "สลากกินแบ่งรัฐบาล", รางวัลที่_1: "011781", เลขล่าง_2_ตัว: "48" };
+  assert.deepEqual(resolveNumbers(sixDigitFirstPrize, "top3"), []);
+  assert.deepEqual(resolveNumbers(sixDigitFirstPrize, "bottom2"), ["48"]);
+  assert.deepEqual(resolveNumbers({ รางวัลที่_1: "781", เลขล่าง_2_ตัว: "48" }, "top3"), ["781"]);
 });
 test("rows without a usable number are skipped instead of padded", () => {
   const rows = [
@@ -110,7 +111,7 @@ test("sorts mixed Thai and ISO draw dates before computing latest gap and backte
 });
 test("rejects non-digit prizes and falls back to valid two-digit result", () => {
   const row = { เลขบน_3_ตัว: "12x", รางวัลที่_1: "123456", เลขล่าง_2_ตัว: "x2", เลขท้าย_2_ตัว: "09", เลขหน้า_3_ตัว: ["123", "abc"] };
-  assert.deepEqual(resolveNumbers(row, "top3"), ["456"]);
+  assert.deepEqual(resolveNumbers(row, "top3"), []);
   assert.deepEqual(resolveNumbers(row, "bottom2"), ["09"]);
   assert.deepEqual(resolveNumbers(row, "front3"), ["123"]);
   assert.deepEqual(resolveNumbers({ เลขล่าง_2_ตัว: "xx", เลขท้าย_2_ตัว: "yy" }, "bottom2"), []);

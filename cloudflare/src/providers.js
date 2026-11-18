@@ -1,4 +1,4 @@
-import { canonical, disallowed, drawDate, numbers, scheduleName } from './domain.js';
+import { canonical, disallowed, drawDate, numbers, scheduleName, complete as isCompleteRow } from './domain.js';
 
 export const rounds = {
   'lao-union': ['lao_samakki', 'ลาวสามัคคี', 'lao'],
@@ -56,12 +56,15 @@ export function parseThaiApi(data, now = new Date()) {
       const first = String(item.firstPrize || item.first_prize || '').trim();
       const [top, bottom] = numbers({ top3: item.top3 || combined?.[1] || '', bottom2: item.bottom2 || item.last2 || combined?.[2] || '',
         firstPrize: first || (/^[0-9]+$/.test(result) ? result : '') });
-      if (!top || !bottom) continue;
+      if (!bottom || (!top && !first)) continue;
+      const rawTop = String(item.top3 || combined?.[1] || '').trim();
+      // A long first prize stays the first prize; its tail is not a 3 ตัวบน result.
+      const explicitTop = /^[0-9]{3}$/.test(rawTop) ? rawTop : '';
       let category = categoryByKey[key.toLowerCase()] || cat.toLowerCase();
       if (!categoryByKey[key.toLowerCase()] && cat.toLowerCase() === 'stock') category = /vip|พิเศษ|visa/i.test(label) ? 'vip' : label.includes('ไทย') ? 'thai_stock' : 'foreign_stock';
       if (!categoryByKey[key.toLowerCase()] && cat.toLowerCase() === 'lottoforeign') category = /malay|มาเลย์/i.test(key + label) ? 'malay' : /hanoy|hanoi|ฮานอย/i.test(key + label) ? 'hanoi' : /lao|ลาว/i.test(key + label) ? 'lao' : 'foreign_stock';
       rows.push(row(name, key, category, item.drawDateDisplay || date, top, bottom, '👑เฮียฮวด พารวย', now, {
-        วันที่จัดรูปแบบ: date, รางวัลที่_1: first || top,
+        วันที่จัดรูปแบบ: date, รางวัลที่_1: first || top, เลขบน_3_ตัว: explicitTop,
         เลขหน้า_3_ตัว: array3(item.front3 || item.front3Digits), เลขท้าย_3_ตัว: array3(item.bottom3 || item.last3),
       }));
     }
@@ -196,7 +199,7 @@ export async function collect(settings, today, now, request) {
     jobs.unshift(() => readSource('ThaiLottoAPI', url.href, x => parseThaiApi(x, now)));
   }
   let rows = await parallel(jobs);
-  const complete = rows.filter(x => drawDate(x) === today && numbers(x).every(Boolean));
+  const complete = rows.filter(x => drawDate(x) === today && isCompleteRow(x));
   const supported = new Set(Object.values(rounds).map(x => x[0]));
   const ids = new Set(complete.filter(x => supported.has(x.หวย)).map(x => x.หวย));
   const names = new Set(complete.filter(x => !supported.has(x.หวย)).map(x => scheduleName(x.ชื่อหวย || '')));
@@ -217,7 +220,7 @@ export async function collect(settings, today, now, request) {
   const [supplement, government] = await Promise.all([parallel(fallback), parallel(gov, 2)]);
   const governmentRow = government.find(x => drawDate(x) === today);
   rows = [...(governmentRow ? [governmentRow] : []), ...rows, ...supplement];
-  return { rows: rows.filter(x => drawDate(x) === today && !disallowed(x.ชื่อหวย) && !disallowed(x.หวย) && numbers(x).every(Boolean)),
+  return { rows: rows.filter(x => drawDate(x) === today && !disallowed(x.ชื่อหวย) && !disallowed(x.หวย) && isCompleteRow(x)),
     sources: [...new Set(sources)], errors, waiting };
 }
 const normalizeGovernment = name => canonical(name) === 'สลากกินแบ่งรัฐบาล';

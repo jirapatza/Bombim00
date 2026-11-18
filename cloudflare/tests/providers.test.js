@@ -63,6 +63,18 @@ test('government feed cannot invent digits, and accepts moved dates only from fu
   assert.equal(scheduled(row, catalog, '2026-11-17'), true);
   assert.equal(bangkokDay(new Date('2026-11-03T17:00:00Z')), '2026-11-04');
 });
+test('ThaiLottoAPI keeps a six-digit first prize instead of relabelling its tail as the 3-digit-up result', () => {
+  const item = { key: 'thailotto', label: 'สลากกินแบ่งรัฐบาล', drawDate: today, status: 'success', firstPrize: '900007', bottom2: '90' };
+  const [government] = parseThaiApi({ ok: true, categories: { thailotto: { items: [item] } } }, now);
+  assert.equal(government.รางวัลที่_1, '900007');
+  assert.equal(government.เลขล่าง_2_ตัว, '90');
+  assert.notEqual(government.เลขบน_3_ตัว, '007');
+  const [stock] = parseThaiApi({ ok: true, categories: { stock: { items: [
+    { ...item, key: 'settrade', label: 'หวยหุ้นตลาดหลักทรัพย์', top3: '007' },
+  ] } } }, now);
+  assert.equal(stock.เลขบน_3_ตัว, '007');
+});
+
 test('collection includes independent fallbacks after failures, preserves API order and host-safe requests', async () => {
   const calls = [], settings = { sources: { thailottoapi: { enabled: true }, lotterychecks: { enabled: true } } };
   const data = await collect(settings, today, now, async url => {

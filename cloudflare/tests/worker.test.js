@@ -24,6 +24,16 @@ function fixture(t, extra = {}) {
     send: async (_s, row) => { sends.push(row.หวย); return 'sent'; }, ...extra };
   return { env, db, data, sends, published, remote, dependencies, run: () => cycle(env, dependencies) };
 }
+test('a six-digit first prize is delivered as the first prize, never relabelled as a 3 ตัวบน result', async t => {
+  const government = { หวย: 'thailotto', ชื่อหวย: 'สลากกินแบ่งรัฐบาล', หมวดหวย: 'government',
+    งวดวันที่: today, วันที่จัดรูปแบบ: today, รางวัลที่_1: '900007', เลขล่าง_2_ตัว: '90', เลขท้าย_2_ตัว: '90' };
+  const f = fixture(t, { collect: async () => ({ rows: [government], sources: ['synthetic'], errors: [] }) });
+  assert.equal((await f.run()).sent, 1);
+  const delivered = f.data[OUTPUTS[0]][0];
+  assert.equal(delivered.รางวัลที่_1, '900007', JSON.stringify(delivered));
+  assert.equal(delivered.เลขล่าง_2_ตัว, '90');
+  assert.notEqual(delivered.เลขบน_3_ตัว, '007');
+});
 test('persists result/status, preserves UTF-8/leading zeroes, never resends on next cycle or restart', async t => {
   const f = fixture(t);
   assert.equal((await f.run()).sent, 1);

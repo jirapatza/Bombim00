@@ -1,4 +1,4 @@
-import { bangkokDay, canonical, drawDate, drawIdentity, dueScheduleAlerts, eligible, mergeRows, normalize, numbers, previousChannels, rawName, scheduled } from './domain.js';
+import { bangkokDay, canonical, drawDate, drawIdentity, dueScheduleAlerts, eligible, mergeRows, normalize, numbers, previousChannels, rawName, scheduled, complete as isCompleteRow, explicitTop3 } from './domain.js';
 import { collect } from './providers.js';
 import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './storage.js';
 import { browserPushApi, DEFAULT_PUSH_BACKOFF_MS, PreflightError, publishBrowserPush, pushKeys } from './browser-push.js';
@@ -175,11 +175,14 @@ export async function cycle(env, dependencies = {}) {
     const retries = history.filter(x => ['failed', 'partial', 'queued', 'uncertain'].includes(x.สถานะการแจ้งเตือน) && drawDate(x) === today &&
       !liveDraws.has(JSON.stringify([canonical(rawName(x)), drawDate(x)])));
     for (const source of [...fetched, ...retries]) {
-      if (drawDate(source) !== today || !numbers(source).every(Boolean)) continue;
+      if (drawDate(source) !== today || !isCompleteRow(source)) continue;
       const row = structuredClone(source), key = drawIdentity(row);
       if (seenDraws.has(key)) continue;
       seenDraws.add(key); rows.push(row);
-      [row.เลขบน_3_ตัว, row.เลขล่าง_2_ตัว] = numbers(row);
+      // Only an explicit three-digit field may be published as 3 ตัวบน; a long
+      // first prize keeps its own value in รางวัลที่_1.
+      row.เลขบน_3_ตัว = explicitTop3(row) || '';
+      row.เลขล่าง_2_ตัว = numbers(row)[1];
     }
     let sent = 0, attempts = 0;
     // keys: one delivery key, or several when one push covers multiple

@@ -29,7 +29,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
       .filter((res) => {
         const name = (res.ชื่อหวย || res.หวย || '').toLowerCase();
         const first = res.รางวัลที่_1 || '';
-        const top3 = res.เลขบน_3_ตัว || (first.length >= 3 ? first.slice(-3) : '');
+        const top3 = res.เลขบน_3_ตัว || '';
         const bottom2 = res.เลขล่าง_2_ตัว || res.เลขท้าย_2_ตัว || '';
         const date = res.วันที่จัดรูปแบบ || res.งวดวันที่ || '';
 
@@ -48,7 +48,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
     const name = res.ชื่อหวย || res.หวย || 'ไม่ระบุชื่อ';
     const date = res.วันที่จัดรูปแบบ || res.งวดวันที่ || 'ไม่ระบุงวด';
     const first = res.รางวัลที่_1 || '';
-    const top3 = res.เลขบน_3_ตัว || (first.length >= 3 ? first.slice(-3) : '-');
+    const top3 = res.เลขบน_3_ตัว || '';
     const bottom2 = res.เลขล่าง_2_ตัว || res.เลขท้าย_2_ตัว || '-';
 
     const text = `${name} งวด ${date}\n${first ? `รางวัลที่ 1: ${first}\n` : ''}บน: ${top3} / ล่าง: ${bottom2}`;
@@ -163,9 +163,9 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
               const name = item.ชื่อหวย || item.หวย || 'ไม่ระบุชื่อ';
               const date = item.วันที่จัดรูปแบบ || item.งวดวันที่ || 'ไม่ระบุงวด';
               const first = item.รางวัลที่_1 || '';
-              const top3 = item.เลขบน_3_ตัว || (first.length >= 3 ? first.slice(-3) : '-');
+              const top3 = item.เลขบน_3_ตัว || '';
+              const hasTop3 = /^\d{3}$/.test(top3);
               const bottom2 = item.เลขล่าง_2_ตัว || item.เลขท้าย_2_ตัว || '-';
-              const isGov = item.หมวดหวย === 'government';
 
               return (
                 <div
@@ -180,10 +180,10 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <div className="flex flex-col items-center justify-center rounded-xl bg-amber-500/15 py-2 px-3 border border-amber-500/30">
                       <span className="text-[11px] font-bold text-amber-400">
-                        {isGov ? 'รางวัลที่ 1' : '3 ตัวบน'}
+                        {hasTop3 ? '3 ตัวบน' : 'รางวัลที่ 1'}
                       </span>
                       <span className="font-mono-numbers text-xl font-black text-amber-300">
-                        {first || top3}
+                        {hasTop3 ? top3 : first || '-'}
                       </span>
                     </div>
 

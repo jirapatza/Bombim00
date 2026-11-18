@@ -38,11 +38,10 @@ function getDisplayDate(res: RawLotteryResult): string {
 }
 
 function getResolvedTop3(res: RawLotteryResult): string {
-  if (res.เลขบน_3_ตัว) return res.เลขบน_3_ตัว;
-  if (res.รางวัลที่_1 && res.รางวัลที่_1.length >= 3) {
-    return res.รางวัลที่_1.slice(-3);
-  }
-  return '';
+  const direct = res.เลขบน_3_ตัว;
+  if (direct && /^\d{3}$/.test(direct)) return direct;
+  const first = res.รางวัลที่_1;
+  return first && /^\d{3}$/.test(first) ? first : '';
 }
 
 function getResolvedBottom2(res: RawLotteryResult): string {

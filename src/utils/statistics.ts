@@ -44,7 +44,7 @@ export function resolveNumbers(
       const direct = res.เลขบน_3_ตัว;
       if (direct && /^\d{3}$/.test(direct)) return [direct];
       const first = res.รางวัลที่_1;
-      return first && /^\d{3,}$/.test(first) ? [first.slice(-3)] : [];
+      return first && /^\d{3}$/.test(first) ? [first] : [];
     }
     case "bottom2": {
       const value = [res.เลขล่าง_2_ตัว, res.เลขท้าย_2_ตัว].find((n) => n && /^\d{2}$/.test(n));
