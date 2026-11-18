@@ -109,7 +109,7 @@ Worker อ่านเฉพาะ JSON 4 ไฟล์จาก commit ที่
 
 ## เปิด worker บน Render ด้วย Blueprint (ทางเลือกสำรอง / Legacy)
 
-> **คำเตือน:** นี่คือระบบสำรอง (fallback) ตัวส่งหลักจริงคือ Cloudflare Worker หากต้องการสลับมาใช้ Render worker ต้องหยุด Cloudflare Worker ให้ปลอดภัยก่อน ตามขั้นตอนใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ห้ามเปิดตัวส่งทั้งสองพร้อมกัน
+> **คำเตือน:** นี่คือระบบสำรอง (fallback) ตัวส่งหลักจริงคือ Cloudflare Worker หากต้องการสลับมาใช้ Render worker ต้องหยุด Cloudflare Worker ให้ปลอดภัยก่อน ตามขั้นตอนใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ห้ามเปิดตัวส่งทั้งสองพร้อมกัน **Render/Python worker รุ่นนี้ส่งเฉพาะ ntfy ไม่ส่ง Web Push** ผู้ใช้ Web Push จะไม่ได้รับการแจ้งเตือนระหว่าง fallback เจ้าของต้องยอมรับผลกระทบนี้ก่อนอนุมัติการสลับ
 
 ไฟล์ `render.yaml` เตรียม service `bombim00-lottery-worker` แยกจากเว็บเดิม ใช้ Dockerfile.worker, main branch, persistent disk 1 GB และหนึ่ง instance ไม่แก้ configuration ของเว็บเดิม และปิด automatic deployment ของ worker ไว้เพื่อให้ตรวจแต่ละ release ก่อนใช้งาน Blueprint นี้ยังไม่ถูก apply และไม่ได้สร้างบริการที่มีค่าใช้จ่าย
 
@@ -117,13 +117,13 @@ Worker อ่านเฉพาะ JSON 4 ไฟล์จาก commit ที่
 
 ลำดับเปิดใช้ที่แนะนำ (เฉพาะเมื่อได้รับอนุมัติให้สลับจาก Cloudflare ไป Render/Python):
 
-1. ให้เจ้าของตรวจและอนุมัติ PR สำหรับการสลับระบบและค่าใช้จ่าย Render ตาม [AGENTS.md](../AGENTS.md) **ก่อนสร้างหรือ apply Blueprint** ตรวจบริการเดิมว่าจะไม่ทำงานซ้ำ
-2. **หยุด Cloudflare Worker ก่อนสร้างหรือเริ่ม Render worker:** ตั้ง `ENABLED=false` แล้ว deploy; รอ invocation/lease ที่กำลังรันจบ และตรวจ D1 ว่าไม่มี pending publish หรือ uncertain ที่ยังไม่กระทบยอด ตาม [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ห้ามเดินหน้าหากยังค้าง การตรวจของ Python worker ดูเพียง `LOTTERY_CHECKER_MODE` ของ Actions ไม่ได้ตรวจว่า Cloudflare หยุดแล้ว จึงต้องยืนยันแยกต่างหาก
-3. เมื่อยืนยันว่าตัวส่งหลักหยุดสนิทแล้ว ใช้ Render Dashboard > New Blueprint เลือก repository นี้และไฟล์ `render.yaml` ตรวจว่ามี worker เพียงหนึ่ง instance พร้อม persistent disk ที่ `/var/data/lottery` ก่อน apply
-4. ตั้ง `LOTTERY_RUNTIME_TOKEN` และ `NTFY_TOPIC` ใน secret ของ Render ห้ามส่ง token ในแชตหรือ commit; token ใช้สิทธิ์ Contents Read/Write, Variables Read และ Actions Read เฉพาะ repository นี้
-5. ตั้ง Actions variable `LOTTERY_CHECKER_MODE=continuous` และรอ checker เดิมจบทุกงานก่อนเริ่ม/รีสตาร์ต Render worker ห้ามเปิดหลายตัวพร้อมกัน
-6. Render ใช้ `python /app/deploy/start_worker.py` เพื่อตรวจ mount point จริงก่อนสร้าง `.persistent-volume-confirmed`; ถ้าไม่มี disk ให้หยุด ไม่ใช้ storage ชั่วคราว
-7. ตรวจ worker logs, heartbeat ที่ `runtime-live/status/status.json` และผลจริงตามตาราง จากนั้นยืนยันการรับ ntfy บนโทรศัพท์แยกจากผล HTTP acceptance
+1. ให้เจ้าของตรวจและอนุมัติ PR สำหรับการสลับระบบ ค่าใช้จ่าย Render และการหยุด Web Push ชั่วคราวตาม [AGENTS.md](../AGENTS.md) **ก่อนสร้างหรือ apply Blueprint** ตรวจบริการเดิมว่าจะไม่ทำงานซ้ำ
+2. **หยุด Cloudflare Worker ก่อนสร้างหรือเริ่ม Render worker:** ตั้ง `ENABLED=false` แล้ว deploy; รอ invocation/lease ที่กำลังรันจบ ตรวจและกระทบยอด D1 ทั้งรายการ `queued` (ต้องไม่มีรายการที่ยังไม่ได้ส่ง), pending publish และ uncertain ที่ยังไม่รู้ผล ตาม [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ห้ามเดินหน้าจนกระทบยอดครบ การตรวจของ Python worker ดูเพียง `LOTTERY_CHECKER_MODE` ของ Actions ไม่ได้ตรวจว่า Cloudflare หยุดแล้ว จึงต้องยืนยันแยกต่างหาก
+3. ตั้ง Actions variable `LOTTERY_CHECKER_MODE=continuous` และรอ checker ของ Actions ที่อาจค้างอยู่จบทุกงาน **ก่อน apply Blueprint** (ปัจจุบัน Actions เป็น PR-only; ตัวแปรนี้ใช้เป็น guard ของ Python worker รุ่นเดิม)
+4. เมื่อยืนยันว่าตัวส่งหลักหยุดสนิท และ variable พร้อมแล้ว ใช้ Render Dashboard > New Blueprint เลือก repository นี้และไฟล์ `render.yaml` ตรวจว่ามี worker เพียงหนึ่ง instance พร้อม persistent disk ที่ `/var/data/lottery` ก่อน apply
+5. ตั้ง `LOTTERY_RUNTIME_TOKEN` และ `NTFY_TOPIC` ใน secret ของ Render ห้ามส่ง token ในแชตหรือ commit; token ใช้สิทธิ์ Contents Read/Write, Variables Read และ Actions Read เฉพาะ repository นี้
+6. Render ใช้ `python /app/deploy/start_worker.py` เพื่อตรวจ mount point จริงก่อนสร้าง `.persistent-volume-confirmed`; ถ้าไม่มี disk ให้หยุด ไม่ใช้ storage ชั่วคราว ห้ามเริ่ม worker ก่อนเงื่อนไขข้างต้นครบ
+7. ตรวจ worker logs, heartbeat ที่ `runtime-live/status/status.json` และผลจริงตามตาราง จากนั้นยืนยันการรับ ntfy บนโทรศัพท์แยกจากผล HTTP acceptance; ยืนยันอีกครั้งว่าช่อง Web Push จะไม่ทำงานระหว่าง fallback
 
 การเปิด Blueprint อาจทำให้เกิดค่าใช้จ่ายทันทีตามหน้าสรุปของ Render ต้องตรวจหน้าแผนก่อนยืนยัน [Blueprint specification](https://render.com/docs/blueprint-spec) เป็นแหล่งอ้างอิง field ที่ใช้ ส่วน [Background workers](https://render.com/docs/background-workers) อธิบายประเภท service
 
