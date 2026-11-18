@@ -136,7 +136,7 @@ Worker อ่านเฉพาะ JSON 4 ไฟล์จาก commit ที่
 
 ## ทางเลือก Cloudflare Free ตรวจทุกนาที
 
-มี Worker JavaScript แยกใน `cloudflare/` พร้อม D1 เก็บประวัติการส่งและสถานะรอ publish ค่าเริ่มต้นหยุดทำงานและเป็นโหมดทดลอง อ่านขั้นตอนติดตั้ง พิมพ์เขียว ข้อจำกัด CPU ของแผนฟรี การเปิดใช้โดยไม่ส่งซ้ำ และการย้อนกลับที่ [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ต้องให้เจ้าของอนุมัติ PR ที่เกี่ยวข้องและผ่านโหมดทดลองบนบัญชี Free ก่อนสลับ `LOTTERY_CHECKER_MODE=cloudflare` ห้ามเปิดพร้อมกับ Python worker/Actions
+**สถานะปัจจุบัน:** Cloudflare Worker JavaScript ใน `cloudflare/` เป็นตัวตรวจและส่งจริงทุก 60 วินาทีแล้ว ตาม `cloudflare/PRIMARY_CHECKER.json` (`mode: cloudflare`, `legacy_workflow: pr-only`) โดยใช้ D1 เก็บประวัติการส่งและสถานะรอ publish ส่วนขั้นตอนเปิดใช้โหมดทดลองใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) เป็นประวัติการย้ายระบบ ไม่ใช่งานที่ต้องทำซ้ำ การเปลี่ยนกลับไปใช้ Python worker หรือ Actions ต้องทำตามหัวข้อย้อนกลับในคู่มือดังกล่าวและตรวจว่ามีตัวส่งจริงเพียงตัวเดียว ห้ามเปิดส่งพร้อมกัน
 
 
 <!-- /coderabbit-ai-generated:v1 -->
