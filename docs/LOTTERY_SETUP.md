@@ -127,7 +127,7 @@ Worker อ่านเฉพาะ JSON 4 ไฟล์จาก commit ที่
 
 การเปิด Blueprint อาจทำให้เกิดค่าใช้จ่ายทันทีตามหน้าสรุปของ Render ต้องตรวจหน้าแผนก่อนยืนยัน [Blueprint specification](https://render.com/docs/blueprint-spec) เป็นแหล่งอ้างอิง field ที่ใช้ ส่วน [Background workers](https://render.com/docs/background-workers) อธิบายประเภท service
 
-สถานะตรวจครั้งล่าสุด: PR preview ที่ https://bombim-pr-50.onrender.com เปิดได้และกรองรายการวันเสาร์ถูกต้อง GitHub integration ของ task อ่าน/แก้ variables และ secrets ไม่ได้ (HTTP 403) และ cloud browser ยังไม่ได้ login Render จึงยังไม่ได้ apply Blueprint หรือสลับตัวส่งจริง อย่าปิด checker เดิมก่อนบริการใหม่และสิทธิ์พร้อม
+**บันทึกการทดสอบระบบ Render รุ่นเดิม (ไม่ใช่สถานะปัจจุบัน):** PR preview เดิมที่ https://bombim-pr-50.onrender.com เคยเปิดได้และทดสอบการกรองวันเสาร์ แต่ขณะทดสอบไม่ได้ apply Blueprint หรือสลับตัวส่งจริง ปัจจุบัน Cloudflare Worker เป็นตัวส่งหลักตามต้นเอกสาร ห้ามใช้ผลทดสอบเก่าเป็นหลักฐานว่าบริการ Render พร้อมใช้งาน หากจะสลับระบบต้องตรวจสิทธิ์ ความพร้อมบริการ และทำตามลำดับหยุด Cloudflare ก่อน
 
 
 <!-- /coderabbit-ai-generated:v1 -->
