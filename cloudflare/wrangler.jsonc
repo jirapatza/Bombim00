@@ -34,7 +34,9 @@
       "invocation_logs": true,
       "persist": true
     },
-    "traces": { "enabled": false }
+    "traces": {
+      "enabled": false
+    }
   },
   "env": {
     "production": {
@@ -53,5 +55,20 @@
         }
       ]
     }
+  },
+  "previews": {
+    "vars": {
+      "GITHUB_REPOSITORY": "jirapatza/Bombim00",
+      "MODE": "observe",
+      "ENABLED": "false"
+    },
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "bombim00-v2-watchdog-test",
+        "database_id": "b98985ed-9e30-4aaa-8637-b406f607ddc2",
+        "migrations_dir": "migrations"
+      }
+    ]
   }
 }
