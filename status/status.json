@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-18T23:35:12.204+07:00",
-  "last_run_date_thai": "18/11/2026 23:35:12",
-  "total_checks": 10648,
-  "last_source_used": "ผลหวย.com stock groups + ผลหวย.com Lao EXTRA + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 55 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ",
-  "active_sources_count": 5,
-  "latest_draw_detected": "18.11.2026",
+  "last_run_timestamp": "2026-11-18T23:36:12.237+07:00",
+  "last_run_date_thai": "18/11/2026 23:36:12",
+  "total_checks": 10649,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 49 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 2 คำขอ",
+  "active_sources_count": 4,
+  "latest_draw_detected": "18 พฤศจิกายน 2569",
   "notifications_sent_today": 33,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-18T23:36:12.237+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 49 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 2 คำขอ"
+    },
     {
       "timestamp": "2026-11-18T23:35:12.204+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-18T23:15:12.320+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 52 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ"
-    },
-    {
-      "timestamp": "2026-11-18T23:14:12.127+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 46 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ"
     }
   ],
   "uncertain_deliveries": 257,
@@ -119,6 +119,11 @@
   "source_checks": {
     "waiting": [],
     "errors": [
+      {
+        "source": "ThaiLottoAPI",
+        "status": null,
+        "reason": "timeout"
+      },
       {
         "source": "glo",
         "lottery": "สลากกินแบ่งรัฐบาล",
