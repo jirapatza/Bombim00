@@ -115,17 +115,15 @@ Worker อ่านเฉพาะ JSON 4 ไฟล์จาก commit ที่
 
 ตรวจและอนุมัติค่าใช้จ่าย compute/disk ที่ Render แสดงก่อนสร้าง service เพราะ worker พร้อม disk เป็นบริการแบบชำระเงินตาม [คู่มือ persistent disks](https://render.com/docs/disks) ไม่เก็บค่าใช้จ่ายตายตัวในเอกสารนี้
 
-ลำดับเปิดใช้ที่แนะนำ:
+ลำดับเปิดใช้ที่แนะนำ (เฉพาะเมื่อได้รับอนุมัติให้สลับจาก Cloudflare ไป Render/Python):
 
-1. ให้เจ้าของตรวจและอนุมัติ PR #50 ก่อน merge เนื่องจากมีการเปลี่ยน core logic/workflow ตาม AGENTS.md
-2. หลัง merge ใช้ Render Dashboard > New Blueprint เลือก repository นี้และไฟล์ render.yaml ตรวจว่าแผนสร้างเฉพาะ worker แยกหนึ่งตัว พร้อม disk ที่ `/var/data/lottery` หากมี service ชื่อซ้ำให้ตรวจ configuration ก่อน apply
-3. ตั้ง LOTTERY_RUNTIME_TOKEN และ NTFY_TOPIC ในช่อง secret ของ Render ที่ Blueprint ถาม ห้ามส่งค่าลับในแชตหรือ commit token ใช้สิทธิ์ Contents Read/Write, Variables Read, Actions Read เฉพาะ repository นี้
-4. ปล่อยให้ service เตรียมพร้อมก่อน การเริ่ม worker จะตรวจ LOTTERY_CHECKER_MODE ที่ GitHub และปฏิเสธการส่งถ้า Actions ยังเป็นตัวเขียนอยู่ การที่เริ่มไม่สำเร็จตรงนี้ไม่ใช่เหตุให้ลบการตรวจ single writer
-**ก่อนขั้นที่ 5:** ถ้า Cloudflare Worker ยังส่งอยู่ ให้ตั้ง `ENABLED=false` แล้ว deploy รอ invocation ล่าสุดจบก่อน ตรวจ D1 ว่าไม่มี pending publish และไม่เหลือ uncertain ค้าง ตามหัวข้อการย้อนกลับใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) เพราะ Python worker ไม่อ่าน ledger ของ Worker จึงตัดผลแพ้ถูกไม่ได้เหมือนกัน
-
-5. เมื่อ service/disk/secrets พร้อมแล้ว ให้บัญชีที่มีสิทธิ์ตั้ง Actions variable LOTTERY_CHECKER_MODE=continuous และรอ checker เดิมจบทุกงาน จากนั้น restart/deploy worker เพื่อเริ่มรอบตรวจ ห้ามเปิดหลายตัวพร้อมกัน
-6. Render ใช้ `python /app/deploy/start_worker.py` ซึ่งตรวจ mount point จริงก่อนสร้าง marker `.persistent-volume-confirmed` แล้วเริ่ม worker ถ้าไม่ได้ mount disk จะหยุดก่อนใช้ storage ชั่วคราว จึงไม่ต้องเปิด shell เพื่อสร้าง marker เองเมื่อใช้ Blueprint นี้ การรัน worker โดยตรงตามคู่มือเดิมยังต้องยืนยัน disk เอง
-7. เปิดดู worker logs และ runtime-live/status/status.json ยืนยัน timestamp อัปเดตต่อเนื่อง จากนั้นรอผลงวดที่ตรงตารางและตรวจว่า ntfy/โทรศัพท์รับผล พร้อมเทียบเวลาต้นทาง–ตรวจพบ–server รับข้อความ การเห็นเว็บโหลดได้หรือ CI ผ่านไม่แทนขั้นตรวจผลจริงนี้
+1. ให้เจ้าของตรวจและอนุมัติ PR สำหรับการสลับระบบและค่าใช้จ่าย Render ตาม [AGENTS.md](../AGENTS.md) **ก่อนสร้างหรือ apply Blueprint** ตรวจบริการเดิมว่าจะไม่ทำงานซ้ำ
+2. **หยุด Cloudflare Worker ก่อนสร้างหรือเริ่ม Render worker:** ตั้ง `ENABLED=false` แล้ว deploy; รอ invocation/lease ที่กำลังรันจบ และตรวจ D1 ว่าไม่มี pending publish หรือ uncertain ที่ยังไม่กระทบยอด ตาม [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ห้ามเดินหน้าหากยังค้าง การตรวจของ Python worker ดูเพียง `LOTTERY_CHECKER_MODE` ของ Actions ไม่ได้ตรวจว่า Cloudflare หยุดแล้ว จึงต้องยืนยันแยกต่างหาก
+3. เมื่อยืนยันว่าตัวส่งหลักหยุดสนิทแล้ว ใช้ Render Dashboard > New Blueprint เลือก repository นี้และไฟล์ `render.yaml` ตรวจว่ามี worker เพียงหนึ่ง instance พร้อม persistent disk ที่ `/var/data/lottery` ก่อน apply
+4. ตั้ง `LOTTERY_RUNTIME_TOKEN` และ `NTFY_TOPIC` ใน secret ของ Render ห้ามส่ง token ในแชตหรือ commit; token ใช้สิทธิ์ Contents Read/Write, Variables Read และ Actions Read เฉพาะ repository นี้
+5. ตั้ง Actions variable `LOTTERY_CHECKER_MODE=continuous` และรอ checker เดิมจบทุกงานก่อนเริ่ม/รีสตาร์ต Render worker ห้ามเปิดหลายตัวพร้อมกัน
+6. Render ใช้ `python /app/deploy/start_worker.py` เพื่อตรวจ mount point จริงก่อนสร้าง `.persistent-volume-confirmed`; ถ้าไม่มี disk ให้หยุด ไม่ใช้ storage ชั่วคราว
+7. ตรวจ worker logs, heartbeat ที่ `runtime-live/status/status.json` และผลจริงตามตาราง จากนั้นยืนยันการรับ ntfy บนโทรศัพท์แยกจากผล HTTP acceptance
 
 การเปิด Blueprint อาจทำให้เกิดค่าใช้จ่ายทันทีตามหน้าสรุปของ Render ต้องตรวจหน้าแผนก่อนยืนยัน [Blueprint specification](https://render.com/docs/blueprint-spec) เป็นแหล่งอ้างอิง field ที่ใช้ ส่วน [Background workers](https://render.com/docs/background-workers) อธิบายประเภท service
 
