@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-19T22:06:12.582+07:00",
-  "last_run_date_thai": "19/11/2026 22:06:12",
-  "total_checks": 11988,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 46 รายการ ส่งสำเร็จ 0 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ",
-  "active_sources_count": 5,
-  "latest_draw_detected": "19 พฤศจิกายน 2569",
+  "last_run_timestamp": "2026-11-19T22:07:12.598+07:00",
+  "last_run_date_thai": "19/11/2026 22:07:12",
+  "total_checks": 11989,
+  "last_source_used": "ผลหวย.com stock groups + ผลหวย.com Lao EXTRA + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 51 รายการ ส่งสำเร็จ 0 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 1 รายการ",
+  "active_sources_count": 6,
+  "latest_draw_detected": "19.11.2026",
   "notifications_sent_today": 33,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-19T22:07:12.598+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 51 รายการ ส่งสำเร็จ 0 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 1 รายการ"
+    },
     {
       "timestamp": "2026-11-19T22:06:12.582+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-19T21:48:12.218+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 51 รายการ ส่งสำเร็จ 0 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 1 รายการ"
-    },
-    {
-      "timestamp": "2026-11-19T21:47:12.545+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 51 รายการ ส่งสำเร็จ 0 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 1 รายการ"
     }
   ],
   "uncertain_deliveries": 258,
@@ -118,13 +118,7 @@
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [],
-    "errors": [
-      {
-        "source": "ThaiLottoAPI",
-        "status": null,
-        "reason": "timeout"
-      }
-    ]
+    "errors": []
   },
   "active_uncertain_deliveries": 1,
   "old_uncertain_deliveries": 257
