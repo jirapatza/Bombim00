@@ -5,6 +5,7 @@ const MAX_DEVICES = 3;
 const TEST_INTERVAL = 60_000;
 const SITE = 'https://bombim00.pages.dev';
 const FCM_ENDPOINT = /^https:\/\/fcm\.googleapis\.com\/fcm\/send\/[A-Za-z0-9_:.%-]{16,512}$/;
+const encoder = new TextEncoder();
 
 export class PreflightError extends Error {}
 
@@ -22,15 +23,46 @@ function subscriptionFrom(value) {
   return { endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth }, expirationTime: null };
 }
 
-async function sendToDevice(message, subscription, keys, request, ttl) {
+const base64url = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const decode64url = value => {
+  const input = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=');
+  return Uint8Array.from(atob(input), x => x.charCodeAt(0));
+};
+async function digest(value) {
+  return base64url(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value))));
+}
+async function receiptKey(secret) {
+  if (typeof secret !== 'string' || secret.length < 32) return null;
+  return crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+}
+export async function createReceipt(env, endpoint, ttl) {
+  const key = await receiptKey(env.WEB_PUSH_RECEIPT_SECRET);
+  if (!key) return null;
+  const deliveryId = crypto.randomUUID(), deviceHash = await digest(endpoint), expiresAt = Date.now() + Math.max(120, ttl) * 1000;
+  const signature = base64url(new Uint8Array(await crypto.subtle.sign('HMAC', key,
+    encoder.encode(`${deliveryId}.${deviceHash}.${expiresAt}`))));
+  return { deliveryId, deviceHash, expiresAt, token: `${expiresAt}.${signature}` };
+}
+async function validReceiptToken(env, row, token) {
+  const [expires, signature, extra] = String(token || '').split('.');
+  const expiresAt = Number(expires), key = await receiptKey(env.WEB_PUSH_RECEIPT_SECRET);
+  if (extra !== undefined || !key || !Number.isSafeInteger(expiresAt) || expiresAt !== row.expires_at || expiresAt < Date.now() ||
+      !/^[A-Za-z0-9_-]{43}$/.test(signature || '')) return false;
+  return crypto.subtle.verify('HMAC', key, decode64url(signature),
+    encoder.encode(`${row.delivery_id}.${row.device_hash}.${expiresAt}`));
+}
+
+async function sendToDevice(message, subscription, keys, request, ttl, receipt = null) {
   const payload = await buildPushPayload({
-    data: JSON.stringify({ title: message.title, body: message.message }),
+    data: JSON.stringify({ title: message.title, body: message.message, ...(receipt ? { receipt: {
+      deliveryId: receipt.deliveryId, token: receipt.token, expiresAt: receipt.expiresAt,
+    } } : {}) }),
     options: { ttl, urgency: 'high' },
   }, subscription, keys);
   return request(subscription.endpoint, { ...payload, method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(5000) });
 }
 
-export async function publishBrowserPush(env, message, request, detail = {}, ttl = 21600) {
+export async function publishBrowserPush(env, message, request, detail = {}, ttl = 21600, drawKeys = []) {
   const keys = pushKeys(env);
   if (!keys) return 'failed';
   const { results } = await env.DB.prepare(
@@ -41,8 +73,18 @@ export async function publishBrowserPush(env, message, request, detail = {}, ttl
     try {
       const device = subscriptionFrom(JSON.parse(subscription));
       if (!device) return 'failed';
-      const response = await sendToDevice(message, device, keys, request, ttl);
-      if (response.ok) return 'sent';
+      const receipt = await createReceipt(env, device.endpoint, ttl);
+      const response = await sendToDevice(message, device, keys, request, ttl, receipt);
+      if (response.ok) {
+        if (receipt) {
+          await env.DB.prepare(`INSERT INTO browser_push_receipts
+            (delivery_id, device_hash, draw_keys, accepted_at, expires_at)
+            VALUES (?, ?, ?, ?, ?)`)
+            .bind(receipt.deliveryId, receipt.deviceHash, JSON.stringify(drawKeys), Date.now(), receipt.expiresAt).run();
+          (detail.receipt_ids ||= []).push(receipt.deliveryId);
+        }
+        return 'sent';
+      }
       if (response.status === 404 || response.status === 410) {
         await env.DB.prepare('DELETE FROM browser_push_subscriptions WHERE endpoint = ? AND subscription = ?')
           .bind(device.endpoint, subscription).run();
@@ -66,6 +108,20 @@ export async function publishBrowserPush(env, message, request, detail = {}, ttl
   return 'failed';
 }
 
+async function readJson(request, limit = 2048) {
+  const reader = request.body?.getReader();
+  if (!reader) throw new Error('invalid_body');
+  let body = '', length = 0; const decoder = new TextDecoder();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    length += value.byteLength;
+    if (length > limit) { await reader.cancel(); throw new Error('invalid_body'); }
+    body += decoder.decode(value, { stream: true });
+  }
+  return JSON.parse(body + decoder.decode());
+}
+
 export async function browserPushApi(request, env) {
   const path = new URL(request.url).pathname;
   const origin = env.WEB_PUSH_ORIGIN || SITE;
@@ -79,27 +135,31 @@ export async function browserPushApi(request, env) {
   const keys = pushKeys(env);
   if (!keys) return reply({ error: 'push_unavailable' }, 503);
   if (path === '/push/config' && request.method === 'GET') return reply({ publicKey: keys.publicKey });
+  if (path === '/push/receipt' && request.method === 'POST') {
+    try {
+      const input = await readJson(request);
+      if (!['received', 'opened'].includes(input.event) || !/^[0-9a-f-]{36}$/.test(String(input.deliveryId || ''))) {
+        return reply({ error: 'invalid_receipt' }, 400);
+      }
+      const row = await env.DB.prepare('SELECT delivery_id, device_hash, expires_at FROM browser_push_receipts WHERE delivery_id = ?')
+        .bind(input.deliveryId).first();
+      if (!row || !(await validReceiptToken(env, row, input.token))) return reply({ error: 'invalid_receipt' }, 403);
+      const at = Date.now();
+      if (input.event === 'received') await env.DB.prepare(
+        'UPDATE browser_push_receipts SET received_at = COALESCE(received_at, ?) WHERE delivery_id = ?')
+        .bind(at, input.deliveryId).run();
+      else await env.DB.prepare(
+        'UPDATE browser_push_receipts SET received_at = COALESCE(received_at, ?), opened_at = COALESCE(opened_at, ?) WHERE delivery_id = ?')
+        .bind(at, at, input.deliveryId).run();
+      return reply({ ok: true });
+    } catch { return reply({ error: 'invalid_receipt' }, 400); }
+  }
   if (path !== '/push/subscription' && path !== '/push/test') return reply({ error: 'not_found' }, 404);
   if (request.method !== 'POST' && request.method !== 'DELETE') return reply({ error: 'method_not_allowed' }, 405);
-  const reader = request.body?.getReader();
   let subscription;
   let enrollment;
   try {
-    let body = '';
-    const decoder = new TextDecoder();
-    let length = 0;
-    if (!reader) return reply({ error: 'invalid_subscription' }, 400);
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      length += value.byteLength;
-      if (length > 2048) {
-        await reader.cancel();
-        return reply({ error: 'invalid_subscription' }, 400);
-      }
-      body += decoder.decode(value, { stream: true });
-    }
-    const input = JSON.parse(body + decoder.decode());
+    const input = await readJson(request);
     subscription = subscriptionFrom(input.subscription);
     enrollment = input.enrollment;
   } catch {

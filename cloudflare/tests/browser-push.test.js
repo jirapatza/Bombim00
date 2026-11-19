@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { browserPushApi, publishBrowserPush } from '../src/browser-push.js';
+import { browserPushApi, createReceipt, publishBrowserPush } from '../src/browser-push.js';
 import { database } from './state-helper.js';
 
 test('enrolls Chrome, sends encrypted Web Push, handles 429, and removes expired subscriptions', async t => {
@@ -41,4 +41,44 @@ test('enrolls Chrome, sends encrypted Web Push, handles 429, and removes expired
   assert.equal(await publishBrowserPush(env, message, async () => new Response(null, { status: 503 })), 'uncertain');
   assert.equal(await publishBrowserPush(env, message, async () => new Response(null, { status: 410 })), 'failed');
   assert.equal(await publishBrowserPush(env, message, async () => assert.fail('expired endpoint')), 'failed');
+});
+
+test('records accepted pushes and accepts authenticated received/opened receipts idempotently', async t => {
+  const db = database(); t.after(() => db.close());
+  const vapid = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const device = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const base64 = async key => Buffer.from(await crypto.subtle.exportKey('raw', key)).toString('base64url');
+  const env = { DB: db, WEB_PUSH_PUBLIC_KEY: await base64(vapid.publicKey),
+    WEB_PUSH_PRIVATE_KEY: (await crypto.subtle.exportKey('jwk', vapid.privateKey)).d,
+    WEB_PUSH_SUBJECT: 'https://bombim00.pages.dev', WEB_PUSH_RECEIPT_SECRET: 'r'.repeat(32) };
+  const endpoint = 'https://fcm.googleapis.com/fcm/send/receipt-device-123456789';
+  const subscription = { endpoint, keys: { p256dh: await base64(device.publicKey), auth: randomBytes(16).toString('base64url') } };
+  await db.prepare('INSERT INTO browser_push_subscriptions (endpoint, subscription) VALUES (?, ?)')
+    .bind(endpoint, JSON.stringify(subscription)).run();
+  const detail = {};
+  assert.equal(await publishBrowserPush(env, { title: 'result', message: '007 - 04' },
+    async () => new Response(null, { status: 201 }), detail, 600, ['draw-1']), 'sent');
+  assert.equal(detail.receipt_ids.length, 1);
+  const accepted = await db.prepare('SELECT draw_keys, received_at FROM browser_push_receipts WHERE delivery_id = ?')
+    .bind(detail.receipt_ids[0]).first();
+  assert.equal(accepted.draw_keys, '["draw-1"]');
+  assert.equal(accepted.received_at, null);
+
+  const receipt = await createReceipt(env, endpoint, 600);
+  await db.prepare(`INSERT INTO browser_push_receipts
+    (delivery_id, device_hash, draw_keys, accepted_at, expires_at) VALUES (?, ?, '[]', ?, ?)`)
+    .bind(receipt.deliveryId, receipt.deviceHash, Date.now(), receipt.expiresAt).run();
+  const post = event => browserPushApi(new Request('https://worker.test/push/receipt', { method: 'POST',
+    headers: { Origin: 'https://bombim00.pages.dev' },
+    body: JSON.stringify({ deliveryId: receipt.deliveryId, token: receipt.token, event }) }), env);
+  assert.equal((await post('received')).status, 200);
+  assert.equal((await post('received')).status, 200);
+  assert.equal((await post('opened')).status, 200);
+  const saved = await db.prepare('SELECT received_at, opened_at FROM browser_push_receipts WHERE delivery_id = ?')
+    .bind(receipt.deliveryId).first();
+  assert.ok(saved.received_at > 0 && saved.opened_at >= saved.received_at);
+  const invalid = await browserPushApi(new Request('https://worker.test/push/receipt', { method: 'POST',
+    headers: { Origin: 'https://bombim00.pages.dev' },
+    body: JSON.stringify({ deliveryId: receipt.deliveryId, token: `${receipt.expiresAt}.bad`, event: 'received' }) }), env);
+  assert.equal(invalid.status, 403);
 });

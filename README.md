@@ -40,3 +40,7 @@ A modern, high-performance React application built with TypeScript, Vite, and Ta
 - **Icons:** Lucide React
 - **Audio:** Web Speech API (`SpeechSynthesis`)
 - **Graphics & Export:** HTML5 Canvas API + Web Share API
+
+## Operations
+
+- [Bombim00 V2 Coda control and evidence center](docs/CODA_V2_CONTROL_CENTER.md)

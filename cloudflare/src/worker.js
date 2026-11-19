@@ -2,6 +2,9 @@ import { bangkokDay, canonical, drawDate, drawIdentity, dueScheduleAlerts, eligi
 import { collect } from './providers.js';
 import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './storage.js';
 import { browserPushApi, DEFAULT_PUSH_BACKOFF_MS, PreflightError, publishBrowserPush, pushKeys } from './browser-push.js';
+import { consensusRows, evaluateConsensus } from './consensus.js';
+import { recordConsensus } from './evidence.js';
+import { applyControlOverrides, isQuarantined, syncCodaControls, syncCodaDashboard } from './coda-control.js';
 
 const MAX_SENDS = 3;
 const MAX_RESULT_BATCH = 6; // One ntfy message per cluster; never bulk-retry uncertain outcomes.
@@ -92,7 +95,7 @@ const safeRequest = error => {
   return g && ['GET', 'POST', 'PATCH'].includes(g.method) && ['ref', 'commit', 'contents', 'writer', 'publish', 'other'].includes(g.endpoint)
     ? `${g.method} ${g.endpoint}` : null;
 };
-function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertainCounts, deliveries, now) {
+function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertainCounts, deliveries, verification, controls, now) {
   const { recent: uncertain, old: oldUncertain, total: allUncertain } = uncertainCounts;
   const day = bangkokDay(now), time = new Date(+now + 7 * 3600000).toISOString().replace('Z', '+07:00');
   const thaiDate = `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;
@@ -103,14 +106,17 @@ function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncerta
     if (!['failed', 'partial', 'queued', 'uncertain'].includes(x.สถานะการแจ้งเตือน)) return false;
     return !isOldUncertain(deliveries[drawIdentity(x)], now);
   }).length;
-  const healthy = !checks.errors.length && !failed && !alerts.failed && !uncertain;
+  const verificationBlocked = verification.mode === 'enforce' && (verification.pending || verification.conflicts);
+  const healthy = !checks.errors.length && !failed && !alerts.failed && !uncertain && !verificationBlocked;
   const sameDay = String(previous.last_run_date_thai || '').split(' ')[0] === thaiDate;
   const message = `Cloudflare ตรวจทุกนาที พบผลวันนี้ ${rows.length} รายการ ส่งสำเร็จ ${sent} รายการ` +
     (alerts.sent ? ` ส่งเตือนตามตาราง ${alerts.sent} รายการ` : '') +
     (alerts.failed ? ` ส่งเตือนตามตารางไม่สำเร็จ ${alerts.failed} รายการ` : '') +
     (failed ? ` ค้างส่ง ${failed} รายการ` : '') + (uncertain ? ` ต้องตรวจสอบการส่งที่ไม่ทราบผล ${uncertain} รายการ` : '') +
     (checks.waiting.length ? ` รอผลจากแหล่งข้อมูล ${checks.waiting.length} รายการ` : '') +
-    (checks.errors.length ? ` แหล่งข้อมูลขัดข้อง ${checks.errors.length} คำขอ` : '') + (!live ? ' ยังไม่พบผลสด' : '');
+    (checks.errors.length ? ` แหล่งข้อมูลขัดข้อง ${checks.errors.length} คำขอ` : '') +
+    (verification.pending ? ` รอหลักฐานแหล่งที่สอง ${verification.pending} รายการ` : '') +
+    (verification.conflicts ? ` ผลขัดแย้ง ${verification.conflicts} รายการ` : '') + (!live ? ' ยังไม่พบผลสด' : '');
   return { ...previous, system_status: healthy ? 'healthy' : 'degraded', last_run_timestamp: time,
     last_run_date_thai: `${thaiDate} ${time.slice(11, 19)}`, total_checks: (Number(previous.total_checks) || 0) + 1,
     last_source_used: sources.join(' + ') || previous.last_source_used || 'Cloudflare', status_message: message,
@@ -120,6 +126,7 @@ function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncerta
     schedule_alert_failures: alerts.failed, source_checks: checks,
     notification_failures: failed, uncertain_deliveries: allUncertain,
     active_uncertain_deliveries: uncertain, old_uncertain_deliveries: oldUncertain, checker_mode: 'cloudflare', poll_interval_seconds: 60,
+    result_verification: verification, coda_control: controls,
     recent_logs: [{ timestamp: time, level: healthy ? 'INFO' : 'WARNING', message }, ...(Array.isArray(previous.recent_logs) ? previous.recent_logs : [])].slice(0, 20) };
 }
 export async function cycle(env, dependencies = {}) {
@@ -132,6 +139,10 @@ export async function cycle(env, dependencies = {}) {
   if (!state) return { busy: true };
   let stage = 'writer';
   try {
+    stage = 'controls';
+    await (dependencies.syncControls || syncCodaControls)(env, state, request, now);
+    await store.save(state);
+    if (state.controls?.paused) return { pausedByControl: true };
     const observing = env.MODE !== 'deliver';
     if (!observing) await remote.assertWriter();
     // Publication retries use the durable output, without querying providers/sending again.
@@ -146,7 +157,8 @@ export async function cycle(env, dependencies = {}) {
     stage = 'snapshot';
     const snapshot = await remote.snapshot();
     stage = 'validate';
-    const { settings, catalog, history, status } = validateSnapshot(snapshot);
+    const { settings: runtimeSettings, catalog, history, status } = validateSnapshot(snapshot);
+    const settings = applyControlOverrides(runtimeSettings, state);
     const active = settings.channels?.browser_push?.enabled !== false &&
       Boolean(pushKeys(env) || dependencies.send || dependencies.sendBatch || dependencies.sendSchedule);
     // Keep unresolved sends indefinitely. Successful/definitely rejected entries older
@@ -157,7 +169,18 @@ export async function cycle(env, dependencies = {}) {
       if (['sent', 'failed'].includes(entry.state) && entry.date < cutoff) delete state.deliveries[key];
     }
     stage = 'sources';
-    const { rows: fetched, sources, errors, waiting = [] } = await (dependencies.collect || collect)(settings, today, now, request);
+    const { rows: fetchedCandidates, sources, errors, waiting = [] } = await (dependencies.collect || collect)(settings, today, now, request);
+    const verificationSettings = settings.verification || {};
+    const verificationMode = ['shadow', 'enforce'].includes(verificationSettings.mode) ? verificationSettings.mode : 'shadow';
+    const minSources = Number.isInteger(verificationSettings.min_sources) ? verificationSettings.min_sources : 2;
+    const consensus = evaluateConsensus(fetchedCandidates, catalog, minSources);
+    await (dependencies.recordConsensus || recordConsensus)(env.DB, consensus, now);
+    await (dependencies.syncDashboard || syncCodaDashboard)(env, state, consensus, request, now);
+    const fetched = [...consensusRows(consensus, verificationMode),
+      ...(verificationMode === 'shadow' ? consensus.unmapped.map(x => x.row) : [])];
+    const verification = { mode: verificationMode, min_sources: minSources, verified: consensus.verified.length,
+      pending: consensus.pending.length, conflicts: consensus.conflicts.length, unmapped: consensus.unmapped.length };
+    state.lastVerification = { at: now.toISOString(), ...verification };
     stage = 'process';
     // Group once instead of repeatedly normalizing the entire historical archive
     // for every live row. The same Python matching rules run within each bucket.
@@ -244,6 +267,7 @@ export async function cycle(env, dependencies = {}) {
       // Restore unresolved delivery even if config is disabled: it must remain visible.
       if (entry?.state === 'uncertain') { row.notification_channels[entry.channel || 'ntfy'] = 'uncertain'; row.สถานะการแจ้งเตือน = 'uncertain'; continue; }
       row.สถานะการแจ้งเตือน = 'pending';
+      if (isQuarantined(state, row.catalog_id || row.หวย)) { row.สถานะการแจ้งเตือน = 'quarantined'; continue; }
       if (!eligible(settings, row)) { row.สถานะการแจ้งเตือน = 'not_eligible'; continue; }
       if (!active) { row.สถานะการแจ้งเตือน = 'disabled'; continue; }
       if (observing) { row.สถานะการแจ้งเตือน = 'queued'; continue; }
@@ -277,7 +301,7 @@ export async function cycle(env, dependencies = {}) {
       const result = await recordDelivery(batch.map(drawIdentity), detail =>
         dependencies.sendBatch
           ? dependencies.sendBatch(batch, detail)
-          : publishBrowserPush(env, resultBatchMessage(batch), request, detail), 'result');
+          : publishBrowserPush(env, resultBatchMessage(batch), request, detail, 21600, batch.map(drawIdentity)), 'result');
       for (const row of batch) {
         row.notification_channels.browser_push = result;
         row.สถานะการแจ้งเตือน = result;
@@ -289,7 +313,8 @@ export async function cycle(env, dependencies = {}) {
       const clock = () => +(dependencies.now || new Date());
       const dueAlerts = dueScheduleAlerts(catalog, today, new Date(clock())).filter(alert => {
         const entry = state.deliveries[alert.key];
-        return !(entry && entry.state !== 'failed') && clock() < alert.at;
+        const id = JSON.parse(alert.key)[1];
+        return !isQuarantined(state, id) && !(entry && entry.state !== 'failed') && clock() < alert.at;
       });
       // One push per cycle for every alert due right now, instead of one
       // send per lottery. Order is kept (dueScheduleAlerts sorts by time) so
@@ -301,9 +326,17 @@ export async function cycle(env, dependencies = {}) {
           await recordDelivery(dueAlerts.map(a => a.key),
             detail => dependencies.sendSchedule
               ? dependencies.sendSchedule(scheduleBatchMessage(dueAlerts), detail)
-              : publishBrowserPush(env, scheduleBatchMessage(dueAlerts), request, detail, 60), 'schedule');
+              : publishBrowserPush(env, scheduleBatchMessage(dueAlerts), request, detail, 60, dueAlerts.map(a => a.key)), 'schedule');
         }
       }
+    }
+    if (!observing && active && state.controlTestPush && attempts < MAX_SENDS) {
+      const control = state.controlTestPush, key = JSON.stringify(['control_test', control.requestId]);
+      const result = await recordDelivery([key], detail => publishBrowserPush(env,
+        { title: 'Bombim00 • ทดสอบจาก Coda', message: 'ระบบรับคำสั่งและส่ง Web Push ได้', tags: ['white_check_mark'] },
+        request, detail, 120, [key]), 'control');
+      state.lastControlTestPush = { requestId: control.requestId, at: now.toISOString(), result };
+      state.controlTestPush = null;
     }
     // Overwritten every deliver cycle (not an array, so no retention/growth
     // concern); stays from the last deliver cycle if a later cycle is
@@ -313,15 +346,19 @@ export async function cycle(env, dependencies = {}) {
     const uncertainCounts = deliveryUncertainty(state.deliveries, now);
     const uncertain = uncertainCounts.recent;
     const todayDeliveries = Object.values(state.deliveries).filter(x => x.date === today);
-    const unpublished = todayDeliveries.filter(x => x.state === 'sent' && !x.published);
+    const unpublished = todayDeliveries.filter(x => x.state === 'sent' && !x.published && x.kind !== 'control');
     const alerts = { sent: unpublished.filter(x => x.kind === 'schedule').length,
       failed: todayDeliveries.filter(x => x.kind === 'schedule' && x.state === 'failed').length };
+    const controlStatus = { configured: Boolean(env.CODA_API_TOKEN && env.CODA_DOC_ID && env.CODA_CONTROL_TABLE_ID),
+      paused: Boolean(state.controls?.paused), quarantined: state.controls?.quarantined?.length || 0,
+      disabled_sources: state.controls?.disabledSources?.length || 0, last_sync: state.codaSync || null };
     const outputs = { 'lottery_previous_results.json': merged, 'status/status.json': makeStatus(status, rows,
-      fetched.some(x => scheduled(x, catalog, today)), sources, { waiting, errors }, unpublished.length - alerts.sent, alerts, uncertainCounts, state.deliveries, now) };
+      fetched.some(x => scheduled(x, catalog, today)), sources, { waiting, errors }, unpublished.length - alerts.sent,
+      alerts, uncertainCounts, state.deliveries, verification, controlStatus, now) };
     if (observing) {
       state.lastObservation = { at: now.toISOString(), results: fetched.length,
         scheduled: fetched.filter(x => scheduled(x, catalog, today)).length, sourceErrors: errors.length,
-        candidates: rows.filter(x => x.สถานะการแจ้งเตือน === 'queued').length };
+        candidates: rows.filter(x => x.สถานะการแจ้งเตือน === 'queued').length, verification };
       state.error = null; state.error_stage = null; state.error_request = null;
       await store.save(state);
       return { observing: true, ...state.lastObservation };
@@ -334,7 +371,7 @@ export async function cycle(env, dependencies = {}) {
     });
     finishPublish(state, now);
     await store.save(state);
-    return { sent, queued: rows.filter(x => x.สถานะการแจ้งเตือน === 'queued').length, uncertain };
+    return { sent, queued: rows.filter(x => x.สถานะการแจ้งเตือน === 'queued').length, uncertain, verification };
   } catch (error) {
     state.error = safeError(error);
     state.error_stage = stage;
@@ -357,9 +394,15 @@ export default {
       const row = await env.DB.prepare('SELECT payload FROM worker_state WHERE id = 1').first();
       const state = JSON.parse(row.payload);
       const fresh = state.lastSuccess && Date.now() - Date.parse(state.lastSuccess) < 5 * 60000;
-      const paused = env.ENABLED !== 'true', uncertainty = deliveryUncertainty(state.deliveries);
+      const receipt = await env.DB.prepare(`SELECT count(*) AS count FROM browser_push_receipts
+        WHERE received_at IS NULL AND accepted_at < ? AND expires_at > ?`)
+        .bind(Date.now() - 120000, Date.now()).first();
+      const receiptPending = Number(receipt?.count) || 0;
+      const paused = env.ENABLED !== 'true' || Boolean(state.controls?.paused), uncertainty = deliveryUncertainty(state.deliveries);
       const uncertain = uncertainty.recent;
-      const healthy = !paused && fresh && !state.error && !state.pending && !uncertain && state.lastCheck?.status === 'healthy';
+      const codaConfigured = Boolean(env.CODA_API_TOKEN && env.CODA_DOC_ID && env.CODA_CONTROL_TABLE_ID);
+      const codaHealthy = !codaConfigured || (state.codaSync?.status === 'ok' && Date.now() - Date.parse(state.codaSync.at) < 5 * 60000);
+      const healthy = !paused && fresh && !state.error && !state.pending && !uncertain && !receiptPending && codaHealthy && state.lastCheck?.status === 'healthy';
       const delivery_codes = {};
       for (const x of Object.values(state.deliveries)) if (['failed', 'sending', 'uncertain'].includes(x.state)) {
         const code = /^(http_\d{3}|timeout|network|request_budget|https_required)$/.test(x.code) ? x.code : 'unknown';
@@ -374,6 +417,10 @@ export default {
         publish_pending: Boolean(state.pending), uncertain_deliveries: uncertainty.total,
         active_uncertain_deliveries: uncertain, old_uncertain_deliveries: uncertainty.old,
         delivery_codes, poll_seconds: 60,
+        result_verification: state.lastVerification || null,
+        coda_control: { configured: codaConfigured, paused: Boolean(state.controls?.paused), last_sync: state.codaSync || null,
+          quarantined: state.controls?.quarantined?.length || 0, disabled_sources: state.controls?.disabledSources?.length || 0 },
+        push_receipts_pending: receiptPending,
         push_backoff_until: backoffActive ? state.pushBackoffUntil : null,
         push_backoff_reason: backoffActive ? (state.pushBackoffReason || 'rate_limit') : null,
         last_queue_summary: state.lastQueueSummary || null },
