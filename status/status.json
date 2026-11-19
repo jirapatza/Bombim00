@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-19T23:30:12.602+07:00",
-  "last_run_date_thai": "19/11/2026 23:30:12",
-  "total_checks": 12066,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ThaiLottoAPI + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 54 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 1 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 22 รายการ",
+  "last_run_timestamp": "2026-11-19T23:31:12.702+07:00",
+  "last_run_date_thai": "19/11/2026 23:31:12",
+  "total_checks": 12067,
+  "last_source_used": "ผลหวย.com stock groups + ผลหวย.com Lao EXTRA + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 49 รายการ ส่งสำเร็จ 0 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 30 รายการ",
   "active_sources_count": 5,
-  "latest_draw_detected": "19.11.2026",
+  "latest_draw_detected": "19 พฤศจิกายน 2569",
   "notifications_sent_today": 33,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-19T23:31:12.702+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 49 รายการ ส่งสำเร็จ 0 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 30 รายการ"
+    },
     {
       "timestamp": "2026-11-19T23:30:12.602+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-19T23:11:12.460+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 47 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 1 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 30 รายการ"
-    },
-    {
-      "timestamp": "2026-11-19T23:09:12.372+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 52 รายการ ส่งสำเร็จ 0 รายการ ต้องตรวจสอบการส่งที่ไม่ทราบผล 1 รายการ รอหลักฐานแหล่งที่สอง 22 รายการ"
     }
   ],
   "uncertain_deliveries": 258,
@@ -120,10 +120,9 @@
     "waiting": [],
     "errors": [
       {
-        "source": "glo",
-        "lottery": "สลากกินแบ่งรัฐบาล",
-        "status": 530,
-        "reason": "http"
+        "source": "ThaiLottoAPI",
+        "status": null,
+        "reason": "timeout"
       }
     ]
   },
@@ -132,10 +131,10 @@
   "result_verification": {
     "mode": "shadow",
     "min_sources": 2,
-    "verified": 11,
-    "pending": 22,
+    "verified": 0,
+    "pending": 30,
     "conflicts": 0,
-    "unmapped": 21
+    "unmapped": 19
   },
   "coda_control": {
     "configured": false,
