@@ -1,4 +1,4 @@
-import { canonical, disallowed, drawDate, numbers, scheduleName } from './domain.js';
+import { canonical, disallowed, drawDate, numbers } from './domain.js';
 
 export const rounds = {
   'lao-union': ['lao_samakki', 'ลาวสามัคคี', 'lao'],
@@ -34,7 +34,7 @@ export function parseRound(data, slug, today, now = new Date()) {
     if (Object.values(found).some(x => x.size !== 1)) continue;
     const [id, name, cat] = rounds[slug];
     valid.push(row(name, id, cat, today, [...found['3ตัวบน']][0], [...found['2ตัวล่าง']][0],
-      'LotteryChecks (https://lotterychecks.com)', now));
+      'LotteryChecks (https://lotterychecks.com)', now, { source_family: 'lotterychecks' }));
   }
   return new Set(valid.map(x => numbers(x).join(':'))).size > 1 ? [] : valid.slice(0, 1);
 }
@@ -63,6 +63,7 @@ export function parseThaiApi(data, now = new Date()) {
       rows.push(row(name, key, category, item.drawDateDisplay || date, top, bottom, '👑เฮียฮวด พารวย', now, {
         วันที่จัดรูปแบบ: date, รางวัลที่_1: first || top,
         เลขหน้า_3_ตัว: array3(item.front3 || item.front3Digits), เลขท้าย_3_ตัว: array3(item.bottom3 || item.last3),
+        source_family: 'thailottoapi',
       }));
     }
   }
@@ -83,7 +84,8 @@ export function parseStocks(html, now = new Date()) {
     if (!group || !name.startsWith('หวยหุ้น') || /ในหน้านี้|อัปเดตเมื่อไร|ออกวันไหน|ดูย้อนหลัง/.test(name)) continue;
     const content = text(m[3]), date = content.match(/งวด\s*(?:วันที่\s*)?([0-9]{1,2}\s+[^\s]+\s+[0-9]{4})/),
       top = content.match(/3 ตัวบน\s*([0-9]{3})(?![0-9])/), bottom = content.match(/2 ตัวล่าง\s*([0-9]{2})(?![0-9])/);
-    if (date && top && bottom && drawDate({ งวดวันที่: date[1] })) rows.push(row(name, name, group, date[1], top[1], bottom[1], 'ผลหวย.com (หน้าหุ้นแยกหมวด)', now));
+    if (date && top && bottom && drawDate({ งวดวันที่: date[1] })) rows.push(row(name, name, group, date[1], top[1], bottom[1], 'ผลหวย.com (หน้าหุ้นแยกหมวด)', now,
+      { source_family: 'pholhuay' }));
   }
   return rows;
 }
@@ -98,7 +100,8 @@ export function parseExtra(html, today, now = new Date()) {
       if (cells.length !== 4) continue;
       const [label, full, top, bottom] = cells, date = drawDate({ งวดวันที่: label.replace(/^งวด(?:วันที่)?\s*/, '') });
       if (date !== today || seen.has(date) || !/^[0-9]{5}$/.test(full) || !/^[0-9]{3}$/.test(top) || !/^[0-9]{2}$/.test(bottom) || full.slice(-3) !== top) continue;
-      rows.push(row('ลาว EXTRA', 'lao_extra', 'lao', date, top, bottom, 'ผลหวย.com (ลาว EXTRA)', now)); seen.add(date);
+      rows.push(row('ลาว EXTRA', 'lao_extra', 'lao', date, top, bottom, 'ผลหวย.com (ลาว EXTRA)', now,
+        { source_family: 'pholhuay' })); seen.add(date);
     }
   }
   return rows;
@@ -136,7 +139,7 @@ export function parseGovernment(data, source, now = new Date()) {
   }
   if (!/^[0-9]{6}$/.test(String(first ?? '')) || !/^[0-9]{2}$/.test(String(bottom ?? '')) || !drawDate({ งวดวันที่: date })) return [];
   return [row('สลากกินแบ่งรัฐบาล', 'thailotto', 'government', date, String(first).slice(-3), String(bottom), source, now,
-    { รางวัลที่_1: String(first), เลขหน้า_3_ตัว: array3(front), เลขท้าย_3_ตัว: array3(rear) })];
+    { รางวัลที่_1: String(first), เลขหน้า_3_ตัว: array3(front), เลขท้าย_3_ตัว: array3(rear), source_family: source })];
 }
 async function parallel(jobs, concurrency = 4) {
   const results = new Array(jobs.length); let next = 0;
@@ -196,28 +199,23 @@ export async function collect(settings, today, now, request) {
     jobs.unshift(() => readSource('ThaiLottoAPI', url.href, x => parseThaiApi(x, now)));
   }
   let rows = await parallel(jobs);
-  const complete = rows.filter(x => drawDate(x) === today && numbers(x).every(Boolean));
-  const supported = new Set(Object.values(rounds).map(x => x[0]));
-  const ids = new Set(complete.filter(x => supported.has(x.หวย)).map(x => x.หวย));
-  const names = new Set(complete.filter(x => !supported.has(x.หวย)).map(x => scheduleName(x.ชื่อหวย || '')));
   const fallback = [];
-  if (cfg.lotterychecks?.enabled) for (const [slug, [id, name]] of Object.entries(rounds)) {
-    if (!ids.has(id) && !names.has(scheduleName(name))) fallback.push(() => readSource('LotteryChecks Lao/Hanoi',
+  // Evidence collection needs independent providers even when a preferred source
+  // already returned a result. Notification gating decides whether they agree.
+  if (cfg.lotterychecks?.enabled) for (const [slug, [, name]] of Object.entries(rounds)) {
+    fallback.push(() => readSource('LotteryChecks Lao/Hanoi',
       `https://lotterychecks.com/api/public/results?lottery=${slug}&date=${today}&limit=1`, x => parseRound(x, slug, today, now),
       { lottery: name, slug }));
   }
-  const needsGov = !complete.some(x => (x.หวย === 'thailotto' || normalizeGovernment(x.ชื่อหวย)) && /^[0-9]{6}$/.test(x.รางวัลที่_1));
   const gov = [];
-  if (needsGov) for (const [source, url] of [
+  for (const [source, url] of [
     ['pholhuay', 'https://api.pholhuay.com/v1/lottery/latest'], ['glo', 'https://www.glo.or.th/api/lottery/getLatestLottery'],
     ['lotterychecks', 'https://lotterychecks.com/api/public/results?lottery=thai-government&limit=1'],
     ['ranlotto', 'https://api.ranlotto.com/api/public/v1/lottery/result/latest'],
   ]) if (cfg[source]?.enabled) gov.push(() => readSource(source, cfg[source].url || url, x => parseGovernment(x, source, now),
     { lottery: 'สลากกินแบ่งรัฐบาล', method: source === 'glo' ? 'POST' : 'GET' }));
   const [supplement, government] = await Promise.all([parallel(fallback), parallel(gov, 2)]);
-  const governmentRow = government.find(x => drawDate(x) === today);
-  rows = [...(governmentRow ? [governmentRow] : []), ...rows, ...supplement];
+  rows = [...government.filter(x => drawDate(x) === today), ...rows, ...supplement];
   return { rows: rows.filter(x => drawDate(x) === today && !disallowed(x.ชื่อหวย) && !disallowed(x.หวย) && numbers(x).every(Boolean)),
     sources: [...new Set(sources)], errors, waiting };
 }
-const normalizeGovernment = name => canonical(name) === 'สลากกินแบ่งรัฐบาล';

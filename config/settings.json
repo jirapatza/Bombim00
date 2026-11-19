@@ -50,6 +50,10 @@
       "attribution": "https://thailottoapi.com"
     }
   },
+  "verification": {
+    "mode": "shadow",
+    "min_sources": 2
+  },
   "notifications": {
     "enabled": true,
     "notify_on_new_draw": true,

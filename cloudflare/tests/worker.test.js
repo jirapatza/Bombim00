@@ -215,6 +215,29 @@ test('waiting for a draw publishes diagnostics without degrading a successful ch
   assert.doesNotMatch(status.status_message, /ขัดข้อง/);
   assert.deepEqual(status.source_checks, { waiting, errors: [] });
 });
+test('enforce mode holds one-source results and releases an independently confirmed draw once', async t => {
+  const f = fixture(t);
+  f.data['config/settings.json'].verification = { mode: 'enforce', min_sources: 2 };
+  f.dependencies.collect = async () => ({ rows: [{ ...result(), source_family: 'thailottoapi' }], sources: ['ThaiLottoAPI'], errors: [] });
+  const held = await f.run();
+  assert.equal(held.sent, 0);
+  assert.equal(held.verification.pending, 1);
+  assert.equal(f.data[OUTPUTS[1]].result_verification.pending, 1);
+  f.dependencies.collect = async () => ({ rows: [
+    { ...result(), source_family: 'thailottoapi' },
+    { ...result('legacy-lao-tv', 'หวยลาว TV'), source_family: 'lotterychecks' },
+  ], sources: ['ThaiLottoAPI', 'LotteryChecks'], errors: [] });
+  const released = await f.run();
+  assert.equal(released.sent, 1);
+  assert.equal(released.verification.verified, 1);
+  assert.deepEqual(f.sends, ['lao_tv']);
+});
+test('a Coda pause is applied before provider reads or notification delivery', async t => {
+  const f = fixture(t, { syncControls: async (_env, state) => { state.controls = { paused: true, quarantined: [], disabledSources: [] }; } });
+  f.dependencies.collect = async () => assert.fail('paused control must stop before source collection');
+  assert.deepEqual(await f.run(), { pausedByControl: true });
+  assert.deepEqual(f.sends, []);
+});
 const scheduledLottery = { id: 'scheduled-test', name: 'หวยทดสอบ', drawDays: 'อังคาร-เสาร์',
   closeTimeStr: '15:20 น.', drawTimeStr: '15:30 น.' };
 const bangkok = (time, date = today) => new Date(`${date}T${time}:00+07:00`);
