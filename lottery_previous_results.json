@@ -13,16 +13,15 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "👑เฮียฮวด พารวย",
-    "เวลาที่ตรวจพบ": "2026-11-20T03:50:12.326Z",
+    "เวลาที่ตรวจพบ": "2026-11-20T03:51:12.368Z",
     "สถานะการแจ้งเตือน": "sent",
     "source_family": "thailottoapi",
     "catalog_id": "nikkei_morning",
-    "verification_status": "verified",
+    "verification_status": "waiting_for_evidence",
     "verification_sources": [
-      "pholhuay",
       "thailottoapi"
     ],
-    "verification_source_count": 2,
+    "verification_source_count": 1,
     "notification_channels": {
       "browser_push": "sent"
     }
@@ -41,13 +40,67 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "👑เฮียฮวด พารวย",
-    "เวลาที่ตรวจพบ": "2026-11-20T03:50:12.326Z",
+    "เวลาที่ตรวจพบ": "2026-11-20T03:51:12.368Z",
     "สถานะการแจ้งเตือน": "sent",
     "source_family": "thailottoapi",
     "catalog_id": "china_morning",
     "verification_status": "waiting_for_evidence",
     "verification_sources": [
       "thailottoapi"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ลาว EXTRA",
+    "หวย": "lao_extra",
+    "หมวดหวย": "lao",
+    "งวดวันที่": "2026-11-20",
+    "วันที่จัดรูปแบบ": "2026-11-20",
+    "รางวัลที่_1": "680",
+    "เลขบน_3_ตัว": "680",
+    "เลขล่าง_2_ตัว": "32",
+    "เลขท้าย_2_ตัว": "32",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "ผลหวย.com (ลาว EXTRA)",
+    "เวลาที่ตรวจพบ": "2026-11-20T03:51:12.368Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "pholhuay",
+    "catalog_id": "lao_extra",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "pholhuay"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ลาว TV",
+    "หวย": "lao_tv",
+    "หมวดหวย": "lao",
+    "งวดวันที่": "2026-11-20",
+    "วันที่จัดรูปแบบ": "2026-11-20",
+    "รางวัลที่_1": "262",
+    "เลขบน_3_ตัว": "262",
+    "เลขล่าง_2_ตัว": "42",
+    "เลขท้าย_2_ตัว": "42",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-20T03:51:12.368Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "lao_tv",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
     ],
     "verification_source_count": 1,
     "notification_channels": {
@@ -75,60 +128,6 @@
     "verification_status": "waiting_for_evidence",
     "verification_sources": [
       "pholhuay"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ลาว EXTRA",
-    "หวย": "lao_extra",
-    "หมวดหวย": "lao",
-    "งวดวันที่": "2026-11-20",
-    "วันที่จัดรูปแบบ": "2026-11-20",
-    "รางวัลที่_1": "680",
-    "เลขบน_3_ตัว": "680",
-    "เลขล่าง_2_ตัว": "32",
-    "เลขท้าย_2_ตัว": "32",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "ผลหวย.com (ลาว EXTRA)",
-    "เวลาที่ตรวจพบ": "2026-11-20T03:50:12.326Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "pholhuay",
-    "catalog_id": "lao_extra",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "pholhuay"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ลาว TV",
-    "หวย": "lao_tv",
-    "หมวดหวย": "lao",
-    "งวดวันที่": "2026-11-20",
-    "วันที่จัดรูปแบบ": "2026-11-20",
-    "รางวัลที่_1": "262",
-    "เลขบน_3_ตัว": "262",
-    "เลขล่าง_2_ตัว": "42",
-    "เลขท้าย_2_ตัว": "42",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-20T03:50:12.326Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "lotterychecks",
-    "catalog_id": "lao_tv",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "lotterychecks"
     ],
     "verification_source_count": 1,
     "notification_channels": {
