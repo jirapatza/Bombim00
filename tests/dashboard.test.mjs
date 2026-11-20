@@ -115,3 +115,18 @@ test("results with identical poll timestamps still follow their scheduled draw o
   assert.deepEqual(dashboardData(items, new Date("2026-11-07T16:11:00Z")).latest.map(x => x.id),
     ["newer", "older"]);
 });
+test("a stored result from an earlier draw is labelled latest, never drawn", () => {
+  const stale = item("stale", "08:30 น.", {
+    status: "drawn",
+    resultDate: "2026-11-06",
+    top3: "680",
+    bottom2: "32",
+  });
+  assert.equal(drawState(stale, now), "latest");
+  const data = dashboardData([stale], now);
+  assert.equal(data.drawn, 0);
+  assert.equal(data.latestResults, 1);
+  assert.deepEqual(data.latest, []);
+  assert.equal(publishedSummaryResults([stale], now).length, 0);
+  assert.deepEqual(sortDailyRows([stale], "latest", now).map((x) => x.id), ["stale"]);
+});

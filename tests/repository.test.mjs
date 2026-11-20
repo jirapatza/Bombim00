@@ -68,3 +68,34 @@ test('Thai STAR aliases match the catalog while preserving VIP round', () => {
   assert.equal(normalizeName('หวยลาวสตาร์ VIP'), normalizeName('ลาว STAR VIP'));
   assert.notEqual(normalizeName('หวยลาวสตาร์ VIP'), normalizeName('ลาว STAR'));
 });
+
+test('a catalog entry with a verified stored result keeps showing it as the latest draw', () => {
+  const catalog = [{id:'lao_extra',name:'ลาว EXTRA',drawDays:'ทุกวัน (จันทร์ - อาทิตย์)',drawTimeStr:'08:30',status:'announced',top3:'680',bottom2:'32',firstPrize:'680',date:'20 พฤศจิกายน 2569',source:'ผลหวย.com'}];
+  const items = mergeCatalogWithResults(catalog, [], new Date('2026-11-21T05:00:00Z'));
+  assert.equal(items.length, 1);
+  assert.equal(items[0].status, 'drawn');
+  assert.equal(items[0].resultDate, '2026-11-20');
+  assert.equal(items[0].top3, '680');
+  assert.equal(items[0].bottom2, '32');
+});
+
+test('a stored result never replaces the real result of the current draw', () => {
+  const catalog = [{id:'lao_extra',name:'ลาว EXTRA',drawDays:'ทุกวัน (จันทร์ - อาทิตย์)',drawTimeStr:'08:30',status:'announced',top3:'680',bottom2:'32',firstPrize:'680',date:'20 พฤศจิกายน 2569',source:'old'}];
+  const today = [{ชื่อหวย:'ลาว EXTRA',งวดวันที่:'2026-11-21',รางวัลที่_1:'111',เลขบน_3_ตัว:'111',เลขล่าง_2_ตัว:'22'}];
+  const items = mergeCatalogWithResults(catalog, today, new Date('2026-11-21T05:00:00Z'));
+  assert.equal(items[0].top3, '111');
+  assert.equal(items[0].resultDate, '2026-11-21');
+});
+
+test('a waiting catalog entry without numbers stays waiting instead of showing a stored result', () => {
+  const catalog = [{id:'dowjones_star',name:'ดาวโจนส์ STAR',drawDays:'ทุกวัน (จันทร์ - อาทิตย์)',drawTimeStr:'01:30',status:'waiting',top3:'',bottom2:'',firstPrize:'',date:'ไม่ระบุ',source:'x'}];
+  const items = mergeCatalogWithResults(catalog, [], new Date('2026-11-21T05:00:00Z'));
+  assert.equal(items[0].status, 'waiting');
+  assert.equal(items[0].top3, '');
+  assert.equal(items[0].resultDate, undefined);
+});
+
+test('a non-drawing day hides an entry that has no stored result', () => {
+  const catalog = [{id:'friday_only',name:'friday',drawDays:'ศุกร์',drawTimeStr:'23:00',status:'waiting',top3:'',bottom2:'',firstPrize:'',date:'ไม่ระบุ',source:'x'}];
+  assert.deepEqual(mergeCatalogWithResults(catalog, [], new Date('2026-11-07T05:00:00Z')), []);
+});
