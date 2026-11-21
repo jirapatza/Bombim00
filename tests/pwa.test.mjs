@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, existsSync, statSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { build } from "esbuild";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path) => readFileSync(join(root, path), "utf8");
@@ -60,4 +61,29 @@ test("the service worker keeps a fetch listener so the app stays installable", (
   const source = read("public/push-sw.js");
   assert.match(source, /addEventListener\('fetch', \(\) => \{\}\)/);
   assert.doesNotMatch(source, /respondWith\(/, "no offline cache to keep stale");
+});
+
+// install.ts is TypeScript, so it is bundled once with the same esbuild the app uses.
+mkdirSync(join(root, ".harness"), { recursive: true });
+await build({
+  entryPoints: [join(root, "src/utils/install.ts")],
+  bundle: true,
+  format: "esm",
+  platform: "neutral",
+  outfile: join(root, ".harness/install.mjs"),
+});
+const { matchesIos, isInstalled } = await import(`../.harness/install.mjs?${Date.now()}`);
+
+test("iPhone, iPad and Mac-with-touch are treated as iOS", () => {
+  assert.equal(matchesIos("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"), true);
+  assert.equal(matchesIos("Mozilla/5.0 (iPad; CPU OS 16_4 like Mac OS X)"), true);
+  assert.equal(matchesIos("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", 5), true);
+  assert.equal(matchesIos("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", 0), false);
+  assert.equal(matchesIos("Mozilla/5.0 (Linux; Android 14; Pixel 8)"), false);
+});
+
+test("a home-screen app counts as installed on either platform", () => {
+  assert.equal(isInstalled(true, false), true);
+  assert.equal(isInstalled(false, true), true);
+  assert.equal(isInstalled(false, false), false);
 });

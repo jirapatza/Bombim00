@@ -1,18 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Download, Smartphone } from "lucide-react";
+import { isIos, isStandalone } from "../utils/install";
 
 interface InstallPrompt extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
-
-const isStandalone = (): boolean =>
-  window.matchMedia?.("(display-mode: standalone)").matches === true ||
-  (window.navigator as { standalone?: boolean }).standalone === true;
-
-const isIos = (): boolean =>
-  /iPad|iPhone|iPod/.test(window.navigator.userAgent) ||
-  (window.navigator.userAgent.includes("Macintosh") && window.navigator.maxTouchPoints > 1);
 
 export const InstallApp: React.FC = () => {
   const [prompt, setPrompt] = useState<InstallPrompt | null>(null);
