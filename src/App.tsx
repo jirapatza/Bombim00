@@ -491,7 +491,12 @@ export const App: React.FC = () => {
         </main>
 
         <footer className="app-footer">
-          <span>ข้อมูลจากแหล่งประกาศผล • ตรวจสอบกับผู้จัดสลากก่อนใช้ผลรางวัล</span>
+          <span>
+            ข้อมูลจากแหล่งประกาศผล • ตรวจสอบกับผู้จัดสลากก่อนใช้ผลรางวัล • บางรายการจาก{" "}
+            <a href="https://lotterychecks.com" target="_blank" rel="noreferrer noopener">
+              LotteryChecks
+            </a>
+          </span>
           <span>Bombim00 Web v1.2.0 • Asia/Bangkok (UTC+7)</span>
         </footer>
       </div>

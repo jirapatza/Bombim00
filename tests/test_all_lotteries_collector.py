@@ -125,6 +125,20 @@ def test_resolve_reports_reason_for_unmapped_lottery():
     assert reason
 
 
+def test_lotterychecks_specs_stay_pinned():
+    expected = {
+        "hanoi_hd": ("hanoi-hd", "/vietnam/hd"),
+        "lao_samakki": ("lao-union", "/laos/union"),
+        "england_vip": ("", "/stock-markets/england-vip"),
+        "germany_vip": ("", "/stock-markets/germany-vip"),
+        "russia_vip": ("", "/stock-markets/russia-vip"),
+        "dowjones_vip": ("", "/stock-markets/dowjones-vip"),
+        "dowjones_star": ("", "/stock-markets/dowjonestar"),
+    }
+    for catalog_id, spec in expected.items():
+        assert sources.CATALOG_SOURCES[catalog_id] == ("checks", *spec)
+
+
 def test_every_catalog_id_has_a_source():
     catalog = collector.load_catalog()
     assert not [row["id"] for row in catalog if row["id"] not in sources.CATALOG_SOURCES]
