@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-21T12:40:12.670+07:00",
-  "last_run_date_thai": "21/11/2026 12:40:12",
-  "total_checks": 14290,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
+  "last_run_timestamp": "2026-11-21T12:41:12.294+07:00",
+  "last_run_date_thai": "21/11/2026 12:41:12",
+  "total_checks": 14291,
+  "last_source_used": "ผลหวย.com stock groups + ผลหวย.com Lao EXTRA + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
   "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 15 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 6 รายการ รอหลักฐานแหล่งที่สอง 8 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "21 พฤศจิกายน 2569",
   "notifications_sent_today": 8,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-21T12:41:12.294+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 15 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 6 รายการ รอหลักฐานแหล่งที่สอง 8 รายการ"
+    },
     {
       "timestamp": "2026-11-21T12:40:12.670+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-21T12:22:12.098+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 14 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 7 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ"
-    },
-    {
-      "timestamp": "2026-11-21T12:21:12.106+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 14 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 7 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ"
     }
   ],
   "uncertain_deliveries": 258,
@@ -120,7 +120,7 @@
     "waiting": [
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพัฒนา",
+        "lottery": "ลาวสามัคคี",
         "status": 404
       },
       {
@@ -130,7 +130,7 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
+        "lottery": "ฮานอยพัฒนา",
         "status": 404
       },
       {
