@@ -26,7 +26,7 @@ EXPECTED_KEYS = ["id", "name", "category", "categoryLabel", "period", "periodLab
                  "flag", "drawTimeStr", "closeTimeStr", "drawDays", "status", "top3",
                  "bottom2", "firstPrize", "date", "source"]
 # Official three-digit prizes, present only when the source publishes them.
-OPTIONAL_KEYS = ("front3", "back3")
+OPTIONAL_KEYS = ("threeDigits",)
 EXPECTED_COUNT = 54
 VALID_STATUS = {"announced", "waiting"}
 

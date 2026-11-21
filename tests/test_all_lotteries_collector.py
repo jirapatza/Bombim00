@@ -412,12 +412,11 @@ def test_official_three_digit_prizes_survive_the_source_parser():
         "bottom3": "938, 101, 106, 782", "bottom2": "06",
     }]}}}
     record = sources.parse_thailottoapi(payload)["government"]
-    assert record.back3 == ("938", "101", "106", "782")
-    assert record.front3 == ()
+    assert record.three_digit_prizes == ("938", "101", "106", "782")
     result = record.as_result()
-    assert result["back3"] == ["938", "101", "106", "782"]
+    assert result["threeDigits"] == ["938", "101", "106", "782"]
     assert result["top3"] == "654" and result["firstPrize"] == "645654"
-    assert "front3" not in result
+    assert "back3" not in result and "front3" not in result
 
 
 def test_digits_list_drops_duplicates_and_bad_widths():
@@ -428,7 +427,7 @@ def test_digits_list_drops_duplicates_and_bad_widths():
 
 def test_validator_accepts_and_checks_the_optional_prize_lists():
     catalog = [dict(item) for item in CATALOG]
-    catalog[0]["back3"] = ["938", "101"]
-    assert not [e for e in validator.validate_catalog(catalog) if "back3" in e]
-    catalog[0]["back3"] = ["93"]
-    assert [e for e in validator.validate_catalog(catalog) if "back3" in e]
+    catalog[0]["threeDigits"] = ["938", "101"]
+    assert not [e for e in validator.validate_catalog(catalog) if "threeDigits" in e]
+    catalog[0]["threeDigits"] = ["93"]
+    assert [e for e in validator.validate_catalog(catalog) if "threeDigits" in e]

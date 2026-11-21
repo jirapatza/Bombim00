@@ -28,13 +28,13 @@ test('a published three-digit prize is not labelled as derived', () => {
 
 test('static catalog rows are checkable in their camelCase shape', () => {
   const gov = {ชื่อหวย: 'สลากกินแบ่งรัฐบาล', งวดวันที่: '2026-11-16', top3: '654', bottom2: '06',
-    firstPrize: '645654', back3: ['938', '101', '106', '782']};
+    firstPrize: '645654', threeDigits: ['938', '101', '106', '782']};
   R.results = [gov];
   const govKey = R.getTicketDraws()[0].key;
   const upper = R.checkTickets('654', govKey);
   assert.equal(upper.length, 1);
   assert.equal(upper[0].prizeType, '3 ตัวบน');
-  assert.equal(R.checkTickets('938', govKey)[0].prizeType, 'เลขท้าย 3 ตัว');
+  assert.equal(R.checkTickets('938', govKey)[0].prizeType, 'เลข 3 ตัว');
   assert.equal(R.checkTickets('06', govKey)[0].prizeType, 'เลขท้าย 2 ตัว');
   assert.equal(R.checkTickets('645654', govKey)[0].prizeType, 'รางวัลที่ 1 เต็มใบ');
   R.results = [row, {...row, งวดวันที่: '2020-01-01', เลขท้าย_2_ตัว: '99'}];

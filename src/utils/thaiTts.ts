@@ -74,11 +74,14 @@ export class ThaiTtsService {
     if (!this.synth) return null;
     if (this.thaiVoice) return this.thaiVoice;
     const voices = this.synth.getVoices();
-    this.thaiVoice =
+    // Browsers fill the voice list asynchronously; caching a miss would keep
+    // the default voice for the whole session.
+    const found =
       voices.find((v) => /^th(-|_)?/i.test(v.lang)) ??
       voices.find((v) => v.lang.toLowerCase().includes('thai')) ??
       null;
-    return this.thaiVoice;
+    if (found) this.thaiVoice = found;
+    return found;
   }
 
   static speak(text: string, rate: number = 0.95, onDone?: () => void): void {

@@ -169,6 +169,10 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
               const hasFirstPrize = /^\d{6}$/.test(first);
               const officialBack3 = (item.เลขท้าย_3_ตัว ?? item.back3 ?? [])
                 .flatMap((entry) => String(entry).split(/[,\s]+/)).filter(Boolean);
+              const officialThree = officialBack3.length
+                ? officialBack3
+                : (item.threeDigits ?? []).flatMap((entry) => String(entry).split(/[,\s]+/)).filter(Boolean);
+              const officialLabel = officialBack3.length ? 'เลขท้าย 3 ตัว' : 'เลข 3 ตัว (หน้า/ท้าย)';
 
               return (
                 <div
@@ -198,9 +202,9 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
                     </div>
                   </div>
 
-                  {officialBack3.length > 0 && (
+                  {officialThree.length > 0 && (
                     <p className="mt-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-200">
-                      เลขท้าย 3 ตัว: <span className="font-mono-numbers font-bold">{officialBack3.join(" • ")}</span>
+                      {officialLabel}: <span className="font-mono-numbers font-bold">{officialThree.join(" • ")}</span>
                     </p>
                   )}
 

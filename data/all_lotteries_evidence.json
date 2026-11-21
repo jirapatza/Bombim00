@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-21T16:52:02.906192+07:00",
+  "generated_at": "2026-11-21T17:04:58.132353+07:00",
   "items": [
     {
       "id": "lao_extra",
@@ -541,7 +541,7 @@
       "bottom2": "06",
       "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-21)",
       "note": "",
-      "back3": [
+      "threeDigits": [
         "938",
         "101",
         "106",

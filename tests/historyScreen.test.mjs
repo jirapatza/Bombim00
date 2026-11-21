@@ -52,8 +52,9 @@ test("a lottery without official three-digit prizes shows no empty block", () =>
 
 test("static catalog rows render their camelCase numbers", () => {
   const html = render([{ ชื่อหวย: "สลากกินแบ่งรัฐบาล", งวดวันที่: "2026-11-16", top3: "654",
-    bottom2: "06", firstPrize: "645654", back3: ["938"] }]);
+    bottom2: "06", firstPrize: "645654", threeDigits: ["938"] }]);
   assert.match(html, /645654/);
   assert.match(html, /06/);
   assert.match(html, /938/);
+  assert.match(html, /เลข 3 ตัว \(หน้า\/ท้าย\)/);
 });

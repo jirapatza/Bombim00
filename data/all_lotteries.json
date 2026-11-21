@@ -934,7 +934,7 @@
     "firstPrize": "645654",
     "date": "16 พฤศจิกายน 2569",
     "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-21)",
-    "back3": [
+    "threeDigits": [
       "938",
       "101",
       "106",
