@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-21T21:31:12.218+07:00",
-  "last_run_date_thai": "21/11/2026 21:31:12",
-  "total_checks": 14820,
+  "last_run_timestamp": "2026-11-21T21:32:12.328+07:00",
+  "last_run_date_thai": "21/11/2026 21:32:12",
+  "total_checks": 14821,
   "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 1 รายการ รอหลักฐานแหล่งที่สอง 21 รายการ",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 38 รายการ ส่งสำเร็จ 1 รายการ รอหลักฐานแหล่งที่สอง 22 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "21.11.2026",
-  "notifications_sent_today": 21,
+  "notifications_sent_today": 22,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-21T21:32:12.328+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 38 รายการ ส่งสำเร็จ 1 รายการ รอหลักฐานแหล่งที่สอง 22 รายการ"
+    },
     {
       "timestamp": "2026-11-21T21:31:12.218+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-21T21:13:12.297+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 1 รายการ รอหลักฐานแหล่งที่สอง 21 รายการ"
-    },
-    {
-      "timestamp": "2026-11-21T21:12:12.287+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 1 รายการ รอหลักฐานแหล่งที่สอง 21 รายการ"
     }
   ],
   "uncertain_deliveries": 258,
@@ -117,13 +117,7 @@
   "schedule_alerts_sent_today": 61,
   "schedule_alert_failures": 0,
   "source_checks": {
-    "waiting": [
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
-        "status": 404
-      }
-    ],
+    "waiting": [],
     "errors": []
   },
   "active_uncertain_deliveries": 0,
@@ -132,7 +126,7 @@
     "mode": "shadow",
     "min_sources": 2,
     "verified": 0,
-    "pending": 21,
+    "pending": 22,
     "conflicts": 0,
     "unmapped": 16
   },
