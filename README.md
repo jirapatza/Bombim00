@@ -28,7 +28,8 @@ A modern, high-performance React application built with TypeScript, Vite, and Ta
 - **Settings & Notification Center (ตั้งค่า & แจ้งเตือน)**:
   - Watched numbers management (add and remove lucky numbers with persistence).
   - Thai TTS voice preferences (toggle, speech rate, sample voice announcement).
-  - Chrome Web Push enrollment via the Cloudflare Worker (the 2026-11 ntfy integration was replaced by Web Push).
+  - Web Push enrollment via the Cloudflare Worker (the 2026-11 ntfy integration was replaced by Web Push).
+  - Installable app: `public/manifest.webmanifest` plus icons let the dashboard run full screen from the home screen. Push needs this on iOS, which only delivers Web Push to an installed app (16.4+).
   - Real-time data sources health monitor (GLO, ThaiLottoAPI, RANLOTTO, LotteryChecks).
   - System diagnostics and audit history.
 
