@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-21T20:36:12.691+07:00",
-  "last_run_date_thai": "21/11/2026 20:36:12",
-  "total_checks": 14765,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + glo + lotterychecks",
+  "last_run_timestamp": "2026-11-21T20:37:12.228+07:00",
+  "last_run_date_thai": "21/11/2026 20:37:12",
+  "total_checks": 14766,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
   "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 1 รายการ รอหลักฐานแหล่งที่สอง 21 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "21.11.2026",
   "notifications_sent_today": 21,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-21T20:37:12.228+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 37 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 1 รายการ รอหลักฐานแหล่งที่สอง 21 รายการ"
+    },
     {
       "timestamp": "2026-11-21T20:36:12.691+07:00",
       "level": "INFO",
@@ -102,11 +107,6 @@
     },
     {
       "timestamp": "2026-11-21T20:18:12.347+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 33 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 18 รายการ"
-    },
-    {
-      "timestamp": "2026-11-21T20:17:12.061+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 33 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 18 รายการ"
     }
