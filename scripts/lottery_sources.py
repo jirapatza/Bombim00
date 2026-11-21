@@ -91,8 +91,7 @@ class Record:
     source: str
     first_prize: str = ""
     label: str = ""
-    front3: tuple = ()
-    back3: tuple = ()
+    three_digit_prizes: tuple = ()
     extra: dict = field(default_factory=dict)
 
     def as_result(self) -> dict:
@@ -111,10 +110,8 @@ class Record:
         }
         if special:
             result["specialPrize"] = special
-        if self.front3:
-            result["front3"] = list(self.front3)
-        if self.back3:
-            result["back3"] = list(self.back3)
+        if self.three_digit_prizes:
+            result["threeDigits"] = list(self.three_digit_prizes)
         return result
 
 
@@ -189,8 +186,7 @@ def parse_thailottoapi(payload: dict, source_url: str = THAILOTTOAPI_URL) -> dic
                 source=f"ThaiLottoAPI ({source_url})",
                 first_prize=first,
                 label=item.get("label", ""),
-                front3=digits_list(item.get("front3"), 3),
-                back3=digits_list(item.get("bottom3"), 3),
+                three_digit_prizes=digits_list(item.get("bottom3"), 3),
             )
     return records
 

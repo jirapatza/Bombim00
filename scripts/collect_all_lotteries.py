@@ -27,7 +27,9 @@ EVIDENCE_PATH = ROOT / "data" / "all_lotteries_evidence.json"
 REPORT_PATH = ROOT / "data" / "all_lotteries_report.json"
 LOG_DIR = ROOT / "logs"
 
-RESULT_FIELDS = ("status", "top3", "bottom2", "firstPrize", "date", "source", "front3", "back3")
+RESULT_FIELDS = ("status", "top3", "bottom2", "firstPrize", "date", "source", "threeDigits")
+# Keys that only some sources publish; a stale copy must not survive a refresh.
+OPTIONAL_RESULT_FIELDS = ("threeDigits", "front3", "back3")
 RESULT_KEYS = ("id", "name", "category", "categoryLabel", "period", "periodLabel",
                "flag", "drawTimeStr", "closeTimeStr", "drawDays", "status", "top3",
                "bottom2", "firstPrize", "date", "source")
@@ -131,6 +133,9 @@ def apply_results(catalog: list, src: dict, today: datetime.date) -> tuple[list,
             for key in RESULT_FIELDS:
                 if key in result:
                     item[key] = result[key]
+            for key in OPTIONAL_RESULT_FIELDS:
+                if key not in result:
+                    item.pop(key, None)
             item["status"] = "announced"
             entry.update({
                 "status": "verified",
@@ -142,7 +147,7 @@ def apply_results(catalog: list, src: dict, today: datetime.date) -> tuple[list,
             })
             if result.get("specialPrize"):
                 entry["specialPrize"] = result["specialPrize"]
-            for key in ("front3", "back3"):
+            for key in ("threeDigits",):
                 if result.get(key):
                     entry[key] = result[key]
         else:
