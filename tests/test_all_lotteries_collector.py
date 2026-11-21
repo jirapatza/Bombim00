@@ -156,8 +156,41 @@ def test_apply_results_marks_verified_and_missing():
 def test_apply_results_rejects_future_draw_date():
     catalog = collector.load_catalog()
     src = {"tla": sources.parse_thailottoapi(TLA_PAYLOAD), "stocks": [], "pages": {}}
-    updated, _ = collector.apply_results(catalog, src, datetime.date(2026, 11, 1))
-    assert {row["id"]: row for row in updated}["thai_gov"]["status"] == "waiting"
+    updated, evidence = collector.apply_results(catalog, src, datetime.date(2026, 11, 1))
+    # The only result on offer is dated after "today", so the stored value is kept.
+    assert {row["id"]: row for row in updated}["thai_gov"]["status"] == "announced"
+    assert {row["id"]: row for row in updated}["thai_gov"]["top3"] == "654"
+    assert {row["id"]: row for row in evidence}["thai_gov"]["status"] == "retained"
+
+
+def test_transient_source_failure_keeps_verified_results():
+    catalog = collector.load_catalog()
+    before = {row["id"]: dict(row) for row in catalog if row["status"] == "announced"}
+    assert before, "the catalog under test needs at least one verified result"
+    updated, evidence = collector.apply_results(catalog, {"tla": {}, "stocks": [], "pages": {}},
+                                                datetime.date(2026, 11, 21))
+    by_id = {row["id"]: row for row in updated}
+    for lottery_id, snapshot in before.items():
+        assert by_id[lottery_id]["status"] == "announced"
+        assert (by_id[lottery_id]["top3"], by_id[lottery_id]["bottom2"]) == (snapshot["top3"], snapshot["bottom2"])
+        assert by_id[lottery_id]["date"] == snapshot["date"]
+    states = {row["id"]: row["status"] for row in evidence}
+    assert all(states[lottery_id] == "retained" for lottery_id in before)
+    assert all(row.get("reason") for row in evidence if row["status"] in {"retained", "not_found"})
+    # Retained rows stay publishable and never gain invented numbers.
+    assert validator.validate_catalog(updated, datetime.date(2026, 11, 21)) == []
+
+
+def test_waiting_row_is_cleared_only_when_nothing_was_ever_stored():
+    catalog = collector.load_catalog()
+    target = next(item for item in catalog if item["id"] == "dowjones_star")
+    target.update({"status": "announced", "top3": "111", "bottom2": "22",
+                   "firstPrize": "111", "date": "20 พฤศจิกายน 2569"})
+    updated, evidence = collector.apply_results(catalog, {"tla": {}, "stocks": [], "pages": {}},
+                                                datetime.date(2026, 11, 21))
+    by_id = {row["id"]: row for row in updated}
+    assert by_id["dowjones_star"]["top3"] == "111"
+    assert {row["id"]: row for row in evidence}["dowjones_star"]["status"] == "retained"
 
 
 def test_conflicting_sources_are_not_published():
@@ -169,9 +202,14 @@ def test_conflicting_sources_are_not_published():
         "pages": {},
     }
     updated, evidence = collector.apply_results(catalog, src, datetime.date(2026, 11, 21))
-    # thai_stock_evening is not cross-checked against this card, nikkei is absent from TLA fixture
-    assert {row["id"]: row for row in updated}["nikkei_morning"]["status"] == "waiting"
-    assert all(row.get("reason") for row in evidence if row["status"] == "not_found")
+    by_id = {row["id"]: row for row in updated}
+    # nikkei is absent from the TLA fixture, so the disagreeing card is the only
+    # offer; the stored value stays and the conflicting number is never published.
+    assert by_id["nikkei_morning"]["status"] == "announced"
+    assert by_id["nikkei_morning"]["top3"] == "504"
+    states = {row["id"]: row["status"] for row in evidence}
+    assert states["nikkei_morning"] == "retained"
+    assert all(row.get("reason") for row in evidence if row["status"] in {"not_found", "retained"})
 
 
 def test_cross_check_detects_mismatch():
@@ -181,7 +219,7 @@ def test_cross_check_detects_mismatch():
                                  extra={"group": "stock"})],
         "pages": {},
     }
-    message = collector.cross_check("nikkei_morning", {"top3": "504"}, src)
+    message = collector.cross_check("nikkei_morning", src)
     assert "ขัดแย้ง" in message
 
 
@@ -192,7 +230,7 @@ def test_cross_check_agrees():
                                  extra={"group": "stock"})],
         "pages": {},
     }
-    assert collector.cross_check("nikkei_morning", {"top3": "504"}, src) == ""
+    assert collector.cross_check("nikkei_morning", src) == ""
 
 
 def test_atomic_write_replaces_file_without_partial_content(tmp_path):

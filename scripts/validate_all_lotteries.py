@@ -96,6 +96,11 @@ def validate_evidence(evidence: dict, catalog: list) -> list:
                 errors.append(f"evidence says {row.get('id')} verified but catalog is {item.get('status')}")
             if (row.get("top3"), row.get("bottom2")) != (item.get("top3"), item.get("bottom2")):
                 errors.append(f"evidence numbers for {row.get('id')} do not match the catalog")
+        elif row.get("status") == "retained":
+            if item.get("status") != "announced":
+                errors.append(f"evidence says {row.get('id')} retained but catalog is {item.get('status')}")
+            if row.get("drawDate") != thai_date_to_iso(str(item.get("date") or "")):
+                errors.append(f"retained evidence date for {row.get('id')} does not match the catalog")
         elif not str(row.get("reason") or "").strip():
             errors.append(f"evidence for {row.get('id')} is not_found without a reason")
     return errors

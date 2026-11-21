@@ -8,6 +8,7 @@ going through the rest of the catalog.
 from __future__ import annotations
 
 import datetime
+import json
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -178,16 +179,14 @@ def fetch_thailottoapi(days: int = 4, today: datetime.date | None = None) -> tup
         day = today - datetime.timedelta(days=offset)
         url = f"{THAILOTTOAPI_URL}?date={day.isoformat()}"
         try:
-            payload = requests.get(url, timeout=20, headers={"User-Agent": USER_AGENT}).json()
-        except Exception as error:  # noqa: BLE001
-            reasons.append(f"{day.isoformat()}: {type(error).__name__}")
+            payload = json.loads(http_get(url, timeout=20))
+        except (SourceError, ValueError) as error:
+            reasons.append(f"{day.isoformat()}: {error}")
             continue
         for key, record in parse_thailottoapi(payload, url).items():
             current = merged.get(key)
             if current is None or record.draw_date > current.draw_date:
                 merged[key] = record
-        if offset == 0 and merged:
-            continue
     return merged, reasons
 
 

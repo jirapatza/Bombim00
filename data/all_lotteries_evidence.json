@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-11-21T06:17:02.262081+07:00",
+  "generated_at": "2026-11-21T10:47:05.272885+07:00",
   "items": [
     {
       "id": "lao_extra",
       "name": "ลาว EXTRA",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "680",
-      "bottom2": "32",
+      "drawDate": "2026-11-21",
+      "top3": "579",
+      "bottom2": "86",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/lao-lottery/extra)",
       "note": "",
-      "specialPrize": "32680"
+      "specialPrize": "86579"
     },
     {
       "id": "nikkei_vip_morning",
       "name": "นิเคอิเช้า VIP",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "385",
-      "bottom2": "98",
+      "drawDate": "2026-11-21",
+      "top3": "343",
+      "bottom2": "49",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)",
       "note": ""
     },
@@ -26,12 +26,12 @@
       "id": "hanoi_asean",
       "name": "ฮานอยอาเซียน",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "515",
-      "bottom2": "95",
+      "drawDate": "2026-11-21",
+      "top3": "979",
+      "bottom2": "80",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/asean)",
       "note": "",
-      "specialPrize": "42515"
+      "specialPrize": "28979"
     },
     {
       "id": "nikkei_morning",
@@ -47,9 +47,9 @@
       "id": "china_vip_morning",
       "name": "จีนเช้า VIP",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "733",
-      "bottom2": "70",
+      "drawDate": "2026-11-21",
+      "top3": "334",
+      "bottom2": "91",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)",
       "note": ""
     },

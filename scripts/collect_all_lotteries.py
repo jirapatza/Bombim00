@@ -86,7 +86,17 @@ def load_catalog(path: Path = CATALOG_PATH) -> list:
     return catalog
 
 
-def cross_check(catalog_id: str, result: dict, src: dict) -> str:
+def stored_result(item: dict) -> str:
+    """ISO date of the result already stored on the entry, or '' when unusable."""
+    if item.get("status") != "announced":
+        return ""
+    if not (re.fullmatch(r"[0-9]{3}", item.get("top3") or "") and
+            re.fullmatch(r"[0-9]{2}", item.get("bottom2") or "")):
+        return ""
+    return sources.thai_date_to_iso(str(item.get("date") or ""))
+
+
+def cross_check(catalog_id: str, src: dict) -> str:
     """Return a conflict description when the second source disagrees."""
     spec = CROSS_CHECK.get(catalog_id)
     if not spec:
@@ -107,12 +117,12 @@ def cross_check(catalog_id: str, result: dict, src: dict) -> str:
 
 
 def apply_results(catalog: list, src: dict, today: datetime.date) -> tuple[list, list]:
-    evidence, updated = [], []
+    evidence = []
     for item in catalog:
         result, reason = sources.resolve_stock_with_fallback(item["id"], src)
         entry = {"id": item["id"], "name": item["name"]}
         if result:
-            conflict = cross_check(item["id"], result, src)
+            conflict = cross_check(item["id"], src)
             if conflict:
                 result, reason = None, conflict
             elif result["drawDate"] > today.isoformat():
@@ -132,13 +142,17 @@ def apply_results(catalog: list, src: dict, today: datetime.date) -> tuple[list,
             })
             if result.get("specialPrize"):
                 entry["specialPrize"] = result["specialPrize"]
-            updated.append(item["id"])
         else:
-            # Keep the scheduling metadata untouched; only clear prize numbers.
-            item["status"] = "waiting"
-            for key in ("top3", "bottom2", "firstPrize"):
-                item[key] = ""
-            entry.update({"status": "not_found", "reason": reason})
+            # A failed or rejected fetch must never erase a verified result; keep
+            # the stored numbers and record why they were not refreshed.
+            previous = stored_result(item)
+            if previous:
+                entry.update({"status": "retained", "drawDate": previous, "reason": reason})
+            else:
+                item["status"] = "waiting"
+                for key in ("top3", "bottom2", "firstPrize"):
+                    item[key] = ""
+                entry.update({"status": "not_found", "reason": reason})
         evidence.append(entry)
     return catalog, evidence
 
@@ -158,16 +172,21 @@ def main() -> int:
 
     catalog, evidence = apply_results(catalog, src, today)
     verified = [row for row in evidence if row["status"] == "verified"]
-    missing = [row for row in evidence if row["status"] != "verified"]
+    retained = [row for row in evidence if row["status"] == "retained"]
+    missing = [row for row in evidence if row["status"] == "not_found"]
     report = {
         "generated_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).isoformat(),
         "total": len(catalog),
         "verified": len(verified),
+        "retained": len(retained),
         "not_found": len(missing),
         "source_errors": errors,
         "missing": [{"id": row["id"], "name": row["name"], "reason": row.get("reason", "")} for row in missing],
+        "retained_items": [{"id": row["id"], "name": row["name"], "drawDate": row.get("drawDate", ""),
+                            "reason": row.get("reason", "")} for row in retained],
     }
-    log(f"verified {len(verified)}/{len(catalog)} lotteries, {len(missing)} without evidence")
+    log(f"verified {len(verified)}/{len(catalog)} lotteries, {len(retained)} kept from the previous run, "
+        f"{len(missing)} without evidence")
     if args.dry_run:
         log("dry run: no files written")
         return 0

@@ -1,7 +1,8 @@
 {
-  "generated_at": "2026-11-21T06:17:02.262081+07:00",
+  "generated_at": "2026-11-21T10:47:05.272885+07:00",
   "total": 54,
   "verified": 47,
+  "retained": 0,
   "not_found": 7,
   "source_errors": [],
   "missing": [
@@ -40,5 +41,6 @@
       "name": "ดาวโจนส์ STAR",
       "reason": "ไม่พบแหล่งประกาศผลดาวโจนส์ STAR ที่ตรวจสอบได้"
     }
-  ]
+  ],
+  "retained_items": []
 }

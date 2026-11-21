@@ -1,7 +1,7 @@
 name: Update 54 lottery results
 
 # Refreshes data/all_lotteries.json from public sources, verifies it, then
-# commits only the runtime data files to the runtime-live branch.
+# commits only data/all_lotteries.json (the runtime allowlist) to runtime-live.
 
 on:
   schedule:
@@ -92,9 +92,10 @@ jobs:
           python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json
           report = json.load(open('data/all_lotteries_report.json', encoding='utf-8'))
-          print(f"### Lottery coverage\n")
+          print("### Lottery coverage\n")
           print(f"- total: {report['total']}")
-          print(f"- verified: {report['verified']}")
+          print(f"- verified this run: {report['verified']}")
+          print(f"- kept from the previous run: {report['retained']}")
           print(f"- without evidence: {report['not_found']}\n")
           if report['missing']:
               print("| id | name | reason |")
@@ -103,6 +104,15 @@ jobs:
                   print(f"| {row['id']} | {row['name']} | {row['reason']} |")
           PY
 
+      - name: Keep evidence and report as artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lottery-evidence
+          path: |
+            code/data/all_lotteries_evidence.json
+            code/data/all_lotteries_report.json
+          retention-days: 30
+
       - name: Checkout runtime-live data branch
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -110,30 +120,30 @@ jobs:
           path: runtime
           fetch-depth: 0
 
-      - name: Publish data files to runtime-live
+      - name: Publish the catalog to runtime-live
         if: ${{ inputs.dry_run != true }}
         run: |
           set -euo pipefail
-          cp code/data/all_lotteries.json runtime/data/all_lotteries.json
-          cp code/data/all_lotteries_evidence.json runtime/data/all_lotteries_evidence.json
-          cp code/data/all_lotteries_report.json runtime/data/all_lotteries_report.json
           cd runtime
           git config user.name "bombim00-bot"
           git config user.email "bombim00-bot@users.noreply.github.com"
-          git add data/all_lotteries.json data/all_lotteries_evidence.json data/all_lotteries_report.json
-          if git diff --cached --quiet; then
-            echo "No data changes to publish"
-            exit 0
-          fi
-          git commit -m "chore(bot): update 54 lottery results [skip ci] [skip render]"
           for attempt in 1 2 3; do
-            if git push origin HEAD:runtime-live; then
-              echo "pushed to runtime-live"
+            # Rebuild the commit on the newest runtime-live head every attempt so a
+            # concurrent worker commit can never leave the push non-fast-forward.
+            git fetch --quiet origin runtime-live
+            git reset --hard --quiet FETCH_HEAD
+            cp ../code/data/all_lotteries.json data/all_lotteries.json
+            git add data/all_lotteries.json
+            if git diff --cached --quiet; then
+              echo "No catalog changes to publish"
               exit 0
             fi
-            echo "push attempt ${attempt} failed, rebasing"
-            git fetch origin runtime-live
-            git rebase FETCH_HEAD || git rebase --abort
+            git commit --quiet -m "chore(bot): update 54 lottery results [skip ci] [skip render]"
+            if git push --quiet origin HEAD:runtime-live; then
+              echo "published data/all_lotteries.json to runtime-live"
+              exit 0
+            fi
+            echo "push attempt ${attempt} failed"
             sleep 5
           done
           echo "::error::could not push to runtime-live after 3 attempts"

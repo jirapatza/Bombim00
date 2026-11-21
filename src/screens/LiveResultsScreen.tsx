@@ -110,7 +110,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
       color: "green",
     },
     {
-      title: "ผลล่าสุด (งวดก่อน)",
+      title: "ผลล่าสุดที่ยืนยัน",
       value: data.latestResults,
       icon: CheckCircle2,
       state: "latest",
