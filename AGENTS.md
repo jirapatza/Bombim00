@@ -36,3 +36,23 @@ For Worker changes under cloudflare/, also run npm test inside cloudflare/.
 For Python or checker workflow changes, run Python tests and validate workflow YAML.
 Keep required CI checks enabled. Never put real credentials in source, logs or PRs.
 For screenshot-driven UI changes, inspect desktop and mobile layouts.
+
+## Data sources
+Each of the 54 catalog ids maps to one source in `CATALOG_SOURCES`
+(`scripts/lottery_sources.py`); `resolve()` returns a reason instead of a result
+when a source has nothing, so a missing draw never becomes a made-up number.
+
+- ThaiLottoAPI (`thailottoapi.com/api/results`) — Thai government, GSB, BAAC, Lao
+  development, the Hanoi family and the plain stock indices. No VIP or STAR variants.
+- ผลหวย.com (`xn--t3cmiit.com`) — per-lottery pages and the four stock groups.
+  Its 91 lottery pages have no ฮานอย HD, no plain ลาวสามัคคี and no
+  อังกฤษ/เยอรมัน/รัสเซีย/ดาวโจนส์ VIP or ดาวโจนส์ STAR; it has no public API.
+- LotteryChecks (`lotterychecks.com`) — the seven ids the first two lack. The JSON
+  API serves `hanoi-hd` and `lao-union`; the five stock VIP/STAR lotteries are only
+  on their pages, so the adapter reads the API first and falls back to the page
+  headline. Their terms ask for a credit link, so keep the URL in every source
+  string and the footer link.
+
+Adding a lottery means adding a `CATALOG_SOURCES` entry; `test_every_catalog_id_has_a_source`
+fails if a catalog id has none, and `test_lotterychecks_specs_stay_pinned` fails if the
+seven LotteryChecks paths drift.

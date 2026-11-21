@@ -418,10 +418,6 @@ CATALOG_SOURCES = {
     "baac": ("tla", "baaclotto"),
 }
 
-# Items with no verifiable public source. Empty: every catalog id now has one.
-UNSOURCED: dict[str, str] = {}
-
-
 def collect_sources(days: int = 4, today: datetime.date | None = None) -> tuple[dict, list]:
     """Fetch every source once and return a lookup structure plus error reasons."""
     reasons = []
@@ -464,7 +460,7 @@ def resolve(catalog_id: str, sources: dict) -> tuple[dict | None, str]:
     """Return (result, reason). A None result carries the reason it is missing."""
     spec = CATALOG_SOURCES.get(catalog_id)
     if not spec:
-        return None, UNSOURCED.get(catalog_id, "ไม่มีแหล่งข้อมูลที่กำหนดไว้สำหรับรายการนี้")
+        return None, "ไม่มีแหล่งข้อมูลที่กำหนดไว้สำหรับรายการนี้"
     kind = spec[0]
     if kind == "tla_or_stock":
         return resolve_stock_with_fallback(catalog_id, sources)

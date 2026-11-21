@@ -708,6 +708,13 @@ select:focus-visible {
   justify-content: space-between;
   gap: 15px;
 }
+.app-footer a {
+  color: #8fb4e6;
+  text-decoration: none;
+}
+.app-footer a:hover {
+  text-decoration: underline;
+}
 @media (min-width: 1600px) {
   .app-footer {
     margin: auto;
