@@ -172,12 +172,12 @@
     "drawTimeStr": "11:30 น.",
     "closeTimeStr": "11:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "210",
+    "bottom2": "84",
+    "firstPrize": "210",
+    "date": "21 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/vietnam/hd)"
   },
   {
     "id": "taiwan_vip",
@@ -640,12 +640,12 @@
     "drawTimeStr": "20:30 น.",
     "closeTimeStr": "20:15 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "685",
+    "bottom2": "56",
+    "firstPrize": "685",
+    "date": "20 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/laos/union)"
   },
   {
     "id": "lao_asean",
@@ -712,12 +712,12 @@
     "drawTimeStr": "21:50 น.",
     "closeTimeStr": "21:40 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "918",
+    "bottom2": "59",
+    "firstPrize": "918",
+    "date": "20 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/england-vip)"
   },
   {
     "id": "lao_star_vip",
@@ -820,12 +820,12 @@
     "drawTimeStr": "23:05 น.",
     "closeTimeStr": "22:40 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "516",
+    "bottom2": "77",
+    "firstPrize": "516",
+    "date": "20 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/germany-vip)"
   },
   {
     "id": "lao_redcross",
@@ -856,12 +856,12 @@
     "drawTimeStr": "23:55 น.",
     "closeTimeStr": "23:40 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "836",
+    "bottom2": "59",
+    "firstPrize": "836",
+    "date": "20 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/russia-vip)"
   },
   {
     "id": "dowjones_vip",
@@ -874,12 +874,12 @@
     "drawTimeStr": "00:30 น.",
     "closeTimeStr": "00:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "560",
+    "bottom2": "13",
+    "firstPrize": "560",
+    "date": "20 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/dowjones-vip)"
   },
   {
     "id": "dowjones_star",
@@ -892,12 +892,12 @@
     "drawTimeStr": "01:30 น.",
     "closeTimeStr": "00:55 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
-    "status": "waiting",
-    "top3": "",
-    "bottom2": "",
-    "firstPrize": "",
-    "date": "ไม่ระบุ",
-    "source": "ตารางกำหนดเวลา — รอผลจริงจากแหล่งข้อมูล"
+    "status": "announced",
+    "top3": "179",
+    "bottom2": "63",
+    "firstPrize": "179",
+    "date": "20 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/dowjonestar)"
   },
   {
     "id": "dowjones",
