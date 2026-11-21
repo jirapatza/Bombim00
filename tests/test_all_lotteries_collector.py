@@ -119,10 +119,64 @@ def test_stock_groups_are_separated():
     assert groups[("stock_special", "หวยหุ้นอังกฤษพิเศษ")] == ("633", "26")
 
 
-def test_resolve_reports_reason_for_unsourced_lottery():
-    result, reason = sources.resolve("dowjones_star", {"tla": {}, "stocks": [], "pages": {}})
+def test_resolve_reports_reason_for_unmapped_lottery():
+    result, reason = sources.resolve("not_in_catalog", {"tla": {}, "stocks": [], "pages": {}, "checks": {}})
     assert result is None
     assert reason
+
+
+def test_every_catalog_id_has_a_source():
+    catalog = collector.load_catalog()
+    assert not [row["id"] for row in catalog if row["id"] not in sources.CATALOG_SOURCES]
+
+
+def test_parse_lotterychecks_payload_reads_top_and_bottom():
+    payload = {"data": [{
+        "lottery": "hanoi-hd",
+        "lotteryName": "หวยฮานอย HD",
+        "drawDate": "2026-11-21",
+        "prizes": [
+            {"slug": "special-prize", "numbers": ["53210"]},
+            {"slug": "three-digit-top", "numbers": ["210"]},
+            {"slug": "two-digit-bottom", "numbers": ["84"]},
+        ],
+    }]}
+    record = sources.parse_lotterychecks_payload(payload, "https://lotterychecks.com/vietnam/hd")
+    assert (record.top3, record.bottom2, record.draw_date, record.first_prize) == ("210", "84", "2026-11-21", "53210")
+    result = record.as_result()
+    assert result["top3"] == "210"
+    assert result["bottom2"] == "84"
+    assert result["specialPrize"] == "53210"
+    assert "lotterychecks.com/vietnam/hd" in result["source"]
+
+
+def test_parse_lotterychecks_page_reads_the_headline_round():
+    html = ('<div>หวยหุ้นอังกฤษ VIP ออก 21:50 น. ออกผลแล้ว งวด 20 พฤศจิกายน 2569 '
+            '3 ตัวบน 918 2 ตัวล่าง 59</div>'
+            '<table><tr><td>งวดวันที่ 19 พฤศจิกายน 2569</td><td>510</td><td>97</td></tr></table>')
+    record = sources.parse_lotterychecks_page(html, "https://lotterychecks.com/stock-markets/england-vip")
+    assert (record.top3, record.bottom2, record.draw_date) == ("918", "59", "2026-11-20")
+    assert record.as_result()["date"] == "20 พฤศจิกายน 2569"
+
+
+def test_parse_lotterychecks_page_returns_none_when_no_result_block():
+    assert sources.parse_lotterychecks_page("<div>ยังไม่ออกผล</div>", "u") is None
+
+
+def test_resolve_uses_lotterychecks_record():
+    record = sources.Record(top3="918", bottom2="59", draw_date="2026-11-20", source="LotteryChecks")
+    result, reason = sources.resolve(
+        "england_vip",
+        {"tla": {}, "stocks": [], "pages": {}, "checks": {"/stock-markets/england-vip": record}},
+    )
+    assert reason == ""
+    assert result["top3"] == "918"
+
+
+def test_resolve_reports_reason_when_lotterychecks_page_is_missing():
+    result, reason = sources.resolve("england_vip", {"tla": {}, "stocks": [], "pages": {}, "checks": {}})
+    assert result is None
+    assert "LotteryChecks" in reason
 
 
 def test_resolve_reports_reason_when_source_is_empty():
@@ -258,8 +312,9 @@ def test_collect_sources_swallows_source_failures(monkeypatch):
     monkeypatch.setattr(sources, "fetch_thailottoapi", lambda **kwargs: ({}, ["timeout"]))
     monkeypatch.setattr(sources, "fetch_pholhuay_stock_groups", boom)
     monkeypatch.setattr(sources, "fetch_pholhuay_page", boom)
+    monkeypatch.setattr(sources, "fetch_lotterychecks", boom)
     src, reasons = sources.collect_sources(days=1, today=datetime.date(2026, 11, 20))
-    assert src == {"tla": {}, "stocks": [], "pages": {}}
+    assert src == {"tla": {}, "stocks": [], "pages": {}, "checks": {}}
     assert any("timeout" in reason for reason in reasons)
 
 
