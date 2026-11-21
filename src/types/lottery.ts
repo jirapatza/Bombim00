@@ -13,6 +13,9 @@ export interface LotteryCatalogItem {
   top3: string;
   bottom2: string;
   firstPrize: string;
+  /** Official three-digit prizes, when the source publishes them. */
+  front3?: string[];
+  back3?: string[];
   date: string;
   resultDate?: string;
   detectedAt?: string;
@@ -32,6 +35,11 @@ export interface RawLotteryResult {
   เลขหน้า_3_ตัว?: string[];
   เลขท้าย_3_ตัว?: string[];
   รางวัลข้างเคียงรางวัลที่_1?: string[];
+  top3?: string;
+  bottom2?: string;
+  firstPrize?: string;
+  front3?: string[];
+  back3?: string[];
   แหล่งข้อมูล?: string;
   เวลาที่ตรวจพบ?: string;
   สถานะการแจ้งเตือน?: string;

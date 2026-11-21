@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-21T15:57:35.790205+07:00",
+  "generated_at": "2026-11-21T16:52:02.906192+07:00",
   "items": [
     {
       "id": "lao_extra",
@@ -232,9 +232,9 @@
       "id": "hangseng_vip_afternoon",
       "name": "ฮั่งเส็งบ่าย VIP",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "205",
-      "bottom2": "49",
+      "drawDate": "2026-11-21",
+      "top3": "616",
+      "bottom2": "71",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)",
       "note": ""
     },
@@ -242,12 +242,12 @@
       "id": "lao_star",
       "name": "ลาว STAR",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "928",
-      "bottom2": "42",
+      "drawDate": "2026-11-21",
+      "top3": "699",
+      "bottom2": "73",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/lao-lottery/star)",
       "note": "",
-      "specialPrize": "42928"
+      "specialPrize": "73699"
     },
     {
       "id": "singapore",
@@ -273,12 +273,12 @@
       "id": "hanoi_redcross",
       "name": "ฮานอยกาชาด",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "337",
-      "bottom2": "32",
+      "drawDate": "2026-11-21",
+      "top3": "025",
+      "bottom2": "00",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/redcross)",
       "note": "",
-      "specialPrize": "81337"
+      "specialPrize": "30025"
     },
     {
       "id": "india",
@@ -540,7 +540,13 @@
       "top3": "654",
       "bottom2": "06",
       "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-21)",
-      "note": ""
+      "note": "",
+      "back3": [
+        "938",
+        "101",
+        "106",
+        "782"
+      ]
     },
     {
       "id": "gsb",

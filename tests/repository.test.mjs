@@ -15,9 +15,31 @@ test('full tickets check front and rear prizes, returning every match', () => {
   assert.equal(R.checkTickets('999985', key)[0].isWin, true);
   assert.equal(R.checkTickets('789012', key).length, 2);
   assert.equal(R.checkTickets('999345', key)[0].isWin, true);
-  assert.equal(R.checkTickets('456', key)[0].isWin, false);
+  assert.equal(R.checkTickets('456', key)[0].prizeType, '3 ตัวบน (ท้ายรางวัลที่ 1)');
   assert.equal(R.checkTickets('123456', key)[0].prizeType, 'รางวัลที่ 1 เต็มใบ');
 });
+test('a published three-digit prize is not labelled as derived', () => {
+  const hanoi = {ชื่อหวย: 'หวยฮานอย', งวดวันที่: '2026-11-01', เลขบน_3_ตัว: '456', เลขล่าง_2_ตัว: '85'};
+  R.results = [hanoi];
+  const hanoiKey = R.getTicketDraws()[0].key;
+  assert.equal(R.checkTickets('456', hanoiKey)[0].prizeType, '3 ตัวบน');
+  R.results = [row, {...row, งวดวันที่: '2020-01-01', เลขท้าย_2_ตัว: '99'}];
+});
+
+test('static catalog rows are checkable in their camelCase shape', () => {
+  const gov = {ชื่อหวย: 'สลากกินแบ่งรัฐบาล', งวดวันที่: '2026-11-16', top3: '654', bottom2: '06',
+    firstPrize: '645654', back3: ['938', '101', '106', '782']};
+  R.results = [gov];
+  const govKey = R.getTicketDraws()[0].key;
+  const upper = R.checkTickets('654', govKey);
+  assert.equal(upper.length, 1);
+  assert.equal(upper[0].prizeType, '3 ตัวบน');
+  assert.equal(R.checkTickets('938', govKey)[0].prizeType, 'เลขท้าย 3 ตัว');
+  assert.equal(R.checkTickets('06', govKey)[0].prizeType, 'เลขท้าย 2 ตัว');
+  assert.equal(R.checkTickets('645654', govKey)[0].prizeType, 'รางวัลที่ 1 เต็มใบ');
+  R.results = [row, {...row, งวดวันที่: '2020-01-01', เลขท้าย_2_ตัว: '99'}];
+});
+
 test('invalid input is rejected without stripping characters', () => {
   assert.equal(R.checkTickets('abc85', key)[0].isWin, false);
 });

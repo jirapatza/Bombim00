@@ -37,17 +37,41 @@ function getDisplayDate(res: RawLotteryResult): string {
   return res.วันที่จัดรูปแบบ || res.งวดวันที่ || 'ไม่ระบุงวด';
 }
 
+const getResolvedFirstPrize = (res: RawLotteryResult): string => res.รางวัลที่_1 || res.firstPrize || '';
+
+/** Three-digit prize the source published itself, if any. */
+function explicitTop3(res: RawLotteryResult): string {
+  const value = res.เลขบน_3_ตัว || res.top3 || '';
+  return /^\d{3}$/.test(value) ? value : '';
+}
+
+/**
+ * 3 ตัวบน. Every lottery settles this bet on the tail of the first prize, so a
+ * six-digit first prize yields its last three digits. `derived` records whether
+ * the value was published by the source or computed from the first prize, so
+ * the interface never presents a computed value as an official three-digit prize.
+ */
+function top3Of(res: RawLotteryResult): { value: string; derived: boolean } {
+  const explicit = explicitTop3(res);
+  if (explicit) return { value: explicit, derived: false };
+  const first = getResolvedFirstPrize(res);
+  return /^\d{3,}$/.test(first) ? { value: first.slice(-3), derived: true } : { value: '', derived: false };
+}
+
 function getResolvedTop3(res: RawLotteryResult): string {
-  if (res.เลขบน_3_ตัว) return res.เลขบน_3_ตัว;
-  if (res.รางวัลที่_1 && res.รางวัลที่_1.length >= 3) {
-    return res.รางวัลที่_1.slice(-3);
-  }
-  return '';
+  return top3Of(res).value;
 }
 
 function getResolvedBottom2(res: RawLotteryResult): string {
-  return res.เลขล่าง_2_ตัว || res.เลขท้าย_2_ตัว || '';
+  return res.เลขล่าง_2_ตัว || res.เลขท้าย_2_ตัว || res.bottom2 || '';
 }
+
+/** Prize lists arrive as arrays or as one comma separated string. */
+const prizeList = (value?: string[]): string[] =>
+  (value ?? []).flatMap((entry) => String(entry).split(/[,\s]+/)).filter(Boolean);
+
+const getResolvedBack3 = (res: RawLotteryResult): string[] => prizeList(res.เลขท้าย_3_ตัว ?? res.back3);
+const getResolvedFront3 = (res: RawLotteryResult): string[] => prizeList(res.เลขหน้า_3_ตัว ?? res.front3);
 
 export function normalizeName(name: string): string {
   const isVip = /(?<!s)vip|วีไอพี/i.test(name);
@@ -146,6 +170,8 @@ export function mergeCatalogWithResults(
       top3: ['thai_gov', 'gsb', 'baac'].includes(item.id) && hasFirstPrize ? '' : matched.เลขบน_3_ตัว ?? '',
       bottom2: getResolvedBottom2(matched),
       firstPrize: hasFirstPrize ? firstPrize : '',
+      front3: matched.เลขหน้า_3_ตัว ?? item.front3,
+      back3: matched.เลขท้าย_3_ตัว ?? item.back3,
       date: getDisplayDate(matched),
       resultDate: today,
       detectedAt: matched.เวลาที่ตรวจพบ,
@@ -313,22 +339,24 @@ export class LotteryRepository {
       }
       const wins = new Map<string, TicketCheckReport>();
       for (const row of rows) {
-        const first = row.รางวัลที่_1 ?? '';
+        const first = getResolvedFirstPrize(row);
+        const top = top3Of(row);
+        const bottom2 = getResolvedBottom2(row);
         const add = (prizeType: string, matchedNumber: string) => {
           wins.set(`${prizeType}:${matchedNumber}`, { ticketNumber: num, isWin: true,
             winningLotteryName: getDisplayName(row), drawDate: drawDate(row), prizeType, matchedNumber });
         };
-        const tokens = (items: string[] = []) => items.flatMap((item) => item.split(/[,\s]+/));
         if (num.length === 6 && first === num) add('รางวัลที่ 1 เต็มใบ', first);
-        if ((num.length === 2 || num.length === 6) && getResolvedBottom2(row) === num.slice(-2))
+        if ((num.length === 2 || num.length === 6) && bottom2 && bottom2 === num.slice(-2))
           add('เลขท้าย 2 ตัว', num.slice(-2));
-        // Upper-three bets are distinct from official front/rear-three prizes.
-        if (num.length === 3 && !/^\d{6}$/.test(first) &&
-            !getDisplayName(row).includes('รัฐบาล') && row.เลขบน_3_ตัว === num)
-          add('เลข 3 ตัวบน', num);
+        // A three-digit bet is settled on the first-prize tail for every lottery,
+        // including the government draw, whose six-digit first prize has no
+        // separate "3 ตัวบน" prize of its own.
+        if (num.length === 3 && top.value === num)
+          add(top.derived ? '3 ตัวบน (ท้ายรางวัลที่ 1)' : '3 ตัวบน', num);
         if (num.length === 3 || num.length === 6) {
-          if (tokens(row.เลขหน้า_3_ตัว).includes(num.slice(0, 3))) add('เลขหน้า 3 ตัว', num.slice(0, 3));
-          if (tokens(row.เลขท้าย_3_ตัว).includes(num.slice(-3))) add('เลขท้าย 3 ตัว', num.slice(-3));
+          if (getResolvedFront3(row).includes(num.slice(0, 3))) add('เลขหน้า 3 ตัว', num.slice(0, 3));
+          if (getResolvedBack3(row).includes(num.slice(-3))) add('เลขท้าย 3 ตัว', num.slice(-3));
         }
       }
       return wins.size ? [...wins.values()] : [{ ticketNumber: num, isWin: false,

@@ -407,10 +407,10 @@
     "closeTimeStr": "15:15 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "205",
-    "bottom2": "49",
-    "firstPrize": "205",
-    "date": "20 พฤศจิกายน 2569",
+    "top3": "616",
+    "bottom2": "71",
+    "firstPrize": "616",
+    "date": "21 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)"
   },
   {
@@ -425,10 +425,10 @@
     "closeTimeStr": "15:35 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "928",
-    "bottom2": "42",
-    "firstPrize": "928",
-    "date": "20 พฤศจิกายน 2569",
+    "top3": "699",
+    "bottom2": "73",
+    "firstPrize": "699",
+    "date": "21 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/lao-lottery/star)"
   },
   {
@@ -479,10 +479,10 @@
     "closeTimeStr": "16:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "337",
-    "bottom2": "32",
-    "firstPrize": "337",
-    "date": "20 พฤศจิกายน 2569",
+    "top3": "025",
+    "bottom2": "00",
+    "firstPrize": "025",
+    "date": "21 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/redcross)"
   },
   {
@@ -933,7 +933,13 @@
     "bottom2": "06",
     "firstPrize": "645654",
     "date": "16 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-21)"
+    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-21)",
+    "back3": [
+      "938",
+      "101",
+      "106",
+      "782"
+    ]
   },
   {
     "id": "gsb",
