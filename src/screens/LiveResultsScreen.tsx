@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { FreshnessBadge } from "../components/FreshnessBadge";
 import {
   Timer,
   ArrowRight,
@@ -255,12 +256,13 @@ export const LiveResultsScreen: React.FC<Props> = ({
                 </div>
               </div>
               <div className="latest-footer">
-                <span>
-                  ออกตามตาราง {item.drawTimeStr}
-                </span>
+                <span>งวด {item.date}</span>
                 <span>
                   ดูผล <ArrowRight size={12} />
                 </span>
+              </div>
+              <div className="freshness-note">
+                <FreshnessBadge date={item.date} drawDays={item.drawDays} />
               </div>
             </button>
           ))}
@@ -448,6 +450,9 @@ export const LiveResultsScreen: React.FC<Props> = ({
           <p className="muted">
             {detail.date} • ออกตามตาราง {detail.drawTimeStr} • ปิดรับตามตาราง {detail.closeTimeStr || "—"}
           </p>
+          <div className="freshness-note">
+            <FreshnessBadge date={detail.date} drawDays={detail.drawDays} />
+          </div>
           {["drawn", "latest"].includes(drawState(detail, now)) ? (
             <>
               <div className="result-pair">
