@@ -23,6 +23,8 @@ THAI_MONTHS = (
 
 THAILOTTOAPI_URL = "https://thailottoapi.com/api/results"
 PHOLHUAY_BASE = "https://xn--t3cmiit.com"
+LOTTERYCHECKS_BASE = "https://lotterychecks.com"
+LOTTERYCHECKS_API = f"{LOTTERYCHECKS_BASE}/api/public/results"
 USER_AGENT = "Mozilla/5.0 (compatible; Bombim00Collector/2.0)"
 
 
@@ -298,6 +300,64 @@ def fetch_pholhuay_stock_groups() -> list:
     return parse_pholhuay_stock_groups(http_get(url), url)
 
 
+# --- LotteryChecks ----------------------------------------------------------
+
+def parse_lotterychecks_payload(payload: dict, page_url: str) -> Record | None:
+    """Read the newest record of an /api/public/results response."""
+    for row in (payload or {}).get("data") or []:
+        prizes = {str(p.get("slug")): p.get("numbers") or [] for p in row.get("prizes") or []}
+        top3 = digits((prizes.get("three-digit-top") or [""])[0], 3)
+        bottom2 = digits((prizes.get("two-digit-bottom") or [""])[0], 2)
+        draw_date = thai_date_to_iso(str(row.get("drawDate") or ""))
+        if not (top3 and bottom2 and draw_date):
+            continue
+        return Record(
+            top3=top3,
+            bottom2=bottom2,
+            draw_date=draw_date,
+            source=f"LotteryChecks ({page_url})",
+            first_prize=digits((prizes.get("special-prize") or [""])[0], 5),
+            label=str(row.get("lotteryName") or ""),
+        )
+    return None
+
+
+def parse_lotterychecks_page(html: str, page_url: str) -> Record | None:
+    """Read the headline 'งวด <date> 3 ตัวบน … 2 ตัวล่าง …' block of a result page."""
+    text = strip_markup(html)
+    match = re.search(
+        r"งวด\s*(\d{1,2}\s+\S+\s+\d{4})\s*3\s*ตัวบน\s*(\d{3})\s*2\s*ตัวล่าง\s*(\d{2})",
+        text,
+    )
+    if not match:
+        return None
+    draw_date = thai_date_to_iso(match.group(1))
+    if not draw_date:
+        return None
+    special = re.search(r"รางวัลพิเศษ\s*(\d{5})", text[: match.start()])
+    return Record(
+        top3=match.group(2),
+        bottom2=match.group(3),
+        draw_date=draw_date,
+        source=f"LotteryChecks ({page_url})",
+        first_prize=special.group(1) if special else "",
+    )
+
+
+def fetch_lotterychecks(page_path: str, api_slug: str = "") -> Record | None:
+    """Prefer the JSON API; fall back to the page when the slug is not exposed there."""
+    page_url = f"{LOTTERYCHECKS_BASE}{page_path}"
+    if api_slug:
+        try:
+            payload = json.loads(http_get(f"{LOTTERYCHECKS_API}?lottery={api_slug}&limit=1"))
+        except (SourceError, ValueError):
+            payload = {}
+        record = parse_lotterychecks_payload(payload, page_url)
+        if record is not None:
+            return record
+    return parse_lotterychecks_page(http_get(page_url), page_url)
+
+
 # --- Catalog mapping --------------------------------------------------------
 
 # id -> ("page", slug) | ("tla", key) | ("stock", group, label regex)
@@ -346,21 +406,20 @@ CATALOG_SOURCES = {
     "russia": ("tla_or_stock", "stockrussia", "stock", r"รัสเซีย$"),
     "lao_redcross": ("page", "/lao-lottery/redcross"),
     "dowjones": ("tla_or_stock", "stockdowjones", "stock", r"ดาวโจนส์$"),
+    "hanoi_hd": ("checks", "hanoi-hd", "/vietnam/hd"),
+    "lao_samakki": ("checks", "lao-union", "/laos/union"),
+    "england_vip": ("checks", "", "/stock-markets/england-vip"),
+    "germany_vip": ("checks", "", "/stock-markets/germany-vip"),
+    "russia_vip": ("checks", "", "/stock-markets/russia-vip"),
+    "dowjones_vip": ("checks", "", "/stock-markets/dowjones-vip"),
+    "dowjones_star": ("checks", "", "/stock-markets/dowjonestar"),
     "thai_gov": ("tla", "thailotto"),
     "gsb": ("tla", "gsblotto"),
     "baac": ("tla", "baaclotto"),
 }
 
-# Items with no verifiable public source, with the reason recorded as evidence.
-UNSOURCED = {
-    "hanoi_hd": "ไม่พบหน้าผลรางวัลของฮานอย HD ในแหล่งที่ตรวจสอบได้ (ผลหวย.com ไม่มีหมวดนี้)",
-    "lao_samakki": "ผลหวย.com ไม่มีหน้าลาวสามัคคี (มีเฉพาะลาวสามัคคี VIP) และ ThaiLottoAPI ไม่มีคู่นี้",
-    "england_vip": "ผลหวย.com หน้าแยกหมวดหุ้นไม่มีอังกฤษ VIP (มีเฉพาะอังกฤษพิเศษ/VISA)",
-    "germany_vip": "ผลหวย.com หน้าแยกหมวดหุ้นไม่มีเยอรมัน VIP (มีเฉพาะเยอรมันพิเศษ/VISA)",
-    "russia_vip": "ผลหวย.com หน้าแยกหมวดหุ้นไม่มีรัสเซีย VIP (มีเฉพาะรัสเซียพิเศษ/VISA)",
-    "dowjones_vip": "ผลหวย.com หน้าแยกหมวดหุ้นไม่มีดาวโจนส์ VIP",
-    "dowjones_star": "ไม่พบแหล่งประกาศผลดาวโจนส์ STAR ที่ตรวจสอบได้",
-}
+# Items with no verifiable public source. Empty: every catalog id now has one.
+UNSOURCED: dict[str, str] = {}
 
 
 def collect_sources(days: int = 4, today: datetime.date | None = None) -> tuple[dict, list]:
@@ -385,7 +444,20 @@ def collect_sources(days: int = 4, today: datetime.date | None = None) -> tuple[
                 continue
             if record:
                 pages[slug] = record
-    return {"tla": tla, "stocks": stocks, "pages": pages}, reasons
+    checks = {}
+    check_specs = {spec[2]: spec[1] for spec in CATALOG_SOURCES.values() if spec[0] == "checks"}
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = {path: pool.submit(fetch_lotterychecks, path, api_slug)
+                   for path, api_slug in check_specs.items()}
+        for path, future in futures.items():
+            try:
+                record = future.result()
+            except Exception as error:  # noqa: BLE001
+                reasons.append(f"LotteryChecks {path}: {type(error).__name__}")
+                continue
+            if record:
+                checks[path] = record
+    return {"tla": tla, "stocks": stocks, "pages": pages, "checks": checks}, reasons
 
 
 def resolve(catalog_id: str, sources: dict) -> tuple[dict | None, str]:
@@ -405,6 +477,11 @@ def resolve(catalog_id: str, sources: dict) -> tuple[dict | None, str]:
         record = sources["pages"].get(spec[1])
         if record is None:
             return None, f"ผลหวย.com หน้า {spec[1]} ไม่มีบล็อกผลล่าสุดที่อ่านได้"
+        return record.as_result(), ""
+    if kind == "checks":
+        record = sources.get("checks", {}).get(spec[2])
+        if record is None:
+            return None, f"LotteryChecks หน้า {spec[2]} ไม่มีบล็อกผลล่าสุดที่อ่านได้"
         return record.as_result(), ""
     group, label_regex = spec[1], spec[2]
     matches = [row for row in sources["stocks"]

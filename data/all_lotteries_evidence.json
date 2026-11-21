@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-21T10:47:05.272885+07:00",
+  "generated_at": "2026-11-21T15:57:35.790205+07:00",
   "items": [
     {
       "id": "lao_extra",
@@ -67,20 +67,20 @@
       "id": "lao_tv",
       "name": "ลาว TV",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "262",
-      "bottom2": "42",
+      "drawDate": "2026-11-21",
+      "top3": "108",
+      "bottom2": "90",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/lao-lottery/tv)",
       "note": "",
-      "specialPrize": "42262"
+      "specialPrize": "90108"
     },
     {
       "id": "hangseng_vip_morning",
       "name": "ฮั่งเส็งเช้า VIP",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "665",
-      "bottom2": "09",
+      "drawDate": "2026-11-21",
+      "top3": "108",
+      "bottom2": "70",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)",
       "note": ""
     },
@@ -97,16 +97,21 @@
     {
       "id": "hanoi_hd",
       "name": "ฮานอย HD",
-      "status": "not_found",
-      "reason": "ไม่พบหน้าผลรางวัลของฮานอย HD ในแหล่งที่ตรวจสอบได้ (ผลหวย.com ไม่มีหมวดนี้)"
+      "status": "verified",
+      "drawDate": "2026-11-21",
+      "top3": "210",
+      "bottom2": "84",
+      "source": "LotteryChecks (https://lotterychecks.com/vietnam/hd)",
+      "note": "",
+      "specialPrize": "53210"
     },
     {
       "id": "taiwan_vip",
       "name": "ไต้หวัน VIP",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "900",
-      "bottom2": "10",
+      "drawDate": "2026-11-21",
+      "top3": "174",
+      "bottom2": "35",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)",
       "note": ""
     },
@@ -114,12 +119,12 @@
       "id": "hanoi_star",
       "name": "ฮานอย STAR",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "310",
-      "bottom2": "49",
+      "drawDate": "2026-11-21",
+      "top3": "446",
+      "bottom2": "63",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/star)",
       "note": "",
-      "specialPrize": "68310"
+      "specialPrize": "90446"
     },
     {
       "id": "taiwan",
@@ -135,9 +140,9 @@
       "id": "korea_vip",
       "name": "เกาหลี VIP",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "561",
-      "bottom2": "07",
+      "drawDate": "2026-11-21",
+      "top3": "850",
+      "bottom2": "16",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)",
       "note": ""
     },
@@ -165,9 +170,9 @@
       "id": "nikkei_vip_afternoon",
       "name": "นิเคอิบ่าย VIP",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "613",
-      "bottom2": "30",
+      "drawDate": "2026-11-21",
+      "top3": "531",
+      "bottom2": "15",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)",
       "note": ""
     },
@@ -175,12 +180,12 @@
       "id": "lao_hd",
       "name": "ลาว HD",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "807",
-      "bottom2": "81",
+      "drawDate": "2026-11-21",
+      "top3": "136",
+      "bottom2": "74",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/lao-lottery/hd)",
       "note": "",
-      "specialPrize": "81807"
+      "specialPrize": "74136"
     },
     {
       "id": "china_afternoon",
@@ -196,20 +201,20 @@
       "id": "hanoi_tv",
       "name": "ฮานอย TV",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "939",
-      "bottom2": "59",
+      "drawDate": "2026-11-21",
+      "top3": "099",
+      "bottom2": "25",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/tv)",
       "note": "",
-      "specialPrize": "67939"
+      "specialPrize": "80099"
     },
     {
       "id": "china_vip_afternoon",
       "name": "จีนบ่าย VIP",
       "status": "verified",
-      "drawDate": "2026-11-20",
-      "top3": "887",
-      "bottom2": "08",
+      "drawDate": "2026-11-21",
+      "top3": "280",
+      "bottom2": "35",
       "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)",
       "note": ""
     },
@@ -363,8 +368,13 @@
     {
       "id": "lao_samakki",
       "name": "ลาวสามัคคี",
-      "status": "not_found",
-      "reason": "ผลหวย.com ไม่มีหน้าลาวสามัคคี (มีเฉพาะลาวสามัคคี VIP) และ ThaiLottoAPI ไม่มีคู่นี้"
+      "status": "verified",
+      "drawDate": "2026-11-20",
+      "top3": "685",
+      "bottom2": "56",
+      "source": "LotteryChecks (https://lotterychecks.com/laos/union)",
+      "note": "",
+      "specialPrize": "05685"
     },
     {
       "id": "lao_asean",
@@ -402,8 +412,12 @@
     {
       "id": "england_vip",
       "name": "อังกฤษ VIP",
-      "status": "not_found",
-      "reason": "ผลหวย.com หน้าแยกหมวดหุ้นไม่มีอังกฤษ VIP (มีเฉพาะอังกฤษพิเศษ/VISA)"
+      "status": "verified",
+      "drawDate": "2026-11-20",
+      "top3": "918",
+      "bottom2": "59",
+      "source": "LotteryChecks (https://lotterychecks.com/stock-markets/england-vip)",
+      "note": ""
     },
     {
       "id": "lao_star_vip",
@@ -460,8 +474,12 @@
     {
       "id": "germany_vip",
       "name": "เยอรมัน VIP",
-      "status": "not_found",
-      "reason": "ผลหวย.com หน้าแยกหมวดหุ้นไม่มีเยอรมัน VIP (มีเฉพาะเยอรมันพิเศษ/VISA)"
+      "status": "verified",
+      "drawDate": "2026-11-20",
+      "top3": "516",
+      "bottom2": "77",
+      "source": "LotteryChecks (https://lotterychecks.com/stock-markets/germany-vip)",
+      "note": ""
     },
     {
       "id": "lao_redcross",
@@ -477,20 +495,32 @@
     {
       "id": "russia_vip",
       "name": "รัสเซีย VIP",
-      "status": "not_found",
-      "reason": "ผลหวย.com หน้าแยกหมวดหุ้นไม่มีรัสเซีย VIP (มีเฉพาะรัสเซียพิเศษ/VISA)"
+      "status": "verified",
+      "drawDate": "2026-11-20",
+      "top3": "836",
+      "bottom2": "59",
+      "source": "LotteryChecks (https://lotterychecks.com/stock-markets/russia-vip)",
+      "note": ""
     },
     {
       "id": "dowjones_vip",
       "name": "ดาวโจนส์ VIP",
-      "status": "not_found",
-      "reason": "ผลหวย.com หน้าแยกหมวดหุ้นไม่มีดาวโจนส์ VIP"
+      "status": "verified",
+      "drawDate": "2026-11-20",
+      "top3": "560",
+      "bottom2": "13",
+      "source": "LotteryChecks (https://lotterychecks.com/stock-markets/dowjones-vip)",
+      "note": ""
     },
     {
       "id": "dowjones_star",
       "name": "ดาวโจนส์ STAR",
-      "status": "not_found",
-      "reason": "ไม่พบแหล่งประกาศผลดาวโจนส์ STAR ที่ตรวจสอบได้"
+      "status": "verified",
+      "drawDate": "2026-11-20",
+      "top3": "179",
+      "bottom2": "63",
+      "source": "LotteryChecks (https://lotterychecks.com/stock-markets/dowjonestar)",
+      "note": ""
     },
     {
       "id": "dowjones",
