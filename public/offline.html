@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#020617" />
+    <title>Bombim00 — ไม่มีการเชื่อมต่อ</title>
+    <!-- Same face as the app. If it cannot load, the device font renders Thai anyway. -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;700&display=swap"
+    />
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: #020617;
+        color: #e2e8f0;
+        font-family: "Noto Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      main { max-width: 420px; text-align: center; }
+      h1 { margin: 0 0 8px; font-size: 20px; color: #f8fafc; }
+      p { margin: 0 0 20px; font-size: 14px; line-height: 1.7; color: #94a3b8; }
+      /* A link, not a script: the site's CSP allows no inline handlers. */
+      a.retry {
+        display: inline-block;
+        padding: 12px 20px;
+        border-radius: 12px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      a.retry:hover { background: #3b82f6; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>ตอนนี้ไม่มีการเชื่อมต่อ</h1>
+      <p>
+        ผลหวยต้องดึงจากแหล่งข้อมูลสด จึงแสดงไม่ได้ตอนออฟไลน์
+        เปิดอินเทอร์เน็ตแล้วลองใหม่ ระบบจะกลับมาอัปเดตเอง
+      </p>
+      <a class="retry" href="/">ลองอีกครั้ง</a>
+    </main>
+  </body>
+</html>

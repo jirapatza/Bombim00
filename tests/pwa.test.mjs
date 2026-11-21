@@ -58,9 +58,24 @@ test("the service worker registers on load, not only when push is enabled", () =
 });
 
 test("the service worker keeps a fetch listener so the app stays installable", () => {
+  assert.match(read("public/push-sw.js"), /addEventListener\('fetch'/);
+});
+
+test("only a failed navigation is answered from the cache", () => {
   const source = read("public/push-sw.js");
-  assert.match(source, /addEventListener\('fetch', \(\) => \{\}\)/);
-  assert.doesNotMatch(source, /respondWith\(/, "no offline cache to keep stale");
+  assert.match(source, /request\.mode !== 'navigate'/, "data and API requests stay on the network");
+  assert.match(source, /caches\.match\(OFFLINE_URL\)/, "falls back to the offline page");
+  assert.match(source, /cache\.add\(OFFLINE_URL\)/, "precaches the offline page on install");
+  assert.doesNotMatch(source, /caches\.match\(request\)/, "never serves a stale page while online");
+  assert.equal(source.match(/respondWith\(/g).length, 1, "only the navigation branch answers requests");
+});
+
+test("the offline page explains the state in Thai and offers a retry", () => {
+  const html = read("public/offline.html");
+  assert.match(html, /<html lang="th">/);
+  assert.match(html, /ไม่มีการเชื่อมต่อ/);
+  assert.match(html, /<a class="retry" href="\/">/, "retry is a link, because the CSP blocks inline handlers");
+  assert.doesNotMatch(html, /<script/, "no scripts that would also be offline");
 });
 
 // install.ts is TypeScript, so it is bundled once with the same esbuild the app uses.
