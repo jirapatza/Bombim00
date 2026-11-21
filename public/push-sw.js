@@ -3,7 +3,18 @@ self.addEventListener('push', event => {
   try { message = event.data?.json(); } catch { return; }
   if (typeof message?.title !== 'string' || typeof message?.body !== 'string') return;
   event.waitUntil((async () => {
-    await self.registration.showNotification(message.title, { body: message.body, data: { receipt: message.receipt || null } });
+    // A closed tab cannot speak, so the notification itself must be audible:
+    // silent:false keeps the system sound, vibrate covers phones, and the tag
+    // makes a newer result replace the previous one instead of stacking.
+    await self.registration.showNotification(message.title, {
+      body: message.body,
+      silent: false,
+      vibrate: [220, 120, 220],
+      tag: 'bombim00-lottery',
+      renotify: true,
+      timestamp: Date.now(),
+      data: { receipt: message.receipt || null },
+    });
     if (message.receipt) await postReceipt(message.receipt, 'received');
   })());
 });
