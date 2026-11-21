@@ -187,7 +187,10 @@ def test_resolve_reports_reason_when_source_is_empty():
 
 
 def test_apply_results_marks_verified_and_missing():
-    catalog = collector.load_catalog()
+    catalog = json.loads(json.dumps(collector.load_catalog()))
+    blank = {"status": "waiting", "top3": "", "bottom2": "", "firstPrize": "",
+             "date": "", "drawDate": "", "source": "", "specialPrize": ""}
+    next(row for row in catalog if row["id"] == "dowjones_star").update(blank)
     src = {
         "tla": sources.parse_thailottoapi(TLA_PAYLOAD),
         "stocks": sources.parse_pholhuay_stock_groups(STOCK_HTML),
@@ -373,8 +376,12 @@ def test_validator_checks_evidence_consistency():
     catalog = json.loads(json.dumps(CATALOG))
     evidence = {"items": [{"id": item["id"], "status": "not_found", "reason": "no source"}
                           for item in catalog]}
+    waiting = json.loads(json.dumps(catalog[0]))
+    waiting.update({"id": "synthetic_waiting", "status": "waiting", "top3": "", "bottom2": "",
+                    "firstPrize": "", "date": "", "drawDate": "", "source": ""})
+    catalog.append(waiting)
+    evidence["items"].append({"id": waiting["id"], "status": "not_found", "reason": "no source"})
     assert validator.validate_evidence(evidence, catalog) == []
-    waiting = next(item for item in catalog if item["status"] == "waiting")
     evidence["items"] = [row for row in evidence["items"] if row["id"] != waiting["id"]]
     evidence["items"].append({"id": waiting["id"], "status": "verified",
                               "top3": "111", "bottom2": "22"})
