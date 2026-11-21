@@ -1054,3 +1054,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Freshness badge: only rendered when a draw is overdue, so it stays out of the way. */
+.freshness-note { display: flex; flex-wrap: wrap; gap: 6px; }
+.freshness-note:empty { display: none; }
+.latest-card .freshness-note { margin-top: 10px; }
