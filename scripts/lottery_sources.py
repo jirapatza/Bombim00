@@ -62,6 +62,19 @@ def digits(value, width: int) -> str:
     return text if re.fullmatch(rf"[0-9]{{{width}}}", text) else ""
 
 
+def digits_list(value, width: int) -> tuple:
+    """Normalise a prize list ("938, 101" or ["938","101"]) into unique strings."""
+    if value is None:
+        return ()
+    items = value if isinstance(value, (list, tuple)) else re.split(r"[,\s]+", str(value))
+    out = []
+    for item in items:
+        text = digits(item, width)
+        if text and text not in out:
+            out.append(text)
+    return tuple(out)
+
+
 @dataclass
 class SourceError(Exception):
     reason: str
@@ -78,6 +91,8 @@ class Record:
     source: str
     first_prize: str = ""
     label: str = ""
+    front3: tuple = ()
+    back3: tuple = ()
     extra: dict = field(default_factory=dict)
 
     def as_result(self) -> dict:
@@ -96,6 +111,10 @@ class Record:
         }
         if special:
             result["specialPrize"] = special
+        if self.front3:
+            result["front3"] = list(self.front3)
+        if self.back3:
+            result["back3"] = list(self.back3)
         return result
 
 
@@ -170,6 +189,8 @@ def parse_thailottoapi(payload: dict, source_url: str = THAILOTTOAPI_URL) -> dic
                 source=f"ThaiLottoAPI ({source_url})",
                 first_prize=first,
                 label=item.get("label", ""),
+                front3=digits_list(item.get("front3"), 3),
+                back3=digits_list(item.get("bottom3"), 3),
             )
     return records
 

@@ -25,6 +25,8 @@ EVIDENCE_PATH = ROOT / "data" / "all_lotteries_evidence.json"
 EXPECTED_KEYS = ["id", "name", "category", "categoryLabel", "period", "periodLabel",
                  "flag", "drawTimeStr", "closeTimeStr", "drawDays", "status", "top3",
                  "bottom2", "firstPrize", "date", "source"]
+# Official three-digit prizes, present only when the source publishes them.
+OPTIONAL_KEYS = ("front3", "back3")
 EXPECTED_COUNT = 54
 VALID_STATUS = {"announced", "waiting"}
 
@@ -42,8 +44,15 @@ def validate_catalog(catalog, today: datetime.date | None = None) -> list:
         if not isinstance(item, dict):
             errors.append(f"{where}: not an object")
             continue
-        if list(item.keys()) != EXPECTED_KEYS:
+        if [key for key in item if key not in OPTIONAL_KEYS] != EXPECTED_KEYS:
             errors.append(f"{where}: schema changed, keys={list(item.keys())}")
+        for key in OPTIONAL_KEYS:
+            if key not in item:
+                continue
+            value = item[key]
+            if not (isinstance(value, list) and value and all(
+                    isinstance(n, str) and re.fullmatch(r"[0-9]{3}", n) for n in value)):
+                errors.append(f"{where}: {key} must be a non-empty list of 3-digit strings")
         item_id = item.get("id")
         if not isinstance(item_id, str) or not item_id:
             errors.append(f"{where}: missing id")

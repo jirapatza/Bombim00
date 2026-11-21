@@ -27,7 +27,7 @@ EVIDENCE_PATH = ROOT / "data" / "all_lotteries_evidence.json"
 REPORT_PATH = ROOT / "data" / "all_lotteries_report.json"
 LOG_DIR = ROOT / "logs"
 
-RESULT_FIELDS = ("status", "top3", "bottom2", "firstPrize", "date", "source")
+RESULT_FIELDS = ("status", "top3", "bottom2", "firstPrize", "date", "source", "front3", "back3")
 RESULT_KEYS = ("id", "name", "category", "categoryLabel", "period", "periodLabel",
                "flag", "drawTimeStr", "closeTimeStr", "drawDays", "status", "top3",
                "bottom2", "firstPrize", "date", "source")
@@ -142,6 +142,9 @@ def apply_results(catalog: list, src: dict, today: datetime.date) -> tuple[list,
             })
             if result.get("specialPrize"):
                 entry["specialPrize"] = result["specialPrize"]
+            for key in ("front3", "back3"):
+                if result.get(key):
+                    entry[key] = result[key]
         else:
             # A failed or rejected fetch must never erase a verified result; keep
             # the stored numbers and record why they were not refreshed.

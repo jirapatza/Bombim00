@@ -460,6 +460,13 @@ export const LiveResultsScreen: React.FC<Props> = ({
                   <small>2 ตัวล่าง</small>
                 </div>
               </div>
+              {((detail.front3?.length ?? 0) + (detail.back3?.length ?? 0)) > 0 && (
+                <p className="muted">
+                  {detail.front3?.length ? `เลขหน้า 3 ตัว ${detail.front3.join(" • ")}` : ""}
+                  {detail.front3?.length && detail.back3?.length ? " • " : ""}
+                  {detail.back3?.length ? `เลขท้าย 3 ตัว ${detail.back3.join(" • ")}` : ""}
+                </p>
+              )}
               <p className="muted">แหล่งข้อมูล: {detail.source}</p>
               <div className="hero-actions">
                 <button

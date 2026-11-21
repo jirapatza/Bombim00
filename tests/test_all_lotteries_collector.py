@@ -342,7 +342,8 @@ def test_catalog_keeps_54_ids_in_order():
 
 def test_catalog_schema_keys_are_unchanged():
     for item in CATALOG:
-        assert list(item.keys()) == validator.EXPECTED_KEYS
+        assert [key for key in item if key not in validator.OPTIONAL_KEYS] == validator.EXPECTED_KEYS
+        assert all(key in validator.OPTIONAL_KEYS for key in item if key not in validator.EXPECTED_KEYS)
 
 
 def test_validator_accepts_current_catalog():
@@ -401,3 +402,33 @@ def test_validator_checks_evidence_consistency():
                               "top3": "111", "bottom2": "22"})
     errors = validator.validate_evidence(evidence, catalog)
     assert any("verified but catalog is waiting" in error for error in errors)
+
+
+def test_official_three_digit_prizes_survive_the_source_parser():
+    """ThaiLottoAPI publishes bottom3 as a comma string; the catalog keeps it."""
+    payload = {"categories": {"gov": {"items": [{
+        "key": "government", "label": "สลากกินแบ่งรัฐบาล",
+        "drawDate": "16 พฤศจิกายน 2569", "result": "645654", "top3": "654",
+        "bottom3": "938, 101, 106, 782", "bottom2": "06",
+    }]}}}
+    record = sources.parse_thailottoapi(payload)["government"]
+    assert record.back3 == ("938", "101", "106", "782")
+    assert record.front3 == ()
+    result = record.as_result()
+    assert result["back3"] == ["938", "101", "106", "782"]
+    assert result["top3"] == "654" and result["firstPrize"] == "645654"
+    assert "front3" not in result
+
+
+def test_digits_list_drops_duplicates_and_bad_widths():
+    assert sources.digits_list("938, 938, 10, 101", 3) == ("938", "101")
+    assert sources.digits_list(["001", "002"], 3) == ("001", "002")
+    assert sources.digits_list(None, 3) == ()
+
+
+def test_validator_accepts_and_checks_the_optional_prize_lists():
+    catalog = [dict(item) for item in CATALOG]
+    catalog[0]["back3"] = ["938", "101"]
+    assert not [e for e in validator.validate_catalog(catalog) if "back3" in e]
+    catalog[0]["back3"] = ["93"]
+    assert [e for e in validator.validate_catalog(catalog) if "back3" in e]

@@ -162,10 +162,13 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
             {filteredResults.map((item, idx) => {
               const name = item.ชื่อหวย || item.หวย || 'ไม่ระบุชื่อ';
               const date = item.วันที่จัดรูปแบบ || item.งวดวันที่ || 'ไม่ระบุงวด';
-              const first = item.รางวัลที่_1 || '';
-              const top3 = item.เลขบน_3_ตัว || (first.length >= 3 ? first.slice(-3) : '-');
-              const bottom2 = item.เลขล่าง_2_ตัว || item.เลขท้าย_2_ตัว || '-';
-              const isGov = item.หมวดหวย === 'government';
+              const first = item.รางวัลที่_1 || item.firstPrize || '';
+              const explicitTop3 = item.เลขบน_3_ตัว || item.top3 || '';
+              const top3 = explicitTop3 || (first.length >= 3 ? first.slice(-3) : '-');
+              const bottom2 = item.เลขล่าง_2_ตัว || item.เลขท้าย_2_ตัว || item.bottom2 || '-';
+              const hasFirstPrize = /^\d{6}$/.test(first);
+              const officialBack3 = (item.เลขท้าย_3_ตัว ?? item.back3 ?? [])
+                .flatMap((entry) => String(entry).split(/[,\s]+/)).filter(Boolean);
 
               return (
                 <div
@@ -180,10 +183,10 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <div className="flex flex-col items-center justify-center rounded-xl bg-amber-500/15 py-2 px-3 border border-amber-500/30">
                       <span className="text-[11px] font-bold text-amber-400">
-                        {isGov ? 'รางวัลที่ 1' : '3 ตัวบน'}
+                        {hasFirstPrize ? 'รางวัลที่ 1' : '3 ตัวบน'}
                       </span>
                       <span className="font-mono-numbers text-xl font-black text-amber-300">
-                        {first || top3}
+                        {hasFirstPrize ? first : top3}
                       </span>
                     </div>
 
@@ -194,6 +197,12 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
                       </span>
                     </div>
                   </div>
+
+                  {officialBack3.length > 0 && (
+                    <p className="mt-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-200">
+                      เลขท้าย 3 ตัว: <span className="font-mono-numbers font-bold">{officialBack3.join(" • ")}</span>
+                    </p>
+                  )}
 
                   <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-slate-800/60 text-xs text-slate-400">
                     <span>แหล่ง: {item.แหล่งข้อมูล || 'ระบบหลัก'}</span>
