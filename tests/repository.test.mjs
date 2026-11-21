@@ -40,6 +40,24 @@ test('static catalog rows are checkable in their camelCase shape', () => {
   R.results = [row, {...row, งวดวันที่: '2020-01-01', เลขท้าย_2_ตัว: '99'}];
 });
 
+test('a split three-digit prize keeps its published name, one entry per prize', () => {
+  const gov = {ชื่อหวย: 'สลากกินแบ่งรัฐบาล', งวดวันที่: '2026-11-16', รางวัลที่_1: '645654',
+    เลขบน_3_ตัว: '654', เลขท้าย_2_ตัว: '06',
+    เลขหน้า_3_ตัว: ['101', '938'], เลขท้าย_3_ตัว: ['106', '782']};
+  R.results = [gov];
+  const govKey = R.getTicketDraws()[0].key;
+  assert.equal(R.checkTickets('938', govKey)[0].prizeType, 'เลขหน้า 3 ตัว');
+  const rear = R.checkTickets('106', govKey);
+  assert.equal(rear.length, 1);
+  assert.equal(rear[0].prizeType, 'เลขท้าย 3 ตัว');
+  assert.deepEqual(R.checkTickets('999106', govKey).map((r) => r.prizeType),
+    ['เลขท้าย 2 ตัว', 'เลขท้าย 3 ตัว']);
+  assert.equal(R.checkTickets('938999', govKey)[0].prizeType, 'เลขหน้า 3 ตัว');
+  assert.equal(R.checkTickets('654', govKey)[0].prizeType, '3 ตัวบน');
+  assert.equal(R.checkTickets('123456', govKey)[0].isWin, false);
+  R.results = [row, {...row, งวดวันที่: '2020-01-01', เลขท้าย_2_ตัว: '99'}];
+});
+
 test('invalid input is rejected without stripping characters', () => {
   assert.equal(R.checkTickets('abc85', key)[0].isWin, false);
 });

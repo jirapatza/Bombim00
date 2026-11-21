@@ -73,14 +73,6 @@ const prizeList = (value?: string[]): string[] =>
 const getResolvedBack3 = (res: RawLotteryResult): string[] => prizeList(res.เลขท้าย_3_ตัว ?? res.back3);
 const getResolvedFront3 = (res: RawLotteryResult): string[] => prizeList(res.เลขหน้า_3_ตัว ?? res.front3);
 
-/**
- * Official three-digit prizes as one list. Sources either split them into
- * front/rear or publish a single set; a ticket matching any of them wins a
- * three-digit prize, so the checker only needs the union.
- */
-const getResolvedThreeDigits = (res: RawLotteryResult): string[] =>
-  prizeList([...getResolvedFront3(res), ...getResolvedBack3(res), ...prizeList(res.threeDigits)]);
-
 export function normalizeName(name: string): string {
   const isVip = /(?<!s)vip|วีไอพี/i.test(name);
   const cleaned = name
@@ -364,13 +356,16 @@ export class LotteryRepository {
         if (num.length === 3 && top.value === num)
           add(top.derived ? '3 ตัวบน (ท้ายรางวัลที่ 1)' : '3 ตัวบน', num);
         if (num.length === 3 || num.length === 6) {
-          const threeDigits = getResolvedThreeDigits(row);
           const front3 = getResolvedFront3(row), back3 = getResolvedBack3(row);
-          const split = front3.length > 0 || back3.length > 0;
-          if (threeDigits.includes(num.slice(0, 3)))
-            add(split && front3.includes(num.slice(0, 3)) ? 'เลขหน้า 3 ตัว' : 'เลข 3 ตัว', num.slice(0, 3));
-          if (threeDigits.includes(num.slice(-3)))
-            add(split && back3.includes(num.slice(-3)) ? 'เลขท้าย 3 ตัว' : 'เลข 3 ตัว', num.slice(-3));
+          const combined = prizeList(row.threeDigits);
+          // Name the prize the source actually published; fall back to the
+          // neutral label only when it merged front and rear into one list.
+          const settle = (digits: string) => {
+            if (front3.includes(digits)) add('เลขหน้า 3 ตัว', digits);
+            else if (back3.includes(digits)) add('เลขท้าย 3 ตัว', digits);
+            else if (combined.includes(digits)) add('เลข 3 ตัว', digits);
+          };
+          for (const digits of num.length === 3 ? [num] : [num.slice(0, 3), num.slice(-3)]) settle(digits);
         }
       }
       return wins.size ? [...wins.values()] : [{ ticketNumber: num, isWin: false,
