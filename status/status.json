@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-21T15:04:12.797+07:00",
-  "last_run_date_thai": "21/11/2026 15:04:12",
-  "total_checks": 14434,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 25 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 3 รายการ รอหลักฐานแหล่งที่สอง 14 รายการ",
+  "last_run_timestamp": "2026-11-21T15:05:12.579+07:00",
+  "last_run_date_thai": "21/11/2026 15:05:12",
+  "total_checks": 14435,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 26 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 1 รายการ รอผลจากแหล่งข้อมูล 3 รายการ รอหลักฐานแหล่งที่สอง 14 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "21 พฤศจิกายน 2569",
   "notifications_sent_today": 14,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-21T15:05:12.579+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 26 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 1 รายการ รอผลจากแหล่งข้อมูล 3 รายการ รอหลักฐานแหล่งที่สอง 14 รายการ"
+    },
     {
       "timestamp": "2026-11-21T15:04:12.797+07:00",
       "level": "INFO",
@@ -104,17 +109,12 @@
       "timestamp": "2026-11-21T14:46:12.098+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 22 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 4 รายการ รอหลักฐานแหล่งที่สอง 12 รายการ"
-    },
-    {
-      "timestamp": "2026-11-21T14:45:12.409+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 22 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 4 รายการ รอหลักฐานแหล่งที่สอง 12 รายการ"
     }
   ],
   "uncertain_deliveries": 258,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
-  "schedule_alerts_sent_today": 34,
+  "schedule_alerts_sent_today": 35,
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [
@@ -144,7 +144,7 @@
     "verified": 0,
     "pending": 14,
     "conflicts": 0,
-    "unmapped": 11
+    "unmapped": 12
   },
   "coda_control": {
     "configured": false,
