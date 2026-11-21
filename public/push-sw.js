@@ -21,11 +21,17 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  event.waitUntil(Promise.all([
-    event.notification.data?.receipt ? postReceipt(event.notification.data.receipt, 'opened') : Promise.resolve(),
-    self.clients.openWindow('/'),
-  ]));
+  event.waitUntil((async () => {
+    if (event.notification.data?.receipt) await postReceipt(event.notification.data.receipt, 'opened');
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const open = windows.find(client => new URL(client.url).origin === self.location.origin);
+    return open ? open.focus() : self.clients.openWindow('/');
+  })());
 });
+
+// No respondWith: every request stays on the network. The listener exists so the
+// browser treats this as the app's service worker and offers "install app".
+self.addEventListener('fetch', () => {});
 
 async function postReceipt(receipt, event) {
   if (!receipt || typeof receipt.deliveryId !== 'string' || typeof receipt.token !== 'string') return;

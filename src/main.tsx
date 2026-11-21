@@ -32,6 +32,17 @@ class DiagnosticBoundary extends React.Component<React.PropsWithChildren, { fail
 
 installBrowserDiagnostics();
 
+// Registered on every load, not only when push is enabled: the browser needs an
+// active service worker with a fetch handler before it offers "install app", and
+// an installed app is the only way iOS receives push at all.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("/push-sw.js").catch(() => {
+      // Push settings reports the failure where the user can act on it.
+    });
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <DiagnosticBoundary>
