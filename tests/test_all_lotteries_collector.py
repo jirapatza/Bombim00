@@ -233,6 +233,16 @@ def test_cross_check_agrees():
     assert collector.cross_check("nikkei_morning", src) == ""
 
 
+def test_strip_markup_drops_script_and_style_blocks():
+    html = ('<div>ผลรางวัล</div><script type="text/javascript">var a = 1;</script >'
+            '<style media="all">.x{color:red}</style ><p>3 ตัวบน 504</p>')
+    text = sources.strip_markup(html)
+    assert "var a" not in text
+    assert "color:red" not in text
+    assert "ผลรางวัล" in text
+    assert "3 ตัวบน 504" in text
+
+
 def test_atomic_write_replaces_file_without_partial_content(tmp_path):
     target = tmp_path / "data" / "all_lotteries.json"
     collector.atomic_write_json(target, [{"id": "a"}])

@@ -115,8 +115,9 @@ def http_get(url: str, timeout: float = 15.0, retries: int = 3, session=None) ->
 
 
 def strip_markup(html: str) -> str:
-    text = re.sub(r"<script.*?</script>", " ", html, flags=re.S | re.I)
-    text = re.sub(r"<style.*?</style>", " ", text, flags=re.S | re.I)
+    # The closing tag may carry attributes or padding, e.g. "</script >".
+    text = re.sub(r"<script\b[^>]*>.*?</script[^>]*>", " ", html, flags=re.S | re.I)
+    text = re.sub(r"<style\b[^>]*>.*?</style[^>]*>", " ", text, flags=re.S | re.I)
     text = re.sub(r"<[^>]+>", " ", text)
     return re.sub(r"\s+", " ", text)
 
