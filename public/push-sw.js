@@ -29,9 +29,31 @@ self.addEventListener('notificationclick', event => {
   })());
 });
 
-// No respondWith: every request stays on the network. The listener exists so the
-// browser treats this as the app's service worker and offers "install app".
-self.addEventListener('fetch', () => {});
+// The app is live data, so nothing is served from a cache while online. The one
+// cached page is a fallback: a lost signal should say so in Thai instead of
+// showing the browser's error page.
+const OFFLINE_URL = '/offline.html';
+const OFFLINE_CACHE = 'bombim00-offline-v1';
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(OFFLINE_CACHE).then(cache => cache.add(OFFLINE_URL)).then(() => self.skipWaiting()),
+  );
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(names => Promise.all(names.filter(name => name !== OFFLINE_CACHE).map(name => caches.delete(name))))
+      .then(() => self.clients.claim()),
+  );
+});
+
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  if (request.mode !== 'navigate' || request.method !== 'GET') return;
+  event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)));
+});
 
 async function postReceipt(receipt, event) {
   if (!receipt || typeof receipt.deliveryId !== 'string' || typeof receipt.token !== 'string') return;
