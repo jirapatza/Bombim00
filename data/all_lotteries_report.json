@@ -1,0 +1,46 @@
+{
+  "generated_at": "2026-11-21T10:47:05.272885+07:00",
+  "total": 54,
+  "verified": 47,
+  "retained": 0,
+  "not_found": 7,
+  "source_errors": [],
+  "missing": [
+    {
+      "id": "hanoi_hd",
+      "name": "ฮานอย HD",
+      "reason": "ไม่พบหน้าผลรางวัลของฮานอย HD ในแหล่งที่ตรวจสอบได้ (ผลหวย.com ไม่มีหมวดนี้)"
+    },
+    {
+      "id": "lao_samakki",
+      "name": "ลาวสามัคคี",
+      "reason": "ผลหวย.com ไม่มีหน้าลาวสามัคคี (มีเฉพาะลาวสามัคคี VIP) และ ThaiLottoAPI ไม่มีคู่นี้"
+    },
+    {
+      "id": "england_vip",
+      "name": "อังกฤษ VIP",
+      "reason": "ผลหวย.com หน้าแยกหมวดหุ้นไม่มีอังกฤษ VIP (มีเฉพาะอังกฤษพิเศษ/VISA)"
+    },
+    {
+      "id": "germany_vip",
+      "name": "เยอรมัน VIP",
+      "reason": "ผลหวย.com หน้าแยกหมวดหุ้นไม่มีเยอรมัน VIP (มีเฉพาะเยอรมันพิเศษ/VISA)"
+    },
+    {
+      "id": "russia_vip",
+      "name": "รัสเซีย VIP",
+      "reason": "ผลหวย.com หน้าแยกหมวดหุ้นไม่มีรัสเซีย VIP (มีเฉพาะรัสเซียพิเศษ/VISA)"
+    },
+    {
+      "id": "dowjones_vip",
+      "name": "ดาวโจนส์ VIP",
+      "reason": "ผลหวย.com หน้าแยกหมวดหุ้นไม่มีดาวโจนส์ VIP"
+    },
+    {
+      "id": "dowjones_star",
+      "name": "ดาวโจนส์ STAR",
+      "reason": "ไม่พบแหล่งประกาศผลดาวโจนส์ STAR ที่ตรวจสอบได้"
+    }
+  ],
+  "retained_items": []
+}

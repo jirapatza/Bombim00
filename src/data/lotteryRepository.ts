@@ -98,6 +98,19 @@ function drawDate(result: RawLotteryResult): string {
   return '';
 }
 
+/**
+ * Latest verified result stored on the catalog entry itself. It is only used
+ * when no result for today exists, so a stale row is never shown as today's.
+ */
+function storedResult(item: LotteryCatalogItem): LotteryCatalogItem | null {
+  const resultDate = drawDate({ งวดวันที่: item.date } as RawLotteryResult);
+  if (
+    item.status !== 'announced' || !resultDate ||
+    !/^\d{3}$/.test(item.top3 ?? '') || !/^\d{2}$/.test(item.bottom2 ?? '')
+  ) return null;
+  return { ...item, status: 'drawn', resultDate, date: item.date };
+}
+
 export function mergeCatalogWithResults(
   catalog: LotteryCatalogItem[],
   results: RawLotteryResult[],
@@ -112,16 +125,17 @@ export function mergeCatalogWithResults(
     const rule = item.drawDays.trim().replace(/\s*-\s*/g, ' - ');
     const irregular = rule === 'ตามประกาศวันงวดจริง (อาจเลื่อน)';
     const weekday = new Date(today + 'T00:00:00Z').getUTCDay();
-    if (!irregular && !drawWeekdays[rule]?.includes(weekday)) return [];
+    const stored = storedResult(item);
+    if (!irregular && !drawWeekdays[rule]?.includes(weekday)) return stored ? [stored] : [];
     const name = normalizeName(item.name);
     const eligible = item.id === 'thai_gov'
       ? current.filter((row) => /^\d{6}$/.test(row.รางวัลที่_1 ?? ''))
       : current;
     const matched = eligible.find((row) => row.หวย === item.id) ??
       eligible.find((row) => name && name === normalizeName(getDisplayName(row)));
-    if (irregular && !matched) return [];
+    if (irregular && !matched) return stored ? [stored] : [];
     if (!matched) {
-      return { ...item, status: 'waiting', top3: '', bottom2: '', firstPrize: '', date: 'ไม่ระบุ', resultDate: undefined };
+      return stored ?? { ...item, status: 'waiting', top3: '', bottom2: '', firstPrize: '', date: 'ไม่ระบุ', resultDate: undefined };
     }
     const firstPrize = matched.รางวัลที่_1 ?? '';
     const hasFirstPrize = /^\d{6}$/.test(firstPrize);

@@ -110,6 +110,13 @@ export const LiveResultsScreen: React.FC<Props> = ({
       color: "green",
     },
     {
+      title: "ผลล่าสุดที่ยืนยัน",
+      value: data.latestResults,
+      icon: CheckCircle2,
+      state: "latest",
+      color: "blue",
+    },
+    {
       title: "เลยเวลา / รอผล",
       value: data.pending,
       icon: Timer,
@@ -282,7 +289,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
           </span>
         </div>
         <div className="filter-tabs">
-          {(["all", "drawn", "pending", "upcoming"] as const).map((state) => (
+          {(["all", "drawn", "latest", "pending", "upcoming"] as const).map((state) => (
             <button
               key={state}
               className={filter === state ? "selected" : ""}
@@ -370,16 +377,18 @@ export const LiveResultsScreen: React.FC<Props> = ({
                     </td>
                     <td className="muted">{item.categoryLabel}</td>
                     <td className="number">
-                      {state === "drawn"
+                      {state === "drawn" || state === "latest"
                         ? item.firstPrize || item.top3 || "—"
                         : "—"}
                     </td>
                     <td className="number bottom-number">
-                      {state === "drawn" ? item.bottom2 || "—" : "—"}
+                      {state === "drawn" || state === "latest"
+                        ? item.bottom2 || "—"
+                        : "—"}
                     </td>
                     <td>
                       <span
-                        className={`badge ${state === "drawn" ? "green" : state === "pending" ? "gold" : "blue"}`}
+                        className={`badge ${state === "drawn" ? "green" : state === "latest" ? "blue" : state === "pending" ? "gold" : "blue"}`}
                       >
                         {state === "pending" && !Number.isFinite(drawTimestamp(item, now))
                           ? "ไม่ทราบเวลาออก"
@@ -439,7 +448,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
           <p className="muted">
             {detail.date} • ออกตามตาราง {detail.drawTimeStr} • ปิดรับตามตาราง {detail.closeTimeStr || "—"}
           </p>
-          {drawState(detail, now) === "drawn" ? (
+          {["drawn", "latest"].includes(drawState(detail, now)) ? (
             <>
               <div className="result-pair">
                 <div>
