@@ -293,14 +293,17 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     void handleRefresh();
-    const refreshVisible = () => {
+    // Keep polling in a background tab. Browsers already throttle hidden
+    // timers to about once a minute; skipping the refresh entirely meant a
+    // result that landed while the tab was hidden was never announced.
+    const timer = window.setInterval(() => void handleRefresh(), 15_000);
+    const refreshOnReturn = () => {
       if (document.visibilityState === "visible") void handleRefresh();
     };
-    const timer = window.setInterval(refreshVisible, 15_000);
-    document.addEventListener("visibilitychange", refreshVisible);
+    document.addEventListener("visibilitychange", refreshOnReturn);
     return () => {
       window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", refreshVisible);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
     };
   }, [handleRefresh]);
 
