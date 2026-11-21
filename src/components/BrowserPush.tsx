@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { iosNeedsInstall } from "../utils/install";
 
 const api = "/api/push";
 
@@ -33,7 +34,7 @@ export function BrowserPush() {
     let created: PushSubscription | null = null;
     try {
       if (action === "enable" && await Notification.requestPermission() !== "granted") {
-        setStatus("กรุณาอนุญาตการแจ้งเตือนของเว็บไซต์ใน Chrome");
+        setStatus("กรุณาอนุญาตการแจ้งเตือนของเว็บไซต์ในเบราว์เซอร์นี้");
         return;
       }
       await navigator.serviceWorker.register("/push-sw.js");
@@ -71,7 +72,13 @@ export function BrowserPush() {
   return (
     <section className="panel" aria-labelledby="browser-push-heading">
       <h2 id="browser-push-heading">แจ้งเตือนผลหวยบนเบราว์เซอร์</h2>
-      {!supported ? <p>เบราว์เซอร์นี้ไม่รองรับ Web Push</p> : (
+      {!supported ? (
+        <p>
+          {iosNeedsInstall()
+            ? "iPhone ต้องเพิ่มหน้านี้ไปที่หน้าจอโฮมก่อน แล้วเปิดจากไอคอนจึงจะรับแจ้งเตือนได้ (iOS 16.4 ขึ้นไป)"
+            : "เบราว์เซอร์นี้ไม่รองรับ Web Push"}
+        </p>
+      ) : (
         <div className="hero-actions">
           {enabled ? <>
             <button className="primary-button" disabled={busy} onClick={() => void change("test")}>ส่งแจ้งเตือนทดสอบ</button>
