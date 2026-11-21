@@ -1,4 +1,5 @@
 import { BrowserPush } from "./components/BrowserPush";
+import { InstallApp } from "./components/InstallApp";
 import React, { Component, Suspense, lazy, useState, useEffect, useMemo, useCallback } from "react";
 import { DeviceHealthPanel } from "./components/DeviceHealthPanel";
 import { Header } from "./components/Header";
@@ -465,6 +466,7 @@ export const App: React.FC = () => {
 
             {currentTab === "settings" && (
               <div className="settings-layout">
+                <InstallApp />
                 <BrowserPush />
                 <section className="panel">
                   <a className="quiet-button" href="https://github.com/jirapatza/Bombim00/releases/tag/latest-apk">
