@@ -18,10 +18,6 @@ on:
       - "index.html"
       - "lottery_checker.py"
       - "draw_schedule.py"
-      - "lottery_worker.py"
-      - "Dockerfile.worker"
-      - "render.yaml"
-      - "deploy/start_worker.py"
       - "settings_loader.py"
       - "requirements.txt"
       - "tests/**"
@@ -91,5 +87,5 @@ jobs:
       - name: Install checker dependencies and run Python tests
         run: |
           python -m pip install -r requirements.txt
-          python -m compileall -q lottery_checker.py settings_loader.py draw_schedule.py lottery_worker.py deploy/start_worker.py
+          python -m compileall -q lottery_checker.py settings_loader.py draw_schedule.py
           python -m pytest -q tests

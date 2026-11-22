@@ -6,9 +6,7 @@ RUN --mount=type=secret,id=proxy_ca \
       NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca npm ci; \
     else npm ci; fi
 COPY . .
-ARG VITE_LOTTERY_API_BASE_URL
 # PostHog project token is a public browser ingestion key, never a private API token.
-# Render provides these build arguments from the service environment.
 ARG VITE_POSTHOG_PROJECT_TOKEN
 ARG VITE_POSTHOG_HOST
 RUN npm run build

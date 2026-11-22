@@ -8,7 +8,6 @@ on:
     paths:
       - "lottery_checker.py"
       - "draw_schedule.py"
-      - "lottery_worker.py"
       - "cloudflare/**"
       - "data/draw_weekdays.json"
       - "data/all_lotteries.json"
