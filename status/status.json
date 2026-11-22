@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-22T22:20:00.000+07:00",
-  "last_run_date_thai": "22/11/2026 22:20:00",
-  "total_checks": 16308,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + lotterychecks + LotteryChecks Lao/Hanoi + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 35 รายการ ส่งสำเร็จ 22 รายการ ส่งเตือนตามตาราง 63 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 19 รายการ",
+  "last_run_timestamp": "2026-11-22T22:25:00.000+07:00",
+  "last_run_date_thai": "22/11/2026 22:25:00",
+  "total_checks": 16313,
+  "last_source_used": "ผลหวย.com stock groups + ผลหวย.com Lao EXTRA + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 35 รายการ ส่งสำเร็จ 22 รายการ ส่งเตือนตามตาราง 64 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 19 รายการ",
   "active_sources_count": 5,
   "latest_draw_detected": "22 พฤศจิกายน 2569",
   "notifications_sent_today": 22,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-22T22:25:00.000+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 35 รายการ ส่งสำเร็จ 22 รายการ ส่งเตือนตามตาราง 64 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 19 รายการ"
+    },
     {
       "timestamp": "2026-11-22T22:20:00.000+07:00",
       "level": "WARNING",
@@ -104,17 +109,12 @@
       "timestamp": "2026-11-22T21:49:12.449+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 34 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 19 รายการ"
-    },
-    {
-      "timestamp": "2026-11-22T21:48:12.412+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 34 รายการ ส่งสำเร็จ 0 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 19 รายการ"
     }
   ],
   "uncertain_deliveries": 258,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
-  "schedule_alerts_sent_today": 63,
+  "schedule_alerts_sent_today": 64,
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [],
