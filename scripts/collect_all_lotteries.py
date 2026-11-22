@@ -34,6 +34,9 @@ RESULT_KEYS = ("id", "name", "category", "categoryLabel", "period", "periodLabel
                "flag", "drawTimeStr", "closeTimeStr", "drawDays", "status", "top3",
                "bottom2", "firstPrize", "date", "source")
 
+# What the evidence file may claim about a result's corroboration.
+VERDICT_NOTE = {"agree": "ตรงกับสองแหล่ง", "single": "แหล่งเดียว", "conflict": ""}
+
 # Regular stock lotteries published by both sources; the two must agree.
 CROSS_CHECK = {
     "nikkei_morning": ("stocknikkei1", "stock", r"นิคเคอิเช้า"),
@@ -98,24 +101,31 @@ def stored_result(item: dict) -> str:
     return sources.thai_date_to_iso(str(item.get("date") or ""))
 
 
-def cross_check(catalog_id: str, src: dict) -> str:
-    """Return a conflict description when the second source disagrees."""
+def cross_check(catalog_id: str, src: dict) -> tuple[str, str]:
+    """Corroborate a result against the second source.
+
+    Returns (verdict, detail): "agree" only when both sources published the same
+    draw with the same numbers, "single" when the second source has nothing to
+    compare for that draw, "conflict" when they disagree. Claiming agreement
+    without a comparable second observation is what made the evidence file
+    misleading: most catalog entries rest on one provider.
+    """
     spec = CROSS_CHECK.get(catalog_id)
     if not spec:
-        return ""
+        return "single", ""
     key, group, label_regex = spec
     tla = src["tla"].get(key)
     cards = [row for row in src["stocks"]
              if row.extra.get("group") == group and re.search(label_regex, row.label)]
     if not tla or not cards:
-        return ""
+        return "single", ""
     card = max(cards, key=lambda row: row.draw_date)
     if card.draw_date != tla.draw_date:
-        return ""
+        return "single", f"ผลหวย.com ยังไม่มีผลงวด {tla.draw_date}"
     if (card.top3, card.bottom2) != (tla.top3, tla.bottom2):
-        return (f"แหล่งข้อมูลขัดแย้งกัน: ThaiLottoAPI {tla.top3}/{tla.bottom2} "
-                f"แต่ผลหวย.com {card.top3}/{card.bottom2}")
-    return ""
+        return ("conflict", f"แหล่งข้อมูลขัดแย้งกัน: ThaiLottoAPI {tla.top3}/{tla.bottom2} "
+                            f"แต่ผลหวย.com {card.top3}/{card.bottom2}")
+    return "agree", ""
 
 
 def apply_results(catalog: list, src: dict, today: datetime.date) -> tuple[list, list]:
@@ -123,10 +133,10 @@ def apply_results(catalog: list, src: dict, today: datetime.date) -> tuple[list,
     for item in catalog:
         result, reason = sources.resolve_stock_with_fallback(item["id"], src)
         entry = {"id": item["id"], "name": item["name"]}
+        verdict, detail = ("single", "") if not result else cross_check(item["id"], src)
         if result:
-            conflict = cross_check(item["id"], src)
-            if conflict:
-                result, reason = None, conflict
+            if verdict == "conflict":
+                result, reason = None, detail
             elif result["drawDate"] > today.isoformat():
                 result, reason = None, f"วันที่งวด {result['drawDate']} อยู่ในอนาคต"
         if result:
@@ -143,7 +153,8 @@ def apply_results(catalog: list, src: dict, today: datetime.date) -> tuple[list,
                 "top3": result["top3"],
                 "bottom2": result["bottom2"],
                 "source": result["source"],
-                "note": "ตรงกับสองแหล่ง" if item["id"] in CROSS_CHECK else "",
+                "note": VERDICT_NOTE[verdict],
+                "crossCheck": verdict,
             })
             if result.get("specialPrize"):
                 entry["specialPrize"] = result["specialPrize"]
@@ -182,12 +193,16 @@ def main() -> int:
     verified = [row for row in evidence if row["status"] == "verified"]
     retained = [row for row in evidence if row["status"] == "retained"]
     missing = [row for row in evidence if row["status"] == "not_found"]
+    cross_checked = [row for row in verified if row.get("crossCheck") == "agree"]
+    single_source = [row for row in verified if row.get("crossCheck") == "single"]
     report = {
         "generated_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7))).isoformat(),
         "total": len(catalog),
         "verified": len(verified),
         "retained": len(retained),
         "not_found": len(missing),
+        "cross_checked": len(cross_checked),
+        "single_source": len(single_source),
         "source_errors": errors,
         "missing": [{"id": row["id"], "name": row["name"], "reason": row.get("reason", "")} for row in missing],
         "retained_items": [{"id": row["id"], "name": row["name"], "drawDate": row.get("drawDate", ""),
@@ -195,6 +210,7 @@ def main() -> int:
     }
     log(f"verified {len(verified)}/{len(catalog)} lotteries, {len(retained)} kept from the previous run, "
         f"{len(missing)} without evidence")
+    log(f"corroborated by a second source: {len(cross_checked)}, resting on one source: {len(single_source)}")
     if args.dry_run:
         log("dry run: no files written")
         return 0

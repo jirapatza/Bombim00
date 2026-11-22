@@ -290,8 +290,9 @@ def test_cross_check_detects_mismatch():
                                  extra={"group": "stock"})],
         "pages": {},
     }
-    message = collector.cross_check("nikkei_morning", src)
-    assert "ขัดแย้ง" in message
+    verdict, detail = collector.cross_check("nikkei_morning", src)
+    assert verdict == "conflict"
+    assert "ขัดแย้ง" in detail
 
 
 def test_cross_check_agrees():
@@ -301,7 +302,35 @@ def test_cross_check_agrees():
                                  extra={"group": "stock"})],
         "pages": {},
     }
-    assert collector.cross_check("nikkei_morning", src) == ""
+    assert collector.cross_check("nikkei_morning", src) == ("agree", "")
+
+
+def test_cross_check_reports_a_single_source_when_the_second_has_no_such_draw():
+    src = {
+        "tla": {"stocknikkei1": sources.Record("504", "17", "2026-11-20", "tla")},
+        "stocks": [sources.Record("385", "98", "2026-11-19", "ph", label="หวยหุ้นนิคเคอิเช้า",
+                                 extra={"group": "stock"})],
+        "pages": {},
+    }
+    verdict, detail = collector.cross_check("nikkei_morning", src)
+    assert verdict == "single"
+    assert "2026-11-20" in detail
+
+
+def test_cross_check_reports_a_single_source_when_the_card_is_absent():
+    src = {"tla": {"stocknikkei1": sources.Record("504", "17", "2026-11-20", "tla")}, "stocks": [], "pages": {}}
+    assert collector.cross_check("nikkei_morning", src) == ("single", "")
+
+
+def test_evidence_never_claims_two_sources_without_corroboration():
+    catalog = collector.load_catalog()
+    src = {"tla": sources.parse_thailottoapi(TLA_PAYLOAD), "stocks": [], "pages": {}}
+    _, evidence = collector.apply_results(catalog, src, datetime.date(2026, 11, 21))
+    by_id = {row["id"]: row for row in evidence}
+    # thai_gov has no second source at all, so it must not claim agreement.
+    assert by_id["thai_gov"]["crossCheck"] == "single"
+    assert by_id["thai_gov"]["note"] == collector.VERDICT_NOTE["single"]
+    assert all(row.get("note") != collector.VERDICT_NOTE["agree"] for row in evidence)
 
 
 def test_strip_markup_drops_script_and_style_blocks():
