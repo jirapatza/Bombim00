@@ -6,6 +6,11 @@ import { consensusRows, evaluateConsensus } from './consensus.js';
 import { recordConsensus } from './evidence.js';
 import { applyControlOverrides, isQuarantined, syncCodaControls, syncCodaDashboard } from './coda-control.js';
 
+// Every cycle produced a slightly different status (heartbeat, total_checks, log
+// head), so the bot committed to runtime-live once a minute even when no result
+// had changed. Published heartbeats are rounded down to this bucket, which makes
+// a quiet period byte-identical and lets publish() skip the commit entirely.
+const HEARTBEAT_MS = 5 * 60 * 1000;
 const MAX_SENDS = 3;
 const MAX_RESULT_BATCH = 6; // One ntfy message per cluster; never bulk-retry uncertain outcomes.
 // A rejected token/permission needs a cooldown; repeated probes only worsen limits.
@@ -95,10 +100,13 @@ const safeRequest = error => {
   return g && ['GET', 'POST', 'PATCH'].includes(g.method) && ['ref', 'commit', 'contents', 'writer', 'publish', 'other'].includes(g.endpoint)
     ? `${g.method} ${g.endpoint}` : null;
 };
-function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertainCounts, deliveries, verification, controls, now) {
+function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertainCounts, deliveries, verification, controls, now, heartbeat) {
   const { recent: uncertain, old: oldUncertain, total: allUncertain } = uncertainCounts;
-  const day = bangkokDay(now), time = new Date(+now + 7 * 3600000).toISOString().replace('Z', '+07:00');
-  const thaiDate = `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;
+  const { at: publishedAt, totalChecks } = heartbeat;
+  const day = bangkokDay(now);
+  const publishedDay = bangkokDay(publishedAt);
+  const time = new Date(+publishedAt + 7 * 3600000).toISOString().replace('Z', '+07:00');
+  const thaiDate = `${publishedDay.slice(8, 10)}/${publishedDay.slice(5, 7)}/${publishedDay.slice(0, 4)}`;
   // Old unknown outcomes stay visible in history, but are not current-cycle failures.
   // An old failed delivery from a prior draw is likewise not a current-day failure.
   const failed = rows.filter(x => {
@@ -109,25 +117,36 @@ function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncerta
   const verificationBlocked = verification.mode === 'enforce' && (verification.pending || verification.conflicts);
   const healthy = !checks.errors.length && !failed && !alerts.failed && !uncertain && !verificationBlocked;
   const sameDay = String(previous.last_run_date_thai || '').split(' ')[0] === thaiDate;
-  const message = `Cloudflare ตรวจทุกนาที พบผลวันนี้ ${rows.length} รายการ ส่งสำเร็จ ${sent} รายการ` +
-    (alerts.sent ? ` ส่งเตือนตามตาราง ${alerts.sent} รายการ` : '') +
+  // Cumulative for the day, not for this cycle: a per-cycle count made the
+  // published message differ on every quiet cycle ("sent 1" then "sent 0").
+  const sentToday = (sameDay ? Number(previous.notifications_sent_today) || 0 : 0) + sent;
+  const alertsSentToday = (sameDay ? Number(previous.schedule_alerts_sent_today) || 0 : 0) + alerts.sent;
+  const message = `Cloudflare ตรวจทุกนาที พบผลวันนี้ ${rows.length} รายการ ส่งสำเร็จ ${sentToday} รายการ` +
+    (alertsSentToday ? ` ส่งเตือนตามตาราง ${alertsSentToday} รายการ` : '') +
     (alerts.failed ? ` ส่งเตือนตามตารางไม่สำเร็จ ${alerts.failed} รายการ` : '') +
     (failed ? ` ค้างส่ง ${failed} รายการ` : '') + (uncertain ? ` ต้องตรวจสอบการส่งที่ไม่ทราบผล ${uncertain} รายการ` : '') +
     (checks.waiting.length ? ` รอผลจากแหล่งข้อมูล ${checks.waiting.length} รายการ` : '') +
     (checks.errors.length ? ` แหล่งข้อมูลขัดข้อง ${checks.errors.length} คำขอ` : '') +
     (verification.pending ? ` รอหลักฐานแหล่งที่สอง ${verification.pending} รายการ` : '') +
     (verification.conflicts ? ` ผลขัดแย้ง ${verification.conflicts} รายการ` : '') + (!live ? ' ยังไม่พบผลสด' : '');
+  // Prepending the same entry twice inside one heartbeat bucket would make the
+  // document differ from itself and defeat the commit skip.
+  const entry = { timestamp: time, level: healthy ? 'INFO' : 'WARNING', message };
+  const logs = Array.isArray(previous.recent_logs) ? previous.recent_logs : [];
+  const head = logs[0];
+  const recent_logs = head && head.timestamp === entry.timestamp && head.level === entry.level && head.message === entry.message
+    ? logs : [entry, ...logs].slice(0, 20);
   return { ...previous, system_status: healthy ? 'healthy' : 'degraded', last_run_timestamp: time,
-    last_run_date_thai: `${thaiDate} ${time.slice(11, 19)}`, total_checks: (Number(previous.total_checks) || 0) + 1,
+    last_run_date_thai: `${thaiDate} ${time.slice(11, 19)}`, total_checks: totalChecks,
     last_source_used: sources.join(' + ') || previous.last_source_used || 'Cloudflare', status_message: message,
     active_sources_count: sources.length, latest_draw_detected: rows[0]?.งวดวันที่ || previous.latest_draw_detected || '',
-    notifications_sent_today: (sameDay ? Number(previous.notifications_sent_today) || 0 : 0) + sent,
-    schedule_alerts_sent_today: (sameDay ? Number(previous.schedule_alerts_sent_today) || 0 : 0) + alerts.sent,
+    notifications_sent_today: sentToday,
+    schedule_alerts_sent_today: alertsSentToday,
     schedule_alert_failures: alerts.failed, source_checks: checks,
     notification_failures: failed, uncertain_deliveries: allUncertain,
     active_uncertain_deliveries: uncertain, old_uncertain_deliveries: oldUncertain, checker_mode: 'cloudflare', poll_interval_seconds: 60,
     result_verification: verification, coda_control: controls,
-    recent_logs: [{ timestamp: time, level: healthy ? 'INFO' : 'WARNING', message }, ...(Array.isArray(previous.recent_logs) ? previous.recent_logs : [])].slice(0, 20) };
+    recent_logs };
 }
 export async function cycle(env, dependencies = {}) {
   if (env.ENABLED !== 'true') return { paused: true };
@@ -352,9 +371,18 @@ export async function cycle(env, dependencies = {}) {
     const controlStatus = { configured: Boolean(env.CODA_API_TOKEN && env.CODA_DOC_ID && env.CODA_CONTROL_TABLE_ID),
       paused: Boolean(state.controls?.paused), quarantined: state.controls?.quarantined?.length || 0,
       disabled_sources: state.controls?.disabledSources?.length || 0, last_sync: state.codaSync || null };
+    // Count every cycle, but only publish the count when the heartbeat bucket
+    // rolls, so the displayed total never loses checks and never changes needlessly.
+    state.totalChecks = (state.totalChecks ?? (Number(status.total_checks) || 0)) + 1;
+    const heartbeatAt = new Date(Math.floor(+now / HEARTBEAT_MS) * HEARTBEAT_MS);
+    if (state.heartbeatBucket !== +heartbeatAt) {
+      state.heartbeatBucket = +heartbeatAt;
+      state.publishedChecks = state.totalChecks;
+    }
     const outputs = { 'lottery_previous_results.json': merged, 'status/status.json': makeStatus(status, rows,
       fetched.some(x => scheduled(x, catalog, today)), sources, { waiting, errors }, unpublished.length - alerts.sent,
-      alerts, uncertainCounts, state.deliveries, verification, controlStatus, now) };
+      alerts, uncertainCounts, state.deliveries, verification, controlStatus, now,
+      { at: heartbeatAt, totalChecks: state.publishedChecks }) };
     if (observing) {
       state.lastObservation = { at: now.toISOString(), results: fetched.length,
         scheduled: fetched.filter(x => scheduled(x, catalog, today)).length, sourceErrors: errors.length,
