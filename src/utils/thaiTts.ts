@@ -64,10 +64,17 @@ export class ThaiTtsService {
   private static synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
   private static isSpeaking = false;
   private static thaiVoice: SpeechSynthesisVoice | null = null;
+  /** Bumped by every speak() and stop(); a stale callback must not touch shared state. */
+  private static generation = 0;
 
   /** True when this browser has no speech engine, so the UI can say so. */
   static get supported(): boolean {
     return Boolean(this.synth && typeof window !== 'undefined' && 'SpeechSynthesisUtterance' in window);
+  }
+
+  /** Longest one sentence may take before the engine is treated as stalled. */
+  static watchdogMs(text: string): number {
+    return Math.min(60_000, 6_000 + text.length * 140);
   }
 
   private static voice(): SpeechSynthesisVoice | null {
@@ -84,9 +91,14 @@ export class ThaiTtsService {
     return found;
   }
 
-  static speak(text: string, rate: number = 0.95, onDone?: () => void): void {
+  /**
+   * `onDone(spoken)` is called exactly once: `true` when the engine finished the
+   * sentence, `false` when it never started, failed, was interrupted, or stalled.
+   */
+  static speak(text: string, rate: number = 0.95, onDone?: (spoken: boolean) => void): void {
+    const generation = ++ThaiTtsService.generation;
     if (!this.synth || !text) {
-      onDone?.();
+      onDone?.(false);
       return;
     }
 
@@ -101,22 +113,33 @@ export class ThaiTtsService {
       if (voice) utterance.voice = voice;
 
       this.isSpeaking = true;
-      const finish = () => {
-        this.isSpeaking = false;
-        onDone?.();
+      let settled = false;
+      let watchdog: number | undefined;
+      const finish = (spoken: boolean) => {
+        if (settled) return;
+        settled = true;
+        if (watchdog !== undefined) window.clearTimeout(watchdog);
+        const current = generation === ThaiTtsService.generation;
+        if (current) this.isSpeaking = false;
+        onDone?.(spoken && current);
       };
-      utterance.onend = finish;
-      utterance.onerror = finish;
+      utterance.onend = () => finish(true);
+      utterance.onerror = () => finish(false);
+      // Chrome can skip both onend and onerror (speak() before a user gesture, or
+      // a cancelled utterance). Without this the caller waits forever and the
+      // announcement queue never advances again.
+      watchdog = window.setTimeout(() => finish(false), ThaiTtsService.watchdogMs(text));
 
       this.synth.speak(utterance);
     } catch (error) {
       this.isSpeaking = false;
-      onDone?.();
+      onDone?.(false);
     }
   }
 
   static stop(): void {
     if (!this.synth) return;
+    ThaiTtsService.generation++;
     this.synth.cancel();
     this.isSpeaking = false;
   }

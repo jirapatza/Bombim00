@@ -208,8 +208,11 @@ export function validateLiveData(catalog: unknown, results: unknown, status: unk
 }
 
 const LIVE_DATA_ROOT = 'https://raw.githubusercontent.com/jirapatza/Bombim00/runtime-live';
+// The checker publishes at most once a minute and the raw CDN caches for about
+// five, so polling faster only adds requests without showing newer numbers.
+export const POLL_MS = 60_000;
 async function fetchLiveJson(path: string, signal: AbortSignal): Promise<unknown> {
-  const response = await fetch(`${LIVE_DATA_ROOT}/${path}?v=${Math.floor(Date.now() / 15_000)}`, { cache: 'no-store', signal });
+  const response = await fetch(`${LIVE_DATA_ROOT}/${path}?v=${Math.floor(Date.now() / POLL_MS)}`, { cache: 'no-store', signal });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
 }

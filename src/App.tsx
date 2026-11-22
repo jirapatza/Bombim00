@@ -5,7 +5,7 @@ import { DeviceHealthPanel } from "./components/DeviceHealthPanel";
 import { Header } from "./components/Header";
 import { BottomNavigation, AppTab } from "./components/BottomNavigation";
 import { LiveResultsScreen } from "./screens/LiveResultsScreen";
-import { bangkokDateKey, LotteryRepository } from "./data/lotteryRepository";
+import { bangkokDateKey, LotteryRepository, POLL_MS } from "./data/lotteryRepository";
 import { useAnnouncer } from "./utils/useAnnouncer";
 import { ThaiTtsService } from "./utils/thaiTts";
 import { trackDiagnostic } from "./utils/siteDiagnostics";
@@ -297,7 +297,7 @@ export const App: React.FC = () => {
     // Keep polling in a background tab. Browsers already throttle hidden
     // timers to about once a minute; skipping the refresh entirely meant a
     // result that landed while the tab was hidden was never announced.
-    const timer = window.setInterval(() => void handleRefresh(), 15_000);
+    const timer = window.setInterval(() => void handleRefresh(), POLL_MS);
     const refreshOnReturn = () => {
       if (document.visibilityState === "visible") void handleRefresh();
     };
