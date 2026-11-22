@@ -139,7 +139,8 @@ test('the scraped pages can be overridden and a bad override is reported', async
     requested.push(url);
     return { ok: true, status: 200, text: async () => '<html></html>', body: { cancel: async () => {} } };
   });
-  assert.ok(requested.includes('https://example.test/stock'));
+  const override = requested.map(url => new URL(url)).find(u => u.pathname === '/stock');
+  assert.equal(override?.origin, 'https://example.test');
   // http:// is refused: the built-in https page is used and the typo is reported.
   assert.ok(requested.includes(PHOLHUAY_EXTRA_PAGE));
   assert.ok(!requested.some(url => url.startsWith('http://')));
