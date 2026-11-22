@@ -19,6 +19,7 @@ import { countdown } from "../data/drawSchedule";
 
 const SEEN_KEY = "lottery_announced_keys";
 const SEEN_LIMIT = 200;
+const MAX_ATTEMPTS = 3;
 
 function loadSeen(): string[] {
   try {
@@ -60,6 +61,9 @@ export function useAnnouncer({ items, enabled, rate, onAnnounce }: AnnouncerOpti
   const seen = useRef<string[]>([]);
   const speaking = useRef(false);
   const queue = useRef<Announcement[]>([]);
+  /** Keys already queued or being spoken, so a 1s tick cannot enqueue them twice. */
+  const pending = useRef<Set<string>>(new Set());
+  const attempts = useRef<Map<string, number>>(new Map());
   const itemsRef = useRef(items);
   const enabledRef = useRef(enabled);
   const rateRef = useRef(rate);
@@ -82,8 +86,21 @@ export function useAnnouncer({ items, enabled, rate, onAnnounce }: AnnouncerOpti
     const text = announcementText(next, itemsRef.current, Date.now());
     setLastSpoken(text);
     onAnnounceRef.current?.(next);
-    ThaiTtsService.speak(text, rateRef.current, () => {
+    ThaiTtsService.speak(text, rateRef.current, (spoken) => {
       speaking.current = false;
+      const tries = attempts.current.get(next.key) ?? 1;
+      // A key is remembered only once the sentence actually played. Marking it
+      // before speaking meant a blocked engine swallowed the warning for good.
+      if (!spoken && tries < MAX_ATTEMPTS) {
+        attempts.current.set(next.key, tries + 1);
+        // Keep the key pending so the 1s tick cannot enqueue a duplicate.
+        queue.current.unshift(next);
+      } else {
+        pending.current.delete(next.key);
+        attempts.current.delete(next.key);
+        seen.current = [...seen.current, next.key].slice(-SEEN_LIMIT);
+        saveSeen(seen.current);
+      }
       window.setTimeout(drain, 400);
     });
   }, []);
@@ -93,10 +110,13 @@ export function useAnnouncer({ items, enabled, rate, onAnnounce }: AnnouncerOpti
       const at = Date.now();
       setNow(at);
       if (!enabledRef.current) return;
-      const fresh = unseenAnnouncements(planAnnouncements(itemsRef.current, at), seen.current);
+      const fresh = unseenAnnouncements(planAnnouncements(itemsRef.current, at), seen.current)
+        .filter((a) => !pending.current.has(a.key));
       if (!fresh.length) return;
-      seen.current = [...seen.current, ...fresh.map((a) => a.key)].slice(-SEEN_LIMIT);
-      saveSeen(seen.current);
+      for (const announcement of fresh) {
+        pending.current.add(announcement.key);
+        if (!attempts.current.has(announcement.key)) attempts.current.set(announcement.key, 1);
+      }
       queue.current.push(...fresh);
       drain();
     };
@@ -116,6 +136,9 @@ export function useAnnouncer({ items, enabled, rate, onAnnounce }: AnnouncerOpti
         ThaiTtsService.stop();
         speaking.current = false;
         queue.current = [];
+        // Nothing was heard, so these keys must stay unspoken and be re-planned
+        // when the tab returns instead of being remembered as announced.
+        pending.current.clear();
       }
     };
     document.addEventListener("visibilitychange", onVisible);
