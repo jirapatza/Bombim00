@@ -10,7 +10,7 @@
 
 # คู่มือการติดตั้ง Bombim00
 
-> **เลิกใช้แล้วเป็นตัวส่งหลัก** ตั้งแต่ `cloudflare/PRIMARY_CHECKER.json` บน main ตั้งเป็น `mode: cloudflare` และ `legacy_workflow: pr-only` ตัวตรวจและตัวส่งจริงคือ Cloudflare Worker ใน `cloudflare/` พร้อม `poll_seconds: 60` ส่วน Render, `render.yaml`, `Dockerfile.worker`, `deploy/start_worker.py` และ `lottery_worker.py` เหลือเป็นทางสำรอง ส่วน `.github/workflows/lottery.yml` รันเฉพาะทดสอบใน PR ตาม [AGENTS.md](../AGENTS.md). ขั้นตอนสลับกลับไปใช้ระบบเดิมอยู่ใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md)
+> **เลิกใช้แล้วเป็นตัวส่งหลัก** ตั้งแต่ `cloudflare/PRIMARY_CHECKER.json` บน main ตั้งเป็น `mode: cloudflare` และ `legacy_workflow: pr-only` ตัวตรวจและตัวส่งจริงคือ Cloudflare Worker ใน `cloudflare/` พร้อม `poll_seconds: 60` ไฟล์ตัวส่งรุ่นเดิม (`render.yaml`, `Dockerfile.worker`, `deploy/start_worker.py`, `lottery_worker.py`) ถูกลบออกแล้วเพราะไม่เคยถูก apply และการมีตัวส่งที่สองจะทำให้ส่งซ้ำ ส่วน `.github/workflows/lottery.yml` รันเฉพาะทดสอบใน PR ตาม [AGENTS.md](../AGENTS.md) ขั้นตอนย้อนกลับอยู่ใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) และหัวข้อ "ตัวตรวจ Python รุ่นเดิม" ด้านล่าง
 
 ## โครงสร้างปัจจุบัน
 
@@ -74,63 +74,17 @@ python -m pytest -q tests
 
 ตารางวันใน catalog ยังไม่ใช่ปฏิทินวันหยุดตลาดเฉพาะประเทศ หากมีวันหยุดพิเศษ ต้องปรับ catalog ตามประกาศจริง ไม่ถือว่ามีผลเพียงเพราะถึงเวลาที่ระบุ
 
-## ทางเลือกตัวตรวจต่อเนื่อง (ทางเลือกสำรอง / Legacy — ไม่ได้ใช้งานจริง)
+## ตัวตรวจ Python รุ่นเดิม (ลบตัวส่ง Render ออกแล้ว)
 
-> **คำเตือน:** นี่คือระบบสำรอง (fallback) ตัวส่งหลักจริงคือ Cloudflare Worker หากต้องการสลับมาใช้ Python worker ต้องหยุด Cloudflare Worker ให้ปลอดภัยก่อน ตามขั้นตอนใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ห้ามเปิดตัวส่งทั้งสองพร้อมกัน
+> **สถานะ:** ตัวตรวจและตัวส่งจริงคือ Cloudflare Worker ใน `cloudflare/` ตาม `cloudflare/PRIMARY_CHECKER.json` (`mode: cloudflare`, `legacy_workflow: pr-only`) ไฟล์ `render.yaml`, `Dockerfile.worker`, `deploy/start_worker.py` และ `lottery_worker.py` ถูก**ลบออกจาก repository** เพราะ Blueprint ไม่เคยถูก apply จึงไม่เคยมีหลักฐานว่าทำงานได้จริง และการเปิดตัวส่งที่สองพร้อม Cloudflare จะทำให้ส่งซ้ำ
 
-ในระบบเก่า Actions cron เคยเป็นค่าเริ่มต้น และเมื่อ 2026-11-07 เคยพบ schedule runs ห่างกันประมาณ 43–64 นาทีแม้ตั้ง cron ทุก 5 นาที แต่ปัจจุบัน `.github/workflows/lottery.yml` รันเฉพาะการทดสอบใน PR ไม่มี cron สำหรับส่งผล จึงไม่สามารถกลับไปใช้ Actions ได้ด้วยการเปลี่ยนตัวแปรเพียงอย่างเดียว
+สิ่งที่ยังอยู่ใน repository คือ `lottery_checker.py`, `settings_loader.py` และ `draw_schedule.py` พร้อมชุดทดสอบใน `tests/` ซึ่งรันเฉพาะใน PR ตาม `.github/workflows/lottery.yml` เพื่อเป็นตาข่ายกันความผิดพลาดของกติกาวัน งวด และการจับคู่ชื่อหวย ไม่มี cron และไม่เขียน runtime-live
 
-`lottery_worker.py` และ `Dockerfile.worker` เตรียมทางเลือกใช้ process ที่เปิดตลอดเวลา รอบใหม่เริ่มทุก 15 วินาทีเมื่อรอบก่อนเสร็จ หากต้นทางช้ารอบอาจนานกว่า 15 วินาที Sources หลักดึงขนานกัน ไม่ต้องบวกรอ timeout ทีละแหล่ง Government fallbacks ยังคงเลือกตามลำดับเดิม แต่รอ network ขนานกัน
+**กติกาเดิมยังใช้บังคับ:** ต้องมีตัวส่งจริงเพียงตัวเดียว ห้ามเปิด Actions/Python/Cloudflare ส่งพร้อมกัน ตัวเขียน runtime-live คือ Cloudflare Worker เท่านั้น
 
-การเปิดใช้ต้องได้รับอนุมัติ deployment และใช้บริการที่ไม่พักเครื่องพร้อม persistent disk มี worker เพียงหนึ่ง instance ทั้งระบบ (file lock ป้องกันได้เฉพาะ instance ที่ใช้ disk เดียวกัน):
+**การย้อนกลับ:** ทำตามหัวข้อ "ย้อนกลับ" ใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) — ตั้ง `ENABLED=false` แล้ว deploy, รอรอบที่เริ่มแล้วจบ, กระทบยอด D1 ให้ไม่มี `queued`/pending/uncertain ค้าง จากนั้นจึงเปิด Actions checker กลับด้วย PR ที่เจ้าของอนุมัติ (คืน `schedule`/`workflow_dispatch` ใน `lottery.yml`) ระบบ Render/Python worker รุ่นเก่าเอากลับได้ด้วย `git revert` ของ commit ที่ลบ แต่ต้องผ่านการ review และตรวจค่าใช้จ่ายก่อนทุกครั้ง
 
-1. Deploy PR ที่ review แล้วก่อน โดยยังไม่เริ่ม worker
-**ก่อนขั้นที่ 2:** ถ้า Cloudflare Worker ยังส่งอยู่ ให้ตั้ง `ENABLED=false` แล้ว deploy รอ invocation ล่าสุดจบก่อน ตรวจ D1 ว่าไม่มี pending publish และไม่เหลือ uncertain ค้าง ตามหัวข้อการย้อนกลับใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) เพราะ Python worker ไม่อ่าน ledger ของ Worker จึงตัดผลแพ้ถูกไม่ได้เหมือนกัน
-
-2. กำหนด repository Actions variable `LOTTERY_CHECKER_MODE=continuous` เพื่อหยุดตัวเขียนของ Actions และรอทุกงานเดิมจบ Worker ตรวจ variable และตรวจ active runs ก่อนทำงาน รอบ PR ยังคงทดสอบได้
-3. สร้าง background worker จาก `Dockerfile.worker` ด้วย reviewed release นี้ ห้ามใช้โค้ดจาก runtime-live
-4. Mount persistent disk ที่ `/var/data/lottery` และสร้างไฟล์ `.persistent-volume-confirmed` ใน disk นั้นเพื่อยืนยันการจัดเก็บถาวร
-5. ตั้ง `GITHUB_REPOSITORY=jirapatza/Bombim00`, `LOTTERY_WORKER_STATE_DIR=/var/data/lottery`, secret `LOTTERY_RUNTIME_TOKEN` และ `NTFY_TOPIC` ของบริการนี้ โดย token ต้องมี Contents Read/Write, Variables Read และ Actions Read ห้ามใส่ token ใน build args, frontend หรือ log
-6. Start `python lottery_worker.py` (Dockerfile มีคำสั่งนี้แล้ว) สามารถกำหนด `LOTTERY_POLL_SECONDS` ได้ แต่ไม่ต่ำกว่า 15 วินาที ห้ามตั้ง FORCE_NOTIFY=true
-7. ตรวจ heartbeat ใน runtime-live/status/status.json และตรวจผลจริงงวดที่ตรงตารางหลังเปิดใช้ การรับข้อความบนโทรศัพท์ต้องตรวจแยกจาก ntfy server acceptance
-
-Worker อ่านเฉพาะ JSON 4 ไฟล์จาก commit ที่ระบุ ไม่ execute source ของ runtime branch และเขียนเฉพาะ results/status เป็น commit เดียวบน runtime-live ไม่ force push หากส่งแล้ว publish ไม่สำเร็จจะ retry ข้อมูลที่บันทึกไว้ก่อน ไม่ส่ง ntfy ซ้ำ หากมีประวัติจากตัวเขียนอื่นเปลี่ยนไปจะหยุด publish และให้ตรวจ conflict
-
-หาก process หยุดระหว่างส่งแล้วพบ `inflight.json` จะไม่ส่งต่ออัตโนมัติ ผู้ดูแลต้องตรวจ local history กับ ntfy และกระทบยอด runtime history ก่อนล้าง marker นี้ เพื่อไม่เดาว่าข้อความที่ค้างส่งสำเร็จหรือยัง ห้ามลบทั้ง state directory เพื่อบังคับให้เริ่มใหม่
-
-**การกลับไปใช้ Actions:** ต้องเตรียม PR เพื่อคืน workflow ที่ตรวจผลและส่งจริงพร้อม `schedule`/`workflow_dispatch` ให้ผ่านการ review และได้รับอนุมัติก่อน ไม่ใช่แค่เปลี่ยน `LOTTERY_CHECKER_MODE` เพราะ workflow ปัจจุบันเป็น PR-only ก่อนเปิดตัวส่ง Actions ที่คืนมา ต้องหยุด Python worker ให้จบ รอ publish pending/การส่งที่ยังไม่แน่ชัดให้ตรวจสอบเสร็จ และยืนยันว่า Cloudflare Worker หยุดส่งอย่างปลอดภัยตาม [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) จากนั้นตั้ง `LOTTERY_CHECKER_MODE` ให้สอดคล้องกับ workflow ที่คืนมาและตรวจว่ามีตัวส่งเพียงตัวเดียว ห้ามเปิด Python/Actions/Cloudflare ส่งพร้อมกัน
-
-เป้าหมาย 15 วินาทีเป็นช่วง polling ไม่ใช่ SLA เวลาถึงโทรศัพท์ ยังขึ้นกับเวลาที่ provider เปิดเผยข้อมูล/แคช, network และ ntfy/Android โดย LotteryChecks fallback มี cache ที่เอกสารระบุ 300 วินาที จึงไม่กล่าวอ้างว่าแจ้งทันทีทุกแหล่ง ข้อมูลหน้าเว็บยังผ่าน GitHub raw/CDN และอาจมี cache แม้เปลี่ยน URL query ทุก polling bucket
-
-หมายเหตุสถานะ: ผลทดสอบด้วย mocks/Preview ที่กล่าวถึงในหัวข้อนี้เป็นประวัติการพัฒนา **ทางเลือก Python/Render รุ่นเดิม** ไม่ใช่สถานะของตัวส่งหลักปัจจุบัน ซึ่งได้ย้ายไปใช้ Cloudflare Worker ตามต้นเอกสารแล้ว
-
-
-<!-- /coderabbit-ai-generated:v1 -->
-
-## เปิด worker บน Render ด้วย Blueprint (ทางเลือกสำรอง / Legacy)
-
-> **คำเตือน:** นี่คือระบบสำรอง (fallback) ตัวส่งหลักจริงคือ Cloudflare Worker หากต้องการสลับมาใช้ Render worker ต้องหยุด Cloudflare Worker ให้ปลอดภัยก่อน ตามขั้นตอนใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ห้ามเปิดตัวส่งทั้งสองพร้อมกัน **Render/Python worker รุ่นนี้ส่งเฉพาะ ntfy ไม่ส่ง Web Push** ผู้ใช้ Web Push จะไม่ได้รับการแจ้งเตือนระหว่าง fallback เจ้าของต้องยอมรับผลกระทบนี้ก่อนอนุมัติการสลับ
-
-ไฟล์ `render.yaml` เตรียม service `bombim00-lottery-worker` แยกจากเว็บเดิม ใช้ Dockerfile.worker, main branch, persistent disk 1 GB และหนึ่ง instance ไม่แก้ configuration ของเว็บเดิม และปิด automatic deployment ของ worker ไว้เพื่อให้ตรวจแต่ละ release ก่อนใช้งาน Blueprint นี้ยังไม่ถูก apply และไม่ได้สร้างบริการที่มีค่าใช้จ่าย
-
-ตรวจและอนุมัติค่าใช้จ่าย compute/disk ที่ Render แสดงก่อนสร้าง service เพราะ worker พร้อม disk เป็นบริการแบบชำระเงินตาม [คู่มือ persistent disks](https://render.com/docs/disks) ไม่เก็บค่าใช้จ่ายตายตัวในเอกสารนี้
-
-ลำดับเปิดใช้ที่แนะนำ (เฉพาะเมื่อได้รับอนุมัติให้สลับจาก Cloudflare ไป Render/Python):
-
-1. ให้เจ้าของตรวจและอนุมัติ PR สำหรับการสลับระบบ ค่าใช้จ่าย Render และการหยุด Web Push ชั่วคราวตาม [AGENTS.md](../AGENTS.md) **ก่อนสร้างหรือ apply Blueprint** ตรวจบริการเดิมว่าจะไม่ทำงานซ้ำ
-2. **หยุด Cloudflare Worker ก่อนสร้างหรือเริ่ม Render worker:** ตั้ง `ENABLED=false` แล้ว deploy; รอ invocation/lease ที่กำลังรันจบ ตรวจและกระทบยอด D1 ทั้งรายการ `queued` (ต้องไม่มีรายการที่ยังไม่ได้ส่ง), pending publish และ uncertain ที่ยังไม่รู้ผล ตาม [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) ห้ามเดินหน้าจนกระทบยอดครบ การตรวจของ Python worker ดูเพียง `LOTTERY_CHECKER_MODE` ของ Actions ไม่ได้ตรวจว่า Cloudflare หยุดแล้ว จึงต้องยืนยันแยกต่างหาก
-3. ตั้ง Actions variable `LOTTERY_CHECKER_MODE=continuous` และรอ checker ของ Actions ที่อาจค้างอยู่จบทุกงาน **ก่อน apply Blueprint** (ปัจจุบัน Actions เป็น PR-only; ตัวแปรนี้ใช้เป็น guard ของ Python worker รุ่นเดิม)
-4. เมื่อยืนยันว่าตัวส่งหลักหยุดสนิท และ variable พร้อมแล้ว ใช้ Render Dashboard > New Blueprint เลือก repository นี้และไฟล์ `render.yaml` ตรวจว่ามี worker เพียงหนึ่ง instance พร้อม persistent disk ที่ `/var/data/lottery` ก่อน apply
-5. ตั้ง `LOTTERY_RUNTIME_TOKEN` และ `NTFY_TOPIC` ใน secret ของ Render ห้ามส่ง token ในแชตหรือ commit; token ใช้สิทธิ์ Contents Read/Write, Variables Read และ Actions Read เฉพาะ repository นี้
-6. Render ใช้ `python /app/deploy/start_worker.py` เพื่อตรวจ mount point จริงก่อนสร้าง `.persistent-volume-confirmed`; ถ้าไม่มี disk ให้หยุด ไม่ใช้ storage ชั่วคราว ห้ามเริ่ม worker ก่อนเงื่อนไขข้างต้นครบ
-7. ตรวจ worker logs, heartbeat ที่ `runtime-live/status/status.json` และผลจริงตามตาราง จากนั้นยืนยันการรับ ntfy บนโทรศัพท์แยกจากผล HTTP acceptance; ยืนยันอีกครั้งว่าช่อง Web Push จะไม่ทำงานระหว่าง fallback
-
-การเปิด Blueprint อาจทำให้เกิดค่าใช้จ่ายทันทีตามหน้าสรุปของ Render ต้องตรวจหน้าแผนก่อนยืนยัน [Blueprint specification](https://render.com/docs/blueprint-spec) เป็นแหล่งอ้างอิง field ที่ใช้ ส่วน [Background workers](https://render.com/docs/background-workers) อธิบายประเภท service
-
-**บันทึกการทดสอบระบบ Render รุ่นเดิม (ไม่ใช่สถานะปัจจุบัน):** PR preview เดิมที่ https://bombim-pr-50.onrender.com เคยเปิดได้และทดสอบการกรองวันเสาร์ แต่ขณะทดสอบไม่ได้ apply Blueprint หรือสลับตัวส่งจริง ปัจจุบัน Cloudflare Worker เป็นตัวส่งหลักตามต้นเอกสาร ห้ามใช้ผลทดสอบเก่าเป็นหลักฐานว่าบริการ Render พร้อมใช้งาน หากจะสลับระบบต้องตรวจสิทธิ์ ความพร้อมบริการ และทำตามลำดับหยุด Cloudflare ก่อน
-
-
-<!-- /coderabbit-ai-generated:v1 -->
+**ผลกระทบที่ต้องยอมรับหากย้อนกลับไป Actions:** Actions cron ไม่แม่น (เคยห่าง 43–64 นาทีเมื่อ 2026-11-07) และไม่ส่ง Web Push
 
 ## ทางเลือก Cloudflare Free ตรวจทุกนาที
 
