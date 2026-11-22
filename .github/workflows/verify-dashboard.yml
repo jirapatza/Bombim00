@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/latest-three-results-dashboard
   pull_request:
     branches:
       - main
