@@ -82,8 +82,13 @@ def atomic_write_json(path: Path, payload) -> None:
 
 def load_catalog(path: Path = CATALOG_PATH) -> list:
     catalog = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(catalog, list) or len(catalog) != 54:
-        raise SystemExit(f"catalog must contain 54 items, found {len(catalog) if isinstance(catalog, list) else 'n/a'}")
+    if not isinstance(catalog, list):
+        raise SystemExit("catalog must be a JSON array")
+    ids = [item.get("id") for item in catalog if isinstance(item, dict)]
+    if sorted(ids) != sorted(sources.CATALOG_SOURCES):
+        raise SystemExit("catalog ids must match the source map in lottery_sources.py, "
+                         f"missing={sorted(set(sources.CATALOG_SOURCES) - set(ids))} "
+                         f"unknown={sorted(set(ids) - set(sources.CATALOG_SOURCES))}")
     for item in catalog:
         missing = [key for key in RESULT_KEYS if key not in item]
         if missing:
