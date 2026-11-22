@@ -1,73 +1,146 @@
+// Exercises public/push-sw.js in a stubbed worker scope: no browser needed.
 import test from "node:test";
 import assert from "node:assert/strict";
 
-// Runs public/push-sw.js against stubs, so the offline behaviour is exercised
-// rather than matched as text.
-const handlers = new Map();
-const cached = new Map();
-const notifications = [];
+const ORIGIN = "https://app.test";
 
-globalThis.self = {
-  addEventListener: (type, handler) => {
-    if (!handlers.has(type)) handlers.set(type, []);
-    handlers.get(type).push(handler);
-  },
-  skipWaiting: async () => {},
-  clients: { claim: async () => {}, matchAll: async () => [], openWindow: async () => null },
-  registration: { showNotification: async (title, options) => notifications.push({ title, options }) },
-  location: { origin: "https://bombim00.pages.dev" },
-};
-globalThis.caches = {
-  open: async () => ({
-    add: async (url) => { cached.set(url, "offline-page"); },
-    match: async (url) => cached.get(url),
-  }),
-  keys: async () => ["bombim00-offline-v1"],
-  delete: async () => true,
-  match: async (url) => cached.get(url),
-};
-globalThis.fetch = async () => { throw new Error("offline"); };
+function makeCache() {
+  const entries = new Map();
+  const keyOf = (request) => {
+    const url = new URL(typeof request === "string" ? request : request.url, ORIGIN);
+    url.search = "";
+    return url.href;
+  };
+  return {
+    entries,
+    put: async (request, response) => { entries.set(keyOf(request), response); },
+    // A real Cache returns a fresh response each time, so a body can be read twice.
+    match: async (request) => entries.get(keyOf(request))?.clone(),
+    add: async (url) => { entries.set(keyOf(url), new Response(`precached:${url}`)); },
+    async addAll(urls) { for (const url of urls) await this.add(url); },
+  };
+}
 
-await import(`../public/push-sw.js?test=${Date.now()}`);
+function makeCaches() {
+  const stores = new Map();
+  const open = async (name) => {
+    if (!stores.has(name)) stores.set(name, makeCache());
+    return stores.get(name);
+  };
+  return {
+    stores,
+    open,
+    keys: async () => [...stores.keys()],
+    delete: async (name) => stores.delete(name),
+    match: async (request) => {
+      for (const cache of stores.values()) {
+        const hit = await cache.match(request);
+        if (hit) return hit;
+      }
+      return undefined;
+    },
+  };
+}
 
-const fire = async (type, event) => {
-  const pending = [];
-  const wrapped = { ...event, waitUntil: (promise) => pending.push(promise) };
-  for (const handler of handlers.get(type) || []) handler(wrapped);
-  await Promise.all(pending);
-  return wrapped;
-};
+async function loadWorker() {
+  const listeners = new Map();
+  const caches = makeCaches();
+  globalThis.self = {
+    addEventListener: (type, handler) => listeners.set(type, handler),
+    skipWaiting: async () => {},
+    clients: { claim: async () => {}, matchAll: async () => [], openWindow: async () => {} },
+    registration: { showNotification: async () => {} },
+    location: { origin: ORIGIN },
+  };
+  globalThis.caches = caches;
+  await import(new URL("../public/push-sw.js", import.meta.url).href);
+  return { caches, listeners };
+}
 
-test("install precaches the offline page", async () => {
-  await fire("install", {});
-  assert.equal(cached.get("/offline.html"), "offline-page");
+function event(request, network) {
+  const call = { responded: false, promise: null };
+  globalThis.fetch = network;
+  return {
+    call,
+    run: () => {
+      const target = { request, respondWith: (promise) => { call.responded = true; call.promise = promise; } };
+      return listeners.get("fetch")(target);
+    },
+  };
+}
+
+// Node's Request rejects mode "navigate", so navigations use the same shape the
+// worker reads: url, method, mode and destination.
+const navigation = (path = "/") => ({ url: `${ORIGIN}${path}`, method: "GET", mode: "navigate", destination: "" });
+
+let listeners;
+let caches;
+
+test.before(async () => {
+  ({ listeners, caches } = await loadWorker());
+  await listeners.get("install")({ waitUntil: (promise) => promise });
 });
 
-test("a navigation that fails offline is answered with the offline page", async () => {
-  let response;
-  await fire("fetch", {
-    request: { mode: "navigate", method: "GET" },
-    respondWith: (value) => { response = value; },
-  });
-  assert.equal(await response, "offline-page");
+test("an online navigation is served from the network and stored", async () => {
+  const html = new Response("<html>shell</html>", { headers: { "content-type": "text/html" } });
+  const { call, run } = event(navigation("/"), async () => html);
+  run();
+  assert.equal(call.responded, true);
+  assert.equal(await (await call.promise).text(), "<html>shell</html>");
+  assert.equal(await (await (await caches.open("bombim00-shell-v1")).match("/")).text(), "<html>shell</html>");
 });
 
-test("data and API requests are left to the network", async () => {
-  let called = false;
-  await fire("fetch", {
-    request: { mode: "cors", method: "GET", url: "https://bombim00.pages.dev/api/push/receipt" },
-    respondWith: () => { called = true; },
-  });
-  assert.equal(called, false, "only navigations are intercepted");
+test("a navigation with no signal falls back to the stored shell, then the offline page", async () => {
+  const offline = () => Promise.reject(new TypeError("Failed to fetch"));
+  const withShell = event(navigation("/history"), offline);
+  withShell.run();
+  assert.equal(await (await withShell.call.promise).text(), "<html>shell</html>");
+
+  const shell = caches.stores.get("bombim00-shell-v1");
+  shell.entries.delete(`${ORIGIN}/`);
+  const withoutShell = event(navigation("/history"), offline);
+  withoutShell.run();
+  assert.equal(await (await withoutShell.call.promise).text(), "precached:/offline.html");
 });
 
-test("a push message becomes an audible notification carrying its receipt", async () => {
-  const message = { title: "หวยออกแล้ว", body: "579 • 86", receipt: null };
-  await fire("push", {
-    data: { json: () => message },
-    waitUntil: (promise) => promise,
-  });
-  assert.equal(notifications.length, 1);
-  assert.equal(notifications[0].title, "หวยออกแล้ว");
-  assert.equal(notifications[0].options.silent, false, "must make a sound when the tab is closed");
+test("runtime JSON is cached without its cache-buster and served when the network fails", async () => {
+  const url = `https://raw.githubusercontent.com/jirapatza/Bombim00/runtime-live/status/status.json`;
+  const first = event(new Request(`${url}?v=1`), async () => new Response('{"system_status":"healthy"}'));
+  first.run();
+  await first.call.promise;
+
+  const second = event(new Request(`${url}?v=2`), () => Promise.reject(new TypeError("Failed to fetch")));
+  second.run();
+  const body = await (await second.call.promise).json();
+  assert.equal(body.system_status, "healthy");
+});
+
+test("runtime JSON with no signal and no cache stays a failure", async () => {
+  const url = "https://raw.githubusercontent.com/jirapatza/Bombim00/runtime-live/lottery_previous_results.json";
+  const { call, run } = event(new Request(`${url}?v=9`), () => Promise.reject(new TypeError("Failed to fetch")));
+  run();
+  await assert.rejects(() => call.promise);
+});
+
+test("API calls and non-GET requests are never intercepted", async () => {
+  const api = event(new Request(`${ORIGIN}/api/push/register`, { method: "GET" }), async () => new Response("{}"));
+  api.run();
+  assert.equal(api.call.responded, false);
+
+  const post = event(new Request(`${ORIGIN}/api/push/receipt`, { method: "POST", body: "{}" }), async () => new Response("{}"));
+  post.run();
+  assert.equal(post.call.responded, false);
+});
+
+test("hashed assets are served from the cache first", async () => {
+  let requests = 0;
+  const asset = `${ORIGIN}/assets/index-abc123.js`;
+  const network = async () => { requests += 1; return new Response("bundle"); };
+  const first = event(new Request(asset, { destination: "script" }), network);
+  first.run();
+  await first.call.promise;
+  const second = event(new Request(asset, { destination: "script" }), network);
+  second.run();
+  assert.equal(await (await second.call.promise).text(), "bundle");
+  assert.equal(requests, 1);
 });

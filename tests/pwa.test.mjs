@@ -61,13 +61,15 @@ test("the service worker keeps a fetch listener so the app stays installable", (
   assert.match(read("public/push-sw.js"), /addEventListener\('fetch'/);
 });
 
-test("only a failed navigation is answered from the cache", () => {
+test("the cache only answers when the network fails", () => {
   const source = read("public/push-sw.js");
-  assert.match(source, /request\.mode !== 'navigate'/, "data and API requests stay on the network");
+  assert.match(source, /function networkFirst/, "pages and runtime JSON are fetched first");
+  assert.match(source, /request\.mode === 'navigate'/, "a navigation is never answered by cache-first");
   assert.match(source, /caches\.match\(OFFLINE_URL\)/, "falls back to the offline page");
-  assert.match(source, /cache\.add\(OFFLINE_URL\)/, "precaches the offline page on install");
-  assert.doesNotMatch(source, /caches\.match\(request\)/, "never serves a stale page while online");
-  assert.equal(source.match(/respondWith\(/g).length, 1, "only the navigation branch answers requests");
+  assert.match(source, /cache\.addAll\(\[OFFLINE_URL/, "precaches the offline page on install");
+  assert.match(source, /url\.pathname\.startsWith\('\/api\/'\)/, "the API is never intercepted");
+  assert.match(source, /isCacheableAsset\(request, url\)\) event\.respondWith\(cacheFirst\(request\)\)/,
+    "cache-first is reserved for immutable hashed assets");
 });
 
 test("the offline page explains the state in Thai and offers a retry", () => {
