@@ -116,3 +116,16 @@ test('GLO official response uses its declared draw date and named prize groups',
   assert.deepEqual(draw.เลขหน้า_3_ตัว, ['001', '002']);
   assert.deepEqual(draw.เลขท้าย_3_ตัว, ['003', '004']);
 });
+test('stock cards carry the catalog id instead of their Thai label', () => {
+  const catalog = JSON.parse(readFileSync(new URL('../../data/all_lotteries.json', import.meta.url)));
+  const html = '<h2>หวยหุ้นต่างประเทศ</h2>' +
+    '<h3>หวยหุ้นนิคเคอิเช้า</h3><p>งวด 3 พฤศจิกายน 2569</p><p>3 ตัวบน <b>007</b></p><p>2 ตัวล่าง 90</p>' +
+    '<h3>หวยหุ้นใหม่ที่ยังไม่มีในสารบัญ</h3><p>งวด 3 พฤศจิกายน 2569</p><p>3 ตัวบน 123</p><p>2 ตัวล่าง 45</p>';
+  const rows = parseStocks(html, now, catalog);
+  assert.equal(rows[0].หวย, 'nikkei_morning');
+  assert.equal(rows[0].ชื่อหวย, 'หวยหุ้นนิคเคอิเช้า');
+  // An unknown label must still be published, keeping the previous behaviour.
+  assert.equal(rows[1].หวย, 'หวยหุ้นใหม่ที่ยังไม่มีในสารบัญ');
+  // Without a catalog the parser stays backward compatible.
+  assert.equal(parseStocks(html, now)[0].หวย, 'หวยหุ้นนิคเคอิเช้า');
+});
