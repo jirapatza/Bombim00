@@ -169,7 +169,7 @@ export async function cycle(env, dependencies = {}) {
       if (['sent', 'failed'].includes(entry.state) && entry.date < cutoff) delete state.deliveries[key];
     }
     stage = 'sources';
-    const { rows: fetchedCandidates, sources, errors, waiting = [] } = await (dependencies.collect || collect)(settings, today, now, request);
+    const { rows: fetchedCandidates, sources, errors, waiting = [] } = await (dependencies.collect || collect)(settings, today, now, request, catalog);
     const verificationSettings = settings.verification || {};
     const verificationMode = ['shadow', 'enforce'].includes(verificationSettings.mode) ? verificationSettings.mode : 'shadow';
     const minSources = Number.isInteger(verificationSettings.min_sources) ? verificationSettings.min_sources : 2;

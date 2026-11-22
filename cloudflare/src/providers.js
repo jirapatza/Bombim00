@@ -1,4 +1,4 @@
-import { canonical, disallowed, drawDate, numbers } from './domain.js';
+import { canonical, disallowed, drawDate, numbers, scheduleName } from './domain.js';
 
 export const rounds = {
   'lao-union': ['lao_samakki', 'ลาวสามัคคี', 'lao'],
@@ -75,8 +75,16 @@ function text(html) {
     return n <= 0x10ffff ? String.fromCodePoint(n) : '';
   }).replace(/&nbsp;|&#160;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 }
-export function parseStocks(html, now = new Date()) {
+export function parseStocks(html, now = new Date(), catalog = []) {
   const groups = { 'หวยหุ้นต่างประเทศ': 'stock', 'หวยหุ้น VIP': 'stock_vip', 'หวยหุ้นพิเศษ': 'stock_special', 'หวยหุ้น VISA': 'stock_visa' };
+  // The stock page publishes display labels only, so a row used to carry its Thai
+  // label in the id field and identity depended on that text. Resolve the catalog
+  // id from the catalog itself; an unknown label keeps the old behaviour.
+  const ids = new Map();
+  for (const item of catalog) {
+    const key = scheduleName(item?.name || '');
+    if (key && item?.id && !ids.has(key)) ids.set(key, item.id);
+  }
   let group = ''; const rows = [];
   for (const m of html.matchAll(/<h([23])\b[^>]*>([\s\S]*?)<\/h\1>([\s\S]*?)(?=<h[23]\b|$)/gi)) {
     const name = text(m[2]);
@@ -84,7 +92,7 @@ export function parseStocks(html, now = new Date()) {
     if (!group || !name.startsWith('หวยหุ้น') || /ในหน้านี้|อัปเดตเมื่อไร|ออกวันไหน|ดูย้อนหลัง/.test(name)) continue;
     const content = text(m[3]), date = content.match(/งวด\s*(?:วันที่\s*)?([0-9]{1,2}\s+[^\s]+\s+[0-9]{4})/),
       top = content.match(/3 ตัวบน\s*([0-9]{3})(?![0-9])/), bottom = content.match(/2 ตัวล่าง\s*([0-9]{2})(?![0-9])/);
-    if (date && top && bottom && drawDate({ งวดวันที่: date[1] })) rows.push(row(name, name, group, date[1], top[1], bottom[1], 'ผลหวย.com (หน้าหุ้นแยกหมวด)', now,
+    if (date && top && bottom && drawDate({ งวดวันที่: date[1] })) rows.push(row(name, ids.get(scheduleName(name)) || name, group, date[1], top[1], bottom[1], 'ผลหวย.com (หน้าหุ้นแยกหมวด)', now,
       { source_family: 'pholhuay' }));
   }
   return rows;
@@ -148,7 +156,7 @@ async function parallel(jobs, concurrency = 4) {
   }));
   return results.flat();
 }
-export async function collect(settings, today, now, request) {
+export async function collect(settings, today, now, request, catalog = []) {
   const errors = [], waiting = [], sources = [], cfg = settings.sources || {};
   const readSource = async (source, url, parser, { json = true, lottery, slug, method = 'GET' } = {}) => {
     let status = null, reason = 'network';
@@ -189,7 +197,7 @@ export async function collect(settings, today, now, request) {
     }
   };
   const jobs = [
-    () => readSource('ผลหวย.com stock groups', 'https://xn--t3cmiit.com/stock-lottery', x => parseStocks(x, now), { json: false }),
+    () => readSource('ผลหวย.com stock groups', 'https://xn--t3cmiit.com/stock-lottery', x => parseStocks(x, now, catalog), { json: false }),
     () => readSource('ผลหวย.com Lao EXTRA', 'https://xn--t3cmiit.com/lao-lottery/extra', x => parseExtra(x, today, now), { json: false, lottery: 'ลาว EXTRA' }),
   ];
   if (cfg.thailottoapi?.enabled) {
