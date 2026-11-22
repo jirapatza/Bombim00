@@ -364,9 +364,31 @@ def test_collect_sources_swallows_source_failures(monkeypatch):
     assert any("timeout" in reason for reason in reasons)
 
 
-def test_catalog_keeps_54_ids_in_order():
+def test_catalog_keeps_the_mapped_ids_in_order():
     assert [item["id"] for item in CATALOG] == EXPECTED_IDS
-    assert len(CATALOG) == 54
+    # Display order is the catalog's own; the contract only requires the same set.
+    assert set(EXPECTED_IDS) == set(sources.CATALOG_SOURCES)
+    assert validator.EXPECTED_IDS == tuple(sources.CATALOG_SOURCES)
+
+
+def test_validator_rejects_a_truncated_catalog():
+    broken = json.loads(json.dumps(CATALOG))[:-1]
+    errors = validator.validate_catalog(broken)
+    assert any("lost" in error for error in errors)
+
+
+def test_validator_rejects_a_lottery_without_a_source_mapping():
+    broken = json.loads(json.dumps(CATALOG))
+    broken.append({**broken[0], "id": "mystery_lottery"})
+    errors = validator.validate_catalog(broken)
+    assert any("without a source mapping" in error for error in errors)
+
+
+def test_load_catalog_rejects_a_catalog_that_dropped_a_mapped_lottery(tmp_path):
+    path = tmp_path / "catalog.json"
+    path.write_text(json.dumps(CATALOG[:-1], ensure_ascii=False), encoding="utf-8")
+    with pytest.raises(SystemExit):
+        collector.load_catalog(path)
 
 
 def test_catalog_schema_keys_are_unchanged():

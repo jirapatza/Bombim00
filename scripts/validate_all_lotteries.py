@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from lottery_sources import thai_date_to_iso  # noqa: E402
+from lottery_sources import CATALOG_SOURCES, thai_date_to_iso  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 CATALOG_PATH = ROOT / "data" / "all_lotteries.json"
@@ -27,7 +27,10 @@ EXPECTED_KEYS = ["id", "name", "category", "categoryLabel", "period", "periodLab
                  "bottom2", "firstPrize", "date", "source"]
 # Official three-digit prizes, present only when the source publishes them.
 OPTIONAL_KEYS = ("threeDigits",)
-EXPECTED_COUNT = 54
+# The source map is the contract: a lottery exists only once it has a source, so
+# the expected id set is derived from it instead of a magic count that has to be
+# edited in three files whenever a lottery is added.
+EXPECTED_IDS = tuple(CATALOG_SOURCES)
 VALID_STATUS = {"announced", "waiting"}
 
 
@@ -36,9 +39,14 @@ def validate_catalog(catalog, today: datetime.date | None = None) -> list:
     errors = []
     if not isinstance(catalog, list):
         return ["catalog root must be a JSON array"]
-    if len(catalog) != EXPECTED_COUNT:
-        errors.append(f"expected {EXPECTED_COUNT} lotteries, found {len(catalog)}")
     seen = set()
+    catalog_ids = [item.get("id") for item in catalog if isinstance(item, dict)]
+    missing = [item_id for item_id in EXPECTED_IDS if item_id not in catalog_ids]
+    unknown = [item_id for item_id in catalog_ids if item_id not in CATALOG_SOURCES]
+    if missing:
+        errors.append(f"catalog lost {len(missing)} mapped lotteries: {missing}")
+    if unknown:
+        errors.append(f"catalog has {len(unknown)} lotteries without a source mapping: {unknown}")
     for index, item in enumerate(catalog):
         where = f"item[{index}] {item.get('id', '?') if isinstance(item, dict) else '?'}"
         if not isinstance(item, dict):
