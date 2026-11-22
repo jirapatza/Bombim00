@@ -52,3 +52,26 @@ test('persists evidence and the latest verification state without raw provider p
   const draw = await db.prepare('SELECT status, source_count FROM verification_draws').first();
   assert.deepEqual({ ...draw }, { status: 'verified', source_count: 2 });
 });
+
+test('re-observing the same consensus writes no rows, and a changed verdict does', async t => {
+  const db = database(); t.after(() => db.close());
+  const first = new Date('2026-11-19T12:00:00Z'), later = new Date('2026-11-19T12:05:00Z');
+  const report = evaluateConsensus([result('thailottoapi'), result('lotterychecks')], catalog);
+  await recordConsensus(db, report, first);
+  const before = await db.prepare('SELECT observed_at FROM verification_evidence').all();
+  const drawBefore = await db.prepare('SELECT status, updated_at FROM verification_draws').first();
+
+  // Same evidence and same verdict one cycle later: nothing may change.
+  await recordConsensus(db, report, later);
+  const after = await db.prepare('SELECT observed_at FROM verification_evidence').all();
+  const drawAfter = await db.prepare('SELECT status, updated_at FROM verification_draws').first();
+  assert.deepEqual(after.results.map(x => x.observed_at), before.results.map(x => x.observed_at));
+  assert.deepEqual({ ...drawAfter }, { ...drawBefore });
+
+  // A conflicting second source must still update the verdict.
+  const conflicting = evaluateConsensus([result('thailottoapi'), result('lotterychecks', '999')], catalog);
+  await recordConsensus(db, conflicting, later);
+  const changed = await db.prepare('SELECT status, updated_at FROM verification_draws').first();
+  assert.equal(changed.status, 'conflict');
+  assert.equal(changed.updated_at, +later);
+});
