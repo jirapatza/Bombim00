@@ -1,8 +1,8 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-22T19:44:12.143+07:00",
-  "last_run_date_thai": "22/11/2026 19:44:12",
-  "total_checks": 16152,
+  "last_run_timestamp": "2026-11-22T19:45:12.453+07:00",
+  "last_run_date_thai": "22/11/2026 19:45:12",
+  "total_checks": 16153,
   "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks + glo",
   "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 32 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 17 รายการ",
   "active_sources_count": 5,
@@ -10,6 +10,11 @@
   "notifications_sent_today": 19,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-22T19:45:12.453+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 32 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 17 รายการ"
+    },
     {
       "timestamp": "2026-11-22T19:44:12.143+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-22T19:26:12.091+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 32 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 17 รายการ"
-    },
-    {
-      "timestamp": "2026-11-22T19:25:12.446+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 32 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 2 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 17 รายการ"
     }
   ],
   "uncertain_deliveries": 258,
@@ -120,12 +120,12 @@
     "waiting": [
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
+        "lottery": "ฮานอยพัฒนา",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพัฒนา",
+        "lottery": "ลาวสามัคคี",
         "status": 404
       }
     ],
