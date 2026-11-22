@@ -708,3 +708,35 @@ test('a quiet cycle republishes an identical status so the bot skips the commit'
   assert.notEqual(third.last_run_timestamp, first.last_run_timestamp);
   assert.ok(third.total_checks > first.total_checks, 'skipped cycles are still counted');
 });
+
+test('an unresolved send older than the ledger TTL is archived into a counter, not forgotten', async t => {
+  t.mock.method(Date, 'now', () => +now);
+  const f = fixture(t);
+  const state = f.db.state();
+  state.deliveries['stale-draw'] = { state: 'uncertain', date: '2026-10-01', kind: 'result', code: 'timeout' };
+  state.deliveries['weird-code'] = { state: 'uncertain', date: '2026-10-02', kind: 'result', code: '<script>' };
+  f.db.setState(state);
+  await f.run();
+  const after = f.db.state();
+  assert.equal(after.deliveries['stale-draw'], undefined);
+  assert.equal(after.deliveries['weird-code'], undefined);
+  assert.deepEqual(after.uncertainArchive, { count: 2, codes: { timeout: 1, unknown: 1 } });
+});
+
+test('a burst of ambiguous sends is capped so the single state row cannot grow without bound', async t => {
+  t.mock.method(Date, 'now', () => +now);
+  const f = fixture(t);
+  const state = f.db.state();
+  for (let i = 0; i < 520; i++) {
+    state.deliveries[`burst-${String(i).padStart(3, '0')}`] = { state: 'uncertain', date: today, kind: 'result', code: 'network' };
+  }
+  f.db.setState(state);
+  await f.run();
+  const after = f.db.state();
+  const remaining = Object.keys(after.deliveries).filter(key => key.startsWith('burst-'));
+  assert.equal(remaining.length, 500);
+  assert.equal(after.uncertainArchive.count, 20);
+  // The oldest identities are the ones archived.
+  assert.equal(after.deliveries['burst-000'], undefined);
+  assert.ok(after.deliveries['burst-519']);
+});

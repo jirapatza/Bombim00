@@ -17,6 +17,18 @@ const MAX_RESULT_BATCH = 6; // One ntfy message per cluster; never bulk-retry un
 const AUTH_REJECT_BACKOFF_MS = 15 * 60 * 1000;
 const UNCERTAIN_TRANSPORT_BACKOFF_MS = 15 * 60 * 1000; // Circuit breaker after ambiguous delivery.
 const UNCERTAIN_HEALTH_WINDOW_MS = 24 * 60 * 60 * 1000;
+// An unresolved send older than this can no longer be today's candidate, so it is
+// folded into a counter that /health still reports. The counter never shrinks.
+const UNCERTAIN_TTL_DAYS = 7;
+const MAX_UNCERTAIN = 500;
+const UNCERTAIN_CODE = /^(http_\d{3}|timeout|network|request_budget|https_required)$/;
+function archiveUncertain(state, entry) {
+  const archive = state.uncertainArchive && typeof state.uncertainArchive === 'object' ? state.uncertainArchive : { count: 0, codes: {} };
+  const code = UNCERTAIN_CODE.test(entry?.code || '') ? entry.code : 'unknown';
+  archive.count = (archive.count || 0) + 1;
+  archive.codes = { ...archive.codes, [code]: (archive.codes?.[code] || 0) + 1 };
+  state.uncertainArchive = archive;
+}
 function isOldUncertain(entry, now) {
   if (!entry || entry.state !== 'uncertain') return false;
   const recordedAt = Date.parse(entry.startedAt || `${entry.date}T23:59:59+07:00`);
@@ -180,12 +192,27 @@ export async function cycle(env, dependencies = {}) {
     const settings = applyControlOverrides(runtimeSettings, state);
     const active = settings.channels?.browser_push?.enabled !== false &&
       Boolean(pushKeys(env) || dependencies.send || dependencies.sendBatch || dependencies.sendSchedule);
-    // Keep unresolved sends indefinitely. Successful/definitely rejected entries older
-    // than 14 days are already in runtime history and cannot be today's candidates.
+    // Successful/definitely rejected entries older than 14 days are already in runtime
+    // history. Unresolved sends are kept for 7 days so a stale attempt stays visible.
     const cutoff = new Date(+now - 14 * 86400000).toISOString().slice(0, 10);
+    const uncertainCutoff = new Date(+now - UNCERTAIN_TTL_DAYS * 86400000).toISOString().slice(0, 10);
     for (const [key, entry] of Object.entries(state.deliveries)) {
       if (entry.state === 'sending') entry.state = 'uncertain';
       if (['sent', 'failed'].includes(entry.state) && entry.date < cutoff) delete state.deliveries[key];
+      else if (entry.state === 'uncertain' && entry.date < uncertainCutoff) {
+        archiveUncertain(state, entry);
+        delete state.deliveries[key];
+      }
+    }
+    // A burst of ambiguous sends must not push the single state row towards D1's
+    // row limit; the oldest are archived first and stay visible as a count.
+    const uncertainKeys = Object.keys(state.deliveries).filter(key => state.deliveries[key].state === 'uncertain');
+    if (uncertainKeys.length > MAX_UNCERTAIN) {
+      uncertainKeys.sort((a, b) => String(state.deliveries[a].date || '').localeCompare(String(state.deliveries[b].date || '')));
+      for (const key of uncertainKeys.slice(0, uncertainKeys.length - MAX_UNCERTAIN)) {
+        archiveUncertain(state, state.deliveries[key]);
+        delete state.deliveries[key];
+      }
     }
     stage = 'sources';
     const { rows: fetchedCandidates, sources, errors, waiting = [] } = await (dependencies.collect || collect)(settings, today, now, request, catalog);
@@ -443,6 +470,7 @@ export default {
       return Response.json({ status: paused ? 'paused' : observing ? 'observing' : healthy ? 'healthy' : 'degraded', last_success: state.lastSuccess,
         last_observation: observed || null, last_check: state.lastCheck || null, error: state.error, error_stage: state.error_stage || null, error_request: state.error_request || null,
         publish_pending: Boolean(state.pending), uncertain_deliveries: uncertainty.total,
+        archived_uncertain: state.uncertainArchive?.count || 0,
         active_uncertain_deliveries: uncertain, old_uncertain_deliveries: uncertainty.old,
         delivery_codes, poll_seconds: 60,
         result_verification: state.lastVerification || null,
