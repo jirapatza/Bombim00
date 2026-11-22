@@ -120,17 +120,12 @@
     "waiting": [
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพัฒนา",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ฮานอย HD",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
+        "lottery": "ฮานอยพัฒนา",
         "status": 404
       },
       {
@@ -140,12 +135,12 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย STAR",
+        "lottery": "ลาวสามัคคี",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาว HD",
+        "lottery": "ฮานอย STAR",
         "status": 404
       },
       {
@@ -156,6 +151,11 @@
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ลาว TV",
+        "status": 404
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ลาว HD",
         "status": 404
       },
       {
