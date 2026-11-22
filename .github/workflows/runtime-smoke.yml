@@ -59,10 +59,10 @@ jobs:
       - name: Verify static build output
         run: test -s dist/index.html
 
-      - name: Install browser test tooling
-        run: |
-          npm install --no-save --package-lock=false playwright@1.56.1
-          npx playwright install --with-deps chromium
+      # playwright is a locked devDependency, so npm ci above installed the CLI;
+      # only the browser binary is missing at this point.
+      - name: Install the Chromium build
+        run: npx playwright install --with-deps chromium
 
       - name: Exercise buttons and routes in desktop and mobile Chromium
         run: |
@@ -71,7 +71,7 @@ jobs:
             if curl --silent --fail http://127.0.0.1:3000/ > /dev/null; then break; fi
             sleep 2
           done
-          node tests/browser-smoke.mjs
+          npm run test:browser
 
       - name: Upload mobile and desktop screenshot evidence
         if: always()
