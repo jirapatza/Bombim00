@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { browserPushApi, createReceipt, publishBrowserPush } from '../src/browser-push.js';
+import { browserPushApi, createReceipt, deviceLimit, publishBrowserPush } from '../src/browser-push.js';
 import { database } from './state-helper.js';
 
 test('enrolls Chrome, sends encrypted Web Push, handles 429, and removes expired subscriptions', async t => {
@@ -81,4 +81,60 @@ test('records accepted pushes and accepts authenticated received/opened receipts
     headers: { Origin: 'https://bombim00.pages.dev' },
     body: JSON.stringify({ deliveryId: receipt.deliveryId, token: `${receipt.expiresAt}.bad`, event: 'received' }) }), env);
   assert.equal(invalid.status, 403);
+});
+
+test('accepts Chrome, Safari and Firefox push endpoints and rejects every other host', async t => {
+  const db = database(); t.after(() => db.close());
+  const device = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const base64 = async key => Buffer.from(await crypto.subtle.exportKey('raw', key)).toString('base64url');
+  const env = { DB: db, WEB_PUSH_PUBLIC_KEY: 'public', WEB_PUSH_PRIVATE_KEY: 'private',
+    WEB_PUSH_SUBJECT: 'https://bombim00.pages.dev', WEB_PUSH_ENROLLMENT: 'local-test-code' };
+  const keys = { p256dh: await base64(device.publicKey), auth: randomBytes(16).toString('base64url') };
+  const enroll = endpoint => browserPushApi(new Request('https://worker.test/push/subscription', {
+    method: 'POST', headers: { Origin: 'https://bombim00.pages.dev' },
+    body: JSON.stringify({ subscription: { endpoint, keys }, enrollment: 'local-test-code' }),
+  }), env);
+  const accepted = [
+    'https://fcm.googleapis.com/fcm/send/synthetic-device-123456',
+    'https://web.push.apple.com/QGx1Y2t5YXBwbGV0b2tlbmV4YW1wbGUxMjM0NTY3ODkw',
+    'https://updates.push.services.mozilla.com/wpush/v2/gAAAAABmozillatokenexample123456',
+  ];
+  for (const endpoint of accepted) assert.equal((await enroll(endpoint)).status, 200, endpoint);
+  const rejected = [
+    'https://example.com/send/abcdefghijklmnop',
+    'http://fcm.googleapis.com/fcm/send/synthetic-device-123456',
+    'https://fcm.googleapis.com.evil.example/fcm/send/synthetic-device-123456',
+    'https://web.push.apple.com.evil.example/QGx1Y2t5YXBwbGV0b2tlbmV4YW1wbGUxMjM0NTY3ODkw',
+    'https://updates.push.services.mozilla.com/wpush/v2/../../etc/passwd',
+  ];
+  for (const endpoint of rejected) {
+    const response = await enroll(endpoint);
+    assert.equal(response.status, 400, endpoint);
+    assert.deepEqual(await response.json(), { error: 'invalid_subscription', reason: 'unsupported_endpoint' });
+  }
+});
+
+test('honours MAX_DEVICES, reports capacity, and keeps re-enrolling an existing device idempotent', async t => {
+  const db = database(); t.after(() => db.close());
+  const device = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const base64 = async key => Buffer.from(await crypto.subtle.exportKey('raw', key)).toString('base64url');
+  const env = { DB: db, WEB_PUSH_PUBLIC_KEY: 'public', WEB_PUSH_PRIVATE_KEY: 'private',
+    WEB_PUSH_SUBJECT: 'https://bombim00.pages.dev', WEB_PUSH_ENROLLMENT: 'local-test-code', MAX_DEVICES: '2' };
+  const keys = { p256dh: await base64(device.publicKey), auth: randomBytes(16).toString('base64url') };
+  const enroll = index => browserPushApi(new Request('https://worker.test/push/subscription', {
+    method: 'POST', headers: { Origin: 'https://bombim00.pages.dev' },
+    body: JSON.stringify({ subscription: { endpoint: `https://fcm.googleapis.com/fcm/send/synthetic-device-00000${index}`, keys },
+      enrollment: 'local-test-code' }),
+  }), env);
+  assert.equal(deviceLimit({}), 10);
+  assert.equal(deviceLimit({ MAX_DEVICES: '3' }), 3);
+  assert.equal(deviceLimit({ MAX_DEVICES: '0' }), 10);
+  assert.equal(deviceLimit({ MAX_DEVICES: 'many' }), 10);
+  assert.equal((await enroll(1)).status, 200);
+  assert.equal((await enroll(2)).status, 200);
+  assert.equal((await enroll(1)).status, 200);
+  const full = await enroll(3);
+  assert.equal(full.status, 409);
+  assert.equal((await full.json()).error, 'subscription_capacity');
+  assert.equal((await db.prepare('SELECT count(*) AS n FROM browser_push_subscriptions').first()).n, 2);
 });

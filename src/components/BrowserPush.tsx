@@ -13,6 +13,14 @@ async function pushRequest(path: string, method = "GET", data?: object) {
   return response.json();
 }
 
+const pushErrors: Record<string, string> = {
+  "400": "เบราว์เซอร์นี้ยังไม่รองรับการแจ้งเตือนของระบบ หรือข้อมูลอุปกรณ์ไม่ถูกต้อง",
+  "403": "เปิดแจ้งเตือนไม่ได้ ตรวจรหัสเชื่อมอุปกรณ์",
+  "409": "เครื่องที่ลงทะเบียนไว้เต็มจำนวนแล้ว ปิดเครื่องที่ไม่ใช้ก่อนแล้วลองใหม่",
+  "429": "เพิ่งส่งข้อความทดสอบไปแล้ว กรุณารอสักครู่",
+  "503": "ระบบแจ้งเตือนยังไม่พร้อมใช้งาน กรุณาลองใหม่ภายหลัง",
+};
+
 export function BrowserPush() {
   const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   const [enabled, setEnabled] = useState(false);
@@ -61,9 +69,7 @@ export function BrowserPush() {
       }
     } catch (error) {
       if (created) await created.unsubscribe().catch(() => {});
-      setStatus(error instanceof Error && error.message === "403"
-        ? "เปิดแจ้งเตือนไม่ได้ ตรวจรหัสเชื่อมอุปกรณ์"
-        : "ดำเนินการไม่สำเร็จ กรุณาลองใหม่");
+      setStatus(pushErrors[error instanceof Error ? error.message : ""] ?? "ดำเนินการไม่สำเร็จ กรุณาลองใหม่");
     } finally {
       setBusy(false);
     }

@@ -1,13 +1,23 @@
 import { buildPushPayload } from '@block65/webcrypto-web-push';
 
 export const DEFAULT_PUSH_BACKOFF_MS = 60_000;
-const MAX_DEVICES = 3;
+const DEFAULT_MAX_DEVICES = 10;
 const TEST_INTERVAL = 60_000;
 const SITE = 'https://bombim00.pages.dev';
-const FCM_ENDPOINT = /^https:\/\/fcm\.googleapis\.com\/fcm\/send\/[A-Za-z0-9_:.%-]{16,512}$/;
+// Exact hosts only: a spoofed suffix such as fcm.googleapis.com.evil.example must fail.
+const PUSH_ENDPOINTS = [
+  /^https:\/\/fcm\.googleapis\.com\/fcm\/send\/[A-Za-z0-9_:.%-]{16,512}$/,
+  /^https:\/\/web\.push\.apple\.com\/[A-Za-z0-9_=-]{16,512}$/,
+  /^https:\/\/updates\.push\.services\.mozilla\.com\/wpush\/v2\/[A-Za-z0-9_=-]{16,512}$/,
+];
 const encoder = new TextEncoder();
 
 export class PreflightError extends Error {}
+
+export function deviceLimit(env) {
+  const limit = Number(env?.MAX_DEVICES);
+  return Number.isInteger(limit) && limit >= 1 && limit <= 100 ? limit : DEFAULT_MAX_DEVICES;
+}
 
 export function pushKeys(env) {
   if (!env.WEB_PUSH_PUBLIC_KEY || !env.WEB_PUSH_PRIVATE_KEY || !env.WEB_PUSH_SUBJECT) return null;
@@ -17,7 +27,7 @@ export function pushKeys(env) {
 function subscriptionFrom(value) {
   const endpoint = value?.endpoint;
   const keys = value?.keys;
-  if (typeof endpoint !== 'string' || !FCM_ENDPOINT.test(endpoint) ||
+  if (typeof endpoint !== 'string' || !PUSH_ENDPOINTS.some(pattern => pattern.test(endpoint)) ||
       typeof keys?.p256dh !== 'string' || !/^B[A-Za-z0-9_-]{86}$/.test(keys.p256dh) ||
       typeof keys?.auth !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(keys.auth)) return null;
   return { endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth }, expirationTime: null };
@@ -67,7 +77,7 @@ export async function publishBrowserPush(env, message, request, detail = {}, ttl
   if (!keys) return 'failed';
   const { results } = await env.DB.prepare(
     'SELECT subscription FROM browser_push_subscriptions ORDER BY endpoint LIMIT ?',
-  ).bind(MAX_DEVICES).all();
+  ).bind(deviceLimit(env)).all();
   if (!results.length) return 'failed';
   const outcomes = await Promise.all(results.map(async ({ subscription }) => {
     try {
@@ -165,7 +175,7 @@ export async function browserPushApi(request, env) {
   } catch {
     return reply({ error: 'invalid_subscription' }, 400);
   }
-  if (!subscription) return reply({ error: 'invalid_subscription' }, 400);
+  if (!subscription) return reply({ error: 'invalid_subscription', reason: 'unsupported_endpoint' }, 400);
   const serialized = JSON.stringify(subscription);
   try {
     if (path === '/push/test' && request.method === 'POST') {
@@ -186,7 +196,7 @@ export async function browserPushApi(request, env) {
       if (!env.WEB_PUSH_ENROLLMENT || enrollment !== env.WEB_PUSH_ENROLLMENT) return reply({ error: 'enrollment_required' }, 403);
       const result = await env.DB.prepare(
         'INSERT OR IGNORE INTO browser_push_subscriptions (endpoint, subscription) SELECT ?, ? WHERE (SELECT count(*) FROM browser_push_subscriptions) < ?',
-      ).bind(subscription.endpoint, serialized, MAX_DEVICES).run();
+      ).bind(subscription.endpoint, serialized, deviceLimit(env)).run();
       if (!result.meta.changes) {
         const existing = await env.DB.prepare('SELECT endpoint FROM browser_push_subscriptions WHERE endpoint = ? AND subscription = ?')
           .bind(subscription.endpoint, serialized).first();
