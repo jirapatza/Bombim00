@@ -690,3 +690,21 @@ test('error_request ignores unknown or unsafe labels', async t => {
   await assert.rejects(f.run(), /github_http_403/);
   assert.equal(f.db.state().error_request, null);
 });
+
+test('a quiet cycle republishes an identical status so the bot skips the commit', async t => {
+  const f = fixture(t);
+  await f.run();
+  const first = structuredClone(f.published.at(-1).status);
+  // One minute later, nothing has changed: the published document must be
+  // byte-identical, which is what makes remote.publish() skip the commit.
+  f.dependencies.now = new Date(+now + 60_000);
+  await f.run();
+  assert.deepEqual(f.published.at(-1).status, first);
+  assert.equal(f.published.at(-1).status.recent_logs.length, first.recent_logs.length);
+  // The next heartbeat bucket must move the timestamp and keep counting checks.
+  f.dependencies.now = new Date(+now + 5 * 60_000);
+  await f.run();
+  const third = f.published.at(-1).status;
+  assert.notEqual(third.last_run_timestamp, first.last_run_timestamp);
+  assert.ok(third.total_checks > first.total_checks, 'skipped cycles are still counted');
+});
