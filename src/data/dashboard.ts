@@ -49,16 +49,31 @@ export function sortDailyRows(
   });
 }
 
+// Results stored from an earlier draw, newest first, used to fill the panel
+// before the first draw of the day (and between draws). An item that has not
+// drawn yet today still has a last known result, so this cannot rely on
+// drawState: a 23:00 lottery is "upcoming" all evening.
+function previousResults(items: LotteryCatalogItem[], now = new Date()): LotteryCatalogItem[] {
+  const today = bangkokDateKey(now);
+  return items
+    .filter((item) => item.status === "drawn" && item.resultDate && item.resultDate < today)
+    .sort((a, b) =>
+      String(b.resultDate).localeCompare(String(a.resultDate)) ||
+      drawTimestamp(b, now) - drawTimestamp(a, now));
+}
+
 export function dashboardData(items: LotteryCatalogItem[], now = new Date()) {
   const drawn = items.filter((item) => drawState(item, now) === "drawn");
   // Provider rows may receive a new detectedAt timestamp on every poll.
   // The draw schedule, not a repeated fetch time, defines "latest result".
-  const latest = sortDailyRows(drawn, "drawn", now).slice(0, 3);
+  const latestIsToday = drawn.length > 0;
+  const latest = [...sortDailyRows(drawn, "drawn", now), ...previousResults(items, now)].slice(0, 3);
   const upcoming = items
     .filter((item) => drawState(item, now) === "upcoming")
     .sort((a, b) => drawTimestamp(a, now) - drawTimestamp(b, now));
   return {
     latest,
+    latestIsToday,
     next: upcoming[0] ?? null,
     drawn: drawn.length,
     latestResults: items.filter((item) => drawState(item, now) === "latest").length,

@@ -126,7 +126,33 @@ test("a stored result from an earlier draw is labelled latest, never drawn", () 
   const data = dashboardData([stale], now);
   assert.equal(data.drawn, 0);
   assert.equal(data.latestResults, 1);
-  assert.deepEqual(data.latest, []);
+  assert.equal(data.latestIsToday, false, "an earlier draw is never announced as today's");
+  assert.deepEqual(data.latest.map((x) => x.id), ["stale"], "but it is still the latest known result");
   assert.equal(publishedSummaryResults([stale], now).length, 0);
   assert.deepEqual(sortDailyRows([stale], "latest", now).map((x) => x.id), ["stale"]);
+});
+
+test("before the first draw of the day the panel shows the last published results", () => {
+  const items = [
+    item("morning", "20:00", { status: "drawn", resultDate: "2026-11-07" }),
+    item("yesterdayLate", "23:00", { status: "drawn", resultDate: "2026-11-06" }),
+    item("yesterdayEarly", "09:00", { status: "drawn", resultDate: "2026-11-06" }),
+    item("twoDaysAgo", "12:00", { status: "drawn", resultDate: "2026-11-05" }),
+    item("never", "13:00", { status: "waiting" }),
+  ];
+  const data = dashboardData(items, now); // 15:00 Bangkok, nothing drawn yet today
+  assert.equal(data.drawn, 0);
+  assert.equal(data.latestIsToday, false);
+  assert.deepEqual(data.latest.map((x) => x.id), ["yesterdayLate", "yesterdayEarly", "twoDaysAgo"]);
+});
+
+test("today's draws come first and the panel still fills to three", () => {
+  const items = [
+    item("todayLate", "11:00", { status: "drawn", resultDate: "2026-11-07" }),
+    item("yesterday", "22:00", { status: "drawn", resultDate: "2026-11-06" }),
+    item("twoDaysAgo", "12:00", { status: "drawn", resultDate: "2026-11-05" }),
+  ];
+  const data = dashboardData(items, now);
+  assert.equal(data.latestIsToday, true);
+  assert.deepEqual(data.latest.map((x) => x.id), ["todayLate", "yesterday", "twoDaysAgo"]);
 });

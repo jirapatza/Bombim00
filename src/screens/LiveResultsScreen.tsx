@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FreshnessBadge } from "../components/FreshnessBadge";
+import { formatThaiDate } from "../utils/freshness";
 import {
   Timer,
   ArrowRight,
@@ -221,7 +222,10 @@ export const LiveResultsScreen: React.FC<Props> = ({
       <section className="panel" aria-labelledby="latest-title">
         <div className="section-heading">
           <h2 id="latest-title">
-            3 รายการที่ออกล่าสุด <span className="badge green">ผลวันนี้</span>
+            {data.latestIsToday ? "3 รายการที่ออกล่าสุด" : "ผลล่าสุดที่ประกาศแล้ว"}
+            <span className={`badge ${data.latestIsToday ? "green" : "gold"}`}>
+              {data.latestIsToday ? "ผลวันนี้" : "งวดล่าสุด"}
+            </span>
           </h2>
           <button className="text-button" onClick={() => showAll("drawn")}>
             ดูทั้งหมด <ArrowRight size={15} />
@@ -256,7 +260,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
                 </div>
               </div>
               <div className="latest-footer">
-                <span>งวด {item.date}</span>
+                <span>งวด {formatThaiDate(item.date)}</span>
                 <span>
                   ดูผล <ArrowRight size={12} />
                 </span>
@@ -268,7 +272,9 @@ export const LiveResultsScreen: React.FC<Props> = ({
           ))}
         </div>
         {!data.latest.length && (
-          <div className="empty-state">ยังไม่มีผลที่ยืนยันแล้วของวันนี้</div>
+          <div className="empty-state">
+            {data.latestIsToday ? "ยังไม่มีผลที่ยืนยันแล้วของวันนี้" : "ยังไม่มีผลที่ยืนยันแล้ว"}
+          </div>
         )}
         <p className="muted footnote">
           เรียงผลตามเวลาออกที่กำหนดในตาราง ไม่ใช้เวลาอัปเดตข้อมูลซ้ำ
@@ -448,7 +454,7 @@ export const LiveResultsScreen: React.FC<Props> = ({
             </button>
           </div>
           <p className="muted">
-            {detail.date} • ออกตามตาราง {detail.drawTimeStr} • ปิดรับตามตาราง {detail.closeTimeStr || "—"}
+            {formatThaiDate(detail.date)} • ออกตามตาราง {detail.drawTimeStr} • ปิดรับตามตาราง {detail.closeTimeStr || "—"}
           </p>
           <div className="freshness-note">
             <FreshnessBadge date={detail.date} drawDays={detail.drawDays} />

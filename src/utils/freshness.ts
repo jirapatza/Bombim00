@@ -11,12 +11,28 @@ export interface ThaiDate {
   day: number;
 }
 
+const THAI_MONTH_NAMES = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+];
+
 export function parseThaiDate(text: string): ThaiDate | null {
+  // The checker writes ISO for a draw it has just detected and Thai for stored
+  // history, so both shapes reach the dashboard.
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text.trim());
+  if (iso) return { year: Number(iso[1]), month: Number(iso[2]), day: Number(iso[3]) };
   const match = /(\d{1,2})\s+(\S+)\s+(\d{4})/.exec(text);
   const month = match && THAI_MONTHS[match[2]];
   if (!match || !month) return null;
   const year = Number(match[3]);
   return { year: year > 2400 ? year - 543 : year, month, day: Number(match[1]) };
+}
+
+/** Same date, always written the way the rest of the dashboard writes it. */
+export function formatThaiDate(text: string): string {
+  const parsed = parseThaiDate(text);
+  if (!parsed) return text;
+  return `${parsed.day} ${THAI_MONTH_NAMES[parsed.month - 1]} ${parsed.year + 543}`;
 }
 
 // Longest wait a source can legitimately take between two draws of this item.

@@ -14,7 +14,7 @@ await build({
   platform: "neutral",
   outfile: join(root, ".harness/freshness.mjs"),
 });
-const { parseThaiDate, expectedGapDays, assessFreshness, bangkokDayNumber } = await import(
+const { parseThaiDate, expectedGapDays, assessFreshness, bangkokDayNumber, formatThaiDate } = await import(
   `../.harness/freshness.mjs?${Date.now()}`
 );
 
@@ -66,4 +66,17 @@ test("today is counted in Bangkok, not on the device clock", () => {
   const morningUtc = new Date("2026-11-21T02:00:00Z");
   assert.equal(bangkokDayNumber(eveningUtc) - bangkokDayNumber(morningUtc), 1);
   assert.equal(assessFreshness("4 พฤศจิกายน 2569", "จันทร์ - ศุกร์", eveningUtc).label, "18 วันก่อน");
+});
+
+test("an ISO date from a fresh detection renders as a Thai Buddhist date", () => {
+  assert.equal(formatThaiDate("2026-11-22"), "22 พฤศจิกายน 2569");
+  assert.equal(formatThaiDate("21 พฤศจิกายน 2569"), "21 พฤศจิกายน 2569");
+  assert.equal(formatThaiDate("4 พ.ย. 2569"), "4 พฤศจิกายน 2569");
+  assert.equal(formatThaiDate("ไม่ระบุ"), "ไม่ระบุ", "unknown stays as written");
+});
+
+test("an ISO date still drives the freshness calculation", () => {
+  const state = assessFreshness("2026-11-04", "จันทร์ - ศุกร์", sunday);
+  assert.equal(state.days, 18);
+  assert.equal(state.stale, true);
 });
