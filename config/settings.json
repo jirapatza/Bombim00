@@ -6,6 +6,8 @@
       "enabled": false,
       "name": "ผลหวย (Pholhuay)",
       "url": "https://api.pholhuay.com/v1/lottery/latest",
+      "stock_page_url": "https://xn--t3cmiit.com/stock-lottery",
+      "extra_page_url": "https://xn--t3cmiit.com/lao-lottery/extra",
       "timeout_sec": 10,
       "priority": 1
     },

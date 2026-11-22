@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { collect, parseRound, rounds, parseExtra, parseStocks, parseThaiApi, parseGovernment } from '../src/providers.js';
+import { collect, parseRound, rounds, parseExtra, parseStocks, parseThaiApi, parseGovernment, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
 import { numbers, scheduled, bangkokDay } from '../src/domain.js';
 
 const today = '2026-11-03', now = new Date(today + 'T10:00:00Z');
@@ -128,4 +128,30 @@ test('stock cards carry the catalog id instead of their Thai label', () => {
   assert.equal(rows[1].หวย, 'หวยหุ้นใหม่ที่ยังไม่มีในสารบัญ');
   // Without a catalog the parser stays backward compatible.
   assert.equal(parseStocks(html, now)[0].หวย, 'หวยหุ้นนิคเคอิเช้า');
+});
+test('the scraped pages can be overridden and a bad override is reported', async () => {
+  const requested = [];
+  const settings = { sources: { pholhuay: {
+    stock_page_url: 'https://example.test/stock',
+    extra_page_url: 'http://insecure.test/extra',
+  } } };
+  const { errors } = await collect(settings, today, now, async url => {
+    requested.push(url);
+    return { ok: true, status: 200, text: async () => '<html></html>', body: { cancel: async () => {} } };
+  });
+  assert.ok(requested.includes('https://example.test/stock'));
+  // http:// is refused: the built-in https page is used and the typo is reported.
+  assert.ok(requested.includes(PHOLHUAY_EXTRA_PAGE));
+  assert.ok(!requested.some(url => url.startsWith('http://')));
+  assert.deepEqual(errors.map(x => x.reason), ['invalid_url']);
+});
+
+test('without overrides the built-in pages are used', async () => {
+  const requested = [];
+  await collect({ sources: {} }, today, now, async url => {
+    requested.push(url);
+    return { ok: true, status: 200, text: async () => '<html></html>', body: { cancel: async () => {} } };
+  });
+  assert.ok(requested.includes(PHOLHUAY_STOCK_PAGE));
+  assert.ok(requested.includes(PHOLHUAY_EXTRA_PAGE));
 });

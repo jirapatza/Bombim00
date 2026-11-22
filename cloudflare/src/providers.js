@@ -156,6 +156,20 @@ async function parallel(jobs, concurrency = 4) {
   }));
   return results.flat();
 }
+export const PHOLHUAY_STOCK_PAGE = 'https://xn--t3cmiit.com/stock-lottery';
+export const PHOLHUAY_EXTRA_PAGE = 'https://xn--t3cmiit.com/lao-lottery/extra';
+
+// An operator override must be an absolute https URL. Anything else keeps the
+// built-in page and is reported, so a typo cannot silently scrape the wrong host.
+function configuredUrl(value, fallback) {
+  if (value === undefined || value === null || value === '') return { url: fallback, invalid: false };
+  try {
+    const url = new URL(String(value).trim());
+    if (url.protocol === 'https:' && url.hostname) return { url: url.href, invalid: false };
+  } catch { /* reported below */ }
+  return { url: fallback, invalid: true };
+}
+
 export async function collect(settings, today, now, request, catalog = []) {
   const errors = [], waiting = [], sources = [], cfg = settings.sources || {};
   const readSource = async (source, url, parser, { json = true, lottery, slug, method = 'GET' } = {}) => {
@@ -196,9 +210,14 @@ export async function collect(settings, today, now, request, catalog = []) {
       return [];
     }
   };
+  const pholhuay = cfg.pholhuay || {};
+  const stockPage = configuredUrl(pholhuay.stock_page_url, PHOLHUAY_STOCK_PAGE);
+  const extraPage = configuredUrl(pholhuay.extra_page_url, PHOLHUAY_EXTRA_PAGE);
+  if (stockPage.invalid) errors.push({ source: 'ผลหวย.com stock groups', status: null, reason: 'invalid_url' });
+  if (extraPage.invalid) errors.push({ source: 'ผลหวย.com Lao EXTRA', status: null, reason: 'invalid_url' });
   const jobs = [
-    () => readSource('ผลหวย.com stock groups', 'https://xn--t3cmiit.com/stock-lottery', x => parseStocks(x, now, catalog), { json: false }),
-    () => readSource('ผลหวย.com Lao EXTRA', 'https://xn--t3cmiit.com/lao-lottery/extra', x => parseExtra(x, today, now), { json: false, lottery: 'ลาว EXTRA' }),
+    () => readSource('ผลหวย.com stock groups', stockPage.url, x => parseStocks(x, now, catalog), { json: false }),
+    () => readSource('ผลหวย.com Lao EXTRA', extraPage.url, x => parseExtra(x, today, now), { json: false, lottery: 'ลาว EXTRA' }),
   ];
   if (cfg.thailottoapi?.enabled) {
     const url = new URL(cfg.thailottoapi.url || 'https://thailottoapi.com/api/results');
