@@ -1,8 +1,8 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-22T09:19:12.194+07:00",
-  "last_run_date_thai": "22/11/2026 09:19:12",
-  "total_checks": 15528,
+  "last_run_timestamp": "2026-11-22T09:20:12.369+07:00",
+  "last_run_date_thai": "22/11/2026 09:20:12",
+  "total_checks": 15529,
   "last_source_used": "ผลหวย.com stock groups + lotterychecks + glo",
   "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 0 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 9 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ ยังไม่พบผลสด",
   "active_sources_count": 3,
@@ -10,6 +10,11 @@
   "notifications_sent_today": 0,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-22T09:20:12.369+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 0 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 9 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ ยังไม่พบผลสด"
+    },
     {
       "timestamp": "2026-11-22T09:19:12.194+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-22T09:01:12.308+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 0 รายการ ส่งสำเร็จ 0 รายการ รอผลจากแหล่งข้อมูล 9 รายการ ยังไม่พบผลสด"
-    },
-    {
-      "timestamp": "2026-11-22T09:00:12.214+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 0 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 1 รายการ รอผลจากแหล่งข้อมูล 9 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ ยังไม่พบผลสด"
     }
   ],
   "uncertain_deliveries": 258,
@@ -120,7 +120,7 @@
     "waiting": [
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยอาเซียน",
+        "lottery": "ฮานอย HD",
         "status": 404
       },
       {
@@ -130,22 +130,22 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอยอาเซียน",
+        "status": 404
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ฮานอยพัฒนา",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย HD",
+        "lottery": "ฮานอย TV",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ฮานอย STAR",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย TV",
         "status": 404
       },
       {
