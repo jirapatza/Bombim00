@@ -1,5 +1,221 @@
 [
   {
+    "ชื่อหวย": "ลาว EXTRA",
+    "หวย": "lao_extra",
+    "หมวดหวย": "lao",
+    "งวดวันที่": "2026-11-23",
+    "วันที่จัดรูปแบบ": "2026-11-23",
+    "รางวัลที่_1": "365",
+    "เลขบน_3_ตัว": "365",
+    "เลขล่าง_2_ตัว": "61",
+    "เลขท้าย_2_ตัว": "61",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "ผลหวย.com (ลาว EXTRA)",
+    "เวลาที่ตรวจพบ": "2026-11-23T10:11:12.097Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "pholhuay",
+    "catalog_id": "lao_extra",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "pholhuay"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ฮานอยอาเซียน",
+    "หวย": "hanoi_asean",
+    "หมวดหวย": "hanoi",
+    "งวดวันที่": "2026-11-23",
+    "วันที่จัดรูปแบบ": "2026-11-23",
+    "รางวัลที่_1": "619",
+    "เลขบน_3_ตัว": "619",
+    "เลขล่าง_2_ตัว": "51",
+    "เลขท้าย_2_ตัว": "51",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-23T10:11:12.097Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "hanoi_asean",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ฮานอย HD",
+    "หวย": "hanoi_hd",
+    "หมวดหวย": "hanoi",
+    "งวดวันที่": "2026-11-23",
+    "วันที่จัดรูปแบบ": "2026-11-23",
+    "รางวัลที่_1": "199",
+    "เลขบน_3_ตัว": "199",
+    "เลขล่าง_2_ตัว": "12",
+    "เลขท้าย_2_ตัว": "12",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-23T10:11:12.097Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "hanoi_hd",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ฮานอย STAR",
+    "หวย": "hanoi_star",
+    "หมวดหวย": "hanoi",
+    "งวดวันที่": "2026-11-23",
+    "วันที่จัดรูปแบบ": "2026-11-23",
+    "รางวัลที่_1": "966",
+    "เลขบน_3_ตัว": "966",
+    "เลขล่าง_2_ตัว": "75",
+    "เลขท้าย_2_ตัว": "75",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-23T10:11:12.097Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "hanoi_star",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ฮานอย TV",
+    "หวย": "hanoi_tv",
+    "หมวดหวย": "hanoi",
+    "งวดวันที่": "2026-11-23",
+    "วันที่จัดรูปแบบ": "2026-11-23",
+    "รางวัลที่_1": "429",
+    "เลขบน_3_ตัว": "429",
+    "เลขล่าง_2_ตัว": "45",
+    "เลขท้าย_2_ตัว": "45",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-23T10:11:12.097Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "hanoi_tv",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ลาว TV",
+    "หวย": "lao_tv",
+    "หมวดหวย": "lao",
+    "งวดวันที่": "2026-11-23",
+    "วันที่จัดรูปแบบ": "2026-11-23",
+    "รางวัลที่_1": "204",
+    "เลขบน_3_ตัว": "204",
+    "เลขล่าง_2_ตัว": "73",
+    "เลขท้าย_2_ตัว": "73",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-23T10:11:12.097Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "lao_tv",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ลาว HD",
+    "หวย": "lao_hd",
+    "หมวดหวย": "lao",
+    "งวดวันที่": "2026-11-23",
+    "วันที่จัดรูปแบบ": "2026-11-23",
+    "รางวัลที่_1": "674",
+    "เลขบน_3_ตัว": "674",
+    "เลขล่าง_2_ตัว": "03",
+    "เลขท้าย_2_ตัว": "03",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-23T10:11:12.097Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "lao_hd",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ลาว STAR",
+    "หวย": "lao_star",
+    "หมวดหวย": "lao",
+    "งวดวันที่": "2026-11-23",
+    "วันที่จัดรูปแบบ": "2026-11-23",
+    "รางวัลที่_1": "434",
+    "เลขบน_3_ตัว": "434",
+    "เลขล่าง_2_ตัว": "53",
+    "เลขท้าย_2_ตัว": "53",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-23T10:11:12.097Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "lao_star",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
     "ชื่อหวย": "หวยหุ้นไทยเย็น",
     "หวย": "stockthai4",
     "หมวดหวย": "thai_stock",
@@ -433,222 +649,6 @@
     "verification_status": "waiting_for_evidence",
     "verification_sources": [
       "pholhuay"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ลาว EXTRA",
-    "หวย": "lao_extra",
-    "หมวดหวย": "lao",
-    "งวดวันที่": "2026-11-23",
-    "วันที่จัดรูปแบบ": "2026-11-23",
-    "รางวัลที่_1": "365",
-    "เลขบน_3_ตัว": "365",
-    "เลขล่าง_2_ตัว": "61",
-    "เลขท้าย_2_ตัว": "61",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "ผลหวย.com (ลาว EXTRA)",
-    "เวลาที่ตรวจพบ": "2026-11-23T10:10:12.209Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "pholhuay",
-    "catalog_id": "lao_extra",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "pholhuay"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ฮานอยอาเซียน",
-    "หวย": "hanoi_asean",
-    "หมวดหวย": "hanoi",
-    "งวดวันที่": "2026-11-23",
-    "วันที่จัดรูปแบบ": "2026-11-23",
-    "รางวัลที่_1": "619",
-    "เลขบน_3_ตัว": "619",
-    "เลขล่าง_2_ตัว": "51",
-    "เลขท้าย_2_ตัว": "51",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-23T10:10:12.209Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "lotterychecks",
-    "catalog_id": "hanoi_asean",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "lotterychecks"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ฮานอย HD",
-    "หวย": "hanoi_hd",
-    "หมวดหวย": "hanoi",
-    "งวดวันที่": "2026-11-23",
-    "วันที่จัดรูปแบบ": "2026-11-23",
-    "รางวัลที่_1": "199",
-    "เลขบน_3_ตัว": "199",
-    "เลขล่าง_2_ตัว": "12",
-    "เลขท้าย_2_ตัว": "12",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-23T10:10:12.209Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "lotterychecks",
-    "catalog_id": "hanoi_hd",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "lotterychecks"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ฮานอย STAR",
-    "หวย": "hanoi_star",
-    "หมวดหวย": "hanoi",
-    "งวดวันที่": "2026-11-23",
-    "วันที่จัดรูปแบบ": "2026-11-23",
-    "รางวัลที่_1": "966",
-    "เลขบน_3_ตัว": "966",
-    "เลขล่าง_2_ตัว": "75",
-    "เลขท้าย_2_ตัว": "75",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-23T10:10:12.209Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "lotterychecks",
-    "catalog_id": "hanoi_star",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "lotterychecks"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ฮานอย TV",
-    "หวย": "hanoi_tv",
-    "หมวดหวย": "hanoi",
-    "งวดวันที่": "2026-11-23",
-    "วันที่จัดรูปแบบ": "2026-11-23",
-    "รางวัลที่_1": "429",
-    "เลขบน_3_ตัว": "429",
-    "เลขล่าง_2_ตัว": "45",
-    "เลขท้าย_2_ตัว": "45",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-23T10:10:12.209Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "lotterychecks",
-    "catalog_id": "hanoi_tv",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "lotterychecks"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ลาว TV",
-    "หวย": "lao_tv",
-    "หมวดหวย": "lao",
-    "งวดวันที่": "2026-11-23",
-    "วันที่จัดรูปแบบ": "2026-11-23",
-    "รางวัลที่_1": "204",
-    "เลขบน_3_ตัว": "204",
-    "เลขล่าง_2_ตัว": "73",
-    "เลขท้าย_2_ตัว": "73",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-23T10:10:12.209Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "lotterychecks",
-    "catalog_id": "lao_tv",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "lotterychecks"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ลาว HD",
-    "หวย": "lao_hd",
-    "หมวดหวย": "lao",
-    "งวดวันที่": "2026-11-23",
-    "วันที่จัดรูปแบบ": "2026-11-23",
-    "รางวัลที่_1": "674",
-    "เลขบน_3_ตัว": "674",
-    "เลขล่าง_2_ตัว": "03",
-    "เลขท้าย_2_ตัว": "03",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-23T10:10:12.209Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "lotterychecks",
-    "catalog_id": "lao_hd",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "lotterychecks"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ลาว STAR",
-    "หวย": "lao_star",
-    "หมวดหวย": "lao",
-    "งวดวันที่": "2026-11-23",
-    "วันที่จัดรูปแบบ": "2026-11-23",
-    "รางวัลที่_1": "434",
-    "เลขบน_3_ตัว": "434",
-    "เลขล่าง_2_ตัว": "53",
-    "เลขท้าย_2_ตัว": "53",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-23T10:10:12.209Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "lotterychecks",
-    "catalog_id": "lao_star",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "lotterychecks"
     ],
     "verification_source_count": 1,
     "notification_channels": {
