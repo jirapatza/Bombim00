@@ -20,6 +20,7 @@ ISSUE_TITLE = "Repo health"
 STATUS_URL = "https://raw.githubusercontent.com/{repo}/runtime-live/status/status.json"
 HEARTBEAT_LIMIT_MIN = 20
 PR_AGE_LIMIT_DAYS = 3
+REQUIRED_CONTEXTS = ("quality", "cloudflare", "smoke", "CodeQL")
 OK = "✅"
 WARN = "⚠️"
 UNKNOWN = "❔"
@@ -81,6 +82,29 @@ def failing_checks(check_runs, ignored=()):
     )
 
 
+def protection_summary(payload):
+    """Required checks the branch is still missing, from a protection payload."""
+    contexts = (payload.get("required_status_checks") or {}).get("contexts") or []
+    missing = [name for name in REQUIRED_CONTEXTS if name not in contexts]
+    if missing:
+        return WARN, "missing required checks: " + ", ".join(missing)
+    return OK, "required: " + ", ".join(REQUIRED_CONTEXTS)
+
+
+def protection_row(token, repo, branch="main"):
+    """Branch protection is admin-only, so a refusal is reported, never hidden."""
+    try:
+        payload = request_json(token, f"/repos/{repo}/branches/{branch}/protection")
+    except urllib.error.HTTPError as error:
+        if error.code in (403, 404):
+            return ("branch protection", UNKNOWN, f"cannot verify ({error.code}): needs an admin token")
+        return ("branch protection", UNKNOWN, f"cannot read: {error}")
+    except (urllib.error.URLError, ValueError) as error:
+        return ("branch protection", UNKNOWN, f"cannot read: {error}")
+    state, detail = protection_summary(payload)
+    return ("branch protection", state, detail)
+
+
 def workflow_file_row(registered, present):
     """One row about registered workflows that no longer have a file."""
     stale = stale_workflows(registered, present)
@@ -140,6 +164,7 @@ def workflow_rows(token, repo, workflow_dir=".github/workflows"):
         if name.endswith((".yml", ".yaml"))
     }
     rows.append(workflow_file_row(registered, present))
+    rows.append(protection_row(token, repo))
     rows += check_run_rows(token, repo)
     return rows
 
