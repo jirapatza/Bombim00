@@ -1,0 +1,32 @@
+name: Repo health
+
+on:
+  schedule:
+    - cron: "0 1 * * *" # 08:00 Asia/Bangkok
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: repo-health
+  cancel-in-progress: true
+
+jobs:
+  report:
+    name: report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Build the report
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          # External CI that is known to fail; remove a prefix once it is fixed
+          # so the report starts flagging it again.
+          HEALTH_IGNORED_CHECKS: "Workers Builds:"
+        run: python3 scripts/repo_health.py
