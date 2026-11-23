@@ -4,12 +4,17 @@
   "last_run_date_thai": "23/11/2026 21:10:00",
   "total_checks": 17679,
   "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 40 รายการ ส่งสำเร็จ 29 รายการ ส่งเตือนตามตาราง 80 รายการ รอผลจากแหล่งข้อมูล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 25 รายการ",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 42 รายการ ส่งสำเร็จ 30 รายการ ส่งเตือนตามตาราง 80 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 27 รายการ",
   "active_sources_count": 5,
   "latest_draw_detected": "23 พฤศจิกายน 2569",
-  "notifications_sent_today": 29,
+  "notifications_sent_today": 30,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-23T21:10:00.000+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 42 รายการ ส่งสำเร็จ 30 รายการ ส่งเตือนตามตาราง 80 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 27 รายการ"
+    },
     {
       "timestamp": "2026-11-23T21:10:00.000+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-23T20:30:00.000+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 39 รายการ ส่งสำเร็จ 28 รายการ ส่งเตือนตามตาราง 76 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 24 รายการ"
-    },
-    {
-      "timestamp": "2026-11-23T20:25:00.000+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 39 รายการ ส่งสำเร็จ 28 รายการ ส่งเตือนตามตาราง 76 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 24 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
@@ -117,13 +117,7 @@
   "schedule_alerts_sent_today": 80,
   "schedule_alert_failures": 0,
   "source_checks": {
-    "waiting": [
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
-        "status": 404
-      }
-    ],
+    "waiting": [],
     "errors": [
       {
         "source": "ThaiLottoAPI",
@@ -138,7 +132,7 @@
     "mode": "shadow",
     "min_sources": 2,
     "verified": 0,
-    "pending": 25,
+    "pending": 27,
     "conflicts": 0,
     "unmapped": 15
   },
