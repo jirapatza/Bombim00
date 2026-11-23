@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-23T16:05:00.000+07:00",
-  "last_run_date_thai": "23/11/2026 16:05:00",
-  "total_checks": 17374,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 36 รายการ ส่งสำเร็จ 21 รายการ ส่งเตือนตามตาราง 55 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 21 รายการ",
-  "active_sources_count": 5,
-  "latest_draw_detected": "23 พฤศจิกายน 2569",
+  "last_run_timestamp": "2026-11-23T16:10:00.000+07:00",
+  "last_run_date_thai": "23/11/2026 16:10:00",
+  "total_checks": 17379,
+  "last_source_used": "LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 21 รายการ ส่งเตือนตามตาราง 55 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 3 คำขอ รอหลักฐานแหล่งที่สอง 7 รายการ",
+  "active_sources_count": 3,
+  "latest_draw_detected": "2026-11-23",
   "notifications_sent_today": 21,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-23T16:10:00.000+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 21 รายการ ส่งเตือนตามตาราง 55 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 3 คำขอ รอหลักฐานแหล่งที่สอง 7 รายการ"
+    },
     {
       "timestamp": "2026-11-23T16:05:00.000+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-23T15:40:00.000+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 25 รายการ ส่งสำเร็จ 20 รายการ ส่งเตือนตามตาราง 53 รายการ รอผลจากแหล่งข้อมูล 1 รายการ แหล่งข้อมูลขัดข้อง 10 คำขอ รอหลักฐานแหล่งที่สอง 13 รายการ"
-    },
-    {
-      "timestamp": "2026-11-23T15:35:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 32 รายการ ส่งสำเร็จ 20 รายการ ส่งเตือนตามตาราง 51 รายการ รอผลจากแหล่งข้อมูล 3 รายการ รอหลักฐานแหล่งที่สอง 15 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
@@ -134,6 +134,17 @@
         "source": "ThaiLottoAPI",
         "status": null,
         "reason": "timeout"
+      },
+      {
+        "source": "ผลหวย.com stock groups",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "ผลหวย.com Lao EXTRA",
+        "lottery": "ลาว EXTRA",
+        "status": null,
+        "reason": "timeout"
       }
     ]
   },
@@ -143,9 +154,9 @@
     "mode": "shadow",
     "min_sources": 2,
     "verified": 0,
-    "pending": 21,
+    "pending": 7,
     "conflicts": 0,
-    "unmapped": 15
+    "unmapped": 0
   },
   "coda_control": {
     "configured": false,
