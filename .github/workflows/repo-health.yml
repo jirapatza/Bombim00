@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "0 1 * * *" # 08:00 Asia/Bangkok
   workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/repo_health.py
+      - tests/test_repo_health.py
+      - .github/workflows/repo-health.yml
 
 permissions:
   contents: read
@@ -29,4 +34,7 @@ jobs:
           # External CI that is known to fail; remove a prefix once it is fixed
           # so the report starts flagging it again.
           HEALTH_IGNORED_CHECKS: "Workers Builds:"
+          # A pull request run only prints the report; the issue is written on
+          # schedule and manual dispatch, where the token may write issues.
+          HEALTH_DRY_RUN: ${{ github.event_name == 'pull_request' && '1' || '' }}
         run: python3 scripts/repo_health.py

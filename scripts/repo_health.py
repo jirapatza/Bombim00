@@ -229,6 +229,8 @@ def update_issue(token, repo, body):
 
 
 def main(dry_run=False):
+    if os.environ.get("HEALTH_DRY_RUN") == "1":
+        dry_run = True
     token = os.environ.get("GITHUB_TOKEN")
     repo = os.environ.get("GITHUB_REPOSITORY")
     if not repo:
