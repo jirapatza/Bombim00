@@ -53,16 +53,19 @@ def heartbeat_minutes(timestamp, now):
     return int((now - then).total_seconds() // 60)
 
 
-def stale_paths(registered, present):
-    """Workflow paths GitHub still lists although the file left the repository.
+def stale_workflows(registered, present):
+    """Workflows whose file left the repository and that nobody has disabled yet.
 
-    GitHub keeps a few managed entries such as ``dynamic/dependabot/update-graph``
-    that never correspond to a file, so they are not drift.
+    GitHub keeps managed entries such as ``dynamic/dependabot/update-graph`` that
+    never correspond to a file, and a stale entry stays useful to report only
+    while it can still run, so a manually disabled one is left alone.
     """
     return sorted(
-        path
-        for path in registered
-        if path.startswith(".github/workflows/") and path not in present
+        item["path"]
+        for item in registered
+        if (item.get("path") or "").startswith(".github/workflows/")
+        and item["path"] not in present
+        and item.get("state") != "disabled_manually"
     )
 
 
@@ -76,6 +79,22 @@ def failing_checks(check_runs, ignored=()):
         and run.get("conclusion") not in ("success", "skipped", "neutral")
         and not (prefixes and str(run.get("name")).startswith(prefixes))
     )
+
+
+def workflow_file_row(registered, present):
+    """One row about registered workflows that no longer have a file."""
+    stale = stale_workflows(registered, present)
+    if stale:
+        return ("workflow files", WARN, "registered without a file: " + ", ".join(stale))
+    leftovers = sorted(
+        item["path"]
+        for item in registered
+        if (item.get("path") or "").startswith(".github/workflows/")
+        and item["path"] not in present
+    )
+    if leftovers:
+        return ("workflow files", OK, f"{len(leftovers)} disabled leftover(s): " + ", ".join(leftovers))
+    return ("workflow files", OK, "every registered workflow has a file")
 
 
 def render_report(rows, now):
@@ -120,11 +139,7 @@ def workflow_rows(token, repo, workflow_dir=".github/workflows"):
         for name in os.listdir(workflow_dir)
         if name.endswith((".yml", ".yaml"))
     }
-    stale = stale_paths([item.get("path") or "" for item in registered], present)
-    if stale:
-        rows.append(("workflow files", WARN, "registered without a file: " + ", ".join(stale)))
-    else:
-        rows.append(("workflow files", OK, "every registered workflow has a file"))
+    rows.append(workflow_file_row(registered, present))
     rows += check_run_rows(token, repo)
     return rows
 

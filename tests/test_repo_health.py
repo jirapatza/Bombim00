@@ -7,7 +7,8 @@ from scripts.repo_health import (
     failing_checks,
     heartbeat_minutes,
     render_report,
-    stale_paths,
+    stale_workflows,
+    workflow_file_row,
 )
 
 BANGKOK = timezone(timedelta(hours=7))
@@ -32,18 +33,27 @@ def test_heartbeat_returns_none_for_garbage():
     assert heartbeat_minutes(None, NOW) is None
 
 
-def test_stale_paths_lists_only_missing_files():
-    registered = [".github/workflows/a.yml", ".github/workflows/b.yml"]
-    assert stale_paths(registered, {".github/workflows/a.yml"}) == [".github/workflows/b.yml"]
+def workflow(path, state="active"):
+    return {"path": path, "state": state}
 
 
-def test_stale_paths_ignores_github_managed_entries():
-    registered = ["dynamic/dependabot/update-graph", "dynamic/agents/github-advanced-security"]
-    assert stale_paths(registered, set()) == []
+def test_stale_workflows_lists_only_missing_files():
+    registered = [workflow(".github/workflows/a.yml"), workflow(".github/workflows/b.yml")]
+    assert stale_workflows(registered, {".github/workflows/a.yml"}) == [".github/workflows/b.yml"]
 
 
-def test_stale_paths_is_empty_when_all_files_exist():
-    assert stale_paths([".github/workflows/a.yml"], {".github/workflows/a.yml"}) == []
+def test_stale_workflows_ignores_github_managed_entries():
+    registered = [workflow("dynamic/dependabot/update-graph"), workflow("dynamic/agents/github-advanced-security")]
+    assert stale_workflows(registered, set()) == []
+
+
+def test_stale_workflows_ignores_disabled_ones():
+    registered = [workflow(".github/workflows/gone.yml", "disabled_manually")]
+    assert stale_workflows(registered, set()) == []
+
+
+def test_stale_workflows_is_empty_when_all_files_exist():
+    assert stale_workflows([workflow(".github/workflows/a.yml")], {".github/workflows/a.yml"}) == []
 
 
 def test_failing_checks_reports_completed_failures_only():
@@ -73,3 +83,18 @@ def test_render_report_has_a_row_per_check():
 def test_render_report_keeps_unknown_state_visible():
     body = render_report([("web deps", UNKNOWN, "audit failed")], NOW)
     assert UNKNOWN in body
+
+
+def test_workflow_file_row_warns_about_an_active_stale_entry():
+    row = workflow_file_row([workflow(".github/workflows/gone.yml")], set())
+    assert row[1] == WARN and "gone.yml" in row[2]
+
+
+def test_workflow_file_row_notes_a_disabled_leftover():
+    row = workflow_file_row([workflow(".github/workflows/gone.yml", "disabled_manually")], set())
+    assert row[1] == OK and "disabled leftover" in row[2]
+
+
+def test_workflow_file_row_is_clean_when_every_file_exists():
+    row = workflow_file_row([workflow(".github/workflows/a.yml")], {".github/workflows/a.yml"})
+    assert row == ("workflow files", OK, "every registered workflow has a file")
