@@ -3,7 +3,7 @@
   "last_run_timestamp": "2026-11-24T02:00:00.000+07:00",
   "last_run_date_thai": "24/11/2026 02:00:00",
   "total_checks": 17969,
-  "last_source_used": "ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + glo",
+  "last_source_used": "ผลหวย.com stock groups + ThaiLottoAPI + glo + lotterychecks",
   "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 0 รายการ ส่งสำเร็จ 0 รายการ ส่งเตือนตามตาราง 5 รายการ รอผลจากแหล่งข้อมูล 9 รายการ ยังไม่พบผลสด",
   "active_sources_count": 4,
   "latest_draw_detected": "23 พฤศจิกายน 2569",
@@ -120,17 +120,22 @@
     "waiting": [
       {
         "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอยพัฒนา",
+        "status": 404
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ฮานอยอาเซียน",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
+        "lottery": "ฮานอย HD",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพัฒนา",
+        "lottery": "ลาวสามัคคี",
         "status": 404
       },
       {
@@ -145,7 +150,7 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย HD",
+        "lottery": "ลาว TV",
         "status": 404
       },
       {
@@ -156,11 +161,6 @@
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ลาว STAR",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาว TV",
         "status": 404
       }
     ],
