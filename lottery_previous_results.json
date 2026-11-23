@@ -13,13 +13,40 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "ผลหวย.com (ลาว EXTRA)",
-    "เวลาที่ตรวจพบ": "2026-11-23T02:46:12.126Z",
+    "เวลาที่ตรวจพบ": "2026-11-23T02:47:12.321Z",
     "สถานะการแจ้งเตือน": "sent",
     "source_family": "pholhuay",
     "catalog_id": "lao_extra",
     "verification_status": "waiting_for_evidence",
     "verification_sources": [
       "pholhuay"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ฮานอยอาเซียน",
+    "หวย": "hanoi_asean",
+    "หมวดหวย": "hanoi",
+    "งวดวันที่": "2026-11-23",
+    "วันที่จัดรูปแบบ": "2026-11-23",
+    "รางวัลที่_1": "619",
+    "เลขบน_3_ตัว": "619",
+    "เลขล่าง_2_ตัว": "51",
+    "เลขท้าย_2_ตัว": "51",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-23T02:47:12.321Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "hanoi_asean",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
     ],
     "verification_source_count": 1,
     "notification_channels": {
@@ -40,7 +67,7 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "ผลหวย.com (หน้าหุ้นแยกหมวด)",
-    "เวลาที่ตรวจพบ": "2026-11-23T02:46:12.126Z",
+    "เวลาที่ตรวจพบ": "2026-11-23T02:47:12.321Z",
     "สถานะการแจ้งเตือน": "not_scheduled",
     "source_family": "pholhuay",
     "notification_channels": {}
