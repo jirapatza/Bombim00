@@ -6,6 +6,7 @@ from scripts.repo_health import (
     WARN,
     failing_checks,
     heartbeat_minutes,
+    protection_summary,
     render_report,
     stale_workflows,
     workflow_file_row,
@@ -98,3 +99,20 @@ def test_workflow_file_row_notes_a_disabled_leftover():
 def test_workflow_file_row_is_clean_when_every_file_exists():
     row = workflow_file_row([workflow(".github/workflows/a.yml")], {".github/workflows/a.yml"})
     assert row == ("workflow files", OK, "every registered workflow has a file")
+
+
+def test_protection_summary_flags_missing_checks():
+    payload = {"required_status_checks": {"contexts": ["quality", "smoke"]}}
+    state, detail = protection_summary(payload)
+    assert state == WARN and "cloudflare" in detail and "CodeQL" in detail
+
+
+def test_protection_summary_is_clean_when_all_required_checks_are_set():
+    payload = {"required_status_checks": {"contexts": ["quality", "cloudflare", "smoke", "CodeQL", "extra"]}}
+    state, detail = protection_summary(payload)
+    assert state == OK and detail.startswith("required: ")
+
+
+def test_protection_summary_handles_a_branch_without_checks():
+    state, detail = protection_summary({})
+    assert state == WARN and "quality" in detail
