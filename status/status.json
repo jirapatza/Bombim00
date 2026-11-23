@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-23T21:05:00.000+07:00",
-  "last_run_date_thai": "23/11/2026 21:05:00",
-  "total_checks": 17674,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + lotterychecks + LotteryChecks Lao/Hanoi + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 39 รายการ ส่งสำเร็จ 28 รายการ ส่งเตือนตามตาราง 80 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 24 รายการ",
+  "last_run_timestamp": "2026-11-23T21:10:00.000+07:00",
+  "last_run_date_thai": "23/11/2026 21:10:00",
+  "total_checks": 17679,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 40 รายการ ส่งสำเร็จ 29 รายการ ส่งเตือนตามตาราง 80 รายการ รอผลจากแหล่งข้อมูล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 25 รายการ",
   "active_sources_count": 5,
   "latest_draw_detected": "23 พฤศจิกายน 2569",
-  "notifications_sent_today": 28,
+  "notifications_sent_today": 29,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-23T21:10:00.000+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 40 รายการ ส่งสำเร็จ 29 รายการ ส่งเตือนตามตาราง 80 รายการ รอผลจากแหล่งข้อมูล 1 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 25 รายการ"
+    },
     {
       "timestamp": "2026-11-23T21:05:00.000+07:00",
       "level": "WARNING",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-23T20:25:00.000+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 39 รายการ ส่งสำเร็จ 28 รายการ ส่งเตือนตามตาราง 76 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 24 รายการ"
-    },
-    {
-      "timestamp": "2026-11-23T20:25:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 44 รายการ ส่งสำเร็จ 28 รายการ ส่งเตือนตามตาราง 76 รายการ รอผลจากแหล่งข้อมูล 2 รายการ รอหลักฐานแหล่งที่สอง 20 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
@@ -121,11 +121,6 @@
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ลาวสามัคคี",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพัฒนา",
         "status": 404
       }
     ],
@@ -143,7 +138,7 @@
     "mode": "shadow",
     "min_sources": 2,
     "verified": 0,
-    "pending": 24,
+    "pending": 25,
     "conflicts": 0,
     "unmapped": 15
   },
