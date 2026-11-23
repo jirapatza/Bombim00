@@ -1,15 +1,20 @@
 {
-  "system_status": "degraded",
-  "last_run_timestamp": "2026-11-23T15:15:00.000+07:00",
-  "last_run_date_thai": "23/11/2026 15:15:00",
-  "total_checks": 17324,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 24 รายการ ส่งสำเร็จ 19 รายการ ส่งเตือนตามตาราง 49 รายการ แหล่งข้อมูลขัดข้อง 11 คำขอ รอหลักฐานแหล่งที่สอง 13 รายการ",
-  "active_sources_count": 3,
-  "latest_draw_detected": "23 พฤศจิกายน 2569",
+  "system_status": "healthy",
+  "last_run_timestamp": "2026-11-23T15:20:00.000+07:00",
+  "last_run_date_thai": "23/11/2026 15:20:00",
+  "total_checks": 17329,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 30 รายการ ส่งสำเร็จ 19 รายการ ส่งเตือนตามตาราง 50 รายการ รอผลจากแหล่งข้อมูล 3 รายการ รอหลักฐานแหล่งที่สอง 14 รายการ",
+  "active_sources_count": 6,
+  "latest_draw_detected": "23.11.2026",
   "notifications_sent_today": 19,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-23T15:20:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 30 รายการ ส่งสำเร็จ 19 รายการ ส่งเตือนตามตาราง 50 รายการ รอผลจากแหล่งข้อมูล 3 รายการ รอหลักฐานแหล่งที่สอง 14 รายการ"
+    },
     {
       "timestamp": "2026-11-23T15:15:00.000+07:00",
       "level": "WARNING",
@@ -104,95 +109,40 @@
       "timestamp": "2026-11-23T14:50:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 29 รายการ ส่งสำเร็จ 18 รายการ ส่งเตือนตามตาราง 47 รายการ รอผลจากแหล่งข้อมูล 3 รายการ รอหลักฐานแหล่งที่สอง 13 รายการ"
-    },
-    {
-      "timestamp": "2026-11-23T14:50:00.000+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 29 รายการ ส่งสำเร็จ 18 รายการ ส่งเตือนตามตาราง 47 รายการ รอผลจากแหล่งข้อมูล 3 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 18 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
-  "schedule_alerts_sent_today": 49,
+  "schedule_alerts_sent_today": 50,
   "schedule_alert_failures": 0,
   "source_checks": {
-    "waiting": [],
-    "errors": [
+    "waiting": [
       {
-        "source": "ThaiLottoAPI",
-        "status": null,
-        "reason": "timeout"
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอยพัฒนา",
+        "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ลาวสามัคคี",
-        "status": null,
-        "reason": "timeout"
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพัฒนา",
-        "status": null,
-        "reason": "timeout"
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยอาเซียน",
-        "status": null,
-        "reason": "timeout"
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย HD",
-        "status": null,
-        "reason": "timeout"
-      },
-      {
-        "source": "lotterychecks",
-        "lottery": "สลากกินแบ่งรัฐบาล",
-        "status": null,
-        "reason": "timeout"
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย STAR",
-        "status": null,
-        "reason": "timeout"
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย TV",
-        "status": null,
-        "reason": "timeout"
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาว TV",
-        "status": null,
-        "reason": "timeout"
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาว HD",
-        "status": null,
-        "reason": "timeout"
+        "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ลาว STAR",
-        "status": null,
-        "reason": "timeout"
+        "status": 404
       }
-    ]
+    ],
+    "errors": []
   },
   "active_uncertain_deliveries": 0,
   "old_uncertain_deliveries": 1,
   "result_verification": {
     "mode": "shadow",
     "min_sources": 2,
-    "verified": 0,
-    "pending": 13,
+    "verified": 5,
+    "pending": 14,
     "conflicts": 0,
     "unmapped": 11
   },
