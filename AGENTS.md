@@ -17,8 +17,17 @@ not authorization to expand a task.
 - Never remove authentication, skip checks, weaken branch rules, fabricate lottery
   results, rewrite notification history, or hide failures to make a check pass.
 - Open a PR with changed scope, verification, risks and rollback instructions.
-  Do not merge or deploy until the owner explicitly approves that concrete PR.
+  Merging follows the policy below.
 - Code owners must review changes to core logic, workflows and these guard files.
+
+## Merge policy
+- Documentation, test, lint, `.gitignore` and dependency changes may be merged by
+  the agent once CI is green, without a separate approval.
+- Everything else stays an open PR until the owner approves that concrete PR:
+  `cloudflare/src/`, `lottery_checker.py`, `settings_loader.py`,
+  `.github/workflows/`, `config/settings.json`, runtime data and these guard files.
+- When unsure which category applies, treat it as protected.
+- No merge while CI is red, in either category.
 
 ## Runtime data
 Reviewed code is on main. Live data is on runtime-live.
