@@ -8,6 +8,13 @@
   .font-mono-numbers {
     font-family: "JetBrains Mono", monospace;
   }
+
+  /* Flag emoji come from the data as regional-indicator pairs; name an emoji
+     font so a UI font without them does not fall back to tofu. */
+  .flag {
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
+      "Twemoji Mozilla", sans-serif;
+  }
 }
 
 /* Custom scrollbars for slick dark mode */
