@@ -1,15 +1,20 @@
 {
-  "system_status": "healthy",
-  "last_run_timestamp": "2026-11-24T16:05:00.000+07:00",
-  "last_run_date_thai": "24/11/2026 16:05:00",
-  "total_checks": 18786,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 35 รายการ ส่งสำเร็จ 23 รายการ ส่งเตือนตามตาราง 57 รายการ รอผลจากแหล่งข้อมูล 2 รายการ รอหลักฐานแหล่งที่สอง 15 รายการ",
-  "active_sources_count": 6,
-  "latest_draw_detected": "24.11.2026",
+  "system_status": "degraded",
+  "last_run_timestamp": "2026-11-24T16:10:00.000+07:00",
+  "last_run_date_thai": "24/11/2026 16:10:00",
+  "total_checks": 18791,
+  "last_source_used": "ผลหวย.com stock groups + ผลหวย.com Lao EXTRA + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 36 รายการ ส่งสำเร็จ 23 รายการ ส่งเตือนตามตาราง 57 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 23 รายการ",
+  "active_sources_count": 5,
+  "latest_draw_detected": "24 พฤศจิกายน 2569",
   "notifications_sent_today": 23,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-24T16:10:00.000+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 36 รายการ ส่งสำเร็จ 23 รายการ ส่งเตือนตามตาราง 57 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 23 รายการ"
+    },
     {
       "timestamp": "2026-11-24T16:05:00.000+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-24T15:45:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 32 รายการ ส่งสำเร็จ 21 รายการ ส่งเตือนตามตาราง 55 รายการ รอผลจากแหล่งข้อมูล 3 รายการ รอหลักฐานแหล่งที่สอง 14 รายการ"
-    },
-    {
-      "timestamp": "2026-11-24T15:45:00.000+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 31 รายการ ส่งสำเร็จ 21 รายการ ส่งเตือนตามตาราง 55 รายการ รอผลจากแหล่งข้อมูล 3 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 20 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
@@ -129,17 +129,23 @@
         "status": 404
       }
     ],
-    "errors": []
+    "errors": [
+      {
+        "source": "ThaiLottoAPI",
+        "status": null,
+        "reason": "timeout"
+      }
+    ]
   },
   "active_uncertain_deliveries": 0,
   "old_uncertain_deliveries": 1,
   "result_verification": {
     "mode": "shadow",
     "min_sources": 2,
-    "verified": 8,
-    "pending": 15,
+    "verified": 0,
+    "pending": 23,
     "conflicts": 0,
-    "unmapped": 12
+    "unmapped": 13
   },
   "coda_control": {
     "configured": false,
