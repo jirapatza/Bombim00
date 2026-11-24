@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { collect, parseRound, rounds, parseExtra, parseStocks, parseThaiApi, parseGovernment, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
+import { collect, parseRound, rounds, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
 import { numbers, scheduled, bangkokDay } from '../src/domain.js';
 
 const today = '2026-11-03', now = new Date(today + 'T10:00:00Z');
@@ -168,4 +168,39 @@ test('ThaiLottoAPI is polled without sync so it answers inside the per-call cap'
   const parsed = new URL(api);
   assert.equal(parsed.searchParams.get('sync'), null, 'sync=1 takes 6-45s upstream');
   assert.equal(parsed.searchParams.get('date'), today);
+});
+
+test('a VIP stock page yields one row for today and nothing for another date', () => {
+  const html = '<h1>หวยหุ้นรัสเซีย VIP</h1><p>งวด 3 พฤศจิกายน 2569</p><p>3 ตัวบน <b>021</b></p><p>2 ตัวล่าง 04</p>';
+  const rows = parseChecksStock(html, 'russia_vip', today, now);
+  assert.equal(rows.length, 1);
+  assert.deepEqual([rows[0].หวย, rows[0].ชื่อหวย, rows[0].หมวดหวย], ['russia_vip', 'รัสเซีย VIP', 'vip']);
+  assert.deepEqual(numbers(rows[0]), ['021', '04']);
+  assert.equal(rows[0].source_family, 'lotterychecks');
+  assert.deepEqual(parseChecksStock(html, 'russia_vip', '2026-11-04', now), []);
+  assert.deepEqual(parseChecksStock('<p>no headline</p>', 'russia_vip', today, now), []);
+  assert.deepEqual(parseChecksStock(html, 'unknown_vip', today, now), []);
+});
+
+test('the VIP page is read only after its close and only while the draw is missing', async () => {
+  const catalog = [{ id: 'russia_vip', name: 'รัสเซีย VIP', closeTimeStr: '23:40 น.' }];
+  const settings = { sources: { lotterychecks: { enabled: true } } };
+  const page = '<p>งวด 3 พฤศจิกายน 2569 3 ตัวบน 021 2 ตัวล่าง 04</p>';
+  const calls = [];
+  const request = async url => { calls.push(url); return new Response(url.includes('stock-markets') ? page : '{}'); };
+
+  // 15:00 Bangkok: the draw has not closed yet.
+  await collect(settings, today, now, request, catalog, new Set(), []);
+  assert.deepEqual(calls.filter(x => x.includes('stock-markets')), []);
+
+  // 23:41 Bangkok: due, so the page is read and the row comes back.
+  const late = new Date(`${today}T23:41:00+07:00`);
+  const first = await collect(settings, today, late, request, catalog, new Set(), []);
+  assert.deepEqual(calls.filter(x => x.includes('stock-markets')), ['https://lotterychecks.com/stock-markets/russia-vip']);
+  assert.deepEqual(first.rows.map(x => x.หวย), ['russia_vip']);
+
+  // Once today's row is stored the page is not requested again.
+  calls.length = 0;
+  await collect(settings, today, late, request, catalog, new Set(), [first.rows[0]]);
+  assert.deepEqual(calls.filter(x => x.includes('stock-markets')), []);
 });

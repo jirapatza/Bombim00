@@ -1,6 +1,6 @@
 import { POLL_SECONDS, nextBackoff, parkedSources, mostlyDown, sourceName } from './schedule.js';
 import { bangkokDay, canonical, drawDate, drawIdentity, dueScheduleAlerts, eligible, mergeRows, normalize, numbers, previousChannels, rawName, scheduled } from './domain.js';
-import { collect } from './providers.js';
+import { collect, HISTORY_ONLY_IDS } from './providers.js';
 import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './storage.js';
 import { browserPushApi, DEFAULT_PUSH_BACKOFF_MS, PreflightError, publishBrowserPush, pushKeys } from './browser-push.js';
 import { consensusRows, evaluateConsensus } from './consensus.js';
@@ -225,7 +225,7 @@ export async function cycle(env, dependencies = {}) {
     stage = 'sources';
     const parked = parkedSources(state.sourceBackoff, now);
     const { rows: fetchedCandidates, sources, errors, waiting = [] } =
-      await (dependencies.collect || collect)(settings, today, now, request, catalog, parked);
+      await (dependencies.collect || collect)(settings, today, now, request, catalog, parked, history);
     state.sourceBackoff = nextBackoff(state.sourceBackoff, errors, sources, now);
     const verificationSettings = settings.verification || {};
     const verificationMode = ['shadow', 'enforce'].includes(verificationSettings.mode) ? verificationSettings.mode : 'shadow';
@@ -319,6 +319,9 @@ export async function cycle(env, dependencies = {}) {
       if (entry?.state === 'sent' && !Object.values(row.notification_channels).includes('sent')) {
         row.notification_channels[entry.channel || 'ntfy'] = 'sent';
       }
+      // VIP stock draws exist here for statistics only; pushing five new alert
+      // sources is a product decision, so they are stored without being sent.
+      if (HISTORY_ONLY_IDS.has(row.หวย)) { row.สถานะการแจ้งเตือน = delivered ? 'sent' : 'history_only'; continue; }
       if (!scheduled(row, catalog, today)) { row.สถานะการแจ้งเตือน = delivered ? 'sent' : 'not_scheduled'; continue; }
       if (delivered) { row.สถานะการแจ้งเตือน = 'sent'; continue; }
       // Restore unresolved delivery even if config is disabled: it must remain visible.

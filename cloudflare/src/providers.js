@@ -97,6 +97,30 @@ export function parseStocks(html, now = new Date(), catalog = []) {
   }
   return rows;
 }
+// The VIP stock draws are published as HTML pages, not by the JSON API that
+// `rounds` uses, and ผลหวย.com no longer lists them at all. Without these pages
+// no VIP lottery has a single row of history.
+export const CHECKS_STOCK_PAGES = {
+  russia_vip: ['รัสเซีย VIP', '/stock-markets/russia-vip'],
+  england_vip: ['อังกฤษ VIP', '/stock-markets/england-vip'],
+  germany_vip: ['เยอรมัน VIP', '/stock-markets/germany-vip'],
+  dowjones_vip: ['ดาวโจนส์ VIP', '/stock-markets/dowjones-vip'],
+  dowjones_star: ['ดาวโจนส์ STAR', '/stock-markets/dowjonestar'],
+};
+export const HISTORY_ONLY_IDS = new Set(Object.keys(CHECKS_STOCK_PAGES));
+export function parseChecksStock(html, lotteryId, today, now = new Date()) {
+  const entry = CHECKS_STOCK_PAGES[lotteryId];
+  if (!entry || typeof html !== 'string') return [];
+  const [name] = entry;
+  // Read the headline block only: the page also carries older rounds further down.
+  const match = text(html).match(/งวด\s*(\d{1,2}\s+\S+\s+\d{4})\s*3\s*ตัวบน\s*([0-9]{3})(?![0-9])\s*2\s*ตัวล่าง\s*([0-9]{2})(?![0-9])/);
+  if (!match) return [];
+  const date = drawDate({ งวดวันที่: match[1] });
+  if (!date || date !== today) return [];
+  return [row(name, lotteryId, 'vip', match[1], match[2], match[3],
+    'LotteryChecks (https://lotterychecks.com)', now, { source_family: 'lotterychecks' })];
+}
+
 export function parseExtra(html, today, now = new Date()) {
   if (![...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)].some(m => /ลาว\s*extra/i.test(text(m[1])))) return [];
   const rows = [], seen = new Set();
@@ -170,7 +194,13 @@ function configuredUrl(value, fallback) {
   return { url: fallback, invalid: true };
 }
 
-export async function collect(settings, today, now, request, catalog = [], parked = new Set()) {
+function bangkokMinutes(date) {
+  const [hour, minute] = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', hour12: false })
+    .format(date).split(':').map(Number);
+  return hour * 60 + minute;
+}
+
+export async function collect(settings, today, now, request, catalog = [], parked = new Set(), history = []) {
   const errors = [], waiting = [], sources = [], cfg = settings.sources || {};
   const readSource = async (source, url, parser, { json = true, lottery, slug, method = 'GET' } = {}) => {
     // Parked after repeated failures: asking again every cycle only deepens the outage.
@@ -239,6 +269,19 @@ export async function collect(settings, today, now, request, catalog = [], parke
     fallback.push(() => readSource('LotteryChecks Lao/Hanoi',
       `https://lotterychecks.com/api/public/results?lottery=${slug}&date=${today}&limit=1`, x => parseRound(x, slug, today, now),
       { lottery: name, slug }));
+  }
+  if (cfg.lotterychecks?.enabled) {
+    const minutes = bangkokMinutes(now);
+    const stored = new Set(history.filter(x => drawDate(x) === today).map(x => x.หวย));
+    for (const [id, [name, path]] of Object.entries(CHECKS_STOCK_PAGES)) {
+      const close = String(catalog.find(x => x?.id === id)?.closeTimeStr || '').match(/(\d{1,2})[:.](\d{2})/);
+      // Read the page only once the draw should exist and only while the result
+      // is still missing: before the close it still shows yesterday's numbers,
+      // and re-reading a stored draw every minute would eat the request budget.
+      if (!close || stored.has(id) || minutes < Number(close[1]) * 60 + Number(close[2])) continue;
+      fallback.push(() => readSource('LotteryChecks VIP stock', `https://lotterychecks.com${path}`,
+        x => parseChecksStock(x, id, today, now), { lottery: name, json: false }));
+    }
   }
   const gov = [];
   for (const [source, url] of [

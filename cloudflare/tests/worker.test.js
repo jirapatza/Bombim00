@@ -741,3 +741,13 @@ test('a burst of ambiguous sends is capped so the single state row cannot grow w
   assert.equal(after.deliveries['burst-000'], undefined);
   assert.ok(after.deliveries['burst-519']);
 });
+
+test('a VIP stock row is stored for statistics and never pushed', async t => {
+  const f = fixture(t, { collect: async () => ({ rows: [{ ...result('russia_vip', 'รัสเซีย VIP', '021'), หมวดหวย: 'vip' }],
+    sources: ['LotteryChecks VIP stock'], errors: [] }) });
+  await f.run();
+  assert.deepEqual(f.sends, []);
+  const stored = f.data[OUTPUTS[0]].find(x => x.หวย === 'russia_vip');
+  assert.equal(stored.สถานะการแจ้งเตือน, 'history_only');
+  assert.deepEqual(numbers(stored), ['021', '90']);
+});
