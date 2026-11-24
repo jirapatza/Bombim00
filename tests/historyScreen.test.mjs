@@ -58,3 +58,9 @@ test("static catalog rows render their camelCase numbers", () => {
   assert.match(html, /938/);
   assert.match(html, /เลข 3 ตัว \(หน้า\/ท้าย\)/);
 });
+
+test("history cards print the draw date in Thai, not the stored ISO string", () => {
+  const html = render([gov]);
+  assert.match(html, /16 พฤศจิกายน 2569/);
+  assert.doesNotMatch(html, /2026-11-16/);
+});
