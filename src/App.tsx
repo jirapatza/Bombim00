@@ -465,7 +465,7 @@ export const App: React.FC = () => {
             {currentTab === "history" &&
               renderScreen("history", { results, top2Stats, top3Stats })}
 
-            {currentTab === "summary" && renderScreen("summary", { lotteries: todayLotteries })}
+            {currentTab === "summary" && renderScreen("summary", { lotteries: todayLotteries, results })}
 
             {currentTab === "checker" &&
               renderScreen("checker", {
