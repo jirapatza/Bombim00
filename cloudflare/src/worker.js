@@ -56,11 +56,15 @@ function finishPublish(state, now) {
   for (const entry of Object.values(state.deliveries)) if (entry.state === 'sent') entry.published = true;
   state.pending = null; state.error = null; state.error_stage = null; state.error_request = null; state.lastSuccess = now.toISOString();
 }
-// 38 external calls + at most 12 D1 calls per normal cycle. No automatic retries.
+// 44 external calls + at most 12 D1 calls per normal cycle. No automatic retries.
+// The cap rose from 38 to 44 to leave room for the gated reads (VIP stock pages
+// and the extra lao/hanoi rounds), which only fire while a draw is still
+// missing; Workers allows 50 subrequests, so six stay in reserve.
+export const MAX_SUBREQUESTS = 44;
 export function boundedRequest(fetcher, deadline = Date.now() + 50000) {
   let calls = 0;
   return async (url, options = {}) => {
-    if (++calls > 38 || Date.now() >= deadline) throw new PreflightError('request_budget');
+    if (++calls > MAX_SUBREQUESTS || Date.now() >= deadline) throw new PreflightError('request_budget');
     let target;
     try { target = new URL(url); } catch { throw new PreflightError('https_required'); }
     if (target.protocol !== 'https:' || target.username || target.password) throw new PreflightError('https_required');
@@ -225,7 +229,7 @@ export async function cycle(env, dependencies = {}) {
     stage = 'sources';
     const parked = parkedSources(state.sourceBackoff, now);
     const { rows: fetchedCandidates, sources, errors, waiting = [] } =
-      await (dependencies.collect || collect)(settings, today, now, request, catalog, parked);
+      await (dependencies.collect || collect)(settings, today, now, request, catalog, parked, history);
     state.sourceBackoff = nextBackoff(state.sourceBackoff, errors, sources, now);
     const verificationSettings = settings.verification || {};
     const verificationMode = ['shadow', 'enforce'].includes(verificationSettings.mode) ? verificationSettings.mode : 'shadow';

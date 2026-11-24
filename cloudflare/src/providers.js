@@ -17,8 +17,23 @@ function row(name, id, category, date, top, bottom, source, now, extra = {}) {
     เลขหน้า_3_ตัว: [], เลขท้าย_3_ตัว: [], รางวัลข้างเคียงรางวัลที่_1: [],
     แหล่งข้อมูล: source, เวลาที่ตรวจพบ: now.toISOString(), สถานะการแจ้งเตือน: 'pending', ...extra };
 }
+// Rounds the API also serves, but which the worker reads only once their draw is
+// due and still missing. Ids and names were confirmed against the catalog by
+// comparing the API's 23 Nov numbers with the catalog row for the same draw.
+export const GATED_ROUNDS = {
+  'hanoi-union': ['hanoi_samakki', 'ฮานอยสามัคคี', 'vip'],
+  'hanoi-redcross': ['hanoi_redcross', 'ฮานอยกาชาด', 'vip'],
+  'hanoi-extra': ['hanoi_extra', 'ฮานอย EXTRA', 'vip'],
+  'lao-vip': ['lao_vip', 'ลาว VIP', 'vip'],
+  'lao-union-vip': ['lao_samakki_vip', 'ลาวสามัคคี VIP', 'vip'],
+  'lao-star-vip': ['lao_star_vip', 'ลาว STAR VIP', 'vip'],
+  'lao-asean': ['lao_asean', 'ลาวอาเซียน', 'vip'],
+  'lao-redcross': ['lao_redcross', 'ลาวกาชาด', 'vip'],
+};
+
 export function parseRound(data, slug, today, now = new Date()) {
-  if (!rounds[slug] || data?.success !== true || !Array.isArray(data.data)) return [];
+  const entry = rounds[slug] || GATED_ROUNDS[slug];
+  if (!entry || data?.success !== true || !Array.isArray(data.data)) return [];
   const valid = [];
   for (const r of data.data) {
     if (!r || r.lottery !== slug || r.status !== 'complete' || r.drawDate !== today ||
@@ -32,7 +47,7 @@ export function parseRound(data, slug, today, now = new Date()) {
       found[name].add(prize.numbers[0]);
     }
     if (Object.values(found).some(x => x.size !== 1)) continue;
-    const [id, name, cat] = rounds[slug];
+    const [id, name, cat] = entry;
     valid.push(row(name, id, cat, today, [...found['3ตัวบน']][0], [...found['2ตัวล่าง']][0],
       'LotteryChecks (https://lotterychecks.com)', now, { source_family: 'lotterychecks' }));
   }
@@ -97,6 +112,49 @@ export function parseStocks(html, now = new Date(), catalog = []) {
   }
   return rows;
 }
+// The VIP stock draws are published as HTML pages, not by the JSON API that
+// `rounds` uses, and ผลหวย.com stopped listing them (its VIP group is an empty
+// heading since 10 Nov). Without these pages the VIP stock lotteries have no
+// history at all, or none newer than 9 Nov.
+export const CHECKS_STOCK_PAGES = {
+  russia_vip: ['รัสเซีย VIP', '/stock-markets/russia-vip'],
+  england_vip: ['อังกฤษ VIP', '/stock-markets/england-vip'],
+  germany_vip: ['เยอรมัน VIP', '/stock-markets/germany-vip'],
+  dowjones_vip: ['ดาวโจนส์ VIP', '/stock-markets/dowjones-vip'],
+  dowjones_star: ['ดาวโจนส์ STAR', '/stock-markets/dowjonestar'],
+  nikkei_vip_morning: ['นิเคอิเช้า VIP', '/stock-markets/nikkei-vip-morning'],
+  nikkei_vip_afternoon: ['นิเคอิบ่าย VIP', '/stock-markets/nikkei-vip-afternoon'],
+  china_vip_morning: ['จีนเช้า VIP', '/stock-markets/szse-vip-morning'],
+  china_vip_afternoon: ['จีนบ่าย VIP', '/stock-markets/szse-vip-afternoon'],
+  hangseng_vip_morning: ['ฮั่งเส็งเช้า VIP', '/stock-markets/hsi-vip-morning'],
+  hangseng_vip_afternoon: ['ฮั่งเส็งบ่าย VIP', '/stock-markets/hsi-vip-afternoon'],
+  taiwan_vip: ['ไต้หวัน VIP', '/stock-markets/twse-vip'],
+  nikkei_morning: ['นิเคอิรอบเช้า', '/stock-markets/nikkei-morning'],
+  nikkei_afternoon: ['นิเคอิรอบบ่าย', '/stock-markets/nikkei-afternoon'],
+  hangseng_morning: ['ฮั่งเส็งรอบเช้า', '/stock-markets/hsi-morning'],
+  hangseng_afternoon: ['ฮั่งเส็งรอบบ่าย', '/stock-markets/hsi-afternoon'],
+  dowjones: ['ดาวโจนส์', '/stock-markets/dji'],
+  india: ['อินเดีย', '/stock-markets/bsesn'],
+  korea_vip: ['เกาหลี VIP', '/stock-markets/ktop30-vip'],
+  singapore_vip: ['สิงคโปร์ VIP', '/stock-markets/sgx-vip'],
+};
+// At most this many gated reads per cycle. Each draw is read once, so the cap
+// only binds when a whole evening of results is missing at the same time, and
+// the next cycle picks up the rest.
+const MAX_GATED_READS = 8;
+export function parseChecksStock(html, lotteryId, today, now = new Date()) {
+  const entry = CHECKS_STOCK_PAGES[lotteryId];
+  if (!entry || typeof html !== 'string') return [];
+  const [name] = entry;
+  // Read the headline block only: the page also carries older rounds further down.
+  const match = text(html).match(/งวด\s*(\d{1,2}\s+\S+\s+\d{4})\s*3\s*ตัวบน\s*([0-9]{3})(?![0-9])\s*2\s*ตัวล่าง\s*([0-9]{2})(?![0-9])/);
+  if (!match) return [];
+  const date = drawDate({ งวดวันที่: match[1] });
+  if (!date || date !== today) return [];
+  return [row(name, lotteryId, 'vip', match[1], match[2], match[3],
+    'LotteryChecks (https://lotterychecks.com)', now, { source_family: 'lotterychecks' })];
+}
+
 export function parseExtra(html, today, now = new Date()) {
   if (![...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)].some(m => /ลาว\s*extra/i.test(text(m[1])))) return [];
   const rows = [], seen = new Set();
@@ -170,7 +228,13 @@ function configuredUrl(value, fallback) {
   return { url: fallback, invalid: true };
 }
 
-export async function collect(settings, today, now, request, catalog = [], parked = new Set()) {
+function bangkokMinutes(date) {
+  const [hour, minute] = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', hour12: false })
+    .format(date).split(':').map(Number);
+  return hour * 60 + minute;
+}
+
+export async function collect(settings, today, now, request, catalog = [], parked = new Set(), history = []) {
   const errors = [], waiting = [], sources = [], cfg = settings.sources || {};
   const readSource = async (source, url, parser, { json = true, lottery, slug, method = 'GET' } = {}) => {
     // Parked after repeated failures: asking again every cycle only deepens the outage.
@@ -239,6 +303,31 @@ export async function collect(settings, today, now, request, catalog = [], parke
     fallback.push(() => readSource('LotteryChecks Lao/Hanoi',
       `https://lotterychecks.com/api/public/results?lottery=${slug}&date=${today}&limit=1`, x => parseRound(x, slug, today, now),
       { lottery: name, slug }));
+  }
+  if (cfg.lotterychecks?.enabled) {
+    const minutes = bangkokMinutes(now);
+    const stored = new Set(history.filter(x => drawDate(x) === today).map(x => x.หวย));
+    // Read a draw only once it should exist and only while its result is still
+    // missing: before the close the source still shows yesterday's numbers, and
+    // re-reading a stored draw every minute would eat the request budget.
+    const closeMinutes = id => {
+      const close = String(catalog.find(x => x?.id === id)?.closeTimeStr || '').match(/(\d{1,2})[:.](\d{2})/);
+      return close ? Number(close[1]) * 60 + Number(close[2]) : Number.MAX_SAFE_INTEGER;
+    };
+    const due = id => !stored.has(id) && minutes >= closeMinutes(id);
+    const gatedJobs = [];
+    for (const [slug, [id, name]] of Object.entries(GATED_ROUNDS)) {
+      if (due(id)) gatedJobs.push({ id, close: closeMinutes(id), job: () => readSource('LotteryChecks Lao/Hanoi',
+        `https://lotterychecks.com/api/public/results?lottery=${slug}&date=${today}&limit=1`,
+        x => parseRound(x, slug, today, now), { lottery: name, slug }) });
+    }
+    for (const [id, [name, path]] of Object.entries(CHECKS_STOCK_PAGES)) {
+      if (due(id)) gatedJobs.push({ id, close: closeMinutes(id), job: () => readSource('LotteryChecks VIP stock',
+        `https://lotterychecks.com${path}`, x => parseChecksStock(x, id, today, now), { lottery: name, json: false }) });
+    }
+    // Oldest deadline first, so a capped cycle still serves every draw in turn.
+    gatedJobs.sort((a, b) => a.close - b.close || a.id.localeCompare(b.id));
+    for (const { job } of gatedJobs.slice(0, MAX_GATED_READS)) fallback.push(job);
   }
   const gov = [];
   for (const [source, url] of [
