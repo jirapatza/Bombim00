@@ -170,11 +170,11 @@ export const LiveResultsScreen: React.FC<Props> = ({
               <div className="waiting-results">
                 <div>
                   <p>ผล 3 ตัว</p>
-                  <strong>⌛ รอผล</strong>
+                  <strong>⏳ รอผล</strong>
                 </div>
                 <div>
                   <p>ผล 2 ตัว</p>
-                  <strong>⌛ รอผล</strong>
+                  <strong>⏳ รอผล</strong>
                 </div>
               </div>
               <div className="hero-actions">
