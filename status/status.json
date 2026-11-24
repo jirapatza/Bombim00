@@ -148,7 +148,7 @@
   ],
   "source_backoff": {
     "ThaiLottoAPI": {
-      "failures": 1,
+      "failures": 2,
       "until": 0
     }
   }
