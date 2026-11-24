@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { collect, parseRound, rounds, GATED_ROUNDS, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, CHECKS_STOCK_PAGES, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
+import { collect, parseRound, rounds, GATED_ROUNDS, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, CHECKS_STOCK_PAGES, MAX_GATED_READS, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
 import { numbers, scheduled, bangkokDay } from '../src/domain.js';
 
 const today = '2026-11-03', now = new Date(today + 'T10:00:00Z');
@@ -132,6 +132,7 @@ test('stock cards carry the catalog id instead of their Thai label', () => {
 test('the scraped pages can be overridden and a bad override is reported', async () => {
   const requested = [];
   const settings = { sources: { pholhuay: {
+    enabled: true,
     stock_page_url: 'https://example.test/stock',
     extra_page_url: 'http://insecure.test/extra',
   } } };
@@ -144,12 +145,13 @@ test('the scraped pages can be overridden and a bad override is reported', async
   // http:// is refused: the built-in https page is used and the typo is reported.
   assert.ok(requested.includes(PHOLHUAY_EXTRA_PAGE));
   assert.ok(!requested.some(url => url.startsWith('http://')));
-  assert.deepEqual(errors.map(x => x.reason), ['invalid_url']);
+  // The stub answers HTML to every call, so only the URL typo is asserted here.
+  assert.deepEqual(errors.filter(x => x.reason === 'invalid_url').map(x => x.source), ['ผลหวย.com Lao EXTRA']);
 });
 
 test('without overrides the built-in pages are used', async () => {
   const requested = [];
-  await collect({ sources: {} }, today, now, async url => {
+  await collect({ sources: { pholhuay: { enabled: true } } }, today, now, async url => {
     requested.push(url);
     return { ok: true, status: 200, text: async () => '<html></html>', body: { cancel: async () => {} } };
   });
@@ -228,7 +230,8 @@ test('gated rounds are read only after their close and only while missing', asyn
   const late = new Date(`${today}T21:00:00+07:00`);
   calls.length = 0;
   await collect(settings, today, late, request, catalog, new Set(), []);
-  assert.equal(gated().length, Object.keys(GATED_ROUNDS).length, 'every missing draw is read once it is due');
+  // A cycle serves up to the cap; the queue rotates the rest in later.
+  assert.equal(gated().length, Math.min(MAX_GATED_READS, Object.keys(GATED_ROUNDS).length), 'due draws are read up to the cap');
 
   calls.length = 0;
   const stored = Object.keys(GATED_ROUNDS).map(slug => ({ หวย: GATED_ROUNDS[slug][0], งวดวันที่: today,
@@ -260,4 +263,28 @@ test('the GLO request carries the origin headers its API requires', async () => 
   assert.equal(glo.options.method, 'POST');
   assert.equal(glo.options.headers.Referer, 'https://www.glo.or.th/');
   assert.equal(glo.options.headers.Origin, 'https://www.glo.or.th');
+});
+
+test('ไทยเย็น is read from its own page once the draw closes, and only then', async () => {
+  const catalog = [{ id: 'thai_stock_evening', name: 'ไทยเย็น', closeTimeStr: '16:00 น.' }];
+  const calls = [];
+  const request = async url => { calls.push(url); return new Response('<html></html>'); };
+  const settings = { sources: { pholhuay: { enabled: false } } };
+
+  const at = hour => new Date(`${today}T${hour}:00+07:00`);
+  await collect(settings, today, at('15:00'), request, catalog, new Set(), []);
+  assert.deepEqual(calls.filter(x => x.includes('stock-lottery')), [], 'not read before the close');
+
+  await collect(settings, today, at('17:00'), request, catalog, new Set(), []);
+  assert.equal(calls.filter(x => x.includes('stock-lottery')).length, 1, 'read once the draw is due');
+
+  calls.length = 0;
+  const stored = [{ หวย: 'thai_stock_evening', งวดวันที่: today, เลขบน_3_ตัว: '265', เลขล่าง_2_ตัว: '84' }];
+  await collect(settings, today, at('17:00'), request, catalog, new Set(), stored);
+  assert.deepEqual(calls.filter(x => x.includes('stock-lottery')), [], 'a stored draw is not read again');
+
+  calls.length = 0;
+  await collect({ sources: { pholhuay: { enabled: false, thai_evening: false } } }, today,
+    at('17:00'), request, catalog, new Set(), []);
+  assert.deepEqual(calls.filter(x => x.includes('stock-lottery')), [], 'the explicit switch turns it off');
 });
