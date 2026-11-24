@@ -139,3 +139,9 @@ test('a non-drawing day hides an entry that has no stored result', () => {
   const catalog = [{id:'friday_only',name:'friday',drawDays:'ศุกร์',drawTimeStr:'23:00',status:'waiting',top3:'',bottom2:'',firstPrize:'',date:'ไม่ระบุ',source:'x'}];
   assert.deepEqual(mergeCatalogWithResults(catalog, [], new Date('2026-11-07T05:00:00Z')), []);
 });
+
+test('ticket draw labels show a Thai date while the key keeps the ISO date', () => {
+  const [first] = R.getTicketDraws();
+  assert.equal(first.label, 'สลากกินแบ่งรัฐบาล — 1 พฤศจิกายน 2569');
+  assert.equal(JSON.parse(first.key)[1], '2026-11-01', 'the key stays ISO so checkTickets still matches rows');
+});
