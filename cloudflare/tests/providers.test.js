@@ -156,3 +156,16 @@ test('without overrides the built-in pages are used', async () => {
   assert.ok(requested.includes(PHOLHUAY_STOCK_PAGE));
   assert.ok(requested.includes(PHOLHUAY_EXTRA_PAGE));
 });
+
+test('ThaiLottoAPI is polled without sync so it answers inside the per-call cap', async () => {
+  const calls = [];
+  await collect({ sources: { thailottoapi: { enabled: true } } }, today, now, async url => {
+    calls.push(url);
+    return Response.json({ ok: true, date: today, categories: {} });
+  });
+  const api = calls.find(url => url.includes('thailottoapi'));
+  assert.ok(api, 'ThaiLottoAPI was requested');
+  const parsed = new URL(api);
+  assert.equal(parsed.searchParams.get('sync'), null, 'sync=1 takes 6-45s upstream');
+  assert.equal(parsed.searchParams.get('date'), today);
+});

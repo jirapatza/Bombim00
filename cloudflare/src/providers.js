@@ -221,7 +221,11 @@ export async function collect(settings, today, now, request, catalog = []) {
   ];
   if (cfg.thailottoapi?.enabled) {
     const url = new URL(cfg.thailottoapi.url || 'https://thailottoapi.com/api/results');
-    url.searchParams.set('date', today); url.searchParams.set('sync', '1');
+    // No sync=1: it makes the origin refresh upstream before answering, which
+    // measured 6-45s against a 12s per-call cap, so the source timed out every
+    // minute and its rows never arrived. The cached payload is identical and the
+    // worker polls again in a minute anyway.
+    url.searchParams.set('date', today);
     // The general API has priority over overlapping stock cards, as in Python.
     jobs.unshift(() => readSource('ThaiLottoAPI', url.href, x => parseThaiApi(x, now)));
   }
