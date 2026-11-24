@@ -164,7 +164,7 @@ function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncerta
     schedule_alert_failures: alerts.failed, source_checks: checks,
     notification_failures: failed, uncertain_deliveries: allUncertain,
     active_uncertain_deliveries: uncertain, old_uncertain_deliveries: oldUncertain, checker_mode: 'cloudflare',
-    poll_interval_seconds: POLL_SECONDS, degraded_sources: failedSources, source_backoff: backoff,
+    poll_interval_seconds: POLL_SECONDS, degraded_sources: [...new Set([...failedSources, ...parked])], source_backoff: backoff,
     result_verification: verification, coda_control: controls,
     recent_logs };
 }
