@@ -4,6 +4,7 @@ import { RawLotteryResult, FrequencyStat } from '../types/lottery';
 import { StatKind, DigitStat, hottest, coldest, longestGap, countDraws } from '../utils/statistics';
 import { LotteryRepository } from '../data/lotteryRepository';
 import { copyText } from '../utils/socialShare';
+import { formatThaiDate } from '../utils/freshness';
 
 interface Props {
   results: RawLotteryResult[];
@@ -31,14 +32,15 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
         const first = res.รางวัลที่_1 || '';
         const top3 = res.เลขบน_3_ตัว || (first.length >= 3 ? first.slice(-3) : '');
         const bottom2 = res.เลขล่าง_2_ตัว || res.เลขท้าย_2_ตัว || '';
-        const date = res.วันที่จัดรูปแบบ || res.งวดวันที่ || '';
+        const rawDate = res.วันที่จัดรูปแบบ || res.งวดวันที่ || '';
 
         return (
           name.includes(q) ||
           first.includes(q) ||
           top3.includes(q) ||
           bottom2.includes(q) ||
-          date.includes(q)
+          rawDate.includes(q) ||
+          formatThaiDate(rawDate).includes(q)
         );
       })
       .slice(0, 80);
@@ -46,7 +48,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
 
   const handleCopy = async (res: RawLotteryResult, index: number) => {
     const name = res.ชื่อหวย || res.หวย || 'ไม่ระบุชื่อ';
-    const date = res.วันที่จัดรูปแบบ || res.งวดวันที่ || 'ไม่ระบุงวด';
+    const date = formatThaiDate(res.วันที่จัดรูปแบบ || res.งวดวันที่ || '') || 'ไม่ระบุงวด';
     const first = res.รางวัลที่_1 || '';
     const top3 = res.เลขบน_3_ตัว || (first.length >= 3 ? first.slice(-3) : '-');
     const bottom2 = res.เลขล่าง_2_ตัว || res.เลขท้าย_2_ตัว || '-';
@@ -161,7 +163,7 @@ export const HistoryScreen: React.FC<Props> = ({ results, top2Stats, top3Stats }
           <div className="space-y-3">
             {filteredResults.map((item, idx) => {
               const name = item.ชื่อหวย || item.หวย || 'ไม่ระบุชื่อ';
-              const date = item.วันที่จัดรูปแบบ || item.งวดวันที่ || 'ไม่ระบุงวด';
+              const date = formatThaiDate(item.วันที่จัดรูปแบบ || item.งวดวันที่ || '') || 'ไม่ระบุงวด';
               const first = item.รางวัลที่_1 || item.firstPrize || '';
               const explicitTop3 = item.เลขบน_3_ตัว || item.top3 || '';
               const top3 = explicitTop3 || (first.length >= 3 ? first.slice(-3) : '-');
