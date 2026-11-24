@@ -8,7 +8,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { publishedSummaryResults } from '../data/dashboard';
-import { LotteryCatalogItem } from '../types/lottery';
+import { LotteryCatalogItem, RawLotteryResult } from '../types/lottery';
+import { ProjectionPanel } from '../components/ProjectionPanel';
 import {
   generateSummaryCanvas,
   downloadCanvasAsImage,
@@ -18,9 +19,10 @@ import {
 
 interface Props {
   lotteries: LotteryCatalogItem[];
+  results?: RawLotteryResult[];
 }
 
-export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
+export const SummaryScreen: React.FC<Props> = ({ lotteries, results = [] }) => {
   const [selectedPeriodTab, setSelectedPeriodTab] = useState('รวมทั้งวัน');
   const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null);
   const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
@@ -94,6 +96,8 @@ export const SummaryScreen: React.FC<Props> = ({ lotteries }) => {
   return (
     <div className="space-y-4 pb-20">
       {copyError && <p role="alert">คัดลอกไม่ได้ กรุณาตรวจสิทธิ์คลิปบอร์ด</p>}
+      <ProjectionPanel items={lotteries} results={results} />
+
       {/* Top Header Card with Summary Metrics */}
       <div className="rounded-2xl border border-amber-500/30 bg-slate-900 p-5 shadow-lg">
         <div className="flex items-start justify-between">

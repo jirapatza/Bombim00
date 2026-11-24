@@ -8,7 +8,7 @@ const bundle = await build({
   format: "esm",
   write: false,
 });
-const { resolveNumbers, toDraws, digitFrequency, hottest, coldest, longestGap, backtest } = await import(
+const { resolveNumbers, toDraws, digitFrequency, hottest, coldest, longestGap, backtest, projectNext } = await import(
   `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
 );
 // newest-first, like the stored checker results
@@ -203,4 +203,35 @@ test("backtest hit rate falls when the predicted set cannot match", () => {
   const result = backtest(rows, "top3", { pick: 1, window: 2 });
   assert.equal(result.rounds, 5);
   assert.ok(result.hitRate > 0 && result.hitRate < 100);
+});
+
+test("a projection ranks the numbers seen most often in the window", () => {
+  const rows = [
+    { ชื่อหวย: "ฮานอย", วันที่จัดรูปแบบ: "20/11/2569", เลขล่าง_2_ตัว: "11" },
+    { ชื่อหวย: "ฮานอย", วันที่จัดรูปแบบ: "19/11/2569", เลขล่าง_2_ตัว: "11" },
+    { ชื่อหวย: "ฮานอย", วันที่จัดรูปแบบ: "18/11/2569", เลขล่าง_2_ตัว: "22" },
+  ];
+  const projection = projectNext(rows, "bottom2", { pick: 2, window: 50 });
+
+  assert.deepEqual(projection.numbers, ["11", "22"]);
+  assert.equal(projection.draws, 3);
+  assert.equal(projection.chance, 2);
+});
+
+test("the window drops draws older than its size", () => {
+  const rows = [
+    { ชื่อหวย: "ลาว", วันที่จัดรูปแบบ: "20/11/2569", เลขล่าง_2_ตัว: "99" },
+    { ชื่อหวย: "ลาว", วันที่จัดรูปแบบ: "19/11/2569", เลขล่าง_2_ตัว: "77" },
+    { ชื่อหวย: "ลาว", วันที่จัดรูปแบบ: "18/11/2569", เลขล่าง_2_ตัว: "77" },
+  ];
+  // Only the newest draw is in the window, so the twice-seen "77" is invisible.
+  const projection = projectNext(rows, "bottom2", { pick: 2, window: 1 });
+
+  assert.deepEqual(projection.numbers, ["99"]);
+  assert.equal(projection.draws, 1);
+});
+
+test("no usable draw means no projection instead of an empty guess", () => {
+  assert.equal(projectNext([{ ชื่อหวย: "ลาว", วันที่จัดรูปแบบ: "20/11/2569" }], "top3"), null);
+  assert.equal(projectNext([], "bottom2"), null);
 });

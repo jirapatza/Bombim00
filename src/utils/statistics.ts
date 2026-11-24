@@ -233,3 +233,51 @@ export function backtest(
     kind,
   };
 }
+
+export interface Projection {
+  kind: StatKind;
+  numbers: string[];
+  pick: number;
+  window: number;
+  /** Draws the ranking was built from, newest first. */
+  draws: number;
+  /** Chance a pick of this size hits on a single draw, ignoring history. */
+  chance: number;
+}
+
+/**
+ * Rank the numbers that appeared most often in the newest `window` draws and
+ * return the top `pick`. This is a projection from measured history, not a
+ * forecast: `chance` says what the same number of picks would score with no
+ * history at all, so a caller can show both side by side.
+ */
+export function projectNext(
+  results: RawLotteryResult[],
+  kind: StatKind,
+  options: { pick?: number; window?: number } = {},
+): Projection | null {
+  const pick = options.pick ?? 15;
+  const windowSize = options.window ?? 50;
+  const draws = toDraws(results, kind).slice(0, windowSize);
+  if (draws.length === 0) return null;
+
+  const counts = new Map<string, number>();
+  for (const draw of draws) {
+    for (const num of new Set(draw.numbers)) {
+      counts.set(num, (counts.get(num) ?? 0) + 1);
+    }
+  }
+  const numbers = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "en", { numeric: true }))
+    .slice(0, pick)
+    .map(([number]) => number);
+
+  return {
+    kind,
+    numbers,
+    pick,
+    window: windowSize,
+    draws: draws.length,
+    chance: (numbers.length / poolSizeForKind(kind)) * 100,
+  };
+}
