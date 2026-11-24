@@ -141,6 +141,8 @@ export const CHECKS_STOCK_PAGES = {
   singapore: ['สิงคโปร์', '/stock-markets/sgx'],
   england: ['อังกฤษ', '/stock-markets/ftse100'],
   germany: ['เยอรมัน', '/stock-markets/gdaxi'],
+  korea: ['เกาหลี', '/stock-markets/ktop30'],
+  russia: ['รัสเซีย', '/stock-markets/moexbc'],
   korea_vip: ['เกาหลี VIP', '/stock-markets/ktop30-vip'],
   singapore_vip: ['สิงคโปร์ VIP', '/stock-markets/sgx-vip'],
 };
