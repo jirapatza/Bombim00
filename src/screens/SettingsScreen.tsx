@@ -64,6 +64,11 @@ export const SettingsScreen: React.FC<Props> = ({
   const notificationTrouble = (status.notification_failures || 0) > 0 ||
     (status.active_uncertain_deliveries || 0) > 0 ||
     (status.schedule_alert_failures || 0) > 0;
+  const now = Date.now();
+  const parkedSources = Object.entries(status.source_backoff || {})
+    .filter(([, entry]) => Number(entry?.until) > now)
+    .map(([source, entry]) => ({ source, failures: entry.failures,
+      minutes: Math.max(1, Math.ceil((entry.until - now) / 60000)) }));
 
   return (
     <div className="space-y-4 pb-6">
@@ -264,6 +269,23 @@ export const SettingsScreen: React.FC<Props> = ({
             <p>ค้างส่ง: {status.notification_failures || 0} รายการ · ไม่ทราบผลการส่งช่วงปัจจุบัน: {status.active_uncertain_deliveries || 0} รายการ</p>
             <p className="text-amber-200/85">รายการที่ยังไม่ทราบผลจะไม่ส่งซ้ำอัตโนมัติ เพื่อป้องกันข้อความซ้ำ</p>
           </div>
+        )}
+        {parkedSources.length > 0 && (
+          <details className="text-slate-300" open>
+            <summary className="cursor-pointer">
+              แหล่งข้อมูลที่พักไว้ชั่วคราว ({parkedSources.length})
+            </summary>
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              {parkedSources.map(({ source, failures, minutes }) => (
+                <li key={source}>
+                  {source} · ล้มติดกัน {failures} ครั้ง · พักอีก {minutes} นาที
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-xs text-slate-400">
+              แหล่งอื่นยังทำงานปกติ ระบบจะลองแหล่งที่พักอีกครั้งเองเมื่อหมดเวลา
+            </p>
+          </details>
         )}
         {status.source_checks && [
           { label: "รอผลจากแหล่งข้อมูล", entries: status.source_checks.waiting },

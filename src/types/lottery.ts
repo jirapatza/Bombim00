@@ -78,6 +78,8 @@ export interface SystemStatus {
   schedule_alert_failures?: number;
   recent_logs: SystemStatusLog[];
   source_checks?: { waiting: SourceCheck[]; errors: SourceCheck[] };
+  degraded_sources?: string[];
+  source_backoff?: Record<string, { failures: number; until: number }>;
 }
 
 export interface AppSettings {
