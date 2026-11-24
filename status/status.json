@@ -1,15 +1,20 @@
 {
   "system_status": "degraded",
-  "last_run_timestamp": "2026-11-24T13:20:00.000+07:00",
-  "last_run_date_thai": "24/11/2026 13:20:00",
-  "total_checks": 18647,
-  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 14 รายการ ส่งสำเร็จ 12 รายการ ส่งเตือนตามตาราง 38 รายการ รอผลจากแหล่งข้อมูล 5 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 9 รายการ",
+  "last_run_timestamp": "2026-11-24T13:25:00.000+07:00",
+  "last_run_date_thai": "24/11/2026 13:25:00",
+  "total_checks": 18651,
+  "last_source_used": "ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + lotterychecks + LotteryChecks Lao/Hanoi + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 15 รายการ ส่งสำเร็จ 12 รายการ ส่งเตือนตามตาราง 40 รายการ รอผลจากแหล่งข้อมูล 5 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 9 รายการ",
   "active_sources_count": 5,
   "latest_draw_detected": "24 พฤศจิกายน 2569",
   "notifications_sent_today": 12,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-24T13:25:00.000+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 15 รายการ ส่งสำเร็จ 12 รายการ ส่งเตือนตามตาราง 40 รายการ รอผลจากแหล่งข้อมูล 5 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 9 รายการ"
+    },
     {
       "timestamp": "2026-11-24T13:20:00.000+07:00",
       "level": "WARNING",
@@ -104,25 +109,15 @@
       "timestamp": "2026-11-24T12:50:00.000+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 3 รายการ ส่งสำเร็จ 7 รายการ ส่งเตือนตามตาราง 36 รายการ รอผลจากแหล่งข้อมูล 6 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 3 รายการ"
-    },
-    {
-      "timestamp": "2026-11-24T12:50:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 7 รายการ ส่งเตือนตามตาราง 36 รายการ รอผลจากแหล่งข้อมูล 6 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
-  "schedule_alerts_sent_today": 38,
+  "schedule_alerts_sent_today": 40,
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
-        "status": 404
-      },
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ฮานอยพัฒนา",
@@ -130,7 +125,7 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย TV",
+        "lottery": "ลาวสามัคคี",
         "status": 404
       },
       {
@@ -141,6 +136,11 @@
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ลาว STAR",
+        "status": 404
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอย TV",
         "status": 404
       }
     ],
@@ -160,7 +160,7 @@
     "verified": 0,
     "pending": 9,
     "conflicts": 0,
-    "unmapped": 5
+    "unmapped": 6
   },
   "coda_control": {
     "configured": false,
