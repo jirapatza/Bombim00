@@ -4,6 +4,7 @@ import worker, { cycle, boundedRequest, deliveryUncertainty } from '../src/worke
 import { DurableState, RuntimeRepository, validateSnapshot, OUTPUTS } from '../src/storage.js';
 import { database } from './state-helper.js';
 import { drawDate, dueScheduleAlerts, scheduled, numbers, mergeRows } from '../src/domain.js';
+import { POLL_SECONDS } from '../src/schedule.js';
 import { readFileSync } from 'node:fs';
 
 const now = new Date('2026-11-07T08:00:00Z'), today = '2026-11-07';
@@ -363,7 +364,7 @@ test('GitHub publish preserves config tree, writes only two files and never forc
 });
 test('reviewed main-branch Cloudflare gate and every active Actions status protect the writer', async () => {
   const remote = new RuntimeRepository('owner/repo', 'synthetic', null), paths = [];
-  const gate = { mode: 'cloudflare', legacy_workflow: 'pr-only', poll_seconds: 60 };
+  const gate = { mode: 'cloudflare', legacy_workflow: 'pr-only', poll_seconds: POLL_SECONDS };
   remote.api = async (_method, path) => { paths.push(path); return path.includes('PRIMARY_CHECKER.json') ? gate : { workflow_runs: [] }; };
   await remote.assertWriter(); assert.equal(paths.length, 6);
   assert.equal(paths[0], '/contents/cloudflare/PRIMARY_CHECKER.json?ref=main');
@@ -382,7 +383,7 @@ test('worst-case source fallback cycle fits 38 network calls and at most 12 D1 o
     calls++;
     if (url.startsWith('https://api.github.com/')) {
       const path = new URL(url).pathname;
-      if (path.endsWith('/contents/cloudflare/PRIMARY_CHECKER.json')) return Response.json({ mode: 'cloudflare', legacy_workflow: 'pr-only', poll_seconds: 60 });
+      if (path.endsWith('/contents/cloudflare/PRIMARY_CHECKER.json')) return Response.json({ mode: 'cloudflare', legacy_workflow: 'pr-only', poll_seconds: POLL_SECONDS });
       if (path.endsWith('/runs')) return Response.json({ workflow_runs: [] });
       if (path.endsWith('/git/ref/heads/runtime-live')) return Response.json({ object: { sha: 'a'.repeat(40) } });
       if (path.includes('/git/commits/') && options.method === 'GET') return Response.json({ tree: { sha: 'tree' } });

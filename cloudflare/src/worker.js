@@ -1,3 +1,4 @@
+import { POLL_SECONDS, nextBackoff, parkedSources, mostlyDown, sourceName } from './schedule.js';
 import { bangkokDay, canonical, drawDate, drawIdentity, dueScheduleAlerts, eligible, mergeRows, normalize, numbers, previousChannels, rawName, scheduled } from './domain.js';
 import { collect } from './providers.js';
 import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './storage.js';
@@ -112,7 +113,7 @@ const safeRequest = error => {
   return g && ['GET', 'POST', 'PATCH'].includes(g.method) && ['ref', 'commit', 'contents', 'writer', 'publish', 'other'].includes(g.endpoint)
     ? `${g.method} ${g.endpoint}` : null;
 };
-function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertainCounts, deliveries, verification, controls, now, heartbeat) {
+function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncertainCounts, deliveries, verification, controls, now, heartbeat, backoff = {}) {
   const { recent: uncertain, old: oldUncertain, total: allUncertain } = uncertainCounts;
   const { at: publishedAt, totalChecks } = heartbeat;
   const day = bangkokDay(now);
@@ -127,18 +128,24 @@ function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncerta
     return !isOldUncertain(deliveries[drawIdentity(x)], now);
   }).length;
   const verificationBlocked = verification.mode === 'enforce' && (verification.pending || verification.conflicts);
-  const healthy = !checks.errors.length && !failed && !alerts.failed && !uncertain && !verificationBlocked;
+  const failedSources = [...new Set(checks.errors.map(sourceName).filter(Boolean))];
+  const parked = [...parkedSources(backoff, now)];
+  // One endpoint being down while the rest still deliver is not a system outage;
+  // reporting it as one is what kept the dashboard red all day.
+  const sourcesDown = mostlyDown(sources, checks.errors) || (!sources.length && parked.length > 0);
+  const healthy = !sourcesDown && !failed && !alerts.failed && !uncertain && !verificationBlocked;
   const sameDay = String(previous.last_run_date_thai || '').split(' ')[0] === thaiDate;
   // Cumulative for the day, not for this cycle: a per-cycle count made the
   // published message differ on every quiet cycle ("sent 1" then "sent 0").
   const sentToday = (sameDay ? Number(previous.notifications_sent_today) || 0 : 0) + sent;
   const alertsSentToday = (sameDay ? Number(previous.schedule_alerts_sent_today) || 0 : 0) + alerts.sent;
-  const message = `Cloudflare ตรวจทุกนาที พบผลวันนี้ ${rows.length} รายการ ส่งสำเร็จ ${sentToday} รายการ` +
+  const message = `Cloudflare ตรวจทุก ${POLL_SECONDS / 60} นาที พบผลวันนี้ ${rows.length} รายการ ส่งสำเร็จ ${sentToday} รายการ` +
     (alertsSentToday ? ` ส่งเตือนตามตาราง ${alertsSentToday} รายการ` : '') +
     (alerts.failed ? ` ส่งเตือนตามตารางไม่สำเร็จ ${alerts.failed} รายการ` : '') +
     (failed ? ` ค้างส่ง ${failed} รายการ` : '') + (uncertain ? ` ต้องตรวจสอบการส่งที่ไม่ทราบผล ${uncertain} รายการ` : '') +
     (checks.waiting.length ? ` รอผลจากแหล่งข้อมูล ${checks.waiting.length} รายการ` : '') +
     (checks.errors.length ? ` แหล่งข้อมูลขัดข้อง ${checks.errors.length} คำขอ` : '') +
+    (parked.length ? ` พักแหล่งที่ขัดข้อง ${parked.length} รายการ` : '') +
     (verification.pending ? ` รอหลักฐานแหล่งที่สอง ${verification.pending} รายการ` : '') +
     (verification.conflicts ? ` ผลขัดแย้ง ${verification.conflicts} รายการ` : '') + (!live ? ' ยังไม่พบผลสด' : '');
   // Prepending the same entry twice inside one heartbeat bucket would make the
@@ -156,7 +163,8 @@ function makeStatus(previous, rows, live, sources, checks, sent, alerts, uncerta
     schedule_alerts_sent_today: alertsSentToday,
     schedule_alert_failures: alerts.failed, source_checks: checks,
     notification_failures: failed, uncertain_deliveries: allUncertain,
-    active_uncertain_deliveries: uncertain, old_uncertain_deliveries: oldUncertain, checker_mode: 'cloudflare', poll_interval_seconds: 60,
+    active_uncertain_deliveries: uncertain, old_uncertain_deliveries: oldUncertain, checker_mode: 'cloudflare',
+    poll_interval_seconds: POLL_SECONDS, degraded_sources: failedSources, source_backoff: backoff,
     result_verification: verification, coda_control: controls,
     recent_logs };
 }
@@ -215,7 +223,10 @@ export async function cycle(env, dependencies = {}) {
       }
     }
     stage = 'sources';
-    const { rows: fetchedCandidates, sources, errors, waiting = [] } = await (dependencies.collect || collect)(settings, today, now, request, catalog);
+    const parked = parkedSources(state.sourceBackoff, now);
+    const { rows: fetchedCandidates, sources, errors, waiting = [] } =
+      await (dependencies.collect || collect)(settings, today, now, request, catalog, parked);
+    state.sourceBackoff = nextBackoff(state.sourceBackoff, errors, sources, now);
     const verificationSettings = settings.verification || {};
     const verificationMode = ['shadow', 'enforce'].includes(verificationSettings.mode) ? verificationSettings.mode : 'shadow';
     const minSources = Number.isInteger(verificationSettings.min_sources) ? verificationSettings.min_sources : 2;
@@ -409,7 +420,7 @@ export async function cycle(env, dependencies = {}) {
     const outputs = { 'lottery_previous_results.json': merged, 'status/status.json': makeStatus(status, rows,
       fetched.some(x => scheduled(x, catalog, today)), sources, { waiting, errors }, unpublished.length - alerts.sent,
       alerts, uncertainCounts, state.deliveries, verification, controlStatus, now,
-      { at: heartbeatAt, totalChecks: state.publishedChecks }) };
+      { at: heartbeatAt, totalChecks: state.publishedChecks }, state.sourceBackoff) };
     if (observing) {
       state.lastObservation = { at: now.toISOString(), results: fetched.length,
         scheduled: fetched.filter(x => scheduled(x, catalog, today)).length, sourceErrors: errors.length,
@@ -472,7 +483,7 @@ export default {
         publish_pending: Boolean(state.pending), uncertain_deliveries: uncertainty.total,
         archived_uncertain: state.uncertainArchive?.count || 0,
         active_uncertain_deliveries: uncertain, old_uncertain_deliveries: uncertainty.old,
-        delivery_codes, poll_seconds: 60,
+        delivery_codes, poll_seconds: POLL_SECONDS,
         result_verification: state.lastVerification || null,
         coda_control: { configured: codaConfigured, paused: Boolean(state.controls?.paused), last_sync: state.codaSync || null,
           quarantined: state.controls?.quarantined?.length || 0, disabled_sources: state.controls?.disabledSources?.length || 0 },

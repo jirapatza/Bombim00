@@ -1,8 +1,8 @@
 <!-- coderabbit-ai-generated:v1 -->
 
-# Cloudflare Workers Free: ตรวจผลหวยทุกนาที
+# Cloudflare Workers Free: ตรวจผลหวยทุก 5 นาที
 
-สถานะ ณ 17 พ.ย. 2026: ระบบส่งจริงบน Cloudflare Worker แล้ว `cloudflare/PRIMARY_CHECKER.json` บน main ระบุ `mode: cloudflare`, `legacy_workflow: pr-only` และ `poll_seconds: 60`; workflow ตั้งค่า `MODE=deliver`, `ENABLED=true` และส่งผลผ่าน ntfy กับ Web Push จาก D1 ledger. GitHub Actions เหลือเฉพาะงานทดสอบใน PR ตามขอบเขตใน [AGENTS.md](../AGENTS.md)
+สถานะ ณ 17 พ.ย. 2026: ระบบส่งจริงบน Cloudflare Worker แล้ว `cloudflare/PRIMARY_CHECKER.json` บน main ระบุ `mode: cloudflare`, `legacy_workflow: pr-only` และ `poll_seconds: 300`; workflow ตั้งค่า `MODE=deliver`, `ENABLED=true` และส่งผลผ่าน ntfy กับ Web Push จาก D1 ledger. GitHub Actions เหลือเฉพาะงานทดสอบใน PR ตามขอบเขตใน [AGENTS.md](../AGENTS.md)
 
 เอกสารส่วนที่เหลือคือคู่มือย้อนกลับของระบบเดิม: การอ่าน/แก้ไขข้อมูลฐาน D1 และการสลับกลับไปใช้ Python checker ต้องทำตามขั้นตอนในหน้านี้ด้วยความระมัดระวัง
 
@@ -36,7 +36,7 @@ flowchart TD
 
 ใช้บัญชี Workers Free และ D1 Free เท่านั้น ไม่มีโค้ดเปิด Workers Paid, R2, Queues, Containers หรือบริการเสียเงิน ต้องตรวจแผนในหน้า Billing ของบัญชีที่เลือกก่อนติดตั้ง หากบัญชีนั้นเป็น Paid อยู่แล้วให้หยุดและใช้บัญชี Free ตามที่เจ้าของเลือก
 
-ข้อจำกัดอ้างอิงเอกสารวันที่ 7 พ.ย. 2026: Workers Free 100,000 requests/วันต่อบัญชี, CPU 10 ms/invocation และ 50 subrequests/invocation; Cron ทุกนาทีประมาณ 1,440 ครั้ง/วันก่อนรวม health/การเรียกอื่น D1 Free มี 5 ล้าน rows read/วัน, 100,000 rows written/วัน, 5 GB รวม และสูงสุด 50 binding queries/invocation โค้ดจำกัด external fetch ไม่เกิน 38 ครั้งต่อรอบ รวมการลองซ้ำ GET ของ GitHub ได้อีกไม่เกินหนึ่งครั้งต่อคำขอเมื่อเกิดเครือข่ายล้มเหลว หมดเวลา หรือ HTTP 502/503/504; ไม่ลองซ้ำคำขอเขียน GitHub, คำขอที่ถูกยกเลิกด้วย `AbortError` หรือการส่ง ntfy เพื่อป้องกันการส่งซ้ำ และมี D1 ไม่เกินประมาณ 12 ครั้งในรอบปกติ
+ข้อจำกัดอ้างอิงเอกสารวันที่ 7 พ.ย. 2026: Workers Free 100,000 requests/วันต่อบัญชี, CPU 10 ms/invocation และ 50 subrequests/invocation; Cron ทุก 5 นาทีประมาณ 288 ครั้ง/วันก่อนรวม health/การเรียกอื่น (รอบละ 1 นาทีเดิมกิน 1,440 ครั้ง/วัน) D1 Free มี 5 ล้าน rows read/วัน, 100,000 rows written/วัน, 5 GB รวม และสูงสุด 50 binding queries/invocation โค้ดจำกัด external fetch ไม่เกิน 38 ครั้งต่อรอบ รวมการลองซ้ำ GET ของ GitHub ได้อีกไม่เกินหนึ่งครั้งต่อคำขอเมื่อเกิดเครือข่ายล้มเหลว หมดเวลา หรือ HTTP 502/503/504; ไม่ลองซ้ำคำขอเขียน GitHub, คำขอที่ถูกยกเลิกด้วย `AbortError` หรือการส่ง ntfy เพื่อป้องกันการส่งซ้ำ และมี D1 ไม่เกินประมาณ 12 ครั้งในรอบปกติ
 
 **Build และการทดสอบในเครื่องไม่ยืนยัน CPU 10 ms บน Cloudflare** ต้องรันโหมด observe บนบัญชี Free และตรวจ CPU/subrequests/errors ใน Metrics หรือ `wrangler tail --format json` ทั้งรอบธรรมดาและรอบผลออกพร้อมกัน ก่อนเปลี่ยนเป็น deliver ถ้าเกินเพดานให้คง Actions และปรับแบ่งงานใน PR ถัดไป ห้ามแก้ด้วยการอัปเกรด Paid โดยไม่ได้รับอนุญาต การดึง HTML และประวัติที่โตขึ้นอาจทำให้เกิน CPU ในอนาคตได้
 
