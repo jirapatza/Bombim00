@@ -1,8 +1,8 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-24T18:55:00.000+07:00",
-  "last_run_date_thai": "24/11/2026 18:55:00",
-  "total_checks": 18956,
+  "last_run_timestamp": "2026-11-24T19:00:00.000+07:00",
+  "last_run_date_thai": "24/11/2026 19:00:00",
+  "total_checks": 18961,
   "last_source_used": "ThaiLottoAPI + ผลหวย.com Lao EXTRA + ผลหวย.com stock groups + lotterychecks + LotteryChecks Lao/Hanoi + glo",
   "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 44 รายการ ส่งสำเร็จ 29 รายการ ส่งเตือนตามตาราง 72 รายการ รอผลจากแหล่งข้อมูล 2 รายการ รอหลักฐานแหล่งที่สอง 19 รายการ",
   "active_sources_count": 6,
@@ -10,6 +10,11 @@
   "notifications_sent_today": 29,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-24T19:00:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 44 รายการ ส่งสำเร็จ 29 รายการ ส่งเตือนตามตาราง 72 รายการ รอผลจากแหล่งข้อมูล 2 รายการ รอหลักฐานแหล่งที่สอง 19 รายการ"
+    },
     {
       "timestamp": "2026-11-24T18:55:00.000+07:00",
       "level": "INFO",
@@ -102,11 +107,6 @@
     },
     {
       "timestamp": "2026-11-24T17:35:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 42 รายการ ส่งสำเร็จ 27 รายการ ส่งเตือนตามตาราง 68 รายการ รอผลจากแหล่งข้อมูล 2 รายการ รอหลักฐานแหล่งที่สอง 17 รายการ"
-    },
-    {
-      "timestamp": "2026-11-24T17:30:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 42 รายการ ส่งสำเร็จ 27 รายการ ส่งเตือนตามตาราง 68 รายการ รอผลจากแหล่งข้อมูล 2 รายการ รอหลักฐานแหล่งที่สอง 17 รายการ"
     }
