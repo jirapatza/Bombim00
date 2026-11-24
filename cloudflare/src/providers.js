@@ -17,8 +17,23 @@ function row(name, id, category, date, top, bottom, source, now, extra = {}) {
     เลขหน้า_3_ตัว: [], เลขท้าย_3_ตัว: [], รางวัลข้างเคียงรางวัลที่_1: [],
     แหล่งข้อมูล: source, เวลาที่ตรวจพบ: now.toISOString(), สถานะการแจ้งเตือน: 'pending', ...extra };
 }
+// Rounds the API also serves, but which the worker reads only once their draw is
+// due and still missing. Ids and names were confirmed against the catalog by
+// comparing the API's 23 Nov numbers with the catalog row for the same draw.
+export const GATED_ROUNDS = {
+  'hanoi-union': ['hanoi_samakki', 'ฮานอยสามัคคี', 'vip'],
+  'hanoi-redcross': ['hanoi_redcross', 'ฮานอยกาชาด', 'vip'],
+  'hanoi-extra': ['hanoi_extra', 'ฮานอย EXTRA', 'vip'],
+  'lao-vip': ['lao_vip', 'ลาว VIP', 'vip'],
+  'lao-union-vip': ['lao_samakki_vip', 'ลาวสามัคคี VIP', 'vip'],
+  'lao-star-vip': ['lao_star_vip', 'ลาว STAR VIP', 'vip'],
+  'lao-asean': ['lao_asean', 'ลาวอาเซียน', 'vip'],
+  'lao-redcross': ['lao_redcross', 'ลาวกาชาด', 'vip'],
+};
+
 export function parseRound(data, slug, today, now = new Date()) {
-  if (!rounds[slug] || data?.success !== true || !Array.isArray(data.data)) return [];
+  const entry = rounds[slug] || GATED_ROUNDS[slug];
+  if (!entry || data?.success !== true || !Array.isArray(data.data)) return [];
   const valid = [];
   for (const r of data.data) {
     if (!r || r.lottery !== slug || r.status !== 'complete' || r.drawDate !== today ||
@@ -32,7 +47,7 @@ export function parseRound(data, slug, today, now = new Date()) {
       found[name].add(prize.numbers[0]);
     }
     if (Object.values(found).some(x => x.size !== 1)) continue;
-    const [id, name, cat] = rounds[slug];
+    const [id, name, cat] = entry;
     valid.push(row(name, id, cat, today, [...found['3ตัวบน']][0], [...found['2ตัวล่าง']][0],
       'LotteryChecks (https://lotterychecks.com)', now, { source_family: 'lotterychecks' }));
   }
@@ -273,12 +288,22 @@ export async function collect(settings, today, now, request, catalog = [], parke
   if (cfg.lotterychecks?.enabled) {
     const minutes = bangkokMinutes(now);
     const stored = new Set(history.filter(x => drawDate(x) === today).map(x => x.หวย));
-    for (const [id, [name, path]] of Object.entries(CHECKS_STOCK_PAGES)) {
+    // Read a draw only once it should exist and only while its result is still
+    // missing: before the close the source still shows yesterday's numbers, and
+    // re-reading a stored draw every minute would eat the request budget.
+    const due = id => {
+      if (stored.has(id)) return false;
       const close = String(catalog.find(x => x?.id === id)?.closeTimeStr || '').match(/(\d{1,2})[:.](\d{2})/);
-      // Read the page only once the draw should exist and only while the result
-      // is still missing: before the close it still shows yesterday's numbers,
-      // and re-reading a stored draw every minute would eat the request budget.
-      if (!close || stored.has(id) || minutes < Number(close[1]) * 60 + Number(close[2])) continue;
+      return Boolean(close) && minutes >= Number(close[1]) * 60 + Number(close[2]);
+    };
+    for (const [slug, [id, name]] of Object.entries(GATED_ROUNDS)) {
+      if (!due(id)) continue;
+      fallback.push(() => readSource('LotteryChecks Lao/Hanoi',
+        `https://lotterychecks.com/api/public/results?lottery=${slug}&date=${today}&limit=1`,
+        x => parseRound(x, slug, today, now), { lottery: name, slug }));
+    }
+    for (const [id, [name, path]] of Object.entries(CHECKS_STOCK_PAGES)) {
+      if (!due(id)) continue;
       fallback.push(() => readSource('LotteryChecks VIP stock', `https://lotterychecks.com${path}`,
         x => parseChecksStock(x, id, today, now), { lottery: name, json: false }));
     }

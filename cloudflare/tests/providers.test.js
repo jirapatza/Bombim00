@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { collect, parseRound, rounds, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
+import { collect, parseRound, rounds, GATED_ROUNDS, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
 import { numbers, scheduled, bangkokDay } from '../src/domain.js';
 
 const today = '2026-11-03', now = new Date(today + 'T10:00:00Z');
@@ -203,4 +203,36 @@ test('the VIP page is read only after its close and only while the draw is missi
   calls.length = 0;
   await collect(settings, today, late, request, catalog, new Set(), [first.rows[0]]);
   assert.deepEqual(calls.filter(x => x.includes('stock-markets')), []);
+});
+
+test('a gated round is parsed with its catalog id, name and category', () => {
+  const payload = { success: true, data: [{ lottery: 'lao-union-vip', drawDate: today, status: 'complete', pendingPrizes: [],
+    prizes: [{ name: 'รางวัลพิเศษ', numbers: ['48605'] }, { name: '3 ตัวบน', numbers: ['605'] }, { name: '2 ตัวล่าง', numbers: ['86'] }] }] };
+  const rows = parseRound(payload, 'lao-union-vip', today, now);
+  assert.equal(rows.length, 1);
+  assert.deepEqual([rows[0].หวย, rows[0].ชื่อหวย, rows[0].หมวดหวย], ['lao_samakki_vip', 'ลาวสามัคคี VIP', 'vip']);
+  assert.deepEqual(numbers(rows[0]), ['605', '86']);
+  assert.deepEqual(parseRound(payload, 'not-a-round', today, now), []);
+});
+
+test('gated rounds are read only after their close and only while missing', async () => {
+  const catalog = Object.values(GATED_ROUNDS).map(([id, name]) => ({ id, name, closeTimeStr: '20:45 น.' }));
+  const settings = { sources: { lotterychecks: { enabled: true } } };
+  const calls = [];
+  const request = async url => { calls.push(url); return new Response('{}'); };
+  const gated = () => calls.filter(x => x.includes('lottery=') && !x.includes('thai-government') && !rounds[x.split('lottery=')[1].split('&')[0]]);
+
+  await collect(settings, today, now, request, catalog, new Set(), []);
+  assert.deepEqual(gated(), [], 'nothing is read before the close');
+
+  const late = new Date(`${today}T21:00:00+07:00`);
+  calls.length = 0;
+  await collect(settings, today, late, request, catalog, new Set(), []);
+  assert.equal(gated().length, Object.keys(GATED_ROUNDS).length, 'every missing draw is read once it is due');
+
+  calls.length = 0;
+  const stored = Object.keys(GATED_ROUNDS).map(slug => ({ หวย: GATED_ROUNDS[slug][0], งวดวันที่: today,
+    เลขบน_3_ตัว: '605', เลขล่าง_2_ตัว: '86' }));
+  await collect(settings, today, late, request, catalog, new Set(), stored);
+  assert.deepEqual(gated(), [], 'a stored draw is not read again');
 });
