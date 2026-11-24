@@ -119,3 +119,43 @@ test("nothing parked means no parked block", () => {
 
   assert.equal(html.includes("แหล่งข้อมูลที่พักไว้ชั่วคราว"), false);
 });
+
+test("results behind their own schedule are named with their last draw", () => {
+  const html = renderToStaticMarkup(
+    React.createElement(SettingsScreen, {
+      status: { ...status, system_status: "healthy", last_run_timestamp: new Date().toISOString() },
+      staleItems: [
+        { id: "nikkei_afternoon", name: "นิเคอิรอบบ่าย", date: "20 พฤศจิกายน 2569" },
+        { id: "russia", name: "รัสเซีย", date: "4 พฤศจิกายน 2569" },
+      ],
+      watchedNumbers: [],
+      isVoiceEnabled: false,
+      nextCloses: [],
+      onToggleVoice() {},
+      onAddWatchedNumber() {},
+      onRemoveWatchedNumber() {},
+    }),
+  );
+
+  assert.match(html, /ผลที่ค้างตามกำหนด \(2\)/);
+  assert.match(html, /นิเคอิรอบบ่าย · ผลล่าสุด 20 พฤศจิกายน 2569/);
+  assert.match(html, /รัสเซีย · ผลล่าสุด 4 พฤศจิกายน 2569/);
+  assert.match(html, /ระบบไม่เติมผลแทน/);
+});
+
+test("nothing behind schedule means no stale block", () => {
+  const html = renderToStaticMarkup(
+    React.createElement(SettingsScreen, {
+      status,
+      staleItems: [],
+      watchedNumbers: [],
+      isVoiceEnabled: false,
+      nextCloses: [],
+      onToggleVoice() {},
+      onAddWatchedNumber() {},
+      onRemoveWatchedNumber() {},
+    }),
+  );
+
+  assert.equal(html.includes("ผลที่ค้างตามกำหนด"), false);
+});

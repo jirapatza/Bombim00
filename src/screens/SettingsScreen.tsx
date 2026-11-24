@@ -13,9 +13,11 @@ import { ThaiTtsService } from "../utils/thaiTts";
 import { checkerHeartbeatFresh } from "../utils/checkerHealth";
 import { DrawSlot } from "../data/drawSchedule";
 import { spokenCountdown } from "../data/drawSchedule";
+import { formatThaiDate } from "../utils/freshness";
 
 interface Props {
   status: SystemStatus;
+  staleItems?: { id: string; name: string; date: string }[];
   watchedNumbers: string[];
   isVoiceEnabled: boolean;
   /** Closes still ahead, soonest first, from the announcement planner. */
@@ -27,6 +29,7 @@ interface Props {
 
 export const SettingsScreen: React.FC<Props> = ({
   status,
+  staleItems = [],
   watchedNumbers,
   isVoiceEnabled,
   nextCloses = [],
@@ -269,6 +272,23 @@ export const SettingsScreen: React.FC<Props> = ({
             <p>ค้างส่ง: {status.notification_failures || 0} รายการ · ไม่ทราบผลการส่งช่วงปัจจุบัน: {status.active_uncertain_deliveries || 0} รายการ</p>
             <p className="text-amber-200/85">รายการที่ยังไม่ทราบผลจะไม่ส่งซ้ำอัตโนมัติ เพื่อป้องกันข้อความซ้ำ</p>
           </div>
+        )}
+        {staleItems.length > 0 && (
+          <details className="text-slate-300" open>
+            <summary className="cursor-pointer">
+              ผลที่ค้างตามกำหนด ({staleItems.length})
+            </summary>
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              {staleItems.map(({ id, name, date }) => (
+                <li key={id}>
+                  {name} · ผลล่าสุด {formatThaiDate(date)}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-xs text-slate-400">
+              ต้นทางยังไม่ประกาศงวดล่าสุด ระบบไม่เติมผลแทน และจะอัปเดตเมื่อมีหลักฐาน
+            </p>
+          </details>
         )}
         {parkedSources.length > 0 && (
           <details className="text-slate-300" open>

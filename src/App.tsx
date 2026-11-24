@@ -10,6 +10,7 @@ import { useAnnouncer } from "./utils/useAnnouncer";
 import { ThaiTtsService } from "./utils/thaiTts";
 import { trackDiagnostic } from "./utils/siteDiagnostics";
 import { ChunkRecovery } from "./utils/chunkRecovery";
+import { assessFreshness } from "./utils/freshness";
 import {
   RawLotteryResult,
   SystemStatus,
@@ -239,6 +240,15 @@ export const App: React.FC = () => {
     () => LotteryRepository.getLotteries(new Date(`${today}T00:00:00+07:00`)),
     [today, results],
   );
+
+  // Rows whose last stored draw is older than their own schedule, so the
+  // diagnostics panel can name them instead of leaving it to the card badges.
+  const staleItems = useMemo(() => {
+    const now = new Date(`${today}T12:00:00+07:00`);
+    return todayLotteries
+      .filter((item) => assessFreshness(item.date, item.drawDays, now)?.stale)
+      .map(({ id, name, date }) => ({ id, name, date }));
+  }, [todayLotteries, today]);
 
   const dataNotice = !online
     ? "อุปกรณ์ออฟไลน์ เว็บจะโหลดข้อมูลอีกครั้งเมื่อกลับมาออนไลน์"
@@ -483,6 +493,7 @@ export const App: React.FC = () => {
                 />
                 {renderScreen("settings", {
                   status,
+                  staleItems,
                   watchedNumbers,
                   isVoiceEnabled,
                   nextCloses: announcer.queue,
