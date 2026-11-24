@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-24T22:40:00.000+07:00",
-  "last_run_date_thai": "24/11/2026 22:40:00",
-  "total_checks": 19131,
-  "last_source_used": "ผลหวย.com stock groups + ผลหวย.com Lao EXTRA + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 45 รายการ ส่งสำเร็จ 31 รายการ ส่งเตือนตามตาราง 92 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 29 รายการ",
-  "active_sources_count": 5,
+  "last_run_timestamp": "2026-11-24T22:45:00.000+07:00",
+  "last_run_date_thai": "24/11/2026 22:45:00",
+  "total_checks": 19132,
+  "last_source_used": "ผลหวย.com stock groups + lotterychecks + LotteryChecks Lao/Hanoi + glo",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 45 รายการ ส่งสำเร็จ 31 รายการ ส่งเตือนตามตาราง 92 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 28 รายการ",
+  "active_sources_count": 4,
   "latest_draw_detected": "24 พฤศจิกายน 2569",
   "notifications_sent_today": 31,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-24T22:45:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 45 รายการ ส่งสำเร็จ 31 รายการ ส่งเตือนตามตาราง 92 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 28 รายการ"
+    },
     {
       "timestamp": "2026-11-24T22:40:00.000+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-24T21:20:00.000+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 44 รายการ ส่งสำเร็จ 31 รายการ ส่งเตือนตามตาราง 80 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 29 รายการ"
-    },
-    {
-      "timestamp": "2026-11-24T21:15:00.000+07:00",
-      "level": "WARNING",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 44 รายการ ส่งสำเร็จ 31 รายการ ส่งเตือนตามตาราง 80 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 29 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
@@ -120,9 +120,10 @@
     "waiting": [],
     "errors": [
       {
-        "source": "ThaiLottoAPI",
-        "status": 500,
-        "reason": "http"
+        "source": "ผลหวย.com Lao EXTRA",
+        "lottery": "ลาว EXTRA",
+        "status": 200,
+        "reason": "timeout"
       }
     ]
   },
@@ -132,9 +133,9 @@
     "mode": "shadow",
     "min_sources": 2,
     "verified": 0,
-    "pending": 29,
+    "pending": 28,
     "conflicts": 0,
-    "unmapped": 16
+    "unmapped": 17
   },
   "coda_control": {
     "configured": false,
@@ -144,12 +145,17 @@
     "last_sync": null
   },
   "degraded_sources": [
+    "ผลหวย.com Lao EXTRA",
     "ThaiLottoAPI"
   ],
   "source_backoff": {
     "ThaiLottoAPI": {
       "failures": 5,
       "until": 1795536653653
+    },
+    "ผลหวย.com Lao EXTRA": {
+      "failures": 1,
+      "until": 0
     }
   }
 }
