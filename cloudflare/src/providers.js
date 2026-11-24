@@ -135,6 +135,12 @@ export const CHECKS_STOCK_PAGES = {
   hangseng_afternoon: ['ฮั่งเส็งรอบบ่าย', '/stock-markets/hsi-afternoon'],
   dowjones: ['ดาวโจนส์', '/stock-markets/dji'],
   india: ['อินเดีย', '/stock-markets/bsesn'],
+  china_morning: ['จีนรอบเช้า', '/stock-markets/szse-morning'],
+  china_afternoon: ['จีนรอบบ่าย', '/stock-markets/szse-afternoon'],
+  taiwan: ['ไต้หวัน', '/stock-markets/twse'],
+  singapore: ['สิงคโปร์', '/stock-markets/sgx'],
+  england: ['อังกฤษ', '/stock-markets/ftse100'],
+  germany: ['เยอรมัน', '/stock-markets/gdaxi'],
   korea_vip: ['เกาหลี VIP', '/stock-markets/ktop30-vip'],
   singapore_vip: ['สิงคโปร์ VIP', '/stock-markets/sgx-vip'],
 };
