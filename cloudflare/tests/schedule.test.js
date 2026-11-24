@@ -50,6 +50,7 @@ test('a source that keeps failing is parked and no longer polled', async t => {
   const status = f.data['status/status.json'];
   assert.ok(status.source_backoff.ThaiLottoAPI.until > +now, 'parked until the cooldown ends');
   assert.match(status.status_message, /พักแหล่งที่ขัดข้อง 1 รายการ/);
+  assert.deepEqual(status.degraded_sources, ['ThaiLottoAPI'], 'a parked source stays named');
   await f.run();
   const parkedArg = f.calls.at(-1)[5];
   assert.ok(parkedArg.has('ThaiLottoAPI'), 'the parked source is skipped instead of retried');
