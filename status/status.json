@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-24T17:20:00.000+07:00",
-  "last_run_date_thai": "24/11/2026 17:20:00",
-  "total_checks": 18861,
-  "last_source_used": "ผลหวย.com stock groups + ผลหวย.com Lao EXTRA + ThaiLottoAPI + lotterychecks + glo + LotteryChecks Lao/Hanoi",
-  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 41 รายการ ส่งสำเร็จ 26 รายการ ส่งเตือนตามตาราง 66 รายการ รอผลจากแหล่งข้อมูล 2 รายการ รอหลักฐานแหล่งที่สอง 17 รายการ",
+  "last_run_timestamp": "2026-11-24T17:25:00.000+07:00",
+  "last_run_date_thai": "24/11/2026 17:25:00",
+  "total_checks": 18866,
+  "last_source_used": "ThaiLottoAPI + ผลหวย.com stock groups + ผลหวย.com Lao EXTRA + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 41 รายการ ส่งสำเร็จ 26 รายการ ส่งเตือนตามตาราง 68 รายการ รอผลจากแหล่งข้อมูล 2 รายการ รอหลักฐานแหล่งที่สอง 16 รายการ",
   "active_sources_count": 6,
   "latest_draw_detected": "24.11.2026",
   "notifications_sent_today": 26,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-24T17:25:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 41 รายการ ส่งสำเร็จ 26 รายการ ส่งเตือนตามตาราง 68 รายการ รอผลจากแหล่งข้อมูล 2 รายการ รอหลักฐานแหล่งที่สอง 16 รายการ"
+    },
     {
       "timestamp": "2026-11-24T17:20:00.000+07:00",
       "level": "INFO",
@@ -104,17 +109,12 @@
       "timestamp": "2026-11-24T16:35:00.000+07:00",
       "level": "WARNING",
       "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 40 รายการ ส่งสำเร็จ 25 รายการ ส่งเตือนตามตาราง 60 รายการ รอผลจากแหล่งข้อมูล 2 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ รอหลักฐานแหล่งที่สอง 25 รายการ"
-    },
-    {
-      "timestamp": "2026-11-24T16:35:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุกนาที พบผลวันนี้ 40 รายการ ส่งสำเร็จ 25 รายการ ส่งเตือนตามตาราง 60 รายการ รอผลจากแหล่งข้อมูล 2 รายการ รอหลักฐานแหล่งที่สอง 17 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 60,
-  "schedule_alerts_sent_today": 66,
+  "schedule_alerts_sent_today": 68,
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [
@@ -136,8 +136,8 @@
   "result_verification": {
     "mode": "shadow",
     "min_sources": 2,
-    "verified": 9,
-    "pending": 17,
+    "verified": 10,
+    "pending": 16,
     "conflicts": 0,
     "unmapped": 15
   },
