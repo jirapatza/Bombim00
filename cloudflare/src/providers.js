@@ -135,6 +135,14 @@ export const CHECKS_STOCK_PAGES = {
   hangseng_afternoon: ['ฮั่งเส็งรอบบ่าย', '/stock-markets/hsi-afternoon'],
   dowjones: ['ดาวโจนส์', '/stock-markets/dji'],
   india: ['อินเดีย', '/stock-markets/bsesn'],
+  china_morning: ['จีนรอบเช้า', '/stock-markets/szse-morning'],
+  china_afternoon: ['จีนรอบบ่าย', '/stock-markets/szse-afternoon'],
+  taiwan: ['ไต้หวัน', '/stock-markets/twse'],
+  singapore: ['สิงคโปร์', '/stock-markets/sgx'],
+  england: ['อังกฤษ', '/stock-markets/ftse100'],
+  germany: ['เยอรมัน', '/stock-markets/gdaxi'],
+  korea: ['เกาหลี', '/stock-markets/ktop30'],
+  russia: ['รัสเซีย', '/stock-markets/moexbc'],
   korea_vip: ['เกาหลี VIP', '/stock-markets/ktop30-vip'],
   singapore_vip: ['สิงคโปร์ VIP', '/stock-markets/sgx-vip'],
 };
@@ -236,12 +244,12 @@ function bangkokMinutes(date) {
 
 export async function collect(settings, today, now, request, catalog = [], parked = new Set(), history = []) {
   const errors = [], waiting = [], sources = [], cfg = settings.sources || {};
-  const readSource = async (source, url, parser, { json = true, lottery, slug, method = 'GET' } = {}) => {
+  const readSource = async (source, url, parser, { json = true, lottery, slug, method = 'GET', headers: extraHeaders } = {}) => {
     // Parked after repeated failures: asking again every cycle only deepens the outage.
     if (parked.has(source)) return [];
     let status = null, reason = 'network';
     try {
-      const headers = { Accept: json ? 'application/json' : 'text/html' };
+      const headers = { Accept: json ? 'application/json' : 'text/html', ...extraHeaders };
       if (method === 'POST') headers['Content-Type'] = 'application/json';
       const response = await request(url, { method, headers });
       status = response.status;
@@ -335,7 +343,9 @@ export async function collect(settings, today, now, request, catalog = [], parke
     ['lotterychecks', 'https://lotterychecks.com/api/public/results?lottery=thai-government&limit=1'],
     ['ranlotto', 'https://api.ranlotto.com/api/public/v1/lottery/result/latest'],
   ]) if (cfg[source]?.enabled) gov.push(() => readSource(source, cfg[source].url || url, x => parseGovernment(x, source, now),
-    { lottery: 'สลากกินแบ่งรัฐบาล', method: source === 'glo' ? 'POST' : 'GET' }));
+    // GLO answers 503 to a bare POST; the origin must look like its own site.
+    { lottery: 'สลากกินแบ่งรัฐบาล', method: source === 'glo' ? 'POST' : 'GET',
+      ...(source === 'glo' ? { headers: { Referer: 'https://www.glo.or.th/', Origin: 'https://www.glo.or.th' } } : {}) }));
   const [supplement, government] = await Promise.all([parallel(fallback), parallel(gov, 2)]);
   rows = [...government.filter(x => drawDate(x) === today), ...rows, ...supplement];
   return { rows: rows.filter(x => drawDate(x) === today && !disallowed(x.ชื่อหวย) && !disallowed(x.หวย) && numbers(x).every(Boolean)),

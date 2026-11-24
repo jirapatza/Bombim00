@@ -250,3 +250,14 @@ test('a capped cycle serves the earliest deadlines first and never exceeds the c
   const earliest = ids.slice(0, 8).map(id => `https://lotterychecks.com${CHECKS_STOCK_PAGES[id][1]}`);
   assert.deepEqual(stock.sort(), earliest.sort(), 'the earliest closes are read first');
 });
+
+test('the GLO request carries the origin headers its API requires', async () => {
+  const seen = [];
+  const request = async (url, options) => { seen.push({ url, options }); return new Response('{}'); };
+  await collect({ sources: { glo: { enabled: true } } }, today, now, request, [], new Set(), []);
+  const glo = seen.find(x => x.url.includes('glo.or.th'));
+  assert.ok(glo, 'the GLO endpoint was called');
+  assert.equal(glo.options.method, 'POST');
+  assert.equal(glo.options.headers.Referer, 'https://www.glo.or.th/');
+  assert.equal(glo.options.headers.Origin, 'https://www.glo.or.th');
+});
