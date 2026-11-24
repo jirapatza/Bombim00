@@ -29,6 +29,10 @@ export const GATED_ROUNDS = {
   'lao-star-vip': ['lao_star_vip', 'ลาว STAR VIP', 'vip'],
   'lao-asean': ['lao_asean', 'ลาวอาเซียน', 'vip'],
   'lao-redcross': ['lao_redcross', 'ลาวกาชาด', 'vip'],
+  'hanoi-special': ['hanoi_special', 'ฮานอยพิเศษ', 'hanoi'],
+  'hanoi-normal': ['hanoi_regular', 'ฮานอยปกติ', 'hanoi'],
+  'hanoi-vip': ['hanoi_vip', 'ฮานอย VIP', 'hanoi'],
+  'lao-extra': ['lao_extra', 'ลาว EXTRA', 'lao'],
 };
 
 export function parseRound(data, slug, today, now = new Date()) {
@@ -149,7 +153,7 @@ export const CHECKS_STOCK_PAGES = {
 // At most this many gated reads per cycle. Each draw is read once, so the cap
 // only binds when a whole evening of results is missing at the same time, and
 // the next cycle picks up the rest.
-const MAX_GATED_READS = 8;
+export const MAX_GATED_READS = 8;
 export function parseChecksStock(html, lotteryId, today, now = new Date()) {
   const entry = CHECKS_STOCK_PAGES[lotteryId];
   if (!entry || typeof html !== 'string') return [];
@@ -287,12 +291,18 @@ export async function collect(settings, today, now, request, catalog = [], parke
   const pholhuay = cfg.pholhuay || {};
   const stockPage = configuredUrl(pholhuay.stock_page_url, PHOLHUAY_STOCK_PAGE);
   const extraPage = configuredUrl(pholhuay.extra_page_url, PHOLHUAY_EXTRA_PAGE);
-  if (stockPage.invalid) errors.push({ source: 'ผลหวย.com stock groups', status: null, reason: 'invalid_url' });
-  if (extraPage.invalid) errors.push({ source: 'ผลหวย.com Lao EXTRA', status: null, reason: 'invalid_url' });
-  const jobs = [
-    () => readSource('ผลหวย.com stock groups', stockPage.url, x => parseStocks(x, now, catalog), { json: false }),
-    () => readSource('ผลหวย.com Lao EXTRA', extraPage.url, x => parseExtra(x, today, now), { json: false, lottery: 'ลาว EXTRA' }),
-  ];
+  // The switch was ignored before: both pages were fetched every cycle even with
+  // `enabled: false`, which is why ผลหวย.com appeared as an active source while
+  // the settings said it was off.
+  const jobs = [];
+  if (pholhuay.enabled) {
+    if (stockPage.invalid) errors.push({ source: 'ผลหวย.com stock groups', status: null, reason: 'invalid_url' });
+    if (extraPage.invalid) errors.push({ source: 'ผลหวย.com Lao EXTRA', status: null, reason: 'invalid_url' });
+    jobs.push(
+      () => readSource('ผลหวย.com stock groups', stockPage.url, x => parseStocks(x, now, catalog), { json: false }),
+      () => readSource('ผลหวย.com Lao EXTRA', extraPage.url, x => parseExtra(x, today, now), { json: false, lottery: 'ลาว EXTRA' }),
+    );
+  }
   if (cfg.thailottoapi?.enabled) {
     const url = new URL(cfg.thailottoapi.url || 'https://thailottoapi.com/api/results');
     // No sync=1: it makes the origin refresh upstream before answering, which
@@ -312,18 +322,18 @@ export async function collect(settings, today, now, request, catalog = [], parke
       `https://lotterychecks.com/api/public/results?lottery=${slug}&date=${today}&limit=1`, x => parseRound(x, slug, today, now),
       { lottery: name, slug }));
   }
+  const minutes = bangkokMinutes(now);
+  const storedToday = new Set(history.filter(x => drawDate(x) === today).map(x => x.หวย));
+  // Read a draw only once it should exist and only while its result is still
+  // missing: before the close the source still shows yesterday's numbers, and
+  // re-reading a stored draw every minute would eat the request budget.
+  const closeMinutes = id => {
+    const close = String(catalog.find(x => x?.id === id)?.closeTimeStr || '').match(/(\d{1,2})[:.](\d{2})/);
+    return close ? Number(close[1]) * 60 + Number(close[2]) : Number.MAX_SAFE_INTEGER;
+  };
+  const due = id => !storedToday.has(id) && minutes >= closeMinutes(id);
+  const gatedJobs = [];
   if (cfg.lotterychecks?.enabled) {
-    const minutes = bangkokMinutes(now);
-    const stored = new Set(history.filter(x => drawDate(x) === today).map(x => x.หวย));
-    // Read a draw only once it should exist and only while its result is still
-    // missing: before the close the source still shows yesterday's numbers, and
-    // re-reading a stored draw every minute would eat the request budget.
-    const closeMinutes = id => {
-      const close = String(catalog.find(x => x?.id === id)?.closeTimeStr || '').match(/(\d{1,2})[:.](\d{2})/);
-      return close ? Number(close[1]) * 60 + Number(close[2]) : Number.MAX_SAFE_INTEGER;
-    };
-    const due = id => !stored.has(id) && minutes >= closeMinutes(id);
-    const gatedJobs = [];
     for (const [slug, [id, name]] of Object.entries(GATED_ROUNDS)) {
       if (due(id)) gatedJobs.push({ id, close: closeMinutes(id), job: () => readSource('LotteryChecks Lao/Hanoi',
         `https://lotterychecks.com/api/public/results?lottery=${slug}&date=${today}&limit=1`,
@@ -333,10 +343,19 @@ export async function collect(settings, today, now, request, catalog = [], parke
       if (due(id)) gatedJobs.push({ id, close: closeMinutes(id), job: () => readSource('LotteryChecks VIP stock',
         `https://lotterychecks.com${path}`, x => parseChecksStock(x, id, today, now), { lottery: name, json: false }) });
     }
-    // Oldest deadline first, so a capped cycle still serves every draw in turn.
-    gatedJobs.sort((a, b) => a.close - b.close || a.id.localeCompare(b.id));
-    for (const { job } of gatedJobs.slice(0, MAX_GATED_READS)) fallback.push(job);
   }
+  // ไทยเย็น is published only by ผลหวย.com and ThaiLottoAPI, and the API
+  // throttles us, so its page is read even when the aggregate pholhuay switch
+  // is off. `sources.pholhuay.thai_evening: false` turns it back off.
+  if (cfg.pholhuay?.thai_evening !== false && !stockPage.invalid && due('thai_stock_evening')) {
+    gatedJobs.push({ id: 'thai_stock_evening', close: closeMinutes('thai_stock_evening'), job: () =>
+      readSource('ผลหวย.com stock groups', stockPage.url,
+        x => parseStocks(x, now, catalog).filter(r => r.หวย === 'thai_stock_evening' && drawDate(r) === today),
+        { lottery: 'ไทยเย็น', json: false }) });
+  }
+  // Oldest deadline first, so a capped cycle still serves every draw in turn.
+  gatedJobs.sort((a, b) => a.close - b.close || a.id.localeCompare(b.id));
+  for (const { job } of gatedJobs.slice(0, MAX_GATED_READS)) fallback.push(job);
   const gov = [];
   for (const [source, url] of [
     ['pholhuay', 'https://api.pholhuay.com/v1/lottery/latest'], ['glo', 'https://www.glo.or.th/api/lottery/getLatestLottery'],
