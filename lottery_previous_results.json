@@ -1,5 +1,86 @@
 [
   {
+    "ชื่อหวย": "ฮานอย HD",
+    "หวย": "hanoi_hd",
+    "หมวดหวย": "hanoi",
+    "งวดวันที่": "2026-11-24",
+    "วันที่จัดรูปแบบ": "2026-11-24",
+    "รางวัลที่_1": "257",
+    "เลขบน_3_ตัว": "257",
+    "เลขล่าง_2_ตัว": "68",
+    "เลขท้าย_2_ตัว": "68",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-24T05:51:12.373Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "hanoi_hd",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ฮานอย STAR",
+    "หวย": "hanoi_star",
+    "หมวดหวย": "hanoi",
+    "งวดวันที่": "2026-11-24",
+    "วันที่จัดรูปแบบ": "2026-11-24",
+    "รางวัลที่_1": "505",
+    "เลขบน_3_ตัว": "505",
+    "เลขล่าง_2_ตัว": "22",
+    "เลขท้าย_2_ตัว": "22",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-24T05:51:12.373Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "hanoi_star",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ลาว TV",
+    "หวย": "lao_tv",
+    "หมวดหวย": "lao",
+    "งวดวันที่": "2026-11-24",
+    "วันที่จัดรูปแบบ": "2026-11-24",
+    "รางวัลที่_1": "748",
+    "เลขบน_3_ตัว": "748",
+    "เลขล่าง_2_ตัว": "43",
+    "เลขท้าย_2_ตัว": "43",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-24T05:51:12.373Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "lao_tv",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
     "ชื่อหวย": "หวยหุ้นนิเคอิเช้า",
     "หวย": "stocknikkei1",
     "หมวดหวย": "foreign_stock",
@@ -101,87 +182,6 @@
     "verification_status": "waiting_for_evidence",
     "verification_sources": [
       "thailottoapi"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ฮานอย HD",
-    "หวย": "hanoi_hd",
-    "หมวดหวย": "hanoi",
-    "งวดวันที่": "2026-11-24",
-    "วันที่จัดรูปแบบ": "2026-11-24",
-    "รางวัลที่_1": "257",
-    "เลขบน_3_ตัว": "257",
-    "เลขล่าง_2_ตัว": "68",
-    "เลขท้าย_2_ตัว": "68",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-24T05:50:12.282Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "lotterychecks",
-    "catalog_id": "hanoi_hd",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "lotterychecks"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ฮานอย STAR",
-    "หวย": "hanoi_star",
-    "หมวดหวย": "hanoi",
-    "งวดวันที่": "2026-11-24",
-    "วันที่จัดรูปแบบ": "2026-11-24",
-    "รางวัลที่_1": "505",
-    "เลขบน_3_ตัว": "505",
-    "เลขล่าง_2_ตัว": "22",
-    "เลขท้าย_2_ตัว": "22",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-24T05:50:12.282Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "lotterychecks",
-    "catalog_id": "hanoi_star",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "lotterychecks"
-    ],
-    "verification_source_count": 1,
-    "notification_channels": {
-      "browser_push": "sent"
-    }
-  },
-  {
-    "ชื่อหวย": "ลาว TV",
-    "หวย": "lao_tv",
-    "หมวดหวย": "lao",
-    "งวดวันที่": "2026-11-24",
-    "วันที่จัดรูปแบบ": "2026-11-24",
-    "รางวัลที่_1": "748",
-    "เลขบน_3_ตัว": "748",
-    "เลขล่าง_2_ตัว": "43",
-    "เลขท้าย_2_ตัว": "43",
-    "เลขหน้า_3_ตัว": [],
-    "เลขท้าย_3_ตัว": [],
-    "รางวัลข้างเคียงรางวัลที่_1": [],
-    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-24T05:50:12.282Z",
-    "สถานะการแจ้งเตือน": "sent",
-    "source_family": "lotterychecks",
-    "catalog_id": "lao_tv",
-    "verification_status": "waiting_for_evidence",
-    "verification_sources": [
-      "lotterychecks"
     ],
     "verification_source_count": 1,
     "notification_channels": {
