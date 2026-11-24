@@ -78,3 +78,44 @@ test("no schedule block is rendered when nothing is closing", () => {
   );
   assert.equal(html.includes("ตารางประกาศเสียง"), false);
 });
+
+test("a parked source is named with the time left before it is retried", () => {
+  const until = Date.now() + 18 * 60000;
+  const html = renderToStaticMarkup(
+    React.createElement(SettingsScreen, {
+      status: {
+        ...status,
+        system_status: "healthy",
+        last_run_timestamp: new Date().toISOString(),
+        degraded_sources: ["ThaiLottoAPI"],
+        source_backoff: { ThaiLottoAPI: { failures: 3, until } },
+      },
+      watchedNumbers: [],
+      isVoiceEnabled: false,
+      nextCloses: [],
+      onToggleVoice() {},
+      onAddWatchedNumber() {},
+      onRemoveWatchedNumber() {},
+    }),
+  );
+
+  assert.match(html, /แหล่งข้อมูลที่พักไว้ชั่วคราว \(1\)/);
+  assert.match(html, /ThaiLottoAPI · ล้มติดกัน 3 ครั้ง · พักอีก 18 นาที/);
+  assert.match(html, /แหล่งอื่นยังทำงานปกติ/);
+});
+
+test("nothing parked means no parked block", () => {
+  const html = renderToStaticMarkup(
+    React.createElement(SettingsScreen, {
+      status: { ...status, source_backoff: { ThaiLottoAPI: { failures: 3, until: Date.now() - 60000 } } },
+      watchedNumbers: [],
+      isVoiceEnabled: false,
+      nextCloses: [],
+      onToggleVoice() {},
+      onAddWatchedNumber() {},
+      onRemoveWatchedNumber() {},
+    }),
+  );
+
+  assert.equal(html.includes("แหล่งข้อมูลที่พักไว้ชั่วคราว"), false);
+});
