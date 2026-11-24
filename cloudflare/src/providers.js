@@ -170,9 +170,11 @@ function configuredUrl(value, fallback) {
   return { url: fallback, invalid: true };
 }
 
-export async function collect(settings, today, now, request, catalog = []) {
+export async function collect(settings, today, now, request, catalog = [], parked = new Set()) {
   const errors = [], waiting = [], sources = [], cfg = settings.sources || {};
   const readSource = async (source, url, parser, { json = true, lottery, slug, method = 'GET' } = {}) => {
+    // Parked after repeated failures: asking again every cycle only deepens the outage.
+    if (parked.has(source)) return [];
     let status = null, reason = 'network';
     try {
       const headers = { Accept: json ? 'application/json' : 'text/html' };
@@ -248,5 +250,5 @@ export async function collect(settings, today, now, request, catalog = []) {
   const [supplement, government] = await Promise.all([parallel(fallback), parallel(gov, 2)]);
   rows = [...government.filter(x => drawDate(x) === today), ...rows, ...supplement];
   return { rows: rows.filter(x => drawDate(x) === today && !disallowed(x.ชื่อหวย) && !disallowed(x.หวย) && numbers(x).every(Boolean)),
-    sources: [...new Set(sources)], errors, waiting };
+    sources: [...new Set(sources)], errors, waiting, skipped: [...parked] };
 }

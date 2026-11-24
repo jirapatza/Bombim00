@@ -10,7 +10,7 @@
 
 # คู่มือการติดตั้ง Bombim00
 
-> **เลิกใช้แล้วเป็นตัวส่งหลัก** ตั้งแต่ `cloudflare/PRIMARY_CHECKER.json` บน main ตั้งเป็น `mode: cloudflare` และ `legacy_workflow: pr-only` ตัวตรวจและตัวส่งจริงคือ Cloudflare Worker ใน `cloudflare/` พร้อม `poll_seconds: 60` ไฟล์ตัวส่งรุ่นเดิม (`render.yaml`, `Dockerfile.worker`, `deploy/start_worker.py`, `lottery_worker.py`) ถูกลบออกแล้วเพราะไม่เคยถูก apply และการมีตัวส่งที่สองจะทำให้ส่งซ้ำ ส่วน `.github/workflows/lottery.yml` รันเฉพาะทดสอบใน PR ตาม [AGENTS.md](../AGENTS.md) ขั้นตอนย้อนกลับอยู่ใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) และหัวข้อ "ตัวตรวจ Python รุ่นเดิม" ด้านล่าง
+> **เลิกใช้แล้วเป็นตัวส่งหลัก** ตั้งแต่ `cloudflare/PRIMARY_CHECKER.json` บน main ตั้งเป็น `mode: cloudflare` และ `legacy_workflow: pr-only` ตัวตรวจและตัวส่งจริงคือ Cloudflare Worker ใน `cloudflare/` พร้อม `poll_seconds: 300` ไฟล์ตัวส่งรุ่นเดิม (`render.yaml`, `Dockerfile.worker`, `deploy/start_worker.py`, `lottery_worker.py`) ถูกลบออกแล้วเพราะไม่เคยถูก apply และการมีตัวส่งที่สองจะทำให้ส่งซ้ำ ส่วน `.github/workflows/lottery.yml` รันเฉพาะทดสอบใน PR ตาม [AGENTS.md](../AGENTS.md) ขั้นตอนย้อนกลับอยู่ใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) และหัวข้อ "ตัวตรวจ Python รุ่นเดิม" ด้านล่าง
 
 ## โครงสร้างปัจจุบัน
 
@@ -86,7 +86,7 @@ python -m pytest -q tests
 
 **ผลกระทบที่ต้องยอมรับหากย้อนกลับไป Actions:** Actions cron ไม่แม่น (เคยห่าง 43–64 นาทีเมื่อ 2026-11-07) และไม่ส่ง Web Push
 
-## ทางเลือก Cloudflare Free ตรวจทุกนาที
+## ทางเลือก Cloudflare Free ตรวจทุก 5 นาที
 
 **สถานะปัจจุบัน:** Cloudflare Worker JavaScript ใน `cloudflare/` เป็นตัวตรวจและส่งจริงทุก 60 วินาทีแล้ว ตาม `cloudflare/PRIMARY_CHECKER.json` (`mode: cloudflare`, `legacy_workflow: pr-only`) โดยใช้ D1 เก็บประวัติการส่งและสถานะรอ publish ส่วนขั้นตอนเปิดใช้โหมดทดลองใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md) เป็นประวัติการย้ายระบบ ไม่ใช่งานที่ต้องทำซ้ำ การเปลี่ยนกลับไปใช้ Python worker หรือ Actions ต้องทำตามหัวข้อย้อนกลับในคู่มือดังกล่าวและตรวจว่ามีตัวส่งจริงเพียงตัวเดียว ห้ามเปิดส่งพร้อมกัน
 

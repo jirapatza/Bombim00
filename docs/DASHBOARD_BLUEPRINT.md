@@ -73,7 +73,7 @@ flowchart TD
 
 ## สถานะการส่งผลจริง
 
-ระบบส่งจริงย้ายไป Cloudflare Worker แล้ว: `cloudflare/PRIMARY_CHECKER.json` บน main ระบุ `mode: cloudflare`, `legacy_workflow: pr-only`, `poll_seconds: 60` และ deploy workflow ตั้ง `MODE=deliver`, `ENABLED=true` ตัวส่งออกทั้ง ntfy และ Web Push จาก D1 ledger โดย GitHub Actions เหลือแค่ชุดทดสอบใน PR ตามขอบเขตใน [AGENTS.md](../AGENTS.md)
+ระบบส่งจริงย้ายไป Cloudflare Worker แล้ว: `cloudflare/PRIMARY_CHECKER.json` บน main ระบุ `mode: cloudflare`, `legacy_workflow: pr-only`, `poll_seconds: 300` และ deploy workflow ตั้ง `MODE=deliver`, `ENABLED=true` ตัวส่งออกทั้ง ntfy และ Web Push จาก D1 ledger โดย GitHub Actions เหลือแค่ชุดทดสอบใน PR ตามขอบเขตใน [AGENTS.md](../AGENTS.md)
 
 งานที่ยังต้องยืนยันกับ production ได้แก่ การวัดเวลาผลงวดจริงถึงโทรศัพท์ และการตรวจสถานะ D1/uncertain ด้วย `node recovery.mjs status` เมื่อจำเป็น; รายละเอียดขั้นตอนย้อนกลับอยู่ใน [CLOUDFLARE_FREE_SETUP.md](CLOUDFLARE_FREE_SETUP.md)
 

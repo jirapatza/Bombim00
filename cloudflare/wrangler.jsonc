@@ -8,7 +8,7 @@
   "send_metrics": false,
   "triggers": {
     "crons": [
-      "* * * * *"
+      "*/5 * * * *"
     ]
   },
   "vars": {
