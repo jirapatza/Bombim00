@@ -6,6 +6,7 @@ import {
   TicketCheckReport,
   FrequencyStat,
 } from '../types/lottery';
+import { formatThaiDate } from '../utils/freshness';
 import {
   DigitStat,
   StatKind,
@@ -325,7 +326,7 @@ export class LotteryRepository {
       const date = drawDate(row);
       if (!date) continue;
       const key = JSON.stringify([normalizeName(getDisplayName(row)), date]);
-      draws.set(key, `${getDisplayName(row)} — ${date}`);
+      draws.set(key, `${getDisplayName(row)} — ${formatThaiDate(date)}`);
     }
     return [...draws].map(([key, label]) => ({ key, label }))
       .sort((a, b) => JSON.parse(b.key)[1].localeCompare(JSON.parse(a.key)[1]) || a.label.localeCompare(b.label));

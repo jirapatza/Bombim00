@@ -10,6 +10,7 @@ import {
 import confetti from 'canvas-confetti';
 import { TicketCheckReport } from '../types/lottery';
 import { LotteryRepository } from '../data/lotteryRepository';
+import { formatThaiDate } from "../utils/freshness";
 
 interface Props {
   reports: TicketCheckReport[];
@@ -189,7 +190,7 @@ export const TicketCheckerScreen: React.FC<Props> = ({
                 </div>
 
                 <p className="truncate text-xs text-slate-300 mt-0.5">
-                  {rep.winningLotteryName} ({rep.drawDate})
+                  {rep.winningLotteryName} ({formatThaiDate(rep.drawDate)})
                 </p>
 
                 {rep.isWin && (
