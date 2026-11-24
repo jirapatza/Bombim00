@@ -116,32 +116,28 @@ export function parseStocks(html, now = new Date(), catalog = []) {
 // `rounds` uses, and ผลหวย.com stopped listing them (its VIP group is an empty
 // heading since 10 Nov). Without these pages the VIP stock lotteries have no
 // history at all, or none newer than 9 Nov.
-// Third element: 'alert' keeps the lottery in the notification flow, 'history'
-// stores it for statistics only.
 export const CHECKS_STOCK_PAGES = {
-  russia_vip: ['รัสเซีย VIP', '/stock-markets/russia-vip', 'history'],
-  england_vip: ['อังกฤษ VIP', '/stock-markets/england-vip', 'history'],
-  germany_vip: ['เยอรมัน VIP', '/stock-markets/germany-vip', 'history'],
-  dowjones_vip: ['ดาวโจนส์ VIP', '/stock-markets/dowjones-vip', 'history'],
-  dowjones_star: ['ดาวโจนส์ STAR', '/stock-markets/dowjonestar', 'history'],
-  nikkei_vip_morning: ['นิเคอิเช้า VIP', '/stock-markets/nikkei-vip-morning', 'alert'],
-  nikkei_vip_afternoon: ['นิเคอิบ่าย VIP', '/stock-markets/nikkei-vip-afternoon', 'alert'],
-  china_vip_morning: ['จีนเช้า VIP', '/stock-markets/szse-vip-morning', 'alert'],
-  china_vip_afternoon: ['จีนบ่าย VIP', '/stock-markets/szse-vip-afternoon', 'alert'],
-  hangseng_vip_morning: ['ฮั่งเส็งเช้า VIP', '/stock-markets/hsi-vip-morning', 'alert'],
-  hangseng_vip_afternoon: ['ฮั่งเส็งบ่าย VIP', '/stock-markets/hsi-vip-afternoon', 'alert'],
-  taiwan_vip: ['ไต้หวัน VIP', '/stock-markets/twse-vip', 'alert'],
-  nikkei_morning: ['นิเคอิรอบเช้า', '/stock-markets/nikkei-morning', 'alert'],
-  nikkei_afternoon: ['นิเคอิรอบบ่าย', '/stock-markets/nikkei-afternoon', 'alert'],
-  hangseng_morning: ['ฮั่งเส็งรอบเช้า', '/stock-markets/hsi-morning', 'alert'],
-  hangseng_afternoon: ['ฮั่งเส็งรอบบ่าย', '/stock-markets/hsi-afternoon', 'alert'],
-  dowjones: ['ดาวโจนส์', '/stock-markets/dji', 'alert'],
-  india: ['อินเดีย', '/stock-markets/bsesn', 'alert'],
-  korea_vip: ['เกาหลี VIP', '/stock-markets/ktop30-vip', 'alert'],
-  singapore_vip: ['สิงคโปร์ VIP', '/stock-markets/sgx-vip', 'alert'],
+  russia_vip: ['รัสเซีย VIP', '/stock-markets/russia-vip'],
+  england_vip: ['อังกฤษ VIP', '/stock-markets/england-vip'],
+  germany_vip: ['เยอรมัน VIP', '/stock-markets/germany-vip'],
+  dowjones_vip: ['ดาวโจนส์ VIP', '/stock-markets/dowjones-vip'],
+  dowjones_star: ['ดาวโจนส์ STAR', '/stock-markets/dowjonestar'],
+  nikkei_vip_morning: ['นิเคอิเช้า VIP', '/stock-markets/nikkei-vip-morning'],
+  nikkei_vip_afternoon: ['นิเคอิบ่าย VIP', '/stock-markets/nikkei-vip-afternoon'],
+  china_vip_morning: ['จีนเช้า VIP', '/stock-markets/szse-vip-morning'],
+  china_vip_afternoon: ['จีนบ่าย VIP', '/stock-markets/szse-vip-afternoon'],
+  hangseng_vip_morning: ['ฮั่งเส็งเช้า VIP', '/stock-markets/hsi-vip-morning'],
+  hangseng_vip_afternoon: ['ฮั่งเส็งบ่าย VIP', '/stock-markets/hsi-vip-afternoon'],
+  taiwan_vip: ['ไต้หวัน VIP', '/stock-markets/twse-vip'],
+  nikkei_morning: ['นิเคอิรอบเช้า', '/stock-markets/nikkei-morning'],
+  nikkei_afternoon: ['นิเคอิรอบบ่าย', '/stock-markets/nikkei-afternoon'],
+  hangseng_morning: ['ฮั่งเส็งรอบเช้า', '/stock-markets/hsi-morning'],
+  hangseng_afternoon: ['ฮั่งเส็งรอบบ่าย', '/stock-markets/hsi-afternoon'],
+  dowjones: ['ดาวโจนส์', '/stock-markets/dji'],
+  india: ['อินเดีย', '/stock-markets/bsesn'],
+  korea_vip: ['เกาหลี VIP', '/stock-markets/ktop30-vip'],
+  singapore_vip: ['สิงคโปร์ VIP', '/stock-markets/sgx-vip'],
 };
-export const HISTORY_ONLY_IDS = new Set(Object.entries(CHECKS_STOCK_PAGES)
-  .filter(([, entry]) => entry[2] === 'history').map(([id]) => id));
 // At most this many gated reads per cycle. Each draw is read once, so the cap
 // only binds when a whole evening of results is missing at the same time, and
 // the next cycle picks up the rest.
