@@ -113,16 +113,33 @@ export function parseStocks(html, now = new Date(), catalog = []) {
   return rows;
 }
 // The VIP stock draws are published as HTML pages, not by the JSON API that
-// `rounds` uses, and ผลหวย.com no longer lists them at all. Without these pages
-// no VIP lottery has a single row of history.
+// `rounds` uses, and ผลหวย.com stopped listing them (its VIP group is an empty
+// heading since 10 Nov). Without these pages the VIP stock lotteries have no
+// history at all, or none newer than 9 Nov.
+// Third element: 'alert' keeps the lottery in the notification flow, 'history'
+// stores it for statistics only.
 export const CHECKS_STOCK_PAGES = {
-  russia_vip: ['รัสเซีย VIP', '/stock-markets/russia-vip'],
-  england_vip: ['อังกฤษ VIP', '/stock-markets/england-vip'],
-  germany_vip: ['เยอรมัน VIP', '/stock-markets/germany-vip'],
-  dowjones_vip: ['ดาวโจนส์ VIP', '/stock-markets/dowjones-vip'],
-  dowjones_star: ['ดาวโจนส์ STAR', '/stock-markets/dowjonestar'],
+  russia_vip: ['รัสเซีย VIP', '/stock-markets/russia-vip', 'history'],
+  england_vip: ['อังกฤษ VIP', '/stock-markets/england-vip', 'history'],
+  germany_vip: ['เยอรมัน VIP', '/stock-markets/germany-vip', 'history'],
+  dowjones_vip: ['ดาวโจนส์ VIP', '/stock-markets/dowjones-vip', 'history'],
+  dowjones_star: ['ดาวโจนส์ STAR', '/stock-markets/dowjonestar', 'history'],
+  nikkei_vip_morning: ['นิเคอิเช้า VIP', '/stock-markets/nikkei-vip-morning', 'alert'],
+  nikkei_vip_afternoon: ['นิเคอิบ่าย VIP', '/stock-markets/nikkei-vip-afternoon', 'alert'],
+  china_vip_morning: ['จีนเช้า VIP', '/stock-markets/szse-vip-morning', 'alert'],
+  china_vip_afternoon: ['จีนบ่าย VIP', '/stock-markets/szse-vip-afternoon', 'alert'],
+  hangseng_vip_morning: ['ฮั่งเส็งเช้า VIP', '/stock-markets/hsi-vip-morning', 'alert'],
+  hangseng_vip_afternoon: ['ฮั่งเส็งบ่าย VIP', '/stock-markets/hsi-vip-afternoon', 'alert'],
+  taiwan_vip: ['ไต้หวัน VIP', '/stock-markets/twse-vip', 'alert'],
+  korea_vip: ['เกาหลี VIP', '/stock-markets/ktop30-vip', 'alert'],
+  singapore_vip: ['สิงคโปร์ VIP', '/stock-markets/sgx-vip', 'alert'],
 };
-export const HISTORY_ONLY_IDS = new Set(Object.keys(CHECKS_STOCK_PAGES));
+export const HISTORY_ONLY_IDS = new Set(Object.entries(CHECKS_STOCK_PAGES)
+  .filter(([, entry]) => entry[2] === 'history').map(([id]) => id));
+// At most this many gated reads per cycle. Each draw is read once, so the cap
+// only binds when a whole evening of results is missing at the same time, and
+// the next cycle picks up the rest.
+const MAX_GATED_READS = 8;
 export function parseChecksStock(html, lotteryId, today, now = new Date()) {
   const entry = CHECKS_STOCK_PAGES[lotteryId];
   if (!entry || typeof html !== 'string') return [];
@@ -291,22 +308,24 @@ export async function collect(settings, today, now, request, catalog = [], parke
     // Read a draw only once it should exist and only while its result is still
     // missing: before the close the source still shows yesterday's numbers, and
     // re-reading a stored draw every minute would eat the request budget.
-    const due = id => {
-      if (stored.has(id)) return false;
+    const closeMinutes = id => {
       const close = String(catalog.find(x => x?.id === id)?.closeTimeStr || '').match(/(\d{1,2})[:.](\d{2})/);
-      return Boolean(close) && minutes >= Number(close[1]) * 60 + Number(close[2]);
+      return close ? Number(close[1]) * 60 + Number(close[2]) : Number.MAX_SAFE_INTEGER;
     };
+    const due = id => !stored.has(id) && minutes >= closeMinutes(id);
+    const gatedJobs = [];
     for (const [slug, [id, name]] of Object.entries(GATED_ROUNDS)) {
-      if (!due(id)) continue;
-      fallback.push(() => readSource('LotteryChecks Lao/Hanoi',
+      if (due(id)) gatedJobs.push({ id, close: closeMinutes(id), job: () => readSource('LotteryChecks Lao/Hanoi',
         `https://lotterychecks.com/api/public/results?lottery=${slug}&date=${today}&limit=1`,
-        x => parseRound(x, slug, today, now), { lottery: name, slug }));
+        x => parseRound(x, slug, today, now), { lottery: name, slug }) });
     }
     for (const [id, [name, path]] of Object.entries(CHECKS_STOCK_PAGES)) {
-      if (!due(id)) continue;
-      fallback.push(() => readSource('LotteryChecks VIP stock', `https://lotterychecks.com${path}`,
-        x => parseChecksStock(x, id, today, now), { lottery: name, json: false }));
+      if (due(id)) gatedJobs.push({ id, close: closeMinutes(id), job: () => readSource('LotteryChecks VIP stock',
+        `https://lotterychecks.com${path}`, x => parseChecksStock(x, id, today, now), { lottery: name, json: false }) });
     }
+    // Oldest deadline first, so a capped cycle still serves every draw in turn.
+    gatedJobs.sort((a, b) => a.close - b.close || a.id.localeCompare(b.id));
+    for (const { job } of gatedJobs.slice(0, MAX_GATED_READS)) fallback.push(job);
   }
   const gov = [];
   for (const [source, url] of [

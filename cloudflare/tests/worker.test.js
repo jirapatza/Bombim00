@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { cycle, boundedRequest, deliveryUncertainty } from '../src/worker.js';
+import worker, { cycle, boundedRequest, deliveryUncertainty, MAX_SUBREQUESTS } from '../src/worker.js';
 import { DurableState, RuntimeRepository, validateSnapshot, OUTPUTS } from '../src/storage.js';
 import { database } from './state-helper.js';
 import { drawDate, dueScheduleAlerts, scheduled, numbers, mergeRows } from '../src/domain.js';
@@ -332,7 +332,7 @@ test('schedule alerts due in the same cycle for multiple lotteries go out as one
 
 test('request budget and redirects prevent unbounded subrequests or token forwarding', async () => {
   const options = [], request = boundedRequest(async (_url, o) => { options.push(o); return new Response(''); });
-  for (let i = 0; i < 38; i++) await request('https://example.test');
+  for (let i = 0; i < MAX_SUBREQUESTS; i++) await request('https://example.test');
   await assert.rejects(request('https://example.test'), /request_budget/);
   assert.ok(options.every(x => x.redirect === 'manual'));
 });
@@ -373,7 +373,7 @@ test('reviewed main-branch Cloudflare gate and every active Actions status prote
   remote.api = async (_method, path) => path.includes('PRIMARY_CHECKER.json') ? gate : { workflow_runs: [{ event: 'schedule' }] };
   await assert.rejects(remote.assertWriter(), /actions_active/);
 });
-test('worst-case source fallback cycle fits 38 network calls and at most 12 D1 operations', async t => {
+test('worst-case source fallback cycle fits 44 network calls and at most 12 D1 operations', async t => {
   const db = database(); t.after(() => db.close());
   let sqlCalls = 0, calls = 0, notifications = 0;
   const original = db.prepare; db.prepare = sql => { sqlCalls++; return original(sql); };
@@ -404,7 +404,7 @@ test('worst-case source fallback cycle fits 38 network calls and at most 12 D1 o
     LOTTERY_RUNTIME_TOKEN: 'synthetic' }, { now, request, sendBatch: async () => { notifications++; return 'sent'; } });
   assert.ok(outcome.sent > 3, `batched results delivered: ${outcome.sent}`);
   assert.ok(notifications > 0 && notifications <= 3, `push batches: ${notifications}`);
-  assert.ok(calls <= 38, `network calls: ${calls}`);
+  assert.ok(calls <= 44, `network calls: ${calls}`);
   assert.ok(sqlCalls <= 12, `D1 operations: ${sqlCalls}`);
 });
 test('durable pending stores changes and an immutable Git base, not the growing archive', async t => {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { collect, parseRound, rounds, GATED_ROUNDS, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
+import { collect, parseRound, rounds, GATED_ROUNDS, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, CHECKS_STOCK_PAGES, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
 import { numbers, scheduled, bangkokDay } from '../src/domain.js';
 
 const today = '2026-11-03', now = new Date(today + 'T10:00:00Z');
@@ -235,4 +235,18 @@ test('gated rounds are read only after their close and only while missing', asyn
     เลขบน_3_ตัว: '605', เลขล่าง_2_ตัว: '86' }));
   await collect(settings, today, late, request, catalog, new Set(), stored);
   assert.deepEqual(gated(), [], 'a stored draw is not read again');
+});
+
+test('a capped cycle serves the earliest deadlines first and never exceeds the cap', async () => {
+  const ids = Object.keys(CHECKS_STOCK_PAGES);
+  const catalog = ids.map((id, i) => ({ id, name: id, closeTimeStr: `${String(10 + i).padStart(2, '0')}:00 น.` }));
+  const calls = [];
+  const request = async url => { calls.push(url); return new Response('{}'); };
+  await collect({ sources: { lotterychecks: { enabled: true } } }, today, new Date(`${today}T23:59:00+07:00`),
+    request, catalog, new Set(), []);
+  const stock = calls.filter(x => x.includes('/stock-markets/'));
+  assert.equal(stock.length, 8, 'the cap keeps one cycle inside the subrequest budget');
+  assert.deepEqual([...new Set(stock)].length, 8);
+  const earliest = ids.slice(0, 8).map(id => `https://lotterychecks.com${CHECKS_STOCK_PAGES[id][1]}`);
+  assert.deepEqual(stock.sort(), earliest.sort(), 'the earliest closes are read first');
 });
