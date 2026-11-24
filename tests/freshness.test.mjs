@@ -80,3 +80,21 @@ test("an ISO date still drives the freshness calculation", () => {
   assert.equal(state.days, 18);
   assert.equal(state.stale, true);
 });
+
+test("a weekday row is flagged once it is past its grace day, not before", () => {
+  const tuesday = new Date("2026-11-24T12:00:00+07:00");
+  const wednesday = new Date("2026-11-25T12:00:00+07:00");
+  // Friday's draw is 4 days old on Tuesday: inside the one-day grace a source
+  // gets for publishing late, so Monday's missing draw is not cried wolf yet.
+  assert.equal(assessFreshness("20 พฤศจิกายน 2569", "จันทร์ - ศุกร์", tuesday).stale, false);
+  assert.equal(assessFreshness("20 พฤศจิกายน 2569", "จันทร์ - ศุกร์", wednesday).stale, true);
+  assert.equal(assessFreshness("4 พฤศจิกายน 2569", "จันทร์ - ศุกร์", tuesday).stale, true);
+});
+
+test("a twice-monthly row between draws is not stale", () => {
+  const today = new Date("2026-11-24T12:00:00+07:00");
+  assert.equal(
+    assessFreshness("16 พฤศจิกายน 2569", "ตามประกาศวันงวดจริง (อาจเลื่อน)", today).stale,
+    false,
+  );
+});
