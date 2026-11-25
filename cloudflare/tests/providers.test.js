@@ -222,7 +222,8 @@ test('gated rounds are read only after their close and only while missing', asyn
   const settings = { sources: { lotterychecks: { enabled: true } } };
   const calls = [];
   const request = async url => { calls.push(url); return new Response('{}'); };
-  const gated = () => calls.filter(x => x.includes('lottery=') && !x.includes('thai-government') && !rounds[x.split('lottery=')[1].split('&')[0]]);
+  const gated = () => calls.filter(x => x.includes(`date=${today}`) && x.includes('lottery=') &&
+    !x.includes('thai-government') && !rounds[x.split('lottery=')[1].split('&')[0]]);
 
   await collect(settings, today, now, request, catalog, new Set(), []);
   assert.deepEqual(gated(), [], 'nothing is read before the close');
@@ -287,4 +288,34 @@ test('ไทยเย็น is read from its own page once the draw closes, and 
   await collect({ sources: { pholhuay: { enabled: false, thai_evening: false } } }, today,
     at('17:00'), request, catalog, new Set(), []);
   assert.deepEqual(calls.filter(x => x.includes('stock-lottery')), [], 'the explicit switch turns it off');
+});
+
+test('a missing past draw is backfilled from the dated API, newest first and capped', async () => {
+  const catalog = [['hanoi_vip', 'ฮานอย VIP'], ['lao_vip', 'ลาว VIP'], ['lao_extra', 'ลาว EXTRA']]
+    .map(([id, name]) => ({ id, name, closeTimeStr: '19:05 น.', drawDays: 'ทุกวัน (จันทร์ - อาทิตย์)' }));
+  const settings = { sources: { lotterychecks: { enabled: true } } };
+  const calls = [];
+  const request = async url => {
+    calls.push(url);
+    const lottery = new URL(url).searchParams.get('lottery'), date = new URL(url).searchParams.get('date');
+    return Response.json({ success: true, data: [{ lottery, drawDate: date, status: 'complete', pendingPrizes: [],
+      prizes: [{ name: '3 ตัวบน', numbers: ['123'] }, { name: '2 ตัวล่าง', numbers: ['45'] }] }] });
+  };
+  const late = new Date(`${today}T21:00:00+07:00`);
+  const { backfill } = await collect(settings, today, late, request, catalog, new Set(), []);
+  const dates = [...new Set(backfill.map(x => x.งวดวันที่))];
+
+  assert.equal(backfill.length, 2, 'the per-cycle cap is honoured');
+  assert.equal(dates.length, 1, 'one draw is filled per lottery');
+  assert.ok(!dates.includes(today), 'today is never backfilled');
+  assert.ok(backfill.every(x => x.สถานะการแจ้งเตือน === 'backfilled'), 'backfilled rows are marked so they are never pushed');
+  assert.equal(backfill[0].เลขบน_3_ตัว, '123');
+  assert.equal(backfill[0].เลขล่าง_2_ตัว, '45');
+
+  const newest = bangkokDay(new Date(late.getTime() - 86_400_000));
+  const stored = backfill.map(x => ({ หวย: x.หวย, งวดวันที่: x.งวดวันที่, เลขบน_3_ตัว: '1', เลขล่าง_2_ตัว: '2' }));
+  calls.length = 0;
+  const next = await collect(settings, today, late, request, catalog, new Set(), stored);
+  assert.ok(next.backfill.every(x => !stored.some(s => s.หวย === x.หวย && s.งวดวันที่ === x.งวดวันที่)), 'a filled draw is not refetched');
+  assert.ok(!calls.some(x => x.includes(`date=${newest}`) && x.includes('lottery=hanoi-vip') && stored.some(s => s.หวย === 'hanoi_vip')), 'stored dates are skipped');
 });
