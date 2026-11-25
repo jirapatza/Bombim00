@@ -14,10 +14,16 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
+try:
+    from scripts.draw_freshness import DEFAULT_IGNORED, freshness_row
+except ModuleNotFoundError:  # run as `python scripts/repo_health.py`
+    from draw_freshness import DEFAULT_IGNORED, freshness_row
+
 API = "https://api.github.com"
 BANGKOK = timezone(timedelta(hours=7))
 ISSUE_TITLE = "Repo health"
 STATUS_URL = "https://raw.githubusercontent.com/{repo}/runtime-live/status/status.json"
+DATA_URL = "https://raw.githubusercontent.com/{repo}/runtime-live/data/all_lotteries.json"
 HEARTBEAT_LIMIT_MIN = 20
 PR_AGE_LIMIT_DAYS = 3
 REQUIRED_CONTEXTS = ("quality", "cloudflare", "smoke", "CodeQL")
@@ -222,6 +228,18 @@ def status_rows(repo, now):
     return rows
 
 
+def freshness_rows(repo, now):
+    """Live draw dates against the schedule the catalogue declares."""
+    try:
+        with urllib.request.urlopen(DATA_URL.format(repo=repo), timeout=30) as response:
+            rows = json.loads(response.read())
+    except (urllib.error.URLError, ValueError) as error:
+        return [("data freshness", UNKNOWN, f"cannot read: {error}")]
+    if not isinstance(rows, list):
+        return [("data freshness", UNKNOWN, "unexpected response")]
+    return [freshness_row(rows, now, os.environ.get("HEALTH_IGNORED_LOTTERIES", DEFAULT_IGNORED))]
+
+
 def pull_request_rows(token, repo, now):
     try:
         pull_requests = request_json(token, f"/repos/{repo}/pulls?state=open&per_page=100") or []
@@ -294,6 +312,7 @@ def main(dry_run=False):
     else:
         rows.append(("workflows", UNKNOWN, "no token in environment"))
     rows += status_rows(repo, now)
+    rows += freshness_rows(repo, now)
     rows += dependency_rows()
     body = render_report(rows, now)
     print(body)
