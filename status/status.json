@@ -1,15 +1,20 @@
 {
-  "system_status": "healthy",
-  "last_run_timestamp": "2026-11-25T17:40:00.000+07:00",
-  "last_run_date_thai": "25/11/2026 17:40:00",
-  "total_checks": 19356,
-  "last_source_used": "LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 27 รายการ ส่งเตือนตามตาราง 68 รายการ รอผลจากแหล่งข้อมูล 4 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ",
+  "system_status": "degraded",
+  "last_run_timestamp": "2026-11-25T17:45:00.000+07:00",
+  "last_run_date_thai": "25/11/2026 17:45:00",
+  "total_checks": 19357,
+  "last_source_used": "lotterychecks + LotteryChecks Lao/Hanoi + glo",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 27 รายการ ส่งเตือนตามตาราง 68 รายการ รอผลจากแหล่งข้อมูล 4 รายการ แหล่งข้อมูลขัดข้อง 2 คำขอ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 6 รายการ",
   "active_sources_count": 3,
   "latest_draw_detected": "2026-11-25",
   "notifications_sent_today": 27,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-25T17:45:00.000+07:00",
+      "level": "WARNING",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 27 รายการ ส่งเตือนตามตาราง 68 รายการ รอผลจากแหล่งข้อมูล 4 รายการ แหล่งข้อมูลขัดข้อง 2 คำขอ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 6 รายการ"
+    },
     {
       "timestamp": "2026-11-25T17:40:00.000+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-25T16:05:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 19 รายการ ส่งเตือนตามตาราง 57 รายการ รอผลจากแหล่งข้อมูล 2 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ"
-    },
-    {
-      "timestamp": "2026-11-25T16:00:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 19 รายการ ส่งเตือนตามตาราง 57 รายการ รอผลจากแหล่งข้อมูล 2 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
@@ -139,7 +139,20 @@
         "status": 404
       }
     ],
-    "errors": []
+    "errors": [
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอย HD",
+        "status": null,
+        "reason": "timeout"
+      },
+      {
+        "source": "LotteryChecks VIP stock",
+        "lottery": "ดาวโจนส์ VIP",
+        "status": null,
+        "reason": "timeout"
+      }
+    ]
   },
   "active_uncertain_deliveries": 0,
   "old_uncertain_deliveries": 1,
@@ -147,7 +160,7 @@
     "mode": "shadow",
     "min_sources": 2,
     "verified": 0,
-    "pending": 7,
+    "pending": 6,
     "conflicts": 0,
     "unmapped": 0
   },
@@ -159,12 +172,22 @@
     "last_sync": null
   },
   "degraded_sources": [
+    "LotteryChecks Lao/Hanoi",
+    "LotteryChecks VIP stock",
     "ThaiLottoAPI"
   ],
   "source_backoff": {
     "ThaiLottoAPI": {
       "failures": 20,
       "until": 1795603852591
+    },
+    "LotteryChecks Lao/Hanoi": {
+      "failures": 1,
+      "until": 0
+    },
+    "LotteryChecks VIP stock": {
+      "failures": 1,
+      "until": 0
     }
   }
 }
