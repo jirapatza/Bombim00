@@ -288,6 +288,7 @@ export async function collect(settings, today, now, request, catalog = [], parke
       return [];
     }
   };
+  const minutes = bangkokMinutes(now);
   const pholhuay = cfg.pholhuay || {};
   const stockPage = configuredUrl(pholhuay.stock_page_url, PHOLHUAY_STOCK_PAGE);
   const extraPage = configuredUrl(pholhuay.extra_page_url, PHOLHUAY_EXTRA_PAGE);
@@ -303,7 +304,12 @@ export async function collect(settings, today, now, request, catalog = [], parke
       () => readSource('ผลหวย.com Lao EXTRA', extraPage.url, x => parseExtra(x, today, now), { json: false, lottery: 'ลาว EXTRA' }),
     );
   }
-  if (cfg.thailottoapi?.enabled) {
+  // 288 reads a day still emptied the free D1 row-read quota behind this source,
+  // which answered HTTP 500 for the rest of every day. It is asked on a coarser
+  // clock than the cycle instead; five-minute cycles land on every quarter hour,
+  // so a draw is at most fifteen minutes late for a third of the reads.
+  const thaiEvery = Math.max(5, Number(cfg.thailottoapi?.poll_every_minutes) || 15);
+  if (cfg.thailottoapi?.enabled && minutes % thaiEvery === 0) {
     const url = new URL(cfg.thailottoapi.url || 'https://thailottoapi.com/api/results');
     // No sync=1: it makes the origin refresh upstream before answering, which
     // measured 6-45s against a 12s per-call cap, so the source timed out every
@@ -322,7 +328,6 @@ export async function collect(settings, today, now, request, catalog = [], parke
       `https://lotterychecks.com/api/public/results?lottery=${slug}&date=${today}&limit=1`, x => parseRound(x, slug, today, now),
       { lottery: name, slug }));
   }
-  const minutes = bangkokMinutes(now);
   const storedToday = new Set(history.filter(x => drawDate(x) === today).map(x => x.หวย));
   // Read a draw only once it should exist and only while its result is still
   // missing: before the close the source still shows yesterday's numbers, and

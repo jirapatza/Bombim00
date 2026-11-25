@@ -288,3 +288,30 @@ test('ไทยเย็น is read from its own page once the draw closes, and 
     at('17:00'), request, catalog, new Set(), []);
   assert.deepEqual(calls.filter(x => x.includes('stock-lottery')), [], 'the explicit switch turns it off');
 });
+
+
+test('ThaiLottoAPI is asked on a fifteen-minute clock, not every cycle', async () => {
+  const calls = [];
+  const request = async url => {
+    calls.push(url);
+    return Response.json({ ok: true, date: today, categories: {} });
+  };
+  const settings = { sources: { thailottoapi: { enabled: true } } };
+  // `now` is 17:00 Bangkok, a quarter hour.
+  await collect(settings, today, now, request);
+  assert.ok(calls.some(url => url.includes('thailottoapi')), 'polled on the quarter hour');
+  calls.length = 0;
+  await collect(settings, today, new Date(today + 'T10:05:00Z'), request);
+  assert.equal(calls.filter(url => url.includes('thailottoapi')).length, 0, 'skipped five minutes later');
+});
+
+test('a source can ask for a tighter clock than the default', async () => {
+  const calls = [];
+  const request = async url => {
+    calls.push(url);
+    return Response.json({ ok: true, date: today, categories: {} });
+  };
+  const settings = { sources: { thailottoapi: { enabled: true, poll_every_minutes: 5 } } };
+  await collect(settings, today, new Date(today + 'T10:05:00Z'), request);
+  assert.ok(calls.some(url => url.includes('thailottoapi')), 'polled at 17:05 Bangkok');
+});

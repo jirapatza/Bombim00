@@ -46,6 +46,7 @@
       "url": "https://thailottoapi.com/api/results",
       "schedules_url": "https://thailottoapi.com/api/schedules?category=stock",
       "timeout_sec": 12,
+      "poll_every_minutes": 15,
       "priority": 1,
       "category": "stock",
       "timezone": "Asia/Bangkok",
