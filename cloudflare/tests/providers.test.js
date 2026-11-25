@@ -290,7 +290,7 @@ test('ไทยเย็น is read from its own page once the draw closes, and 
   assert.deepEqual(calls.filter(x => x.includes('stock-lottery')), [], 'the explicit switch turns it off');
 });
 
-test('a missing past draw is backfilled from the dated API, newest first and capped', async () => {
+test('a missing past draw is backfilled from the dated API, rotating and capped', async () => {
   const catalog = [['hanoi_vip', 'ฮานอย VIP'], ['lao_vip', 'ลาว VIP'], ['lao_extra', 'ลาว EXTRA']]
     .map(([id, name]) => ({ id, name, closeTimeStr: '19:05 น.', drawDays: 'ทุกวัน (จันทร์ - อาทิตย์)' }));
   const settings = { sources: { lotterychecks: { enabled: true } } };
@@ -306,6 +306,7 @@ test('a missing past draw is backfilled from the dated API, newest first and cap
   const dates = [...new Set(backfill.map(x => x.งวดวันที่))];
 
   assert.equal(backfill.length, 2, 'the per-cycle cap is honoured');
+  assert.equal(new Set(backfill.map(x => x.หวย)).size, 2, 'two different lotteries, so one failure cannot block the queue');
   assert.equal(dates.length, 1, 'one draw is filled per lottery');
   assert.ok(!dates.includes(today), 'today is never backfilled');
   assert.ok(backfill.every(x => x.สถานะการแจ้งเตือน === 'backfilled'), 'backfilled rows are marked so they are never pushed');
