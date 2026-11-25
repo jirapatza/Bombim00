@@ -13,7 +13,7 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-25T03:45:52.587Z",
+    "เวลาที่ตรวจพบ": "2026-11-25T03:50:52.544Z",
     "สถานะการแจ้งเตือน": "sent",
     "source_family": "lotterychecks",
     "catalog_id": "hanoi_asean",
@@ -40,10 +40,37 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-25T03:45:52.587Z",
+    "เวลาที่ตรวจพบ": "2026-11-25T03:50:52.544Z",
     "สถานะการแจ้งเตือน": "sent",
     "source_family": "lotterychecks",
     "catalog_id": "lao_tv",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "จีนเช้า VIP",
+    "หวย": "china_vip_morning",
+    "หมวดหวย": "vip",
+    "งวดวันที่": "25 พฤศจิกายน 2569",
+    "วันที่จัดรูปแบบ": "2026-11-25",
+    "รางวัลที่_1": "332",
+    "เลขบน_3_ตัว": "332",
+    "เลขล่าง_2_ตัว": "63",
+    "เลขท้าย_2_ตัว": "63",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-25T03:50:52.544Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "china_vip_morning",
     "verification_status": "waiting_for_evidence",
     "verification_sources": [
       "lotterychecks"
