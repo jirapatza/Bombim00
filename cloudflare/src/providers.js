@@ -373,9 +373,13 @@ export async function collect(settings, today, now, request, catalog = [], parke
         break;
       }
     }
-    // Most recent gap first: the table reads as continuous from yesterday back.
+    // Most recent gap first, but rotating per cycle: a lottery whose source has
+    // no row for that date would otherwise hold the same two slots forever.
     gaps.sort((a, b) => a.age - b.age || a.id.localeCompare(b.id));
-    for (const gap of gaps.slice(0, BACKFILL_PER_CYCLE)) backfillJobs.push(async () => {
+    const start = Math.floor(now.getTime() / 300_000) % Math.max(gaps.length, 1);
+    const picks = gaps.length <= BACKFILL_PER_CYCLE ? gaps
+      : Array.from({ length: BACKFILL_PER_CYCLE }, (_, i) => gaps[(start + i) % gaps.length]);
+    for (const gap of picks) backfillJobs.push(async () => {
       const rows = await readSource('LotteryChecks backfill',
         `https://lotterychecks.com/api/public/results?lottery=${gap.slug}&date=${gap.date}&limit=1`,
         x => parseRound(x, gap.slug, gap.date, now), { lottery: gap.name, slug: gap.slug });
