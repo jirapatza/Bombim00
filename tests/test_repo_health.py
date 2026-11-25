@@ -10,6 +10,7 @@ from scripts.repo_health import (
     render_report,
     stale_workflows,
     workflow_file_row,
+    workflow_run_row,
 )
 
 BANGKOK = timezone(timedelta(hours=7))
@@ -116,3 +117,25 @@ def test_protection_summary_is_clean_when_all_required_checks_are_set():
 def test_protection_summary_handles_a_branch_without_checks():
     state, detail = protection_summary({})
     assert state == WARN and "quality" in detail
+
+
+def run(path, conclusion="success"):
+    return {"path": path, "conclusion": conclusion}
+
+
+def test_workflow_run_row_counts_files_not_runs():
+    present = {".github/workflows/a.yml", ".github/workflows/b.yml"}
+    row = workflow_run_row(present, [run(".github/workflows/a.yml")])
+    assert row[1] == OK and "2 files" in row[2] and "no recent run: b.yml" in row[2]
+
+
+def test_workflow_run_row_names_a_failing_workflow_by_file():
+    present = {".github/workflows/a.yml"}
+    row = workflow_run_row(present, [run(".github/workflows/a.yml", "failure")])
+    assert row[1] == WARN and row[2] == "a.yml=failure"
+
+
+def test_workflow_run_row_keeps_the_count_stable_when_everything_ran():
+    present = {".github/workflows/a.yml", ".github/workflows/b.yml"}
+    row = workflow_run_row(present, [run(".github/workflows/a.yml"), run(".github/workflows/b.yml")])
+    assert row[2] == "2 files, 2 ran recently, all green"
