@@ -133,36 +133,47 @@ def render_report(rows, now):
     return "\n".join(lines)
 
 
+def workflow_run_row(present, runs):
+    """Count the workflow files that exist, not the ones that happened to run.
+
+    Counting the latest runs made the number drift with the size of the window,
+    so a quiet week looked like workflows disappearing.
+    """
+    latest = {}
+    for run in runs:
+        latest.setdefault(run.get("path") or "", run)
+    failing = [
+        f"{os.path.basename(path)}={run.get('conclusion')}"
+        for path, run in sorted(latest.items())
+        if run.get("conclusion") not in ("success", "skipped", "neutral", None)
+    ]
+    if failing:
+        return ("workflows", WARN, ", ".join(failing))
+    quiet = sorted(os.path.basename(path) for path in present if path not in latest)
+    detail = f"{len(present)} files, {len(present) - len(quiet)} ran recently, all green"
+    if quiet:
+        detail += " (no recent run: " + ", ".join(quiet) + ")"
+    return ("workflows", OK, detail)
+
+
 def workflow_rows(token, repo, workflow_dir=".github/workflows"):
     rows = []
-    runs = None
-    try:
-        runs = request_json(token, f"/repos/{repo}/actions/runs?per_page=60").get("workflow_runs") or []
-    except (urllib.error.URLError, ValueError) as error:
-        rows.append(("workflows", UNKNOWN, f"cannot read runs: {error}"))
-    if runs is not None:
-        latest = {}
-        for run in runs:
-            latest.setdefault(run.get("name") or "?", run)
-        failing = [
-            f"{name}={run.get('conclusion')}"
-            for name, run in sorted(latest.items())
-            if run.get("conclusion") not in ("success", "skipped", "neutral", None)
-        ]
-        if failing:
-            rows.append(("workflows", WARN, ", ".join(failing)))
-        else:
-            rows.append(("workflows", OK, f"{len(latest)} tracked, all green"))
-    try:
-        registered = request_json(token, f"/repos/{repo}/actions/workflows").get("workflows") or []
-    except (urllib.error.URLError, ValueError) as error:
-        rows.append(("workflow files", UNKNOWN, f"cannot list: {error}"))
-        return rows
     present = {
         f"{workflow_dir}/{name}"
         for name in os.listdir(workflow_dir)
         if name.endswith((".yml", ".yaml"))
     }
+    try:
+        runs = request_json(token, f"/repos/{repo}/actions/runs?per_page=100").get("workflow_runs") or []
+    except (urllib.error.URLError, ValueError) as error:
+        rows.append(("workflows", UNKNOWN, f"cannot read runs: {error}"))
+    else:
+        rows.append(workflow_run_row(present, runs))
+    try:
+        registered = request_json(token, f"/repos/{repo}/actions/workflows").get("workflows") or []
+    except (urllib.error.URLError, ValueError) as error:
+        rows.append(("workflow files", UNKNOWN, f"cannot list: {error}"))
+        return rows
     rows.append(workflow_file_row(registered, present))
     rows.append(protection_row(token, repo))
     rows += check_run_rows(token, repo)
