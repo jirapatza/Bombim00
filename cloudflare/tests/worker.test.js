@@ -373,7 +373,7 @@ test('reviewed main-branch Cloudflare gate and every active Actions status prote
   remote.api = async (_method, path) => path.includes('PRIMARY_CHECKER.json') ? gate : { workflow_runs: [{ event: 'schedule' }] };
   await assert.rejects(remote.assertWriter(), /actions_active/);
 });
-test('worst-case source fallback cycle fits 44 network calls and at most 12 D1 operations', async t => {
+test('worst-case source fallback cycle fits 46 network calls and at most 12 D1 operations', async t => {
   const db = database(); t.after(() => db.close());
   let sqlCalls = 0, calls = 0, notifications = 0;
   const original = db.prepare; db.prepare = sql => { sqlCalls++; return original(sql); };
@@ -404,7 +404,7 @@ test('worst-case source fallback cycle fits 44 network calls and at most 12 D1 o
     LOTTERY_RUNTIME_TOKEN: 'synthetic' }, { now, request, sendBatch: async () => { notifications++; return 'sent'; } });
   assert.ok(outcome.sent > 3, `batched results delivered: ${outcome.sent}`);
   assert.ok(notifications > 0 && notifications <= 3, `push batches: ${notifications}`);
-  assert.ok(calls <= 44, `network calls: ${calls}`);
+  assert.ok(calls <= 46, `network calls: ${calls}`);
   assert.ok(sqlCalls <= 12, `D1 operations: ${sqlCalls}`);
 });
 test('durable pending stores changes and an immutable Git base, not the growing archive', async t => {
@@ -750,4 +750,19 @@ test('a VIP stock row is pushed like every other draw', async t => {
   assert.equal(stored.สถานะการแจ้งเตือน, 'sent');
   assert.deepEqual(numbers(stored), ['021', '90']);
   assert.equal(f.sends.length, 1);
+});
+
+test('a backfilled draw is archived but never pushed', async t => {
+  const f = fixture(t);
+  const past = { ...result(), งวดวันที่: '2026-11-23', สถานะการแจ้งเตือน: 'backfilled' };
+  f.dependencies.collect = async () => ({ rows: [result()], backfill: [past], sources: ['synthetic'], errors: [] });
+  let outputs;
+  f.remote.publish = async (_pending, _lease, options) => { outputs = options.outputs; };
+  await f.run();
+
+  assert.deepEqual(f.sends, [past.หวย], 'only today\'s draw is pushed');
+  const archive = outputs[OUTPUTS[0]];
+  const stored = archive.filter(x => x.หวย === past.หวย && x.งวดวันที่ === '2026-11-23');
+  assert.equal(stored.length, 1, 'the past draw is archived');
+  assert.equal(stored[0].สถานะการแจ้งเตือน, 'backfilled', 'it stays marked as backfilled');
 });

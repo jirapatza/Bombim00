@@ -1,4 +1,4 @@
-import { canonical, disallowed, drawDate, numbers, scheduleName } from './domain.js';
+import { bangkokDay, canonical, disallowed, drawDate, numbers, scheduleName, scheduled } from './domain.js';
 
 export const rounds = {
   'lao-union': ['lao_samakki', 'ลาวสามัคคี', 'lao'],
@@ -154,6 +154,10 @@ export const CHECKS_STOCK_PAGES = {
 // only binds when a whole evening of results is missing at the same time, and
 // the next cycle picks up the rest.
 export const MAX_GATED_READS = 8;
+// History gaps are filled from the dated API, a couple of draws per cycle, so a
+// lottery that was added today still shows a past table tomorrow.
+export const BACKFILL_DAYS = 7;
+export const BACKFILL_PER_CYCLE = 2;
 export function parseChecksStock(html, lotteryId, today, now = new Date()) {
   const entry = CHECKS_STOCK_PAGES[lotteryId];
   if (!entry || typeof html !== 'string') return [];
@@ -356,6 +360,28 @@ export async function collect(settings, today, now, request, catalog = [], parke
   // Oldest deadline first, so a capped cycle still serves every draw in turn.
   gatedJobs.sort((a, b) => a.close - b.close || a.id.localeCompare(b.id));
   for (const { job } of gatedJobs.slice(0, MAX_GATED_READS)) fallback.push(job);
+  const backfillJobs = [];
+  if (cfg.lotterychecks?.enabled) {
+    const storedDraws = new Set(history.map(x => `${x.หวย}|${drawDate(x)}`));
+    const gaps = [];
+    for (const [slug, [id, name]] of Object.entries(GATED_ROUNDS)) {
+      if (!catalog.find(x => x?.id === id)?.drawDays) continue;
+      for (let age = 1; age <= BACKFILL_DAYS; age++) {
+        const date = bangkokDay(new Date(now.getTime() - age * 86_400_000));
+        if (!scheduled({ หวย: id, งวดวันที่: date }, catalog, date)) continue;
+        if (!storedDraws.has(`${id}|${date}`)) gaps.push({ slug, id, name, date, age });
+        break;
+      }
+    }
+    // Most recent gap first: the table reads as continuous from yesterday back.
+    gaps.sort((a, b) => a.age - b.age || a.id.localeCompare(b.id));
+    for (const gap of gaps.slice(0, BACKFILL_PER_CYCLE)) backfillJobs.push(async () => {
+      const rows = await readSource('LotteryChecks backfill',
+        `https://lotterychecks.com/api/public/results?lottery=${gap.slug}&date=${gap.date}&limit=1`,
+        x => parseRound(x, gap.slug, gap.date, now), { lottery: gap.name, slug: gap.slug });
+      return rows.filter(x => drawDate(x) === gap.date).map(x => ({ ...x, สถานะการแจ้งเตือน: 'backfilled' }));
+    });
+  }
   const gov = [];
   for (const [source, url] of [
     ['pholhuay', 'https://api.pholhuay.com/v1/lottery/latest'], ['glo', 'https://www.glo.or.th/api/lottery/getLatestLottery'],
@@ -365,8 +391,8 @@ export async function collect(settings, today, now, request, catalog = [], parke
     // GLO answers 503 to a bare POST; the origin must look like its own site.
     { lottery: 'สลากกินแบ่งรัฐบาล', method: source === 'glo' ? 'POST' : 'GET',
       ...(source === 'glo' ? { headers: { Referer: 'https://www.glo.or.th/', Origin: 'https://www.glo.or.th' } } : {}) }));
-  const [supplement, government] = await Promise.all([parallel(fallback), parallel(gov, 2)]);
+  const [supplement, government, backfill] = await Promise.all([parallel(fallback), parallel(gov, 2), parallel(backfillJobs)]);
   rows = [...government.filter(x => drawDate(x) === today), ...rows, ...supplement];
   return { rows: rows.filter(x => drawDate(x) === today && !disallowed(x.ชื่อหวย) && !disallowed(x.หวย) && numbers(x).every(Boolean)),
-    sources: [...new Set(sources)], errors, waiting, skipped: [...parked] };
+    backfill: backfill.flat(), sources: [...new Set(sources)], errors, waiting, skipped: [...parked] };
 }

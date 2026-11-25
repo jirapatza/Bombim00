@@ -60,7 +60,7 @@ function finishPublish(state, now) {
 // The cap rose from 38 to 44 to leave room for the gated reads (VIP stock pages
 // and the extra lao/hanoi rounds), which only fire while a draw is still
 // missing; Workers allows 50 subrequests, so six stay in reserve.
-export const MAX_SUBREQUESTS = 44;
+export const MAX_SUBREQUESTS = 46;
 export function boundedRequest(fetcher, deadline = Date.now() + 50000) {
   let calls = 0;
   return async (url, options = {}) => {
@@ -228,7 +228,7 @@ export async function cycle(env, dependencies = {}) {
     }
     stage = 'sources';
     const parked = parkedSources(state.sourceBackoff, now);
-    const { rows: fetchedCandidates, sources, errors, waiting = [] } =
+    const { rows: fetchedCandidates, backfill = [], sources, errors, waiting = [] } =
       await (dependencies.collect || collect)(settings, today, now, request, catalog, parked, history);
     state.sourceBackoff = nextBackoff(state.sourceBackoff, errors, sources, now);
     const verificationSettings = settings.verification || {};
@@ -403,7 +403,9 @@ export async function cycle(env, dependencies = {}) {
     // concern); stays from the last deliver cycle if a later cycle is
     // observe/paused, which is fine since nothing is attempted there anyway.
     state.lastQueueSummary = { at: now.toISOString(), backoff: queuedBy.backoff, quota: queuedBy.quota };
-    const merged = mergeRows(rows, history);
+    // Backfilled draws are history only: they were collected after their draw
+    // day passed, so they are merged into the archive without ever being sent.
+    const merged = mergeRows([...rows, ...backfill], history);
     const uncertainCounts = deliveryUncertainty(state.deliveries, now);
     const uncertain = uncertainCounts.recent;
     const todayDeliveries = Object.values(state.deliveries).filter(x => x.date === today);
