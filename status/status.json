@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-25T22:25:00.000+07:00",
-  "last_run_date_thai": "25/11/2026 22:25:00",
-  "total_checks": 19413,
+  "last_run_timestamp": "2026-11-25T22:30:00.000+07:00",
+  "last_run_date_thai": "25/11/2026 22:30:00",
+  "total_checks": 19414,
   "last_source_used": "LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 9 รายการ ส่งสำเร็จ 40 รายการ ส่งเตือนตามตาราง 93 รายการ รอผลจากแหล่งข้อมูล 1 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 9 รายการ",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 9 รายการ ส่งสำเร็จ 40 รายการ ส่งเตือนตามตาราง 94 รายการ รอผลจากแหล่งข้อมูล 1 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 9 รายการ",
   "active_sources_count": 3,
   "latest_draw_detected": "2026-11-25",
   "notifications_sent_today": 40,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-25T22:30:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 9 รายการ ส่งสำเร็จ 40 รายการ ส่งเตือนตามตาราง 94 รายการ รอผลจากแหล่งข้อมูล 1 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 9 รายการ"
+    },
     {
       "timestamp": "2026-11-25T22:25:00.000+07:00",
       "level": "INFO",
@@ -104,17 +109,12 @@
       "timestamp": "2026-11-25T20:55:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 8 รายการ ส่งสำเร็จ 34 รายการ ส่งเตือนตามตาราง 80 รายการ รอผลจากแหล่งข้อมูล 2 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 8 รายการ"
-    },
-    {
-      "timestamp": "2026-11-25T20:50:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 8 รายการ ส่งสำเร็จ 34 รายการ ส่งเตือนตามตาราง 79 รายการ รอผลจากแหล่งข้อมูล 2 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 8 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 300,
-  "schedule_alerts_sent_today": 93,
+  "schedule_alerts_sent_today": 94,
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [
