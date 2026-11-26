@@ -1,5 +1,4 @@
 """Bangkok calendar shared with the web catalog; never guess irregular draw dates."""
-import datetime
 import json
 import re
 from pathlib import Path

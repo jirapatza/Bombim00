@@ -289,13 +289,11 @@ const STORAGE_WATCHED_NUMBERS = 'lottery_watched_numbers_v1';
 const STORAGE_SETTINGS = 'lottery_app_settings_v1';
 
 export class LotteryRepository {
-  private static lotteries: LotteryCatalogItem[] = [];
   private static catalog = defaultCatalog;
   private static results: RawLotteryResult[] = defaultResults;
   private static status: SystemStatus = defaultSystemStatus;
 
   static init(): void {
-    this.lotteries = mergeCatalogWithResults(defaultCatalog, this.results);
   }
 
   static getLotteries(now = new Date()): LotteryCatalogItem[] {
@@ -375,10 +373,8 @@ export class LotteryRepository {
       ]);
       validateLiveData(catalog, results, rawStatus);
       const status = rawStatus as SystemStatus;
-      const current = mergeCatalogWithResults(catalog as LotteryCatalogItem[], results as RawLotteryResult[]);
       this.results = results as RawLotteryResult[];
       this.catalog = catalog as LotteryCatalogItem[];
-      this.lotteries = current;
       this.status = { ...status, source_checks: validSourceChecks(status.source_checks) ? status.source_checks : undefined };
     } finally {
       clearTimeout(timeout);

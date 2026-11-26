@@ -1,4 +1,3 @@
-import datetime
 
 import lottery_checker as lc
 

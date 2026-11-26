@@ -220,7 +220,7 @@ export function announceableResults(
   return items
     .filter((item) => drawState(item, new Date(now)) === "drawn")
     .map((item) => ({ item, resultDate: item.resultDate ?? item.date }))
-    .filter(({ item, resultDate }) => resultDate === today)
+    .filter(({ resultDate }) => resultDate === today)
     .filter(({ item }) => Boolean(item.top3 || item.bottom2 || item.firstPrize))
     .map(({ item, resultDate }) => ({
       id: item.id,

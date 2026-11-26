@@ -200,8 +200,7 @@ export const App: React.FC = () => {
   const [status, setStatus] = useState<SystemStatus>(() =>
     LotteryRepository.getStatus(),
   );
-  const [settings, setSettings] =
-    useState<AppSettings>(() => LotteryRepository.getSettings());
+  const [settings] = useState<AppSettings>(() => LotteryRepository.getSettings());
   const [watchedNumbers, setWatchedNumbers] = useState<string[]>(() =>
     LotteryRepository.getWatchedNumbers(),
   );

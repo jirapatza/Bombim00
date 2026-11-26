@@ -5,7 +5,6 @@ import {
   Trophy,
   Info,
   RotateCcw,
-  Sparkles,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { TicketCheckReport } from '../types/lottery';
