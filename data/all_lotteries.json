@@ -47,10 +47,10 @@
     "closeTimeStr": "09:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "427",
-    "bottom2": "86",
-    "firstPrize": "427",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "589",
+    "bottom2": "56",
+    "firstPrize": "589",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/asean)"
   },
   {
@@ -65,11 +65,11 @@
     "closeTimeStr": "09:20 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "504",
-    "bottom2": "17",
-    "firstPrize": "504",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-20)"
+    "top3": "695",
+    "bottom2": "33",
+    "firstPrize": "695",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/nikkei-morning)"
   },
   {
     "id": "china_vip_morning",
@@ -83,10 +83,10 @@
     "closeTimeStr": "09:55 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "332",
-    "bottom2": "63",
-    "firstPrize": "332",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "513",
+    "bottom2": "10",
+    "firstPrize": "513",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)"
   },
   {
@@ -101,11 +101,11 @@
     "closeTimeStr": "10:15 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "576",
-    "bottom2": "44",
-    "firstPrize": "576",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-20)"
+    "top3": "172",
+    "bottom2": "36",
+    "firstPrize": "172",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/szse-morning)"
   },
   {
     "id": "lao_tv",
@@ -119,10 +119,10 @@
     "closeTimeStr": "10:20 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "713",
-    "bottom2": "39",
-    "firstPrize": "713",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "303",
+    "bottom2": "52",
+    "firstPrize": "303",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/lao-lottery/tv)"
   },
   {
@@ -137,10 +137,10 @@
     "closeTimeStr": "10:25 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "357",
-    "bottom2": "37",
-    "firstPrize": "357",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "954",
+    "bottom2": "78",
+    "firstPrize": "954",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)"
   },
   {
@@ -155,11 +155,11 @@
     "closeTimeStr": "10:50 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "191",
-    "bottom2": "71",
-    "firstPrize": "191",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-20)"
+    "top3": "381",
+    "bottom2": "80",
+    "firstPrize": "381",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/hsi-morning)"
   },
   {
     "id": "hanoi_hd",
@@ -173,10 +173,10 @@
     "closeTimeStr": "11:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "567",
-    "bottom2": "44",
-    "firstPrize": "567",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "728",
+    "bottom2": "08",
+    "firstPrize": "728",
+    "date": "26 พฤศจิกายน 2569",
     "source": "LotteryChecks (https://lotterychecks.com/vietnam/hd)"
   },
   {
@@ -191,10 +191,10 @@
     "closeTimeStr": "11:25 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "361",
-    "bottom2": "63",
-    "firstPrize": "361",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "267",
+    "bottom2": "74",
+    "firstPrize": "267",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)"
   },
   {
@@ -209,10 +209,10 @@
     "closeTimeStr": "12:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "988",
-    "bottom2": "74",
-    "firstPrize": "988",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "525",
+    "bottom2": "40",
+    "firstPrize": "525",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/star)"
   },
   {
@@ -227,11 +227,11 @@
     "closeTimeStr": "12:05 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "329",
-    "bottom2": "60",
-    "firstPrize": "329",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-20)"
+    "top3": "181",
+    "bottom2": "38",
+    "firstPrize": "181",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/twse)"
   },
   {
     "id": "korea_vip",
@@ -245,10 +245,10 @@
     "closeTimeStr": "12:25 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "963",
-    "bottom2": "23",
-    "firstPrize": "963",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "159",
+    "bottom2": "68",
+    "firstPrize": "159",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)"
   },
   {
@@ -263,11 +263,11 @@
     "closeTimeStr": "12:40 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "637",
-    "bottom2": "91",
-    "firstPrize": "637",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-20)"
+    "top3": "402",
+    "bottom2": "15",
+    "firstPrize": "402",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/ktop30)"
   },
   {
     "id": "nikkei_afternoon",
@@ -281,11 +281,11 @@
     "closeTimeStr": "12:50 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "665",
-    "bottom2": "56",
-    "firstPrize": "665",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-20)"
+    "top3": "916",
+    "bottom2": "54",
+    "firstPrize": "916",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/nikkei-afternoon)"
   },
   {
     "id": "nikkei_vip_afternoon",
@@ -299,10 +299,10 @@
     "closeTimeStr": "13:15 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "122",
-    "bottom2": "16",
-    "firstPrize": "122",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "990",
+    "bottom2": "72",
+    "firstPrize": "990",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)"
   },
   {
@@ -317,10 +317,10 @@
     "closeTimeStr": "13:35 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "822",
-    "bottom2": "03",
-    "firstPrize": "822",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "647",
+    "bottom2": "39",
+    "firstPrize": "647",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/lao-lottery/hd)"
   },
   {
@@ -335,11 +335,11 @@
     "closeTimeStr": "13:40 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "639",
-    "bottom2": "81",
-    "firstPrize": "639",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-20)"
+    "top3": "404",
+    "bottom2": "32",
+    "firstPrize": "404",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/szse-afternoon)"
   },
   {
     "id": "hanoi_tv",
@@ -353,10 +353,10 @@
     "closeTimeStr": "14:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "905",
-    "bottom2": "23",
-    "firstPrize": "905",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "017",
+    "bottom2": "04",
+    "firstPrize": "017",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/tv)"
   },
   {
@@ -371,10 +371,10 @@
     "closeTimeStr": "14:15 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "518",
-    "bottom2": "03",
-    "firstPrize": "518",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "892",
+    "bottom2": "99",
+    "firstPrize": "892",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)"
   },
   {
@@ -389,11 +389,11 @@
     "closeTimeStr": "14:50 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "080",
-    "bottom2": "82",
-    "firstPrize": "080",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-20)"
+    "top3": "688",
+    "bottom2": "87",
+    "firstPrize": "688",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/hsi-afternoon)"
   },
   {
     "id": "hangseng_vip_afternoon",
@@ -407,10 +407,10 @@
     "closeTimeStr": "15:15 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "247",
-    "bottom2": "75",
-    "firstPrize": "247",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "042",
+    "bottom2": "15",
+    "firstPrize": "042",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)"
   },
   {
@@ -425,10 +425,10 @@
     "closeTimeStr": "15:35 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "211",
-    "bottom2": "86",
-    "firstPrize": "211",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "539",
+    "bottom2": "76",
+    "firstPrize": "539",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/lao-lottery/star)"
   },
   {
@@ -443,11 +443,11 @@
     "closeTimeStr": "15:50 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "517",
-    "bottom2": "32",
-    "firstPrize": "517",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-20)"
+    "top3": "264",
+    "bottom2": "81",
+    "firstPrize": "264",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/sgx)"
   },
   {
     "id": "thai_stock_evening",
@@ -479,10 +479,10 @@
     "closeTimeStr": "16:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "718",
-    "bottom2": "47",
-    "firstPrize": "718",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "805",
+    "bottom2": "10",
+    "firstPrize": "805",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/redcross)"
   },
   {
@@ -497,11 +497,11 @@
     "closeTimeStr": "16:45 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "971",
-    "bottom2": "96",
-    "firstPrize": "971",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-20)"
+    "top3": "859",
+    "bottom2": "31",
+    "firstPrize": "859",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/bsesn)"
   },
   {
     "id": "singapore_vip",
@@ -515,10 +515,10 @@
     "closeTimeStr": "16:55 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "117",
-    "bottom2": "18",
-    "firstPrize": "117",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "473",
+    "bottom2": "76",
+    "firstPrize": "473",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)"
   },
   {
@@ -533,10 +533,10 @@
     "closeTimeStr": "17:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "933",
-    "bottom2": "56",
-    "firstPrize": "933",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "026",
+    "bottom2": "84",
+    "firstPrize": "026",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/union)"
   },
   {
@@ -551,10 +551,10 @@
     "closeTimeStr": "17:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "939",
-    "bottom2": "75",
-    "firstPrize": "939",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "934",
+    "bottom2": "58",
+    "firstPrize": "934",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/special)"
   },
   {
@@ -569,10 +569,10 @@
     "closeTimeStr": "18:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "302",
-    "bottom2": "91",
-    "firstPrize": "302",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "621",
+    "bottom2": "11",
+    "firstPrize": "621",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/normal)"
   },
   {
@@ -587,10 +587,10 @@
     "closeTimeStr": "19:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "882",
-    "bottom2": "35",
-    "firstPrize": "882",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "375",
+    "bottom2": "48",
+    "firstPrize": "375",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/vip)"
   },
   {
@@ -605,10 +605,10 @@
     "closeTimeStr": "19:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "960",
-    "bottom2": "42",
-    "firstPrize": "960",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "878",
+    "bottom2": "48",
+    "firstPrize": "878",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/develop)"
   },
   {
@@ -623,11 +623,11 @@
     "closeTimeStr": "20:15 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "947",
-    "bottom2": "39",
-    "firstPrize": "603947",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-21)"
+    "top3": "823",
+    "bottom2": "78",
+    "firstPrize": "823",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/laos)"
   },
   {
     "id": "lao_samakki",
@@ -641,10 +641,10 @@
     "closeTimeStr": "20:15 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "193",
-    "bottom2": "01",
-    "firstPrize": "193",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "446",
+    "bottom2": "94",
+    "firstPrize": "446",
+    "date": "26 พฤศจิกายน 2569",
     "source": "LotteryChecks (https://lotterychecks.com/laos/union)"
   },
   {
@@ -659,10 +659,10 @@
     "closeTimeStr": "20:45 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "754",
-    "bottom2": "86",
-    "firstPrize": "754",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "912",
+    "bottom2": "99",
+    "firstPrize": "912",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/lao-lottery/asean)"
   },
   {
@@ -677,10 +677,10 @@
     "closeTimeStr": "21:15 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "367",
-    "bottom2": "93",
-    "firstPrize": "367",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "304",
+    "bottom2": "23",
+    "firstPrize": "304",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/lao-lottery/vip)"
   },
   {
@@ -695,10 +695,10 @@
     "closeTimeStr": "21:15 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "168",
-    "bottom2": "31",
-    "firstPrize": "168",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "733",
+    "bottom2": "07",
+    "firstPrize": "733",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/lao-lottery/union-vip)"
   },
   {
@@ -713,10 +713,10 @@
     "closeTimeStr": "21:40 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "057",
-    "bottom2": "22",
-    "firstPrize": "057",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "396",
+    "bottom2": "47",
+    "firstPrize": "396",
+    "date": "26 พฤศจิกายน 2569",
     "source": "LotteryChecks (https://lotterychecks.com/stock-markets/england-vip)"
   },
   {
@@ -731,10 +731,10 @@
     "closeTimeStr": "21:45 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "947",
-    "bottom2": "53",
-    "firstPrize": "947",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "032",
+    "bottom2": "38",
+    "firstPrize": "032",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/lao-lottery/star-vip)"
   },
   {
@@ -749,10 +749,10 @@
     "closeTimeStr": "22:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "491",
-    "bottom2": "83",
-    "firstPrize": "491",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "725",
+    "bottom2": "69",
+    "firstPrize": "725",
+    "date": "26 พฤศจิกายน 2569",
     "source": "ผลหวย.com (https://xn--t3cmiit.com/hanoi-lottery/extra)"
   },
   {
@@ -767,11 +767,11 @@
     "closeTimeStr": "22:10 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "634",
-    "bottom2": "34",
-    "firstPrize": "634",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-20)"
+    "top3": "930",
+    "bottom2": "36",
+    "firstPrize": "930",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/ftse100)"
   },
   {
     "id": "germany",
@@ -785,11 +785,11 @@
     "closeTimeStr": "22:10 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "278",
-    "bottom2": "03",
-    "firstPrize": "278",
-    "date": "20 พฤศจิกายน 2569",
-    "source": "ThaiLottoAPI (https://thailottoapi.com/api/results?date=2026-11-20)"
+    "top3": "552",
+    "bottom2": "39",
+    "firstPrize": "552",
+    "date": "26 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/gdaxi)"
   },
   {
     "id": "russia",
@@ -821,10 +821,10 @@
     "closeTimeStr": "22:40 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "238",
-    "bottom2": "94",
-    "firstPrize": "238",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "531",
+    "bottom2": "42",
+    "firstPrize": "531",
+    "date": "26 พฤศจิกายน 2569",
     "source": "LotteryChecks (https://lotterychecks.com/stock-markets/germany-vip)"
   },
   {
@@ -857,10 +857,10 @@
     "closeTimeStr": "23:40 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "565",
-    "bottom2": "92",
-    "firstPrize": "565",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "054",
+    "bottom2": "97",
+    "firstPrize": "054",
+    "date": "26 พฤศจิกายน 2569",
     "source": "LotteryChecks (https://lotterychecks.com/stock-markets/russia-vip)"
   },
   {
@@ -875,10 +875,10 @@
     "closeTimeStr": "00:05 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "351",
-    "bottom2": "79",
-    "firstPrize": "351",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "005",
+    "bottom2": "44",
+    "firstPrize": "005",
+    "date": "26 พฤศจิกายน 2569",
     "source": "LotteryChecks (https://lotterychecks.com/stock-markets/dowjones-vip)"
   },
   {
@@ -893,10 +893,10 @@
     "closeTimeStr": "00:55 น.",
     "drawDays": "ทุกวัน (จันทร์ - อาทิตย์)",
     "status": "announced",
-    "top3": "651",
-    "bottom2": "96",
-    "firstPrize": "651",
-    "date": "25 พฤศจิกายน 2569",
+    "top3": "329",
+    "bottom2": "34",
+    "firstPrize": "329",
+    "date": "26 พฤศจิกายน 2569",
     "source": "LotteryChecks (https://lotterychecks.com/stock-markets/dowjonestar)"
   },
   {
@@ -911,11 +911,11 @@
     "closeTimeStr": "01:00 น.",
     "drawDays": "จันทร์ - ศุกร์",
     "status": "announced",
-    "top3": "709",
-    "bottom2": "40",
-    "firstPrize": "709",
-    "date": "12 พฤศจิกายน 2569",
-    "source": "ผลหวย.com (https://xn--t3cmiit.com/stock-lottery)"
+    "top3": "295",
+    "bottom2": "25",
+    "firstPrize": "295",
+    "date": "25 พฤศจิกายน 2569",
+    "source": "LotteryChecks (https://lotterychecks.com/stock-markets/dji)"
   },
   {
     "id": "thai_gov",
