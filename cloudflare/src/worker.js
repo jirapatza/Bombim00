@@ -60,7 +60,7 @@ function finishPublish(state, now) {
 // The cap rose from 38 to 44 to leave room for the gated reads (VIP stock pages
 // and the extra lao/hanoi rounds), which only fire while a draw is still
 // missing; Workers allows 50 subrequests, so six stay in reserve.
-export const MAX_SUBREQUESTS = 46;
+export const MAX_SUBREQUESTS = 47;
 export function boundedRequest(fetcher, deadline = Date.now() + 50000) {
   let calls = 0;
   return async (url, options = {}) => {

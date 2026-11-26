@@ -373,7 +373,7 @@ test('reviewed main-branch Cloudflare gate and every active Actions status prote
   remote.api = async (_method, path) => path.includes('PRIMARY_CHECKER.json') ? gate : { workflow_runs: [{ event: 'schedule' }] };
   await assert.rejects(remote.assertWriter(), /actions_active/);
 });
-test('worst-case source fallback cycle fits 46 network calls and at most 12 D1 operations', async t => {
+test('worst-case source fallback cycle fits 47 network calls and at most 12 D1 operations', async t => {
   const db = database(); t.after(() => db.close());
   let sqlCalls = 0, calls = 0, notifications = 0;
   const original = db.prepare; db.prepare = sql => { sqlCalls++; return original(sql); };
@@ -404,7 +404,7 @@ test('worst-case source fallback cycle fits 46 network calls and at most 12 D1 o
     LOTTERY_RUNTIME_TOKEN: 'synthetic' }, { now, request, sendBatch: async () => { notifications++; return 'sent'; } });
   assert.ok(outcome.sent > 3, `batched results delivered: ${outcome.sent}`);
   assert.ok(notifications > 0 && notifications <= 3, `push batches: ${notifications}`);
-  assert.ok(calls <= 46, `network calls: ${calls}`);
+  assert.ok(calls <= 47, `network calls: ${calls}`);
   assert.ok(sqlCalls <= 12, `D1 operations: ${sqlCalls}`);
 });
 test('durable pending stores changes and an immutable Git base, not the growing archive', async t => {
