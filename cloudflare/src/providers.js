@@ -320,6 +320,19 @@ function bangkokMinutes(date) {
   return hour * 60 + minute;
 }
 
+// An archived draw can carry a provider id or an older label, so an id-only check
+// missed the row that was already stored and repaired the same draw again under a
+// name of its own.
+function storedIndex(history) {
+  const byId = new Set(), bySchedule = new Set();
+  for (const row of history) {
+    const date = drawDate(row);
+    if (!date) continue;
+    if (row.หวย) byId.add(`${row.หวย}|${date}`);
+    bySchedule.add(`${scheduleName(row.ชื่อหวย || '')}|${date}`);
+  }
+  return { has: (date, id, name) => byId.has(`${id}|${date}`) || (!!name && bySchedule.has(`${scheduleName(name)}|${date}`)) };
+}
 export async function collect(settings, today, now, request, catalog = [], parked = new Set(), history = []) {
   const errors = [], waiting = [], sources = [], cfg = settings.sources || {};
   const readSource = async (source, url, parser, { json = true, lottery, slug, method = 'GET', headers: extraHeaders } = {}) => {
@@ -397,7 +410,7 @@ export async function collect(settings, today, now, request, catalog = [], parke
       { lottery: name, slug }));
   }
   const minutes = bangkokMinutes(now);
-  const storedToday = new Set(history.filter(x => drawDate(x) === today).map(x => x.หวย));
+  const stored = storedIndex(history);
   // Read a draw only once it should exist and only while its result is still
   // missing: before the close the source still shows yesterday's numbers, and
   // re-reading a stored draw every minute would eat the request budget.
@@ -405,7 +418,7 @@ export async function collect(settings, today, now, request, catalog = [], parke
     const close = String(catalog.find(x => x?.id === id)?.closeTimeStr || '').match(/(\d{1,2})[:.](\d{2})/);
     return close ? Number(close[1]) * 60 + Number(close[2]) : Number.MAX_SAFE_INTEGER;
   };
-  const due = id => !storedToday.has(id) && minutes >= closeMinutes(id);
+  const due = id => !stored.has(today, id, catalog.find(x => x?.id === id)?.name) && minutes >= closeMinutes(id);
   const gatedJobs = [];
   if (cfg.lotterychecks?.enabled) {
     for (const [slug, [id, name]] of Object.entries(GATED_ROUNDS)) {
@@ -441,14 +454,14 @@ export async function collect(settings, today, now, request, catalog = [], parke
   for (const { job } of gatedJobs.slice(0, MAX_GATED_READS)) fallback.push(job);
   const backfillJobs = [];
   if (cfg.lotterychecks?.enabled) {
-    const storedDraws = new Set(history.map(x => `${x.หวย}|${drawDate(x)}`));
+    const storedDraws = stored;
     const gaps = [];
     for (const [slug, [id, name]] of Object.entries(GATED_ROUNDS)) {
       if (!catalog.find(x => x?.id === id)?.drawDays) continue;
       for (let age = 1; age <= BACKFILL_DAYS; age++) {
         const date = bangkokDay(new Date(now.getTime() - age * 86_400_000));
         if (!scheduled({ หวย: id, งวดวันที่: date }, catalog, date)) continue;
-        if (!storedDraws.has(`${id}|${date}`)) gaps.push({ slug, id, name, date, age });
+        if (!storedDraws.has(date, id, name)) gaps.push({ slug, id, name, date, age });
         break;
       }
     }
@@ -474,7 +487,7 @@ export async function collect(settings, today, now, request, catalog = [], parke
       const missing = new Set();
       for (let age = 1; age <= BACKFILL_DAYS; age++) {
         const date = bangkokDay(new Date(now.getTime() - age * 86_400_000));
-        if (scheduled({ หวย: id, งวดวันที่: date }, catalog, date) && !storedDraws.has(`${id}|${date}`)) missing.add(date);
+        if (scheduled({ หวย: id, งวดวันที่: date }, catalog, date) && !storedDraws.has(date, id, name)) missing.add(date);
       }
       if (missing.size) stockGaps.push({ id, name, path, category: item.category || 'vip', missing,
         // A lottery with no history at all is the visible hole in the table, so it
@@ -508,7 +521,7 @@ export async function collect(settings, today, now, request, catalog = [], parke
       const missingLaos = new Set();
       for (let age = 1; age <= BACKFILL_DAYS; age++) {
         const date = bangkokDay(new Date(now.getTime() - age * 86_400_000));
-        if (!storedDraws.has(`lao_patthana|${date}`) && !storedDraws.has(`laoslotto|${date}`)) missingLaos.add(date);
+        if (!storedDraws.has(date, 'lao_patthana', 'ลาวพัฒนา')) missingLaos.add(date);
       }
       if (missingLaos.size) backfillJobs.push(async () => {
         const rows = await readSource('LotteryChecks ลาวพัฒนา', LAOS_HISTORY_PAGE,
