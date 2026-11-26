@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-26T17:45:00.000+07:00",
-  "last_run_date_thai": "26/11/2026 17:45:00",
-  "total_checks": 19645,
-  "last_source_used": "LotteryChecks Lao/Hanoi + lotterychecks + glo + LotteryChecks stock history",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 27 รายการ ส่งเตือนตามตาราง 68 รายการ รอผลจากแหล่งข้อมูล 4 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ",
+  "last_run_timestamp": "2026-11-26T17:50:00.000+07:00",
+  "last_run_date_thai": "26/11/2026 17:50:00",
+  "total_checks": 19646,
+  "last_source_used": "LotteryChecks Lao/Hanoi + lotterychecks + LotteryChecks VIP stock + glo",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 9 รายการ ส่งสำเร็จ 29 รายการ ส่งเตือนตามตาราง 68 รายการ รอผลจากแหล่งข้อมูล 3 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 9 รายการ",
   "active_sources_count": 4,
   "latest_draw_detected": "2026-11-26",
-  "notifications_sent_today": 27,
+  "notifications_sent_today": 29,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-26T17:50:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 9 รายการ ส่งสำเร็จ 29 รายการ ส่งเตือนตามตาราง 68 รายการ รอผลจากแหล่งข้อมูล 3 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 9 รายการ"
+    },
     {
       "timestamp": "2026-11-26T17:45:00.000+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-26T16:15:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 24 รายการ ส่งเตือนตามตาราง 57 รายการ รอผลจากแหล่งข้อมูล 3 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ"
-    },
-    {
-      "timestamp": "2026-11-26T16:10:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 24 รายการ ส่งเตือนตามตาราง 57 รายการ รอผลจากแหล่งข้อมูล 3 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
@@ -132,11 +132,6 @@
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ฮานอยสามัคคี",
         "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพิเศษ",
-        "status": 404
       }
     ],
     "errors": []
@@ -147,7 +142,7 @@
     "mode": "shadow",
     "min_sources": 2,
     "verified": 0,
-    "pending": 7,
+    "pending": 9,
     "conflicts": 0,
     "unmapped": 0
   },
