@@ -5,8 +5,6 @@ Lottery Alert System: สคริปต์ตรวจสอบผลสลา�
 """
 
 import os
-import sys
-import base64
 import json
 import re
 import datetime
@@ -756,7 +754,7 @@ def send_ntfy_notification(row: dict) -> bool:
             print("[SUCCESS] ntfy accepted a structured UTF-8 notification.")
             return True
         else:
-            print(f"[ERROR] Failed posting JSON to ntfy.")
+            print("[ERROR] Failed posting JSON to ntfy.")
     except Exception as e:
         print(f"[ERROR] Failed to send ntfy notification: {e}")
 

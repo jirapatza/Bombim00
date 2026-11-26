@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { History, TrendingUp, Search, X, Copy, Check, BarChart3 } from 'lucide-react';
 import { RawLotteryResult, FrequencyStat } from '../types/lottery';
-import { StatKind, DigitStat, hottest, coldest, longestGap, countDraws } from '../utils/statistics';
+import { StatKind, hottest, coldest, longestGap } from '../utils/statistics';
 import { LotteryRepository } from '../data/lotteryRepository';
 import { copyText } from '../utils/socialShare';
 import { formatThaiDate } from '../utils/freshness';
