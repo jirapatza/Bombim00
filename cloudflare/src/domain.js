@@ -146,8 +146,7 @@ export function dueScheduleAlerts(catalog, today, now) {
 }
 
 const catalogIndexes = new WeakMap();
-export function scheduled(row, catalog, today) {
-  if (drawDate(row) !== today) return false;
+function catalogIndex(catalog) {
   let index = catalogIndexes.get(catalog);
   if (!index) {
     index = { ids: new Map(), names: new Map() };
@@ -158,7 +157,18 @@ export function scheduled(row, catalog, today) {
     }
     catalogIndexes.set(catalog, index);
   }
-  const item = index.ids.get(row.หวย) || index.names.get(scheduleName(rawName(row)));
+  return index;
+}
+// Archive rows carry the id and label of whoever stored them first, so a draw is
+// matched by its schedule name as well.
+export function catalogItem(row, catalog) {
+  if (!row || !Array.isArray(catalog)) return null;
+  const index = catalogIndex(catalog);
+  return index.ids.get(row.หวย) || index.names.get(scheduleName(rawName(row))) || null;
+}
+export function scheduled(row, catalog, today) {
+  if (drawDate(row) !== today) return false;
+  const item = catalogItem(row, catalog);
   if (!item) return false;
   const rule = drawRule(item);
   if (rule === 'ตามประกาศวันงวดจริง (อาจเลื่อน)') return numbers(row).every(Boolean) && (item.id !== 'thai_gov' || /^[0-9]{6}$/.test(row.รางวัลที่_1 || ''));
