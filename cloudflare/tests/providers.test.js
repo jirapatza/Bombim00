@@ -352,3 +352,20 @@ test('a stock page repairs every missing draw of its lottery in one read', async
     'only the missing, expected draw inside the window is kept');
   assert.equal(backfill[0].หมวดหวย, 'foreign_stock', 'the catalog category is kept, so the same draw is not stored twice');
 });
+
+test('a lottery with no history at all is repaired before one missing a single draw', async () => {
+  const catalog = [
+    { id: 'korea', name: 'เกาหลี', category: 'foreign_stock', closeTimeStr: '18:00 น.', drawDays: 'จันทร์ - ศุกร์' },
+    { id: 'russia', name: 'รัสเซีย', category: 'foreign_stock', closeTimeStr: '18:00 น.', drawDays: 'จันทร์ - ศุกร์' },
+  ];
+  const page = `<table><tr><td>งวดวันที่ 2 พฤศจิกายน 2569</td><td>111</td><td>22</td></tr></table>`;
+  const pages = [];
+  const request = async url => { if (String(url).includes('/stock-markets/')) pages.push(String(url)); return new Response(page); };
+  const history = [{ หวย: 'korea', งวดวันที่: '2 พฤศจิกายน 2569', เลขบน_3_ตัว: '999', เลขล่าง_2_ตัว: '99', หมวดหวย: 'stock' }];
+  await collect({ sources: { lotterychecks: { enabled: true } } }, today, new Date(`${today}T21:00:00+07:00`),
+    request, catalog, new Set(), history);
+
+  assert.ok(pages.some(u => u.includes(CHECKS_STOCK_PAGES.russia[1])), 'รัสเซีย, which has no history, is repaired first');
+  assert.ok(!pages.some(u => u.includes(CHECKS_STOCK_PAGES.korea[1]) && pages.indexOf(u) < pages.findIndex(x => x.includes(CHECKS_STOCK_PAGES.russia[1]))),
+    'เกาหลี, which already has history, waits behind it');
+});
