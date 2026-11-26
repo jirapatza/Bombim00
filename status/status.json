@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-26T19:40:00.000+07:00",
-  "last_run_date_thai": "26/11/2026 19:40:00",
-  "total_checks": 19668,
+  "last_run_timestamp": "2026-11-26T19:45:00.000+07:00",
+  "last_run_date_thai": "26/11/2026 19:45:00",
+  "total_checks": 19669,
   "last_source_used": "LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 32 รายการ ส่งเตือนตามตาราง 74 รายการ รอผลจากแหล่งข้อมูล 3 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 32 รายการ ส่งเตือนตามตาราง 74 รายการ รอผลจากแหล่งข้อมูล 3 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ",
   "active_sources_count": 3,
   "latest_draw_detected": "2026-11-26",
   "notifications_sent_today": 32,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-26T19:45:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 32 รายการ ส่งเตือนตามตาราง 74 รายการ รอผลจากแหล่งข้อมูล 3 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ"
+    },
     {
       "timestamp": "2026-11-26T19:40:00.000+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-26T18:10:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 30 รายการ ส่งเตือนตามตาราง 69 รายการ รอผลจากแหล่งข้อมูล 4 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ"
-    },
-    {
-      "timestamp": "2026-11-26T18:05:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 8 รายการ ส่งสำเร็จ 30 รายการ ส่งเตือนตามตาราง 69 รายการ รอผลจากแหล่งข้อมูล 4 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 8 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
@@ -120,12 +120,12 @@
     "waiting": [
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
+        "lottery": "ฮานอยพัฒนา",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอยพัฒนา",
+        "lottery": "ลาวสามัคคี",
         "status": 404
       },
       {
@@ -134,7 +134,13 @@
         "status": 404
       }
     ],
-    "errors": []
+    "errors": [
+      {
+        "source": "ThaiLottoAPI",
+        "status": 429,
+        "reason": "http"
+      }
+    ]
   },
   "active_uncertain_deliveries": 0,
   "old_uncertain_deliveries": 1,
@@ -158,8 +164,8 @@
   ],
   "source_backoff": {
     "ThaiLottoAPI": {
-      "failures": 24,
-      "until": 1795697152594
+      "failures": 25,
+      "until": 1795698952643
     }
   }
 }
