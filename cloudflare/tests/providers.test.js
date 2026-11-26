@@ -263,6 +263,19 @@ test('gated rounds are read only after their close and only while missing', asyn
   assert.deepEqual(gated(), [], 'a stored draw is not read again');
 });
 
+test('a draw archived under an older label counts as stored, so it is not repaired again', async () => {
+  const catalog = Object.values(GATED_ROUNDS).map(([id, name]) => ({ id, name, closeTimeStr: '20:45 น.' }));
+  const calls = [];
+  const request = async url => { calls.push(url); return new Response('{}'); };
+  const stored = Object.values(GATED_ROUNDS).map(([id, name]) => ({ หวย: `${id}_legacy`, ชื่อหวย: name,
+    งวดวันที่: today, เลขบน_3_ตัว: '605', เลขล่าง_2_ตัว: '86' }));
+  await collect({ sources: { lotterychecks: { enabled: true } } }, today, new Date(`${today}T21:00:00+07:00`),
+    request, catalog, new Set(), stored);
+  const gatedCalls = calls.filter(x => x.includes('lottery=') && x.includes(`date=${today}`) &&
+    !x.includes('thai-government') && !rounds[x.split('lottery=')[1].split('&')[0]]);
+  assert.deepEqual(gatedCalls, [], 'the id changed but the draw is the same one');
+});
+
 test('a capped cycle serves the earliest deadlines first and never exceeds the cap', async () => {
   const ids = Object.keys(CHECKS_STOCK_PAGES);
   const catalog = ids.map((id, i) => ({ id, name: id, closeTimeStr: `${String(10 + i).padStart(2, '0')}:00 น.` }));
