@@ -419,12 +419,23 @@ export async function collect(settings, today, now, request, catalog = [], parke
         empty: (archived.get(id) || 0) === 0 });
     }
     stockGaps.sort((a, b) => Number(b.empty) - Number(a.empty) || b.missing.size - a.missing.size || a.id.localeCompare(b.id));
-    if (stockGaps.length) {
-      const pick = stockGaps[Math.floor(now.getTime() / 300_000) % stockGaps.length];
+    // Rotate inside the empty group while it lasts, so those pages are not left
+    // waiting behind a rotation over all 28 of them.
+    const pool = stockGaps.some(x => x.empty) ? stockGaps.filter(x => x.empty) : stockGaps;
+    if (pool.length) {
+      const pick = pool[Math.floor(now.getTime() / 300_000) % pool.length];
       backfillJobs.push(async () => {
         const rows = await readSource('LotteryChecks stock history', `https://lotterychecks.com${pick.path}`,
-          x => parseChecksStockHistory(x, pick.id, now, pick.category).filter(r => pick.missing.has(drawDate(r))),
-          { lottery: pick.name, json: false });
+          x => {
+            const parsed = parseChecksStockHistory(x, pick.id, now, pick.category);
+            const inWindow = parsed.filter(r => pick.missing.has(drawDate(r)));
+            // A lottery with nothing archived at all gets its newest published draw
+            // even when it falls outside the window: a stale row beats an empty table,
+            // and the page then leaves the repair queue instead of being retried forever.
+            if (!pick.empty || inWindow.length) return inWindow;
+            const newest = parsed.reduce((best, r) => (!best || String(drawDate(r)) > String(drawDate(best)) ? r : best), null);
+            return newest ? [newest] : [];
+          }, { lottery: pick.name, json: false });
         return rows.map(x => ({ ...x, สถานะการแจ้งเตือน: 'backfilled' }));
       });
     }
