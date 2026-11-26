@@ -32,13 +32,6 @@ export interface Announcement {
 
 export const WARN_MINUTES = [10, 5] as const;
 
-export const kindLabels: Record<AnnouncementKind, string> = {
-  "closing-soon": "ใกล้ปิดรับ",
-  closed: "ปิดรับแล้ว",
-  "next-draw": "รายการถัดไป",
-  result: "ประกาศผล",
-};
-
 const timeLabel = (at: number): string => {
   const d = bangkokNow(at);
   return `${String(Math.floor(d.minutes / 60)).padStart(2, "0")}:${String(d.minutes % 60).padStart(2, "0")} น.`;

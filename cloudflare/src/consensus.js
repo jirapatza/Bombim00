@@ -1,16 +1,6 @@
-import { drawDate, numbers, rawName, scheduleName } from './domain.js';
+import { catalogItem, drawDate, numbers } from './domain.js';
 
 const SOURCE_FAMILIES = new Set(['thailottoapi', 'pholhuay', 'lotterychecks', 'glo', 'ranlotto']);
-
-function catalogIndex(catalog) {
-  const ids = new Map(), names = new Map();
-  for (const item of catalog) {
-    if (item?.id && !ids.has(item.id)) ids.set(item.id, item);
-    const name = scheduleName(item?.name || '');
-    if (name && !names.has(name)) names.set(name, item);
-  }
-  return { ids, names };
-}
 function sourceFamily(row) {
   const explicit = String(row.source_family || '').trim().toLowerCase();
   if (explicit) return SOURCE_FAMILIES.has(explicit) ? explicit : '';
@@ -29,10 +19,10 @@ function groupKey(item, date) {
 
 export function evaluateConsensus(rows, catalog, minSources = 2) {
   if (!Number.isInteger(minSources) || minSources < 2 || minSources > 5) throw new Error('invalid_min_sources');
-  const index = catalogIndex(catalog), grouped = new Map(), unmapped = [];
+  const grouped = new Map(), unmapped = [];
   for (const candidate of rows) {
     const date = drawDate(candidate), family = sourceFamily(candidate), [top3, bottom2] = numbers(candidate);
-    const item = index.ids.get(candidate.หวย) || index.names.get(scheduleName(rawName(candidate)));
+    const item = catalogItem(candidate, catalog);
     if (!item || !date || !family || !top3 || !bottom2) {
       unmapped.push({ row: candidate, reason: !item ? 'catalog' : !family ? 'source_family' : 'result' });
       continue;

@@ -123,11 +123,65 @@ function drawDate(result: RawLotteryResult): string {
   return '';
 }
 
+/** Delivery states that mean the collector published the draw, not repaired it. */
+const PUBLISHED = new Set(['sent', 'queued', 'announced', '']);
+
+const isPublished = (row: RawLotteryResult): boolean => PUBLISHED.has(row.สถานะการแจ้งเตือน ?? '');
+
+const hasResult = (row: RawLotteryResult): boolean =>
+  /^\d{2}$/.test(getResolvedBottom2(row)) &&
+  (!!explicitTop3(row) || /^\d{6}$/.test(getResolvedFirstPrize(row)));
+
 /**
- * Latest verified result stored on the catalog entry itself. It is only used
- * when no result for today exists, so a stale row is never shown as today's.
+ * Newest archived result per catalog id. The checker rewrites the archive every
+ * five minutes but the catalog once a day, so the archive can run ahead of it;
+ * without this the cards show the older draw the catalog still holds.
  */
-function storedResult(item: LotteryCatalogItem): LotteryCatalogItem | null {
+function latestArchived(catalog: LotteryCatalogItem[], results: RawLotteryResult[]): Map<string, RawLotteryResult> {
+  const byId = new Map(catalog.map((item) => [item.id, item]));
+  const byName = new Map<string, LotteryCatalogItem>();
+  for (const item of catalog) {
+    const key = normalizeName(item.name);
+    if (key && !byName.has(key)) byName.set(key, item);
+  }
+  const newest = new Map<string, RawLotteryResult>();
+  for (const row of results) {
+    if (!hasResult(row)) continue;
+    const date = drawDate(row);
+    const item = byId.get(row.หวย ?? '') ?? byName.get(normalizeName(getDisplayName(row)));
+    if (!date || !item) continue;
+    const current = newest.get(item.id);
+    if (!current) { newest.set(item.id, row); continue; }
+    const currentDate = drawDate(current);
+    if (date > currentDate || (date === currentDate && !isPublished(current) && isPublished(row))) {
+      newest.set(item.id, row);
+    }
+  }
+  return newest;
+}
+
+function archivedResult(item: LotteryCatalogItem, row: RawLotteryResult): LotteryCatalogItem {
+  const firstPrize = getResolvedFirstPrize(row);
+  const hasFirstPrize = /^\d{6}$/.test(firstPrize);
+  return {
+    ...item,
+    status: 'drawn',
+    // Government adapters carry the six-digit first prize instead of a three-digit one.
+    top3: ['thai_gov', 'gsb', 'baac'].includes(item.id) && hasFirstPrize ? '' : row.เลขบน_3_ตัว ?? '',
+    bottom2: getResolvedBottom2(row),
+    firstPrize: hasFirstPrize ? firstPrize : '',
+    front3: row.เลขหน้า_3_ตัว ?? item.front3,
+    back3: row.เลขท้าย_3_ตัว ?? item.back3,
+    threeDigits: row.threeDigits ?? item.threeDigits,
+    date: getDisplayDate(row),
+    resultDate: drawDate(row),
+    detectedAt: row.เวลาที่ตรวจพบ,
+    source: row.แหล่งข้อมูล || 'ผลตรวจล่าสุด',
+  };
+}
+
+/** The result the catalog entry itself carries, if it is usable. */
+function catalogResult(item: LotteryCatalogItem): LotteryCatalogItem | null {
   const resultDate = drawDate({ งวดวันที่: item.date } as RawLotteryResult);
   if (
     item.status !== 'announced' || !resultDate ||
@@ -136,29 +190,41 @@ function storedResult(item: LotteryCatalogItem): LotteryCatalogItem | null {
   return { ...item, status: 'drawn', resultDate, date: item.date };
 }
 
+/**
+ * Latest verified result for a lottery: whichever of the catalog entry and the
+ * archive holds the newer draw. It is only used when no result for today exists,
+ * so a stale row is never shown as today's.
+ */
+function storedResult(item: LotteryCatalogItem, own: LotteryCatalogItem | null, archived?: RawLotteryResult): LotteryCatalogItem | null {
+  const archivedDate = archived ? drawDate(archived) : '';
+  if (archived && archivedDate && archivedDate > (own?.resultDate ?? '')) return archivedResult(item, archived);
+  return own;
+}
+
 export function mergeCatalogWithResults(
   catalog: LotteryCatalogItem[],
   results: RawLotteryResult[],
   now = new Date(),
 ): LotteryCatalogItem[] {
   const today = bangkokDateKey(now);
-  const current = results.filter((row) =>
-    drawDate(row) === today && /^\d{2}$/.test(getResolvedBottom2(row)) &&
-    (/^\d{3}$/.test(row.เลขบน_3_ตัว ?? '') || /^\d{6}$/.test(row.รางวัลที่_1 ?? ''))
-  );
+  const current = results.filter((row) => drawDate(row) === today && hasResult(row));
+  const archived = latestArchived(catalog, results);
   return catalog.flatMap((item) => {
     const rule = item.drawDays.trim().replace(/\s*-\s*/g, ' - ');
     const irregular = rule === 'ตามประกาศวันงวดจริง (อาจเลื่อน)';
     const weekday = new Date(today + 'T00:00:00Z').getUTCDay();
-    const stored = storedResult(item);
-    if (!irregular && !drawWeekdays[rule]?.includes(weekday)) return stored ? [stored] : [];
+    // The catalog decides whether an entry is shown at all; the archive only
+    // refreshes the numbers it shows.
+    const own = catalogResult(item);
+    const stored = storedResult(item, own, archived.get(item.id));
+    if (!irregular && !drawWeekdays[rule]?.includes(weekday)) return own && stored ? [stored] : [];
     const name = normalizeName(item.name);
     const eligible = item.id === 'thai_gov'
       ? current.filter((row) => /^\d{6}$/.test(row.รางวัลที่_1 ?? ''))
       : current;
     const matched = eligible.find((row) => row.หวย === item.id) ??
       eligible.find((row) => name && name === normalizeName(getDisplayName(row)));
-    if (irregular && !matched) return stored ? [stored] : [];
+    if (irregular && !matched) return own && stored ? [stored] : [];
     if (!matched) {
       return stored ?? { ...item, status: 'waiting', top3: '', bottom2: '', firstPrize: '', date: 'ไม่ระบุ', resultDate: undefined };
     }

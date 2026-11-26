@@ -119,6 +119,47 @@ test('a catalog entry with a verified stored result keeps showing it as the late
   assert.equal(items[0].bottom2, '32');
 });
 
+test('a card follows the archive when the catalog is a day behind', () => {
+  const catalog = [{id:'china_morning',name:'จีนเช้า',drawDays:'จันทร์ - ศุกร์',drawTimeStr:'11:00',status:'announced',
+    top3:'576',bottom2:'44',firstPrize:'576',date:'20 พฤศจิกายน 2569',source:'ผลหวย.com'}];
+  const archive = [{หวย:'china_morning',ชื่อหวย:'จีนเช้า',งวดวันที่:'2026-11-26',เลขบน_3_ตัว:'172',เลขล่าง_2_ตัว:'36',
+    สถานะการแจ้งเตือน:'sent',แหล่งข้อมูล:'LotteryChecks'}];
+  const [card] = mergeCatalogWithResults(catalog, archive, new Date('2026-11-27T03:00:00Z'));
+  assert.equal(card.resultDate, '2026-11-26', 'the newer archived draw is the latest result');
+  assert.deepEqual([card.top3, card.bottom2], ['172', '36']);
+});
+
+test('an archived draw older than the catalog entry does not win', () => {
+  const catalog = [{id:'china_morning',name:'จีนเช้า',drawDays:'จันทร์ - ศุกร์',drawTimeStr:'11:00',status:'announced',
+    top3:'172',bottom2:'36',firstPrize:'172',date:'26 พฤศจิกายน 2569',source:'LotteryChecks'}];
+  const archive = [{หวย:'china_morning',ชื่อหวย:'จีนเช้า',งวดวันที่:'2026-11-20',เลขบน_3_ตัว:'576',เลขล่าง_2_ตัว:'44',
+    สถานะการแจ้งเตือน:'sent'}];
+  const [card] = mergeCatalogWithResults(catalog, archive, new Date('2026-11-27T03:00:00Z'));
+  assert.equal(card.resultDate, '2026-11-26');
+  assert.deepEqual([card.top3, card.bottom2], ['172', '36']);
+});
+
+test('an archived draw is matched by its label when the id changed', () => {
+  const catalog = [{id:'china_morning',name:'จีนเช้า',drawDays:'จันทร์ - ศุกร์',drawTimeStr:'11:00',status:'announced',
+    top3:'576',bottom2:'44',firstPrize:'576',date:'20 พฤศจิกายน 2569',source:'ผลหวย.com'}];
+  const archive = [{หวย:'หวยหุ้นจีนเช้า',ชื่อหวย:'หวยหุ้นจีนเช้า',งวดวันที่:'2026-11-26',เลขบน_3_ตัว:'172',เลขล่าง_2_ตัว:'36',
+    สถานะการแจ้งเตือน:'backfilled'}];
+  const [card] = mergeCatalogWithResults(catalog, archive, new Date('2026-11-27T03:00:00Z'));
+  assert.equal(card.resultDate, '2026-11-26', 'an older provider label still belongs to จีนเช้า');
+  assert.equal(card.top3, '172');
+});
+
+test('a published draw beats a repair of the same draw', () => {
+  const catalog = [{id:'china_morning',name:'จีนเช้า',drawDays:'จันทร์ - ศุกร์',drawTimeStr:'11:00',status:'announced',
+    top3:'576',bottom2:'44',firstPrize:'576',date:'20 พฤศจิกายน 2569',source:'ผลหวย.com'}];
+  const archive = [
+    {หวย:'china_morning',ชื่อหวย:'จีนเช้า',งวดวันที่:'2026-11-26',เลขบน_3_ตัว:'999',เลขล่าง_2_ตัว:'99',สถานะการแจ้งเตือน:'backfilled'},
+    {หวย:'china_morning',ชื่อหวย:'จีนเช้า',งวดวันที่:'2026-11-26',เลขบน_3_ตัว:'172',เลขล่าง_2_ตัว:'36',สถานะการแจ้งเตือน:'sent'},
+  ];
+  const [card] = mergeCatalogWithResults(catalog, archive, new Date('2026-11-27T03:00:00Z'));
+  assert.deepEqual([card.top3, card.bottom2], ['172', '36'], 'the announced numbers win over a repair');
+});
+
 test('a stored result never replaces the real result of the current draw', () => {
   const catalog = [{id:'lao_extra',name:'ลาว EXTRA',drawDays:'ทุกวัน (จันทร์ - อาทิตย์)',drawTimeStr:'08:30',status:'announced',top3:'680',bottom2:'32',firstPrize:'680',date:'20 พฤศจิกายน 2569',source:'old'}];
   const today = [{ชื่อหวย:'ลาว EXTRA',งวดวันที่:'2026-11-21',รางวัลที่_1:'111',เลขบน_3_ตัว:'111',เลขล่าง_2_ตัว:'22'}];
