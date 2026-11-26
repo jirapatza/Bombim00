@@ -205,6 +205,28 @@ export function parseLaos(html, now = new Date()) {
   return [...found.values()];
 }
 
+export const GSB_PAGE = 'https://lotterychecks.com/gsb';
+// สลากออมสิน publishes a seven-digit first prize plus a four-digit and a
+// three-digit tail. ThaiLottoAPI throttles, so the draw needs a page of its own
+// to have a second source. The archive has always carried it as the last three
+// digits of the first prize and the last two of the three-digit tail — 16 Nov
+// 2026 is 8980716 -> 716 with tail 807 -> 07, exactly the stored row — so
+// reading the page this way cannot drift from the old source.
+export function parseGsb(html, now = new Date()) {
+  if (typeof html !== 'string') return [];
+  const page = text(html);
+  const date = page.match(/งวดวันที่\s*(\d{1,2}\s+\S+\s+\d{4})/);
+  if (!date || !drawDate({ งวดวันที่: date[1] })) return [];
+  const rest = page.slice(date.index);
+  const first = rest.match(/อันดับที่\s*1\s*:?\s*([0-9]{7})(?![0-9])/);
+  const tail = rest.match(/เลขท้าย 3 ตัว\s*:?\s*([0-9]{3})(?![0-9])/);
+  if (!first || !tail) return [];
+  // Category and name must match the API row, or the archive would keep the same
+  // draw twice under two fingerprints.
+  return [row('หวยออมสิน', 'gsb', 'government', date[1], first[1].slice(-3), tail[1].slice(-2),
+    'LotteryChecks (https://lotterychecks.com/gsb)', now, { source_family: 'lotterychecks', รางวัลที่_1: first[1] })];
+}
+
 export function parseExtra(html, today, now = new Date()) {
   if (![...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)].some(m => /ลาว\s*extra/i.test(text(m[1])))) return [];
   const rows = [], seen = new Set();
@@ -380,6 +402,10 @@ export async function collect(settings, today, now, request, catalog = [], parke
     if (catalog.some(x => x?.id === 'lao_patthana') && due('lao_patthana')) {
       gatedJobs.push({ id: 'lao_patthana', close: closeMinutes('lao_patthana'), job: () => readSource('LotteryChecks ลาวพัฒนา',
         LAOS_PAGE, x => parseLaos(x, now).filter(r => drawDate(r) === today), { lottery: 'ลาวพัฒนา', json: false }) });
+    }
+    if (catalog.some(x => x?.id === 'gsb') && due('gsb')) {
+      gatedJobs.push({ id: 'gsb', close: closeMinutes('gsb'), job: () => readSource('LotteryChecks ออมสิน',
+        GSB_PAGE, x => parseGsb(x, now).filter(r => drawDate(r) === today), { lottery: 'หวยออมสิน', json: false }) });
     }
     for (const [id, [name, path]] of Object.entries(CHECKS_STOCK_PAGES)) {
       const category = catalog.find(x => x?.id === id)?.category || 'vip';
