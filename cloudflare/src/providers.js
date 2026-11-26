@@ -403,7 +403,8 @@ export async function collect(settings, today, now, request, catalog = [], parke
     });
     // One stock page per cycle: it carries 30 rounds, so a single read repairs a
     // whole week for that lottery. The page with the most missing draws goes first.
-    const stockGaps = [];
+    const stockGaps = [], archived = new Map();
+    for (const x of history) archived.set(x.หวย, (archived.get(x.หวย) || 0) + 1);
     for (const [id, [name, path]] of Object.entries(CHECKS_STOCK_PAGES)) {
       const item = catalog.find(x => x?.id === id);
       if (!item?.drawDays) continue;
@@ -412,9 +413,12 @@ export async function collect(settings, today, now, request, catalog = [], parke
         const date = bangkokDay(new Date(now.getTime() - age * 86_400_000));
         if (scheduled({ หวย: id, งวดวันที่: date }, catalog, date) && !storedDraws.has(`${id}|${date}`)) missing.add(date);
       }
-      if (missing.size) stockGaps.push({ id, name, path, category: item.category || 'vip', missing });
+      if (missing.size) stockGaps.push({ id, name, path, category: item.category || 'vip', missing,
+        // A lottery with no history at all is the visible hole in the table, so it
+        // jumps the queue ahead of one that is merely missing a few recent draws.
+        empty: (archived.get(id) || 0) === 0 });
     }
-    stockGaps.sort((a, b) => b.missing.size - a.missing.size || a.id.localeCompare(b.id));
+    stockGaps.sort((a, b) => Number(b.empty) - Number(a.empty) || b.missing.size - a.missing.size || a.id.localeCompare(b.id));
     if (stockGaps.length) {
       const pick = stockGaps[Math.floor(now.getTime() / 300_000) % stockGaps.length];
       backfillJobs.push(async () => {
