@@ -4,6 +4,7 @@ import { ThaiTtsService } from "./thaiTts";
 import {
   Announcement,
   announcementText,
+  backlogKeys,
   closingHeadline,
   closingQueue,
   planAnnouncements,
@@ -105,12 +106,28 @@ export function useAnnouncer({ items, enabled, rate, onAnnounce }: AnnouncerOpti
     });
   }, []);
 
+  /** False until the first plan after a cold start or after the tab wakes. */
+  const listening = useRef(false);
+
   useEffect(() => {
     const tick = () => {
       const at = Date.now();
       setNow(at);
       if (!enabledRef.current) return;
-      const fresh = unseenAnnouncements(planAnnouncements(itemsRef.current, at), seen.current)
+      const planned = planAnnouncements(itemsRef.current, at);
+      if (!listening.current) {
+        // Whatever already happened while the app was closed or the phone was
+        // locked stays on the screen but is not read out; only news that arrives
+        // from now on is spoken. Without this the first look recited the whole
+        // day, and each sentence was already stale by the time it was heard.
+        listening.current = true;
+        const backlog = backlogKeys(planned);
+        if (backlog.length) {
+          seen.current = [...seen.current, ...backlog].slice(-SEEN_LIMIT);
+          saveSeen(seen.current);
+        }
+      }
+      const fresh = unseenAnnouncements(planned, seen.current)
         .filter((a) => !pending.current.has(a.key));
       if (!fresh.length) return;
       for (const announcement of fresh) {
@@ -132,6 +149,9 @@ export function useAnnouncer({ items, enabled, rate, onAnnounce }: AnnouncerOpti
     const onVisible = () => {
       if (document.visibilityState === "visible") {
         setNow(Date.now());
+        // Coming back from the background is the same situation as a cold start:
+        // everything that happened while away is history, not an announcement.
+        listening.current = false;
       } else {
         ThaiTtsService.stop();
         speaking.current = false;
