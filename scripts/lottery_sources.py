@@ -420,7 +420,8 @@ CATALOG_SOURCES = {
     "hangseng_vip_afternoon": ("stock", "stock_vip", r"ฮั่งเส็ง VIP บ่าย"),
     "lao_star": ("page", "/lao-lottery/star"),
     "singapore": ("tla", "stocksingapore"),
-    "thai_stock_evening": ("tla", "stockthai4"),
+    # ThaiLottoAPI throttles this round too; the ผลหวย.com card still publishes it.
+    "thai_stock_evening": ("tla_or_stock", "stockthai4", "stock", "ไทยเย็น$"),
     "hanoi_redcross": ("page", "/hanoi-lottery/redcross"),
     "india": ("tla", "stockindia"),
     "singapore_vip": ("stock", "stock_vip", r"สิงคโปร์ VIP"),

@@ -193,6 +193,14 @@ def test_resolve_reports_reason_when_lotterychecks_page_is_missing():
     assert "LotteryChecks" in reason
 
 
+def test_thai_evening_falls_back_to_its_stock_card():
+    card = sources.Record(top3="844", bottom2="06", draw_date="2026-11-26",
+                          source="ผลหวย.com stock", label="หวยหุ้นไทยเย็น", extra={"group": "stock"})
+    result, reason = sources.resolve("thai_stock_evening", {"tla": {}, "stocks": [card], "pages": {}, "checks": {}})
+    assert reason == ""
+    assert (result["top3"], result["bottom2"]) == ("844", "06")
+
+
 def test_laos_page_reads_the_four_digit_tail():
     html = """<div class="card">งวดวันที่ 25 พฤศจิกายน 2569 <b>เลขท้าย 4 ตัว</b> 1801</div>
               <div class="card">งวดวันที่ 26 พฤศจิกายน 2569 <b>เลขท้าย 4 ตัว</b> 7823</div>"""
