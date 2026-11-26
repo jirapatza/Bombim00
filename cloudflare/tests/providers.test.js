@@ -123,7 +123,8 @@ test('stock cards carry the catalog id instead of their Thai label', () => {
     '<h3>หวยหุ้นใหม่ที่ยังไม่มีในสารบัญ</h3><p>งวด 3 พฤศจิกายน 2569</p><p>3 ตัวบน 123</p><p>2 ตัวล่าง 45</p>';
   const rows = parseStocks(html, now, catalog);
   assert.equal(rows[0].หวย, 'nikkei_morning');
-  assert.equal(rows[0].ชื่อหวย, 'หวยหุ้นนิคเคอิเช้า');
+  // The catalog name wins, so every provider names the draw the same way.
+  assert.equal(rows[0].ชื่อหวย, 'นิเคอิรอบเช้า');
   // An unknown label must still be published, keeping the previous behaviour.
   assert.equal(rows[1].หวย, 'หวยหุ้นใหม่ที่ยังไม่มีในสารบัญ');
   // Without a catalog the parser stays backward compatible.
@@ -136,8 +137,13 @@ test('a stock card takes the catalog category, so the API row for the same draw 
   const [page] = parseStocks(html, now, catalog);
   // The page's own heading is "ต่างประเทศ", the catalog says foreign_stock.
   assert.equal(page.หมวดหวย, 'foreign_stock');
-  const apiRow = { หวย: 'stockchina1', ชื่อหวย: 'หวยหุ้นจีนเช้า', หมวดหวย: 'foreign_stock',
-    วันที่จัดรูปแบบ: '2026-11-03', เลขบน_3_ตัว: '087', เลขล่าง_2_ตัว: '50' };
+  assert.equal(page.ชื่อหวย, 'จีนรอบเช้า');
+  const [apiRow] = parseThaiApi({ ok: true, categories: { stock: { items: [{ key: 'stockchina1',
+    label: 'หวยหุ้นจีนเช้า', drawDate: '2026-11-03', drawDateDisplay: '3 พฤศจิกายน 2569',
+    status: 'success', result: '087-50' }] } } }, now, catalog);
+  // The API labels it differently; both must still name the draw the catalog way.
+  assert.equal(apiRow.หวย, 'china_morning');
+  assert.equal(apiRow.ชื่อหวย, 'จีนรอบเช้า');
   // Same fingerprint, so the archive keeps one row instead of the same draw twice.
   assert.equal(fingerprint(page), fingerprint(apiRow));
   // An unknown label keeps the group heading it was published under.
