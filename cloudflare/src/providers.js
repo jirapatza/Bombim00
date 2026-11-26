@@ -1,4 +1,4 @@
-import { bangkokDay, canonical, disallowed, drawDate, numbers, scheduleName, scheduled } from './domain.js';
+import { catalogItem, bangkokDay, canonical, disallowed, drawDate, numbers, scheduleName, scheduled } from './domain.js';
 
 export const rounds = {
   'lao-union': ['lao_samakki', 'ลาวสามัคคี', 'lao'],
@@ -480,7 +480,10 @@ export async function collect(settings, today, now, request, catalog = [], parke
     // One stock page per cycle: it carries 30 rounds, so a single read repairs a
     // whole week for that lottery. The page with the most missing draws goes first.
     const stockGaps = [], archived = new Map();
-    for (const x of history) archived.set(x.หวย, (archived.get(x.หวย) || 0) + 1);
+    for (const x of history) {
+      const key = catalogItem(x, catalog)?.id || x.หวย;
+      if (key) archived.set(key, (archived.get(key) || 0) + 1);
+    }
     for (const [id, [name, path]] of Object.entries(CHECKS_STOCK_PAGES)) {
       const item = catalog.find(x => x?.id === id);
       if (!item?.drawDays) continue;

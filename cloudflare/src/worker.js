@@ -1,5 +1,5 @@
 import { POLL_SECONDS, nextBackoff, parkedSources, mostlyDown, sourceName } from './schedule.js';
-import { bangkokDay, canonical, drawDate, drawIdentity, dueScheduleAlerts, eligible, mergeRows, normalize, numbers, previousChannels, rawName, scheduled } from './domain.js';
+import { catalogItem, bangkokDay, canonical, drawDate, drawIdentity, dueScheduleAlerts, eligible, mergeRows, normalize, numbers, previousChannels, rawName, scheduled } from './domain.js';
 import { collect } from './providers.js';
 import { DurableState, OUTPUTS, RuntimeRepository, validateSnapshot } from './storage.js';
 import { browserPushApi, DEFAULT_PUSH_BACKOFF_MS, PreflightError, publishBrowserPush, pushKeys } from './browser-push.js';
@@ -375,8 +375,13 @@ export async function cycle(env, dependencies = {}) {
       // A reminder that a draw is about to close, or about to be drawn, is noise
       // once that draw's numbers are already in hand: it lands next to the result
       // and reads as if the draw had only just finished.
-      const knownToday = new Set(rows.map(row => row.หวย).filter(Boolean));
-      for (const old of history) if (drawDate(old) === today && numbers(old).every(Boolean)) knownToday.add(old.หวย);
+      const knownToday = new Set();
+      for (const row of rows) { const item = catalogItem(row, catalog); if (item) knownToday.add(item.id); }
+      for (const old of history) {
+        if (drawDate(old) !== today || !numbers(old).every(Boolean)) continue;
+        const item = catalogItem(old, catalog);
+        if (item) knownToday.add(item.id);
+      }
       const dueAlerts = dueScheduleAlerts(catalog, today, new Date(clock())).filter(alert => {
         const entry = state.deliveries[alert.key];
         const id = JSON.parse(alert.key)[1];

@@ -405,6 +405,23 @@ test('a lottery with no history at all is repaired before one missing a single d
     'เกาหลี, which already has history, waits behind it');
 });
 
+test('a lottery archived under an older label is not treated as having no history', async () => {
+  const catalog = [{ id: 'korea', name: 'เกาหลี', category: 'foreign_stock', closeTimeStr: '18:00 น.', drawDays: 'จันทร์ - ศุกร์' }];
+  // เกาหลี was archived by an older provider, so only its label matches the catalog.
+  const legacy = date => ({ หวย: 'หวยหุ้นเกาหลี', ชื่อหวย: 'หวยหุ้นเกาหลี', งวดวันที่: date,
+    เลขบน_3_ตัว: '999', เลขล่าง_2_ตัว: '99', หมวดหวย: 'stock' });
+  const history = [legacy('2 พฤศจิกายน 2569'), legacy('30 ตุลาคม 2569')];
+  const page = `<table>
+    <tr><td>งวดวันที่ 2 พฤศจิกายน 2569</td><td>999</td><td>99</td></tr>
+    <tr><td>งวดวันที่ 20 ตุลาคม 2569</td><td>555</td><td>66</td></tr></table>`;
+  const request = async () => new Response(page);
+  const { backfill } = await collect({ sources: { lotterychecks: { enabled: true } } }, today,
+    new Date(`${today}T21:00:00+07:00`), request, catalog, new Set(), history);
+
+  assert.deepEqual(backfill.map(x => x.งวดวันที่), [],
+    'a stored draw is not published again as a repair, so the archive stays one row per draw');
+});
+
 test('a lottery with no history keeps its newest published draw even outside the window', async () => {
   const catalog = [{ id: 'russia', name: 'รัสเซีย', category: 'foreign_stock', closeTimeStr: '18:00 น.', drawDays: 'จันทร์ - ศุกร์' }];
   const page = `<table>
