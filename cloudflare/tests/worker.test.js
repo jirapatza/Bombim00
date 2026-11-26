@@ -298,6 +298,23 @@ test('sends each schedule alert once via ntfy even with no source result, indepe
   assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 2);
 });
 
+test('a draw whose numbers are already in hand gets no closing reminder', async t => {
+  const f = scheduleFixture(t);
+  f.dependencies.collect = async () => ({ rows: [result('scheduled-test', 'หวยทดสอบ')], sources: ['synthetic'], errors: [] });
+  const outcome = await f.run();
+  assert.equal(outcome.sent, 1); // the result itself is still delivered
+  assert.deepEqual(f.messages, []); // but nothing says the draw is about to close
+});
+
+test('a reminder is not sent after the result was delivered in an earlier cycle', async t => {
+  const f = scheduleFixture(t);
+  f.data[OUTPUTS[0]] = [{ ...result('scheduled-test', 'หวยทดสอบ'), สถานะการแจ้งเตือน: 'sent' }];
+  f.dependencies.now = bangkok('15:25');
+  await f.run();
+  assert.deepEqual(f.messages, []);
+  assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 0);
+});
+
 test('retries a definite schedule rejection only after 429 cooldown and never repeats an uncertain send', async t => {
   let clock = +bangkok('15:10');
   t.mock.method(Date, 'now', () => clock);

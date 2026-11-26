@@ -372,10 +372,15 @@ export async function cycle(env, dependencies = {}) {
     // Reserve the existing send budget for results first and use the time after provider I/O.
     if (!observing && active && settings.notifications?.enabled !== false) {
       const clock = () => +(dependencies.now || new Date());
+      // A reminder that a draw is about to close, or about to be drawn, is noise
+      // once that draw's numbers are already in hand: it lands next to the result
+      // and reads as if the draw had only just finished.
+      const knownToday = new Set(rows.map(row => row.หวย).filter(Boolean));
+      for (const old of history) if (drawDate(old) === today && numbers(old).every(Boolean)) knownToday.add(old.หวย);
       const dueAlerts = dueScheduleAlerts(catalog, today, new Date(clock())).filter(alert => {
         const entry = state.deliveries[alert.key];
         const id = JSON.parse(alert.key)[1];
-        return !isQuarantined(state, id) && !(entry && entry.state !== 'failed') && clock() < alert.at;
+        return !isQuarantined(state, id) && !knownToday.has(id) && !(entry && entry.state !== 'failed') && clock() < alert.at;
       });
       // One push per cycle for every alert due right now, instead of one
       // send per lottery. Order is kept (dueScheduleAlerts sorts by time) so
