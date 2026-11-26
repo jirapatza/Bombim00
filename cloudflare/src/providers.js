@@ -186,6 +186,25 @@ export function parseChecksStockHistory(html, lotteryId, now = new Date(), categ
   return [...found.values()];
 }
 
+export const LAOS_PAGE = 'https://lotterychecks.com/laos';
+export const LAOS_HISTORY_PAGE = 'https://lotterychecks.com/laos/history';
+// ลาวพัฒนา was left with a stale 3 Nov row because the only source was ThaiLottoAPI,
+// which now throttles. LotteryChecks publishes the same draw as a four-digit tail and
+// its history page lists every published round with its own date. The 3 ตัวบน is the
+// last three digits; the 2 ตัวล่าง of this lottery is the *first* two, which is what
+// all fifteen rows already in the archive use (23 Nov 5791 -> 57, 20 Nov 3947 -> 39).
+export function parseLaos(html, now = new Date()) {
+  if (typeof html !== 'string') return [];
+  const found = new Map();
+  for (const m of text(html).matchAll(/งวดวันที่\s*(\d{1,2}\s+\S+\s+\d{4})[\s\S]{0,300}?เลขท้าย 4 ตัว\s*([0-9]{4})(?![0-9])/g)) {
+    const date = drawDate({ งวดวันที่: m[1] });
+    if (!date || found.has(date)) continue;
+    found.set(date, row('ลาวพัฒนา', 'lao_patthana', 'lao', m[1], m[2].slice(-3), m[2].slice(0, 2),
+      'LotteryChecks (https://lotterychecks.com)', now, { source_family: 'lotterychecks', รางวัลที่_1: m[2] }));
+  }
+  return [...found.values()];
+}
+
 export function parseExtra(html, today, now = new Date()) {
   if (![...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)].some(m => /ลาว\s*extra/i.test(text(m[1])))) return [];
   const rows = [], seen = new Set();
@@ -358,6 +377,10 @@ export async function collect(settings, today, now, request, catalog = [], parke
         `https://lotterychecks.com/api/public/results?lottery=${slug}&date=${today}&limit=1`,
         x => parseRound(x, slug, today, now), { lottery: name, slug }) });
     }
+    if (catalog.some(x => x?.id === 'lao_patthana') && due('lao_patthana')) {
+      gatedJobs.push({ id: 'lao_patthana', close: closeMinutes('lao_patthana'), job: () => readSource('LotteryChecks ลาวพัฒนา',
+        LAOS_PAGE, x => parseLaos(x, now).filter(r => drawDate(r) === today), { lottery: 'ลาวพัฒนา', json: false }) });
+    }
     for (const [id, [name, path]] of Object.entries(CHECKS_STOCK_PAGES)) {
       const category = catalog.find(x => x?.id === id)?.category || 'vip';
       if (due(id)) gatedJobs.push({ id, close: closeMinutes(id), job: () => readSource('LotteryChecks VIP stock',
@@ -436,6 +459,21 @@ export async function collect(settings, today, now, request, catalog = [], parke
             const newest = parsed.reduce((best, r) => (!best || String(drawDate(r)) > String(drawDate(best)) ? r : best), null);
             return newest ? [newest] : [];
           }, { lottery: pick.name, json: false });
+        return rows.map(x => ({ ...x, สถานะการแจ้งเตือน: 'backfilled' }));
+      });
+    }
+    // ลาวพัฒนา has no dated API, so its history page is read whenever a published
+    // round is missing from the window.
+    if (history.length !== undefined && catalog.some(x => x?.id === 'lao_patthana')) {
+      const missingLaos = new Set();
+      for (let age = 1; age <= BACKFILL_DAYS; age++) {
+        const date = bangkokDay(new Date(now.getTime() - age * 86_400_000));
+        if (!storedDraws.has(`lao_patthana|${date}`) && !storedDraws.has(`laoslotto|${date}`)) missingLaos.add(date);
+      }
+      if (missingLaos.size) backfillJobs.push(async () => {
+        const rows = await readSource('LotteryChecks ลาวพัฒนา', LAOS_HISTORY_PAGE,
+          x => parseLaos(x, now).filter(r => missingLaos.has(drawDate(r))),
+          { lottery: 'ลาวพัฒนา', json: false });
         return rows.map(x => ({ ...x, สถานะการแจ้งเตือน: 'backfilled' }));
       });
     }
