@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { collect, parseRound, rounds, GATED_ROUNDS, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, CHECKS_STOCK_PAGES, MAX_GATED_READS, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
+import { collect, parseRound, rounds, GATED_ROUNDS, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, parseChecksStockHistory, CHECKS_STOCK_PAGES, MAX_GATED_READS, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
 import { numbers, scheduled, bangkokDay } from '../src/domain.js';
 
 const today = '2026-11-03', now = new Date(today + 'T10:00:00Z');
@@ -319,4 +319,36 @@ test('a missing past draw is backfilled from the dated API, rotating and capped'
   const next = await collect(settings, today, late, request, catalog, new Set(), stored);
   assert.ok(next.backfill.every(x => !stored.some(s => s.หวย === x.หวย && s.งวดวันที่ === x.งวดวันที่)), 'a filled draw is not refetched');
   assert.ok(!calls.some(x => x.includes(`date=${newest}`) && x.includes('lottery=hanoi-vip') && stored.some(s => s.หวย === 'hanoi_vip')), 'stored dates are skipped');
+});
+
+test('the stock history table yields every round with its own date', () => {
+  const html = `<h1>งวด 25 พฤศจิกายน 2569 3 ตัวบน 694 2 ตัวล่าง 13</h1><table>
+    <tr><td>งวดวันที่ 24 พฤศจิกายน 2569</td><td>707</td><td>75</td></tr>
+    <tr><td>งวดวันที่ 23 พฤศจิกายน 2569</td><td>082</td><td>48</td></tr></table>`;
+  const rows = parseChecksStockHistory(html, 'england', new Date('2026-11-25T10:00:00+07:00'), 'foreign_stock');
+  assert.deepEqual(rows.map(r => [r.งวดวันที่, r.เลขบน_3_ตัว, r.เลขล่าง_2_ตัว, r.หมวดหวย]), [
+    ['24 พฤศจิกายน 2569', '707', '75', 'foreign_stock'],
+    ['23 พฤศจิกายน 2569', '082', '48', 'foreign_stock'],
+  ]);
+});
+
+test('a stock page repairs every missing draw of its lottery in one read', async () => {
+  const catalog = [{ id: 'korea', name: 'เกาหลี', category: 'foreign_stock', closeTimeStr: '18:00 น.', drawDays: 'จันทร์ - ศุกร์' }];
+  const page = `<h1>งวด 3 พฤศจิกายน 2569 3 ตัวบน 000 2 ตัวล่าง 00</h1><table>
+    <tr><td>งวดวันที่ 2 พฤศจิกายน 2569</td><td>111</td><td>22</td></tr>
+    <tr><td>งวดวันที่ 1 พฤศจิกายน 2569</td><td>333</td><td>44</td></tr>
+    <tr><td>งวดวันที่ 20 ตุลาคม 2569</td><td>555</td><td>66</td></tr></table>`;
+  const stockCalls = [];
+  const request = async url => {
+    if (String(url).includes('/stock-markets/')) stockCalls.push(url);
+    return new Response(page);
+  };
+  const { backfill } = await collect({ sources: { lotterychecks: { enabled: true } } }, today,
+    new Date(`${today}T21:00:00+07:00`), request, catalog, new Set(), []);
+
+  assert.equal(new Set(stockCalls).size, 1, 'one stock page per cycle: the live read and the repair share the same page');
+  assert.deepEqual(backfill.map(x => [x.หวย, x.งวดวันที่, x.เลขบน_3_ตัว, x.เลขล่าง_2_ตัว, x.สถานะการแจ้งเตือน]),
+    [['korea', '2 พฤศจิกายน 2569', '111', '22', 'backfilled']],
+    'only the missing, expected draw inside the window is kept');
+  assert.equal(backfill[0].หมวดหวย, 'foreign_stock', 'the catalog category is kept, so the same draw is not stored twice');
 });

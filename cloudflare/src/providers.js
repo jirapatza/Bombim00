@@ -158,7 +158,7 @@ export const MAX_GATED_READS = 8;
 // lottery that was added today still shows a past table tomorrow.
 export const BACKFILL_DAYS = 7;
 export const BACKFILL_PER_CYCLE = 2;
-export function parseChecksStock(html, lotteryId, today, now = new Date()) {
+export function parseChecksStock(html, lotteryId, today, now = new Date(), category = 'vip') {
   const entry = CHECKS_STOCK_PAGES[lotteryId];
   if (!entry || typeof html !== 'string') return [];
   const [name] = entry;
@@ -167,8 +167,23 @@ export function parseChecksStock(html, lotteryId, today, now = new Date()) {
   if (!match) return [];
   const date = drawDate({ งวดวันที่: match[1] });
   if (!date || date !== today) return [];
-  return [row(name, lotteryId, 'vip', match[1], match[2], match[3],
+  return [row(name, lotteryId, category, match[1], match[2], match[3],
     'LotteryChecks (https://lotterychecks.com)', now, { source_family: 'lotterychecks' })];
+}
+
+// The same page carries the last 30 rounds below the headline block, one row per
+// draw: "งวดวันที่ 24 พฤศจิกายน 2569 707 75". That table is what history repair reads.
+export function parseChecksStockHistory(html, lotteryId, now = new Date(), category = 'vip') {
+  const entry = CHECKS_STOCK_PAGES[lotteryId];
+  if (!entry || typeof html !== 'string') return [];
+  const [name] = entry, found = new Map();
+  for (const m of text(html).matchAll(/งวดวันที่\s*(\d{1,2}\s+\S+\s+\d{4})\s*([0-9]{3})(?![0-9])\s*([0-9]{2})(?![0-9])/g)) {
+    const date = drawDate({ งวดวันที่: m[1] });
+    if (!date || found.has(date)) continue;
+    found.set(date, row(name, lotteryId, category, m[1], m[2], m[3],
+      'LotteryChecks (https://lotterychecks.com)', now, { source_family: 'lotterychecks' }));
+  }
+  return [...found.values()];
 }
 
 export function parseExtra(html, today, now = new Date()) {
@@ -344,8 +359,9 @@ export async function collect(settings, today, now, request, catalog = [], parke
         x => parseRound(x, slug, today, now), { lottery: name, slug }) });
     }
     for (const [id, [name, path]] of Object.entries(CHECKS_STOCK_PAGES)) {
+      const category = catalog.find(x => x?.id === id)?.category || 'vip';
       if (due(id)) gatedJobs.push({ id, close: closeMinutes(id), job: () => readSource('LotteryChecks VIP stock',
-        `https://lotterychecks.com${path}`, x => parseChecksStock(x, id, today, now), { lottery: name, json: false }) });
+        `https://lotterychecks.com${path}`, x => parseChecksStock(x, id, today, now, category), { lottery: name, json: false }) });
     }
   }
   // ไทยเย็น is published only by ผลหวย.com and ThaiLottoAPI, and the API
@@ -385,6 +401,29 @@ export async function collect(settings, today, now, request, catalog = [], parke
         x => parseRound(x, gap.slug, gap.date, now), { lottery: gap.name, slug: gap.slug });
       return rows.filter(x => drawDate(x) === gap.date).map(x => ({ ...x, สถานะการแจ้งเตือน: 'backfilled' }));
     });
+    // One stock page per cycle: it carries 30 rounds, so a single read repairs a
+    // whole week for that lottery. The page with the most missing draws goes first.
+    const stockGaps = [];
+    for (const [id, [name, path]] of Object.entries(CHECKS_STOCK_PAGES)) {
+      const item = catalog.find(x => x?.id === id);
+      if (!item?.drawDays) continue;
+      const missing = new Set();
+      for (let age = 1; age <= BACKFILL_DAYS; age++) {
+        const date = bangkokDay(new Date(now.getTime() - age * 86_400_000));
+        if (scheduled({ หวย: id, งวดวันที่: date }, catalog, date) && !storedDraws.has(`${id}|${date}`)) missing.add(date);
+      }
+      if (missing.size) stockGaps.push({ id, name, path, category: item.category || 'vip', missing });
+    }
+    stockGaps.sort((a, b) => b.missing.size - a.missing.size || a.id.localeCompare(b.id));
+    if (stockGaps.length) {
+      const pick = stockGaps[Math.floor(now.getTime() / 300_000) % stockGaps.length];
+      backfillJobs.push(async () => {
+        const rows = await readSource('LotteryChecks stock history', `https://lotterychecks.com${pick.path}`,
+          x => parseChecksStockHistory(x, pick.id, now, pick.category).filter(r => pick.missing.has(drawDate(r))),
+          { lottery: pick.name, json: false });
+        return rows.map(x => ({ ...x, สถานะการแจ้งเตือน: 'backfilled' }));
+      });
+    }
   }
   const gov = [];
   for (const [source, url] of [
