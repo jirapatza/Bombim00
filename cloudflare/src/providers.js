@@ -59,8 +59,13 @@ export function parseRound(data, slug, today, now = new Date()) {
 }
 const array3 = value => (Array.isArray(value) ? value : typeof value === 'string' ? [value] : [])
   .filter(x => /^[0-9]{3}$/.test(String(x))).map(String);
-export function parseThaiApi(data, now = new Date()) {
+export function parseThaiApi(data, now = new Date(), catalog = []) {
   if (data?.ok !== true || !data.categories || Array.isArray(data.categories)) return [];
+  // The API labels a draw its own way ("หวยหุ้นจีนเช้า") while the catalog and the
+  // LotteryChecks pages call it "จีนรอบเช้า". One draw needs one identity, or every
+  // provider archives the same result again under a different name.
+  const byName = new Map();
+  for (const item of catalog) { const key = scheduleName(item?.name || ''); if (key && !byName.has(key)) byName.set(key, item); }
   const rows = [], categoryByKey = { thailotto: 'government', gsblotto: 'government', baaclotto: 'government',
     lpp: 'lao', laoslotto: 'lao', malaylotto: 'malay', hanoylottospecial: 'hanoi', hanoylotto: 'hanoi', hanoylottovip: 'hanoi' };
   for (const [cat, group] of Object.entries(data.categories)) {
@@ -79,7 +84,9 @@ export function parseThaiApi(data, now = new Date()) {
       let category = categoryByKey[key.toLowerCase()] || cat.toLowerCase();
       if (!categoryByKey[key.toLowerCase()] && cat.toLowerCase() === 'stock') category = /vip|พิเศษ|visa/i.test(label) ? 'vip' : label.includes('ไทย') ? 'thai_stock' : 'foreign_stock';
       if (!categoryByKey[key.toLowerCase()] && cat.toLowerCase() === 'lottoforeign') category = /malay|มาเลย์/i.test(key + label) ? 'malay' : /hanoy|hanoi|ฮานอย/i.test(key + label) ? 'hanoi' : /lao|ลาว/i.test(key + label) ? 'lao' : 'foreign_stock';
-      rows.push(row(name, key, category, item.drawDateDisplay || date, top, bottom, '👑เฮียฮวด พารวย', now, {
+      const known = byName.get(scheduleName(name));
+      rows.push(row(known?.name || name, known?.id || key, known?.category || category,
+        item.drawDateDisplay || date, top, bottom, '👑เฮียฮวด พารวย', now, {
         วันที่จัดรูปแบบ: date, รางวัลที่_1: first || top,
         เลขหน้า_3_ตัว: array3(item.front3 || item.front3Digits), เลขท้าย_3_ตัว: array3(item.bottom3 || item.last3),
         source_family: 'thailottoapi',
@@ -116,8 +123,9 @@ export function parseStocks(html, now = new Date(), catalog = []) {
     // foreign_stock/vip/thai_stock), and the fingerprint keeps the category, so the
     // coarse one archived the same draw twice next to the API's row.
     const id = ids.get(scheduleName(name)) || name;
-    const category = catalog.find(x => x?.id === id)?.category || group;
-    rows.push(row(name, id, category, date[1], top[1], bottom[1], 'ผลหวย.com (หน้าหุ้นแยกหมวด)', now,
+    const known = catalog.find(x => x?.id === id);
+    rows.push(row(known?.name || name, id, known?.category || group, date[1], top[1], bottom[1],
+      'ผลหวย.com (หน้าหุ้นแยกหมวด)', now,
       { source_family: 'pholhuay' }));
   }
   return rows;
@@ -377,7 +385,7 @@ export async function collect(settings, today, now, request, catalog = [], parke
     // worker polls again in a minute anyway.
     url.searchParams.set('date', today);
     // The general API has priority over overlapping stock cards, as in Python.
-    jobs.unshift(() => readSource('ThaiLottoAPI', url.href, x => parseThaiApi(x, now)));
+    jobs.unshift(() => readSource('ThaiLottoAPI', url.href, x => parseThaiApi(x, now, catalog)));
   }
   let rows = await parallel(jobs);
   const fallback = [];
