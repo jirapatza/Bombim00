@@ -369,3 +369,16 @@ test('a lottery with no history at all is repaired before one missing a single d
   assert.ok(!pages.some(u => u.includes(CHECKS_STOCK_PAGES.korea[1]) && pages.indexOf(u) < pages.findIndex(x => x.includes(CHECKS_STOCK_PAGES.russia[1]))),
     'เกาหลี, which already has history, waits behind it');
 });
+
+test('a lottery with no history keeps its newest published draw even outside the window', async () => {
+  const catalog = [{ id: 'russia', name: 'รัสเซีย', category: 'foreign_stock', closeTimeStr: '18:00 น.', drawDays: 'จันทร์ - ศุกร์' }];
+  const page = `<table>
+    <tr><td>งวดวันที่ 4 พฤศจิกายน 2569</td><td>889</td><td>80</td></tr>
+    <tr><td>งวดวันที่ 28 กันยายน 2569</td><td>084</td><td>27</td></tr></table>`;
+  const request = async () => new Response(page);
+  const { backfill } = await collect({ sources: { lotterychecks: { enabled: true } } }, today,
+    new Date(`${today}T21:00:00+07:00`), request, catalog, new Set(), []);
+
+  assert.deepEqual(backfill.map(x => [x.หวย, x.งวดวันที่, x.เลขบน_3_ตัว, x.เลขล่าง_2_ตัว]), [['russia', '4 พฤศจิกายน 2569', '889', '80']],
+    'a stale row beats an empty table, and the page leaves the repair queue');
+});
