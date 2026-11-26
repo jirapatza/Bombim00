@@ -361,7 +361,24 @@ def parse_lotterychecks_page(html: str, page_url: str) -> Record | None:
     )
 
 
-def fetch_lotterychecks(page_path: str, api_slug: str = "") -> Record | None:
+LAOS_PAGE = "/laos"
+
+
+def parse_laos_page(html: str, page_url: str = f"{LOTTERYCHECKS_BASE}{LAOS_PAGE}") -> Record | None:
+    """ลาวพัฒนา publishes a four-digit tail: the last three digits are 3 ตัวบน,
+    the first two are 2 ตัวล่าง, which is how every row already in the archive reads."""
+    best = None
+    for match in re.finditer(r"งวดวันที่\s*(\d{1,2}\s+\S+\s+\d{4})[\s\S]{0,300}?เลขท้าย 4 ตัว\s*(\d{4})",
+                             strip_markup(html)):
+        draw_date = thai_date_to_iso(match.group(1))
+        if not draw_date or (best and draw_date <= best.draw_date):
+            continue
+        best = Record(top3=match.group(2)[-3:], bottom2=match.group(2)[:2], draw_date=draw_date,
+                      source=f"LotteryChecks ({page_url})", first_prize=match.group(2))
+    return best
+
+
+def fetch_lotterychecks(page_path: str, api_slug: str = "", page_parser=None) -> Record | None:
     """Prefer the JSON API; fall back to the page when the slug is not exposed there."""
     page_url = f"{LOTTERYCHECKS_BASE}{page_path}"
     if api_slug:
@@ -372,7 +389,7 @@ def fetch_lotterychecks(page_path: str, api_slug: str = "") -> Record | None:
         record = parse_lotterychecks_payload(payload, page_url)
         if record is not None:
             return record
-    return parse_lotterychecks_page(http_get(page_url), page_url)
+    return (page_parser or parse_lotterychecks_page)(http_get(page_url), page_url)
 
 
 # --- Catalog mapping --------------------------------------------------------
@@ -412,7 +429,7 @@ CATALOG_SOURCES = {
     "hanoi_regular": ("page", "/hanoi-lottery/normal"),
     "hanoi_vip": ("page", "/hanoi-lottery/vip"),
     "hanoi_patthana": ("page", "/hanoi-lottery/develop"),
-    "lao_patthana": ("tla", "laoslotto"),
+    "lao_patthana": ("checks4", "/laos", "laoslotto"),
     "lao_asean": ("page", "/lao-lottery/asean"),
     "lao_vip": ("page", "/lao-lottery/vip"),
     "lao_samakki_vip": ("page", "/lao-lottery/union-vip"),
@@ -457,10 +474,13 @@ def collect_sources(days: int = 4, today: datetime.date | None = None) -> tuple[
                 continue
             if record:
                 pages[slug] = record
+    parsers = {LAOS_PAGE: parse_laos_page}
     checks = {}
     check_specs = {spec[2]: spec[1] for spec in CATALOG_SOURCES.values() if spec[0] == "checks"}
+    check_specs.update({path: "" for path in CHECKS_STOCK_PAGES.values() if path not in check_specs})
+    check_specs[LAOS_PAGE] = ""
     with ThreadPoolExecutor(max_workers=6) as pool:
-        futures = {path: pool.submit(fetch_lotterychecks, path, api_slug)
+        futures = {path: pool.submit(fetch_lotterychecks, path, api_slug, parsers.get(path))
                    for path, api_slug in check_specs.items()}
         for path, future in futures.items():
             try:
@@ -473,6 +493,38 @@ def collect_sources(days: int = 4, today: datetime.date | None = None) -> tuple[
     return {"tla": tla, "stocks": stocks, "pages": pages, "checks": checks}, reasons
 
 
+# LotteryChecks result pages for the stock lotteries, keyed by catalog id. The
+# stock cards on ผลหวย.com and ThaiLottoAPI both go quiet for days at a time, and
+# these pages are what the Worker already reads, so the collector reads them too.
+CHECKS_STOCK_PAGES = {
+    "nikkei_morning": "/stock-markets/nikkei-morning",
+    "nikkei_afternoon": "/stock-markets/nikkei-afternoon",
+    "china_morning": "/stock-markets/szse-morning",
+    "china_afternoon": "/stock-markets/szse-afternoon",
+    "hangseng_morning": "/stock-markets/hsi-morning",
+    "hangseng_afternoon": "/stock-markets/hsi-afternoon",
+    "taiwan": "/stock-markets/twse",
+    "korea": "/stock-markets/ktop30",
+    "singapore": "/stock-markets/sgx",
+    "india": "/stock-markets/bsesn",
+    "dowjones": "/stock-markets/dji",
+    "england": "/stock-markets/ftse100",
+    "germany": "/stock-markets/gdaxi",
+    "russia": "/stock-markets/moexbc",
+}
+
+
+def checks_record(catalog_id: str, sources: dict) -> Record | None:
+    path = CHECKS_STOCK_PAGES.get(catalog_id)
+    return sources.get("checks", {}).get(path) if path else None
+
+
+def newest(*records: Record | None) -> Record | None:
+    """Freshest record available. A source that stopped publishing must not win."""
+    available = [record for record in records if record is not None]
+    return max(available, key=lambda record: record.draw_date) if available else None
+
+
 def resolve(catalog_id: str, sources: dict) -> tuple[dict | None, str]:
     """Return (result, reason). A None result carries the reason it is missing."""
     spec = CATALOG_SOURCES.get(catalog_id)
@@ -482,7 +534,7 @@ def resolve(catalog_id: str, sources: dict) -> tuple[dict | None, str]:
     if kind == "tla_or_stock":
         return resolve_stock_with_fallback(catalog_id, sources)
     if kind == "tla":
-        record = sources["tla"].get(spec[1])
+        record = newest(sources["tla"].get(spec[1]), checks_record(catalog_id, sources))
         if record is None:
             return None, f"ThaiLottoAPI ยังไม่มีผลของคีย์ {spec[1]} ในช่วงที่ตรวจ"
         return record.as_result(), ""
@@ -490,6 +542,11 @@ def resolve(catalog_id: str, sources: dict) -> tuple[dict | None, str]:
         record = sources["pages"].get(spec[1])
         if record is None:
             return None, f"ผลหวย.com หน้า {spec[1]} ไม่มีบล็อกผลล่าสุดที่อ่านได้"
+        return record.as_result(), ""
+    if kind == "checks4":
+        record = newest(sources.get("checks", {}).get(spec[1]), sources["tla"].get(spec[2]))
+        if record is None:
+            return None, f"LotteryChecks หน้า {spec[1]} ไม่มีบล็อกผลล่าสุดที่อ่านได้"
         return record.as_result(), ""
     if kind == "checks":
         record = sources.get("checks", {}).get(spec[2])
@@ -499,10 +556,10 @@ def resolve(catalog_id: str, sources: dict) -> tuple[dict | None, str]:
     group, label_regex = spec[1], spec[2]
     matches = [row for row in sources["stocks"]
                if row.extra.get("group") == group and re.search(label_regex, row.label)]
-    if not matches:
+    record = newest(*matches, checks_record(catalog_id, sources))
+    if record is None:
         return None, f"ไม่พบการ์ดหุ้นกลุ่ม {group} ที่ตรงกับ {label_regex}"
-    newest = max(matches, key=lambda row: row.draw_date)
-    return newest.as_result(), ""
+    return record.as_result(), ""
 
 
 def resolve_stock_with_fallback(catalog_id: str, sources: dict) -> tuple[dict | None, str]:
@@ -511,12 +568,9 @@ def resolve_stock_with_fallback(catalog_id: str, sources: dict) -> tuple[dict | 
     if not spec or spec[0] != "tla_or_stock":
         return resolve(catalog_id, sources)
     _, key, group, label_regex = spec
-    record = sources["tla"].get(key)
-    if record is not None:
-        return record.as_result(), ""
     cards = [row for row in sources["stocks"]
              if row.extra.get("group") == group and re.search(label_regex, row.label)]
-    if cards:
-        newest = max(cards, key=lambda row: row.draw_date)
-        return newest.as_result(), ""
+    record = newest(sources["tla"].get(key), *cards, checks_record(catalog_id, sources))
+    if record is not None:
+        return record.as_result(), ""
     return None, f"ทั้ง ThaiLottoAPI ({key}) และการ์ดหุ้นผลหวย.com ไม่มีผลล่าสุด"

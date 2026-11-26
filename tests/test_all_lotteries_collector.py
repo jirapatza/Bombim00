@@ -193,6 +193,61 @@ def test_resolve_reports_reason_when_lotterychecks_page_is_missing():
     assert "LotteryChecks" in reason
 
 
+def test_laos_page_reads_the_four_digit_tail():
+    html = """<div class="card">งวดวันที่ 25 พฤศจิกายน 2569 <b>เลขท้าย 4 ตัว</b> 1801</div>
+              <div class="card">งวดวันที่ 26 พฤศจิกายน 2569 <b>เลขท้าย 4 ตัว</b> 7823</div>"""
+    record = sources.parse_laos_page(html, "https://lotterychecks.com/laos")
+    assert (record.top3, record.bottom2) == ("823", "78"), "3 ตัวบน is the tail, 2 ตัวล่าง the head"
+    assert record.draw_date == "2026-11-26"
+
+
+def test_lao_patthana_prefers_the_laos_page_over_a_stale_tla_row():
+    stale = sources.Record(top3="947", bottom2="39", draw_date="2026-11-20", source="ThaiLottoAPI")
+    fresh = sources.Record(top3="823", bottom2="78", draw_date="2026-11-26", source="LotteryChecks")
+    result, reason = sources.resolve(
+        "lao_patthana",
+        {"tla": {"laoslotto": stale}, "stocks": [], "pages": {}, "checks": {"/laos": fresh}},
+    )
+    assert reason == ""
+    assert (result["top3"], result["bottom2"], result["drawDate"]) == ("823", "78", "2026-11-26")
+
+
+def test_stock_lottery_falls_back_to_lotterychecks():
+    record = sources.Record(top3="172", bottom2="36", draw_date="2026-11-26", source="LotteryChecks")
+    result, reason = sources.resolve(
+        "china_morning",
+        {"tla": {}, "stocks": [], "pages": {}, "checks": {"/stock-markets/szse-morning": record}},
+    )
+    assert reason == ""
+    assert (result["top3"], result["bottom2"]) == ("172", "36")
+
+
+def test_the_freshest_source_wins():
+    stale_tla = sources.Record(top3="576", bottom2="44", draw_date="2026-11-20", source="ThaiLottoAPI")
+    fresh = sources.Record(top3="172", bottom2="36", draw_date="2026-11-26", source="LotteryChecks")
+    sources_map = {"tla": {"stockchina1": stale_tla}, "stocks": [], "pages": {},
+                   "checks": {"/stock-markets/szse-morning": fresh}}
+    result, _ = sources.resolve("china_morning", sources_map)
+    assert result["drawDate"] == "2026-11-26"
+    assert result["top3"] == "172"
+    # A checks page that stopped publishing must not displace a fresher TLA row.
+    sources_map["checks"] = {"/stock-markets/szse-morning": stale_tla}
+    sources_map["tla"]["stockchina1"] = fresh
+    result, _ = sources.resolve("china_morning", sources_map)
+    assert result["drawDate"] == "2026-11-26"
+
+
+def test_every_stock_lottery_has_a_checks_page():
+    for catalog_id, spec in sources.CATALOG_SOURCES.items():
+        if spec[0] in {"tla", "stock", "tla_or_stock"} and catalog_id in sources.CHECKS_STOCK_PAGES:
+            assert sources.CHECKS_STOCK_PAGES[catalog_id].startswith("/stock-markets/")
+    assert set(sources.CHECKS_STOCK_PAGES) == {
+        "nikkei_morning", "nikkei_afternoon", "china_morning", "china_afternoon",
+        "hangseng_morning", "hangseng_afternoon", "taiwan", "korea", "singapore",
+        "india", "dowjones", "england", "germany", "russia",
+    }
+
+
 def test_resolve_reports_reason_when_source_is_empty():
     result, reason = sources.resolve("thai_gov", {"tla": {}, "stocks": [], "pages": {}})
     assert result is None
