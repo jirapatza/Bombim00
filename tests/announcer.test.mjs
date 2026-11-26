@@ -11,6 +11,7 @@ const bundle = await build({
   write: false,
 });
 const {
+  backlogKeys,
   planAnnouncements,
   announcementText,
   unseenAnnouncements,
@@ -191,4 +192,39 @@ test("the queue lists every close still ahead, soonest first", () => {
       "hanoi_asean@2026-11-17T02:05:00.000Z",
     ],
   );
+});
+
+test("a first look at the catalog never reads out the day that already happened", () => {
+  // 21:30 Bangkok: 41 things are plannable, and before this rule the app spoke
+  // all of them in one burst of about six and a half minutes, hours after some
+  // of the results had been published.
+  const drawn = catalog.map((item) => ({
+    ...item,
+    status: "drawn",
+    top3: "123",
+    bottom2: "45",
+    firstPrize: "123456",
+    resultDate: "2026-11-16",
+  }));
+  const plan = planAnnouncements(drawn, at("2026-11-16T02:35:00.000Z"));
+  const backlog = backlogKeys(plan);
+
+  assert.ok(plan.some((a) => a.kind === "result"), "the plan still holds the results");
+  assert.ok(backlog.length > 0, "they are remembered instead of spoken");
+  assert.deepEqual(
+    backlog,
+    plan.filter((a) => a.kind === "result" || a.kind === "closed").map((a) => a.key),
+    "every closed and result sentence is in the backlog",
+  );
+  assert.equal(
+    backlog.length,
+    plan.filter((a) => a.kind !== "closing-soon" && a.kind !== "next-draw").length,
+  );
+});
+
+test("a closing warning that is still ahead is spoken, not treated as backlog", () => {
+  const plan = planAnnouncements(catalog, at("2026-11-16T01:10:00.000Z"));
+  const warning = plan.find((a) => a.kind === "closing-soon");
+  assert.ok(warning, "the ten-minute warning is planned");
+  assert.equal(backlogKeys(plan).includes(warning.key), false);
 });

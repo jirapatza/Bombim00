@@ -191,6 +191,21 @@ export function closingQueue(
     .slice(0, limit);
 }
 
+/**
+ * Announcements that describe something that has already happened.
+ *
+ * The planner is stateful only through "now", so a first look at the catalog
+ * after the app was closed, or after the phone was locked for hours, returns
+ * every close and every result of the day at once. Reading those out meant the
+ * app recited the whole afternoon's results in one burst, minutes or hours after
+ * each was published, and the "ปิดรับแล้ว" of a draw was heard together with the
+ * numbers that replaced it. They are on the screen already, so the React layer
+ * records them silently and speaks only what happens while it is listening.
+ */
+export function backlogKeys(planned: Announcement[]): string[] {
+  return planned.filter((a) => a.kind === "closed" || a.kind === "result").map((a) => a.key);
+}
+
 /** Dedupe helper shared by the React layer and its tests. */
 export function unseenAnnouncements(
   planned: Announcement[],
