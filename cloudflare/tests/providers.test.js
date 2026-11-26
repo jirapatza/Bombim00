@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { collect, parseRound, rounds, GATED_ROUNDS, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, parseChecksStockHistory, CHECKS_STOCK_PAGES, MAX_GATED_READS, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
+import { collect, parseRound, rounds, GATED_ROUNDS, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, parseChecksStockHistory, parseLaos, LAOS_PAGE, LAOS_HISTORY_PAGE, CHECKS_STOCK_PAGES, MAX_GATED_READS, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
 import { numbers, scheduled, bangkokDay } from '../src/domain.js';
 
 const today = '2026-11-03', now = new Date(today + 'T10:00:00Z');
@@ -381,4 +381,35 @@ test('a lottery with no history keeps its newest published draw even outside the
 
   assert.deepEqual(backfill.map(x => [x.หวย, x.งวดวันที่, x.เลขบน_3_ตัว, x.เลขล่าง_2_ตัว]), [['russia', '4 พฤศจิกายน 2569', '889', '80']],
     'a stale row beats an empty table, and the page leaves the repair queue');
+});
+
+test('ลาวพัฒนา takes its 3 ตัวบน from the last three digits and its 2 ตัวล่าง from the first two', () => {
+  const html = `<a href="/draws/laos-draw/2026-11-23"><span>งวดวันที่ 23 พฤศจิกายน 2569</span>
+    <p>เลขท้าย 4 ตัว</p><p>5791</p></a>
+    <a href="/draws/laos-draw/2026-11-20"><span>งวดวันที่ 20 พฤศจิกายน 2569</span>
+    <p>เลขท้าย 4 ตัว</p><p>3947</p></a>`;
+  const rows = parseLaos(html, new Date('2026-11-26T21:00:00+07:00'));
+  assert.deepEqual(rows.map(r => [r.งวดวันที่, r.วันที่จัดรูปแบบ, r.เลขบน_3_ตัว, r.เลขล่าง_2_ตัว]), [
+    ['23 พฤศจิกายน 2569', '2026-11-23', '791', '57'],
+    ['20 พฤศจิกายน 2569', '2026-11-20', '947', '39'],
+  ], 'the values match the rows already archived under the legacy laoslotto id');
+  assert.equal(rows[0].หวย, 'lao_patthana');
+  assert.equal(rows[0].หมวดหวย, 'lao');
+});
+
+test('ลาวพัฒนา fills the rounds its history page publishes and skips the ones already stored', async () => {
+  const catalog = [{ id: 'lao_patthana', name: 'ลาวพัฒนา', category: 'lao', closeTimeStr: '20:30 น.', drawDays: 'จันทร์, พุธ, ศุกร์' }];
+  const page = `<a><span>งวดวันที่ 2 พฤศจิกายน 2569</span><p>เลขท้าย 4 ตัว</p><p>1111</p></a>
+    <a><span>งวดวันที่ 1 พฤศจิกายน 2569</span><p>เลขท้าย 4 ตัว</p><p>2222</p></a>`;
+  const urls = [];
+  const request = async url => { urls.push(String(url)); return new Response(page); };
+  const history = [{ หวย: 'laoslotto', ชื่อหวย: 'หวยลาวพัฒนา', งวดวันที่: '01.11.2026', วันที่จัดรูปแบบ: '2026-11-01',
+    เลขบน_3_ตัว: '222', เลขล่าง_2_ตัว: '22', หมวดหวย: 'lao' }];
+  const { backfill } = await collect({ sources: { lotterychecks: { enabled: true } } }, today,
+    new Date(`${today}T21:00:00+07:00`), request, catalog, new Set(), history);
+
+  assert.ok(urls.includes(LAOS_HISTORY_PAGE), 'the history page is read');
+  assert.deepEqual(backfill.map(x => [x.หวย, x.วันที่จัดรูปแบบ, x.เลขบน_3_ตัว, x.เลขล่าง_2_ตัว]),
+    [['lao_patthana', '2026-11-02', '111', '11']],
+    'the round already archived under the legacy id is not collected twice');
 });
