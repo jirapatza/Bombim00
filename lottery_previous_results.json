@@ -1,5 +1,32 @@
 [
   {
+    "ชื่อหวย": "นิเคอิเช้า VIP",
+    "หวย": "nikkei_vip_morning",
+    "หมวดหวย": "vip",
+    "งวดวันที่": "26 พฤศจิกายน 2569",
+    "วันที่จัดรูปแบบ": "2026-11-26",
+    "รางวัลที่_1": "089",
+    "เลขบน_3_ตัว": "089",
+    "เลขล่าง_2_ตัว": "54",
+    "เลขท้าย_2_ตัว": "54",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-26T02:20:52.582Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "nikkei_vip_morning",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
     "ชื่อหวย": "ลาว EXTRA",
     "หวย": "lao_extra",
     "หมวดหวย": "lao",
