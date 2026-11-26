@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-26T19:30:00.000+07:00",
-  "last_run_date_thai": "26/11/2026 19:30:00",
-  "total_checks": 19666,
-  "last_source_used": "LotteryChecks Lao/Hanoi + glo + lotterychecks",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 32 รายการ ส่งเตือนตามตาราง 74 รายการ รอผลจากแหล่งข้อมูล 3 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ",
+  "last_run_timestamp": "2026-11-26T19:35:00.000+07:00",
+  "last_run_date_thai": "26/11/2026 19:35:00",
+  "total_checks": 19667,
+  "last_source_used": "lotterychecks + LotteryChecks Lao/Hanoi + glo",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 32 รายการ ส่งเตือนตามตาราง 74 รายการ รอผลจากแหล่งข้อมูล 3 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ",
   "active_sources_count": 3,
   "latest_draw_detected": "2026-11-26",
   "notifications_sent_today": 32,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-26T19:35:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 32 รายการ ส่งเตือนตามตาราง 74 รายการ รอผลจากแหล่งข้อมูล 3 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ"
+    },
     {
       "timestamp": "2026-11-26T19:30:00.000+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-26T18:00:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 29 รายการ ส่งเตือนตามตาราง 69 รายการ รอผลจากแหล่งข้อมูล 3 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ"
-    },
-    {
-      "timestamp": "2026-11-26T17:55:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 7 รายการ ส่งสำเร็จ 29 รายการ ส่งเตือนตามตาราง 69 รายการ รอผลจากแหล่งข้อมูล 3 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 7 รายการ"
     }
   ],
   "uncertain_deliveries": 1,
@@ -134,14 +134,7 @@
         "status": 404
       }
     ],
-    "errors": [
-      {
-        "source": "LotteryChecks stock history",
-        "lottery": "อินเดีย",
-        "status": null,
-        "reason": "timeout"
-      }
-    ]
+    "errors": []
   },
   "active_uncertain_deliveries": 0,
   "old_uncertain_deliveries": 1,
@@ -161,17 +154,12 @@
     "last_sync": null
   },
   "degraded_sources": [
-    "LotteryChecks stock history",
     "ThaiLottoAPI"
   ],
   "source_backoff": {
     "ThaiLottoAPI": {
       "failures": 24,
       "until": 1795697152594
-    },
-    "LotteryChecks stock history": {
-      "failures": 1,
-      "until": 0
     }
   }
 }
