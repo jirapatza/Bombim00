@@ -111,7 +111,13 @@ export function parseStocks(html, now = new Date(), catalog = []) {
     if (!group || !name.startsWith('หวยหุ้น') || /ในหน้านี้|อัปเดตเมื่อไร|ออกวันไหน|ดูย้อนหลัง/.test(name)) continue;
     const content = text(m[3]), date = content.match(/งวด\s*(?:วันที่\s*)?([0-9]{1,2}\s+[^\s]+\s+[0-9]{4})/),
       top = content.match(/3 ตัวบน\s*([0-9]{3})(?![0-9])/), bottom = content.match(/2 ตัวล่าง\s*([0-9]{2})(?![0-9])/);
-    if (date && top && bottom && drawDate({ งวดวันที่: date[1] })) rows.push(row(name, ids.get(scheduleName(name)) || name, group, date[1], top[1], bottom[1], 'ผลหวย.com (หน้าหุ้นแยกหมวด)', now,
+    if (!date || !top || !bottom || !drawDate({ งวดวันที่: date[1] })) continue;
+    // The page's group heading is coarser than the catalog ("หวยหุ้นต่างประเทศ" vs
+    // foreign_stock/vip/thai_stock), and the fingerprint keeps the category, so the
+    // coarse one archived the same draw twice next to the API's row.
+    const id = ids.get(scheduleName(name)) || name;
+    const category = catalog.find(x => x?.id === id)?.category || group;
+    rows.push(row(name, id, category, date[1], top[1], bottom[1], 'ผลหวย.com (หน้าหุ้นแยกหมวด)', now,
       { source_family: 'pholhuay' }));
   }
   return rows;
