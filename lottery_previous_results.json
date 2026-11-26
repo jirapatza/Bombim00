@@ -1,5 +1,32 @@
 [
   {
+    "ชื่อหวย": "ฮานอยอาเซียน",
+    "หวย": "hanoi_asean",
+    "หมวดหวย": "hanoi",
+    "งวดวันที่": "2026-11-26",
+    "วันที่จัดรูปแบบ": "2026-11-26",
+    "รางวัลที่_1": "589",
+    "เลขบน_3_ตัว": "589",
+    "เลขล่าง_2_ตัว": "56",
+    "เลขท้าย_2_ตัว": "56",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-26T03:05:52.646Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "hanoi_asean",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
     "ชื่อหวย": "นิเคอิรอบเช้า",
     "หวย": "nikkei_morning",
     "หมวดหวย": "vip",
