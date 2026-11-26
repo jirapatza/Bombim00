@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { collect, parseRound, rounds, GATED_ROUNDS, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, parseChecksStockHistory, parseLaos, LAOS_PAGE, LAOS_HISTORY_PAGE, CHECKS_STOCK_PAGES, MAX_GATED_READS, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
+import { collect, parseRound, rounds, GATED_ROUNDS, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, parseChecksStockHistory, parseLaos, LAOS_PAGE, LAOS_HISTORY_PAGE, parseGsb, GSB_PAGE, CHECKS_STOCK_PAGES, MAX_GATED_READS, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
 import { numbers, scheduled, bangkokDay } from '../src/domain.js';
 
 const today = '2026-11-03', now = new Date(today + 'T10:00:00Z');
@@ -412,4 +412,33 @@ test('ลาวพัฒนา fills the rounds its history page publishes and s
   assert.deepEqual(backfill.map(x => [x.หวย, x.วันที่จัดรูปแบบ, x.เลขบน_3_ตัว, x.เลขล่าง_2_ตัว]),
     [['lao_patthana', '2026-11-02', '111', '11']],
     'the round already archived under the legacy id is not collected twice');
+});
+
+// Shape of https://lotterychecks.com/gsb: the first prize is seven digits and
+// the two tails are published separately, with the digits repeated spaced out.
+const gsbPage = `หน้าแรก / หวยออมสิน LOTTERYCHECKS
+<h2>งวดวันที่ 16 พฤศจิกายน 2569</h2>
+<div>อันดับที่ 1</div><div>อันดับที่ 1: 8980716</div><div>8 9 8 0 7 1 6</div>
+<div>เลขท้าย 4 ตัว</div><div>เลขท้าย 4 ตัว: 8140</div>
+<div>เลขท้าย 3 ตัว</div><div>เลขท้าย 3 ตัว: 807</div>
+<div>อันดับที่ 2</div><div>0126907</div>`;
+
+test('ออมสิน is read from its own page as the last three of the first prize and the two-digit tail', () => {
+  const [row] = parseGsb(gsbPage, now);
+  assert.ok(row, 'expected a row');
+  assert.equal(row.หวย, 'gsb');
+  assert.equal(row.ชื่อหวย, 'หวยออมสิน');
+  assert.equal(row.วันที่จัดรูปแบบ, '2026-11-16');
+  assert.deepEqual(numbers(row), ['716', '07']);
+  // Same numbers the throttled API source produced for that draw, so the two
+  // sources agree instead of holding the result as a conflict.
+  assert.equal(row.รางวัลที่_1, '8980716');
+  assert.equal(row.source_family, 'lotterychecks');
+  assert.match(GSB_PAGE, /lotterychecks\.com\/gsb$/);
+});
+
+test('ออมสิน parsing refuses a page without the three-digit tail instead of inventing one', () => {
+  assert.deepEqual(parseGsb(gsbPage.replace('<div>เลขท้าย 3 ตัว: 807</div>', ''), now), []);
+  assert.deepEqual(parseGsb(gsbPage.replace('8980716', '898071'), now), []);
+  assert.deepEqual(parseGsb(null, now), []);
 });
