@@ -158,17 +158,6 @@ export function nextClosing(
 }
 
 /** The following closes after the current one, so the announcer can preview them. */
-export function followingClosings(
-  items: LotteryCatalogItem[],
-  now: number = Date.now(),
-  count = 2,
-): DrawSlot[] {
-  return items
-    .flatMap((item) => upcomingSlots(item, now, count + 1))
-    .sort((a, b) => a.closeAt - b.closeAt)
-    .slice(0, count);
-}
-
 /** Countdown label: "1:05:09", "12:34", or "45 วินาที" inside the last minute. */
 export function countdown(target: number, now: number = Date.now()): string {
   const seconds = Math.max(0, Math.floor((target - now) / 1000));

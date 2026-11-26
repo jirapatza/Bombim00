@@ -335,7 +335,9 @@ function storedIndex(history) {
 }
 export async function collect(settings, today, now, request, catalog = [], parked = new Set(), history = []) {
   const errors = [], waiting = [], sources = [], cfg = settings.sources || {};
-  const readSource = async (source, url, parser, { json = true, lottery, slug, method = 'GET', headers: extraHeaders } = {}) => {
+  /** @typedef {{json?: boolean, lottery?: string, slug?: string, method?: string, headers?: Record<string, string>}} ReadOptions */
+  const readSource = async (source, url, parser,
+    /** @type {ReadOptions} */ { json = true, lottery, slug, method = 'GET', headers: extraHeaders } = {}) => {
     // Parked after repeated failures: asking again every cycle only deepens the outage.
     if (parked.has(source)) return [];
     let status = null, reason = 'network';

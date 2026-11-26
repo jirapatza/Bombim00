@@ -133,6 +133,7 @@ export function dueScheduleAlerts(catalog, today, now) {
     if (!item.id || !item.name.trim() || disallowed(item.name) || !weekdays[drawRule(item)]?.includes(weekday)) continue;
     const draw = scheduleTime(item.drawTimeStr, today);
     const close = scheduleTime(item.closeTimeStr, today);
+    /** @type {Array<[string, {clock: string, at: number} | null, number]>} */
     const windows = [
       ['closing', close && (!draw || close.at <= draw.at) ? close : null, 10],
       ['upcoming', draw, 5],
