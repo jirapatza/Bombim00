@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { collect, parseRound, rounds, GATED_ROUNDS, parseExtra, parseStocks, parseThaiApi, parseGovernment, parseChecksStock, parseChecksStockHistory, parseLaos, LAOS_PAGE, LAOS_HISTORY_PAGE, parseGsb, GSB_PAGE, CHECKS_STOCK_PAGES, MAX_GATED_READS, PHOLHUAY_STOCK_PAGE, PHOLHUAY_EXTRA_PAGE } from '../src/providers.js';
-import { numbers, scheduled, bangkokDay } from '../src/domain.js';
+import { numbers, scheduled, bangkokDay, fingerprint } from '../src/domain.js';
 
 const today = '2026-11-03', now = new Date(today + 'T10:00:00Z');
 function envelope(slug = 'lao-union') {
@@ -128,6 +128,22 @@ test('stock cards carry the catalog id instead of their Thai label', () => {
   assert.equal(rows[1].หวย, 'หวยหุ้นใหม่ที่ยังไม่มีในสารบัญ');
   // Without a catalog the parser stays backward compatible.
   assert.equal(parseStocks(html, now)[0].หวย, 'หวยหุ้นนิคเคอิเช้า');
+});
+test('a stock card takes the catalog category, so the API row for the same draw merges', () => {
+  const catalog = JSON.parse(readFileSync(new URL('../../data/all_lotteries.json', import.meta.url)));
+  const html = '<h2>หวยหุ้นต่างประเทศ</h2>' +
+    '<h3>หวยหุ้นจีนเช้า</h3><p>งวด 3 พฤศจิกายน 2569</p><p>3 ตัวบน <b>087</b></p><p>2 ตัวล่าง 50</p>';
+  const [page] = parseStocks(html, now, catalog);
+  // The page's own heading is "ต่างประเทศ", the catalog says foreign_stock.
+  assert.equal(page.หมวดหวย, 'foreign_stock');
+  const apiRow = { หวย: 'stockchina1', ชื่อหวย: 'หวยหุ้นจีนเช้า', หมวดหวย: 'foreign_stock',
+    วันที่จัดรูปแบบ: '2026-11-03', เลขบน_3_ตัว: '087', เลขล่าง_2_ตัว: '50' };
+  // Same fingerprint, so the archive keeps one row instead of the same draw twice.
+  assert.equal(fingerprint(page), fingerprint(apiRow));
+  // An unknown label keeps the group heading it was published under.
+  const unknown = parseStocks('<h2>หวยหุ้นต่างประเทศ</h2><h3>หวยหุ้นใหม่</h3>' +
+    '<p>งวด 3 พฤศจิกายน 2569 3 ตัวบน 123 2 ตัวล่าง 45</p>', now, catalog);
+  assert.equal(unknown[0].หมวดหวย, 'stock');
 });
 test('the scraped pages can be overridden and a bad override is reported', async () => {
   const requested = [];
