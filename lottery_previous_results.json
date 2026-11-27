@@ -13,7 +13,7 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-27T06:35:52.627Z",
+    "เวลาที่ตรวจพบ": "2026-11-27T06:40:52.607Z",
     "สถานะการแจ้งเตือน": "sent",
     "source_family": "lotterychecks",
     "catalog_id": "hanoi_asean",
@@ -40,7 +40,7 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-27T06:35:52.627Z",
+    "เวลาที่ตรวจพบ": "2026-11-27T06:40:52.607Z",
     "สถานะการแจ้งเตือน": "sent",
     "source_family": "lotterychecks",
     "catalog_id": "hanoi_hd",
@@ -67,7 +67,7 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-27T06:35:52.627Z",
+    "เวลาที่ตรวจพบ": "2026-11-27T06:40:52.607Z",
     "สถานะการแจ้งเตือน": "sent",
     "source_family": "lotterychecks",
     "catalog_id": "hanoi_star",
@@ -94,10 +94,64 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-27T06:35:52.627Z",
+    "เวลาที่ตรวจพบ": "2026-11-27T06:40:52.607Z",
     "สถานะการแจ้งเตือน": "sent",
     "source_family": "lotterychecks",
     "catalog_id": "lao_tv",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "นิเคอิรอบบ่าย",
+    "หวย": "nikkei_afternoon",
+    "หมวดหวย": "foreign_stock",
+    "งวดวันที่": "27 พฤศจิกายน 2569",
+    "วันที่จัดรูปแบบ": "2026-11-27",
+    "รางวัลที่_1": "111",
+    "เลขบน_3_ตัว": "111",
+    "เลขล่าง_2_ตัว": "95",
+    "เลขท้าย_2_ตัว": "95",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-27T06:40:52.607Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "nikkei_afternoon",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "นิเคอิบ่าย VIP",
+    "หวย": "nikkei_vip_afternoon",
+    "หมวดหวย": "vip",
+    "งวดวันที่": "27 พฤศจิกายน 2569",
+    "วันที่จัดรูปแบบ": "2026-11-27",
+    "รางวัลที่_1": "976",
+    "เลขบน_3_ตัว": "976",
+    "เลขล่าง_2_ตัว": "31",
+    "เลขท้าย_2_ตัว": "31",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-27T06:40:52.607Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "nikkei_vip_afternoon",
     "verification_status": "waiting_for_evidence",
     "verification_sources": [
       "lotterychecks"

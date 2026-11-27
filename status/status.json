@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-27T13:35:00.000+07:00",
-  "last_run_date_thai": "27/11/2026 13:35:00",
-  "total_checks": 19880,
-  "last_source_used": "LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 4 รายการ ส่งสำเร็จ 14 รายการ ส่งเตือนตามตาราง 42 รายการ รอผลจากแหล่งข้อมูล 5 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 4 รายการ",
-  "active_sources_count": 3,
+  "last_run_timestamp": "2026-11-27T13:40:00.000+07:00",
+  "last_run_date_thai": "27/11/2026 13:40:00",
+  "total_checks": 19881,
+  "last_source_used": "lotterychecks + LotteryChecks Lao/Hanoi + glo + LotteryChecks VIP stock",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 16 รายการ ส่งเตือนตามตาราง 43 รายการ รอผลจากแหล่งข้อมูล 5 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 6 รายการ",
+  "active_sources_count": 4,
   "latest_draw_detected": "2026-11-27",
-  "notifications_sent_today": 14,
+  "notifications_sent_today": 16,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-27T13:40:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 16 รายการ ส่งเตือนตามตาราง 43 รายการ รอผลจากแหล่งข้อมูล 5 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 6 รายการ"
+    },
     {
       "timestamp": "2026-11-27T13:35:00.000+07:00",
       "level": "INFO",
@@ -104,25 +109,15 @@
       "timestamp": "2026-11-27T12:05:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 3 รายการ ส่งสำเร็จ 10 รายการ ส่งเตือนตามตาราง 30 รายการ รอผลจากแหล่งข้อมูล 6 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 3 รายการ"
-    },
-    {
-      "timestamp": "2026-11-27T12:00:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 3 รายการ ส่งสำเร็จ 10 รายการ ส่งเตือนตามตาราง 30 รายการ รอผลจากแหล่งข้อมูล 6 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 3 รายการ"
     }
   ],
   "uncertain_deliveries": 0,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 300,
-  "schedule_alerts_sent_today": 42,
+  "schedule_alerts_sent_today": 43,
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ลาวสามัคคี",
-        "status": 404
-      },
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ฮานอยพัฒนา",
@@ -130,12 +125,17 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย TV",
+        "lottery": "ลาวสามัคคี",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ลาว HD",
+        "status": 404
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอย TV",
         "status": 404
       },
       {
@@ -152,7 +152,7 @@
     "mode": "shadow",
     "min_sources": 2,
     "verified": 0,
-    "pending": 4,
+    "pending": 6,
     "conflicts": 0,
     "unmapped": 0
   },
