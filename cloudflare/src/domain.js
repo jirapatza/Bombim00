@@ -85,8 +85,13 @@ function computeNormalize(name) {
 export const scheduleName = memoize(computeScheduleName);
 function computeScheduleName(name) {
   let s = canonical(name).toLowerCase();
-  const vip = /(?<!s)vip|วีไอพี/.test(s);
-  s = s.replace(/(?<!s)vip|วีไอพี/g, '');
+  // Providers spell the VIP round "VISA", and "พิเศษ" on a stock round is the
+  // same product; the catalogue lists one item for each of them. ฮานอยพิเศษ is
+  // a lottery of its own, so the rule only applies to หวยหุ้น labels.
+  const stockVip = /หุ้น/.test(s) && s.includes('พิเศษ');
+  if (stockVip) s = s.replace(/พิเศษ/g, ' ');
+  const vip = stockVip || /(?<!s)vip|วีไอพี|visa/.test(s);
+  s = s.replace(/(?<!s)vip|วีไอพี|visa/g, '');
   for (const [a, b] of [['สตาร์', 'star'], ['นิคเคอิ', 'นิเคอิ'], ['หวยหุ้น', ''], ['หวย', ''], ['หุ้น', ''], ['รอบ', ''], ['(ไทย)', '']]) s = s.replaceAll(a, b);
   return s.replace(/[^a-z0-9ก-๙]/g, '') + (vip ? 'vip' : '');
 }
