@@ -440,6 +440,43 @@ def _atomic_json_write(value: Any, path: str) -> None:
             os.unlink(temporary)
 
 
+# Retention. The archive is fetched by every browser and read on every checker
+# cycle, so it cannot grow by ~36 rows a day forever; 60 draws is two months of
+# daily results, more than the history screen and the statistics need. The cap
+# mirrors HISTORY_PER_LOTTERY / HISTORY_MAX_ROWS in cloudflare/src/domain.js so
+# the two writers cannot disagree about what the archive holds.
+HISTORY_PER_LOTTERY = 60
+HISTORY_MAX_ROWS = 6000
+_GENERIC_NAME_PARTS = ("หวยหุ้น", "หวย", "หุ้น", "รอบ")
+
+
+def lottery_history_key(row: Dict[str, Any]) -> str:
+    """One key per lottery: providers label the same draw "หวยหุ้นจีนเช้า" and "จีนเช้า"."""
+    raw_name = row.get("ชื่อหวย") or row.get("lottery_name") or row.get("หวย") or row.get("id") or "หวยไม่ระบุชื่อ"
+    name = normalize_lottery_name(raw_name)
+    for part in _GENERIC_NAME_PARTS:
+        name = name.replace(part, "")
+    return " ".join(name.split()) or normalize_lottery_name(raw_name)
+
+
+def trim_results(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Keep the newest draws of each lottery, in their original order."""
+    grouped: Dict[str, List[int]] = {}
+    for index, row in enumerate(rows):
+        grouped.setdefault(lottery_history_key(row), []).append(index)
+    drop = set()
+    for indexes in grouped.values():
+        if len(indexes) <= HISTORY_PER_LOTTERY:
+            continue
+        newest = sorted(indexes, key=lambda i: str(_parse_draw_date(rows[i])), reverse=True)
+        drop.update(newest[HISTORY_PER_LOTTERY:])
+    kept = [row for index, row in enumerate(rows) if index not in drop]
+    if len(kept) <= HISTORY_MAX_ROWS:
+        return kept
+    newest = sorted(range(len(kept)), key=lambda i: str(_parse_draw_date(kept[i])), reverse=True)
+    return [kept[i] for i in sorted(newest[:HISTORY_MAX_ROWS])]
+
+
 def save_results(rows: List[Dict[str, Any]], path: str = DEFAULT_RESULTS_PATH) -> None:
-    """Persist complete history atomically; failures must fail the checker run."""
-    _atomic_json_write(rows, path)
+    """Persist history atomically; failures must fail the checker run."""
+    _atomic_json_write(trim_results(rows), path)

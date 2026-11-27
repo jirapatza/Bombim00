@@ -204,11 +204,46 @@ export function eligible(settings, row) {
   if ((p.bottom2 ?? p.last_2 ?? true)) candidates.push(bottom);
   return (n.custom_watched_numbers || []).some(x => /^[0-9]{2,3}$/.test(String(x).trim()) && candidates.includes(String(x).trim()));
 }
+// Retention. The archive is fetched by every browser and by the Worker on every
+// cycle, so it cannot grow by ~36 rows a day forever; 60 draws is two months of
+// daily results, more than the history screen (80 rows) and the statistics need.
+export const HISTORY_PER_LOTTERY = 60;
+export const HISTORY_MAX_ROWS = 6000;
+
+const newestFirst = (a, b) => String(drawDate(b)).localeCompare(String(drawDate(a)));
+
+// Providers label the same draw "หวยหุ้นจีนเช้า" and "จีนเช้า"; retention must see
+// one lottery, or a legacy label gets a second budget of its own.
+const GENERIC = /(หวยหุ้น|หวย|หุ้น|รอบ)/g;
+export const lotteryKey = row => normalize(rawName(row)).replace(GENERIC, '').trim() || normalize(rawName(row));
+
+export function trimHistory(rows) {
+  const byLottery = new Map();
+  for (const row of rows) {
+    const key = lotteryKey(row);
+    const group = byLottery.get(key);
+    if (group) group.push(row); else byLottery.set(key, [row]);
+  }
+  let kept = rows;
+  if ([...byLottery.values()].some(group => group.length > HISTORY_PER_LOTTERY)) {
+    const drop = new Set();
+    for (const group of byLottery.values()) {
+      if (group.length <= HISTORY_PER_LOTTERY) continue;
+      // Keep the newest draws of each lottery, in their original order.
+      for (const row of [...group].sort(newestFirst).slice(HISTORY_PER_LOTTERY)) drop.add(row);
+    }
+    kept = rows.filter(row => !drop.has(row));
+  }
+  if (kept.length <= HISTORY_MAX_ROWS) return kept;
+  // Safety net for label churn: a legacy label must not add a second budget.
+  const drop = new Set([...kept].sort(newestFirst).slice(HISTORY_MAX_ROWS));
+  return kept.filter(row => !drop.has(row));
+}
 export function mergeRows(rows, history) {
   const merged = [], seen = new Set();
   for (const row of [...rows, ...history]) {
     const key = fingerprint(row);
     if (!seen.has(key)) { seen.add(key); merged.push(row); }
   }
-  return merged;
+  return trimHistory(merged);
 }
