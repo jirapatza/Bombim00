@@ -85,13 +85,8 @@ function computeNormalize(name) {
 export const scheduleName = memoize(computeScheduleName);
 function computeScheduleName(name) {
   let s = canonical(name).toLowerCase();
-  // Providers spell the VIP round "VISA", and "พิเศษ" on a stock round is the
-  // same product; the catalogue lists one item for each of them. ฮานอยพิเศษ is
-  // a lottery of its own, so the rule only applies to หวยหุ้น labels.
-  const stockVip = /หุ้น/.test(s) && s.includes('พิเศษ');
-  if (stockVip) s = s.replace(/พิเศษ/g, ' ');
-  const vip = stockVip || /(?<!s)vip|วีไอพี|visa/.test(s);
-  s = s.replace(/(?<!s)vip|วีไอพี|visa/g, '');
+  const vip = /(?<!s)vip|วีไอพี/.test(s);
+  s = s.replace(/(?<!s)vip|วีไอพี/g, '');
   for (const [a, b] of [['สตาร์', 'star'], ['นิคเคอิ', 'นิเคอิ'], ['หวยหุ้น', ''], ['หวย', ''], ['หุ้น', ''], ['รอบ', ''], ['(ไทย)', '']]) s = s.replaceAll(a, b);
   return s.replace(/[^a-z0-9ก-๙]/g, '') + (vip ? 'vip' : '');
 }
@@ -252,16 +247,42 @@ export function trimHistory(rows) {
 // the history screen as "หวยหุ้นจีนเช้า", "จีนรอบเช้า" and "จีนเช้า" — three
 // entries in the history filter for one lottery. The catalogue is the authority
 // on names, so every stored row is relabelled to the catalogue's current name.
-export function withCanonicalName(row, catalog) {
-  const item = Array.isArray(catalog) ? catalogItem(row, catalog) : null;
-  if (!item || !item.name) return row;
-  const label = rawName(row);
-  if (label === item.name) return row;
-  const copy = { ...row, ชื่อหวย: item.name };
+// หมวดหวย stock_visa / stock_special are provider products that share a market
+// name with a catalogue VIP round but publish different numbers, so they must
+// never be folded into the catalogue name. The catalogue does not list them, so
+// they are labelled by market and product instead.
+const SEPARATE_PRODUCTS = { stock_visa: 'VISA', stock_special: 'พิเศษ' };
+const ROUND_WORDS = ['เช้า', 'บ่าย'];
+export function providerProductName(row) {
+  const category = String(row.หมวดหวย || row.category || '').trim().toLowerCase();
+  const product = SEPARATE_PRODUCTS[category];
+  if (!product) return null;
+  let text = normalize(rawName(row)).replace(/^หวยหุ้น/, '').replace(/^หุ้น/, '');
+  text = text.replace(/\s*vip$/, '').replace(/พิเศษ/g, ' ').replace(/\s*visa/g, ' ').trim();
+  let round = '';
+  for (const word of ROUND_WORDS) {
+    if (text.length > word.length && text.endsWith(word)) {
+      round = ' ' + word;
+      text = text.slice(0, -word.length).replace(/\s+$/, '');
+      break;
+    }
+  }
+  if (!text) return null;
+  return `หวยหุ้น${text}${product === 'VISA' ? ' VISA' : 'พิเศษ'}${round}`;
+}
+function relabel(row, name) {
+  if (!name || rawName(row) === name) return row;
+  const copy = { ...row, ชื่อหวย: name };
   // `หวย` is the provider label on Worker rows and the id on checker rows: only
-  // relabel it when it is not an id.
-  if (row.หวย !== undefined && row.หวย !== item.id) copy.หวย = item.name;
+  // relabel it when it carried the old label.
+  if (row.หวย === rawName(row)) copy.หวย = name;
   return copy;
+}
+export function withCanonicalName(row, catalog) {
+  const separate = providerProductName(row);
+  if (separate) return relabel(row, separate);
+  const item = Array.isArray(catalog) ? catalogItem(row, catalog) : null;
+  return relabel(row, item?.name);
 }
 export function mergeRows(rows, history, catalog = null) {
   const merged = [], seen = new Set();
