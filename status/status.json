@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-27T21:40:00.000+07:00",
-  "last_run_date_thai": "27/11/2026 21:40:00",
-  "total_checks": 19977,
-  "last_source_used": "ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 25 รายการ ส่งสำเร็จ 39 รายการ ส่งเตือนตามตาราง 86 รายการ รอหลักฐานแหล่งที่สอง 24 รายการ",
+  "last_run_timestamp": "2026-11-27T21:45:00.000+07:00",
+  "last_run_date_thai": "27/11/2026 21:45:00",
+  "total_checks": 19978,
+  "last_source_used": "ThaiLottoAPI + glo + LotteryChecks Lao/Hanoi + lotterychecks",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 24 รายการ ส่งสำเร็จ 39 รายการ ส่งเตือนตามตาราง 87 รายการ รอผลจากแหล่งข้อมูล 1 รายการ รอหลักฐานแหล่งที่สอง 23 รายการ",
   "active_sources_count": 4,
   "latest_draw_detected": "27.11.2026",
   "notifications_sent_today": 39,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-27T21:45:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 24 รายการ ส่งสำเร็จ 39 รายการ ส่งเตือนตามตาราง 87 รายการ รอผลจากแหล่งข้อมูล 1 รายการ รอหลักฐานแหล่งที่สอง 23 รายการ"
+    },
     {
       "timestamp": "2026-11-27T21:40:00.000+07:00",
       "level": "INFO",
@@ -104,20 +109,21 @@
       "timestamp": "2026-11-27T20:10:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 21 รายการ ส่งสำเร็จ 33 รายการ ส่งเตือนตามตาราง 76 รายการ รอผลจากแหล่งข้อมูล 2 รายการ รอหลักฐานแหล่งที่สอง 21 รายการ"
-    },
-    {
-      "timestamp": "2026-11-27T20:05:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 21 รายการ ส่งสำเร็จ 33 รายการ ส่งเตือนตามตาราง 76 รายการ รอผลจากแหล่งข้อมูล 2 รายการ รอหลักฐานแหล่งที่สอง 21 รายการ"
     }
   ],
   "uncertain_deliveries": 0,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 300,
-  "schedule_alerts_sent_today": 86,
+  "schedule_alerts_sent_today": 87,
   "schedule_alert_failures": 0,
   "source_checks": {
-    "waiting": [],
+    "waiting": [
+      {
+        "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ลาว STAR VIP",
+        "status": 404
+      }
+    ],
     "errors": []
   },
   "active_uncertain_deliveries": 0,
@@ -126,7 +132,7 @@
     "mode": "shadow",
     "min_sources": 2,
     "verified": 0,
-    "pending": 24,
+    "pending": 23,
     "conflicts": 0,
     "unmapped": 1
   },
