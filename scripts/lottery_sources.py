@@ -16,44 +16,16 @@ from dataclasses import dataclass, field
 
 import requests
 
-THAI_MONTHS = (
-    "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
-)
+try:  # imported as scripts.lottery_sources
+    from .thai_calendar import iso_to_thai_date, thai_date_to_iso
+except ImportError:  # imported with scripts/ on sys.path
+    from thai_calendar import iso_to_thai_date, thai_date_to_iso
 
 THAILOTTOAPI_URL = "https://thailottoapi.com/api/results"
 PHOLHUAY_BASE = "https://xn--t3cmiit.com"
 LOTTERYCHECKS_BASE = "https://lotterychecks.com"
 LOTTERYCHECKS_API = f"{LOTTERYCHECKS_BASE}/api/public/results"
 USER_AGENT = "Mozilla/5.0 (compatible; Bombim00Collector/2.0)"
-
-
-def thai_date_to_iso(text: str) -> str:
-    """Convert a Thai or ISO draw date to YYYY-MM-DD, or '' when unparseable."""
-    value = (text or "").strip()
-    iso = re.match(r"^(\d{4})-(\d{2})-(\d{2})", value)
-    if iso:
-        year = int(iso.group(1))
-        return f"{year - 543 if year >= 2400 else year:04d}-{iso.group(2)}-{iso.group(3)}"
-    thai = re.match(r"^(\d{1,2})\s+(\S+)\s+(\d{4})$", value)
-    if thai and thai.group(2) in THAI_MONTHS:
-        month = THAI_MONTHS.index(thai.group(2)) + 1
-        year = int(thai.group(3))
-        return f"{year - 543 if year >= 2400 else year:04d}-{month:02d}-{int(thai.group(1)):02d}"
-    numeric = re.match(r"^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$", value)
-    if numeric:
-        year = int(numeric.group(3))
-        return f"{year - 543 if year >= 2400 else year:04d}-{int(numeric.group(2)):02d}-{int(numeric.group(1)):02d}"
-    return ""
-
-
-def iso_to_thai_date(iso: str) -> str:
-    """Render YYYY-MM-DD as the Buddhist-era label used by the catalog."""
-    try:
-        day = datetime.date.fromisoformat(iso)
-    except (TypeError, ValueError):
-        return ""
-    return f"{day.day} {THAI_MONTHS[day.month - 1]} {day.year + 543}"
 
 
 def digits(value, width: int) -> str:

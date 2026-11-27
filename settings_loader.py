@@ -145,16 +145,14 @@ def normalize_lottery_name(name: str) -> str:
 
 
 
+try:  # imported as a repo module (tests, checker)
+    from scripts.thai_calendar import THAI_MONTH_NUMBERS
+except ImportError:  # imported with scripts/ on sys.path
+    from thai_calendar import THAI_MONTH_NUMBERS
+
+
 def _parse_draw_date(row: Dict[str, Any]) -> datetime.date:
     """Parse supported ISO, dotted, slash, and Thai Buddhist-era draw dates."""
-    thai_months = {
-        "มกราคม": 1, "ม.ค": 1, "กุมภาพันธ์": 2, "ก.พ": 2,
-        "มีนาคม": 3, "มี.ค": 3, "เมษายน": 4, "เม.ย": 4,
-        "พฤษภาคม": 5, "พ.ค": 5, "มิถุนายน": 6, "มิ.ย": 6,
-        "กรกฎาคม": 7, "ก.ค": 7, "สิงหาคม": 8, "ส.ค": 8,
-        "กันยายน": 9, "ก.ย": 9, "ตุลาคม": 10, "ต.ค": 10,
-        "พฤศจิกายน": 11, "พ.ย": 11, "ธันวาคม": 12, "ธ.ค": 12,
-    }
     # The provider's actual draw date wins over a legacy ingestion-date field.
     # Government draws can move to any announced date, including the 2nd or 17th.
     for candidate in (row.get("งวดวันที่"), row.get("draw_date"), row.get("date"), row.get("วันที่จัดรูปแบบ")):
@@ -171,7 +169,7 @@ def _parse_draw_date(row: Dict[str, Any]) -> datetime.date:
         if len(parts) >= 3:
             try:
                 day = int(parts[0])
-                month = thai_months.get(parts[1].rstrip("."))
+                month = THAI_MONTH_NUMBERS.get(parts[1].rstrip("."))
                 year = int(parts[2])
                 if month:
                     if year >= 2400:

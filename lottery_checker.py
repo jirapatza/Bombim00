@@ -19,6 +19,7 @@ except ImportError:
     import urllib.error
 
 import settings_loader as sl
+from scripts.thai_calendar import THAI_MONTHS
 from draw_schedule import load_catalog, scheduled_result, schedule_name
 
 # Load configuration at startup
@@ -648,9 +649,7 @@ def fetch_from_ranlotto() -> list:
         draw_date = raw_date
         try:
             parsed = datetime.date.fromisoformat(raw_date[:10])
-            thai_months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-                           "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"]
-            draw_date = f"{parsed.day} {thai_months[parsed.month - 1]} {parsed.year + 543}"
+            draw_date = f"{parsed.day} {THAI_MONTHS[parsed.month - 1]} {parsed.year + 543}"
         except (ValueError, TypeError):
             pass
         return [{
