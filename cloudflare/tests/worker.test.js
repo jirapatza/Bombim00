@@ -25,6 +25,25 @@ function fixture(t, extra = {}) {
     send: async (_s, row) => { sends.push(row.หวย); return 'sent'; }, ...extra };
   return { env, db, data, sends, published, remote, dependencies, run: () => cycle(env, dependencies) };
 }
+const day = (offset) => new Date(Date.UTC(2026, 8, 1) + offset * 86400000).toISOString().slice(0, 10);
+
+test('the archive keeps 60 draws per lottery so the file cannot grow forever', () => {
+  const draws = Array.from({ length: 75 }, (_, i) => ({ ...result(),
+    งวดวันที่: day(i), วันที่จัดรูปแบบ: day(i), เลขบน_3_ตัว: String(100 + i), รางวัลที่_1: String(100 + i) }));
+  const merged = mergeRows([], draws);
+  assert.equal(merged.length, 60, 'the oldest 15 draws are dropped');
+  assert.ok(merged.some(row => drawDate(row) === day(74)), 'the newest draw survives');
+  assert.ok(!merged.some(row => drawDate(row) === day(0)), 'the oldest draw is gone');
+});
+
+test('a legacy label shares the budget of the lottery it belongs to', () => {
+  const rows = (id, name, from, count) => Array.from({ length: count }, (_, i) => ({
+    ...result(id, name), งวดวันที่: day(from + i), วันที่จัดรูปแบบ: day(from + i), เลขบน_3_ตัว: String(100 + i) }));
+  const merged = mergeRows([], [...rows('china_morning', 'จีนเช้า', 40, 40), ...rows('หวยหุ้นจีนเช้า', 'หวยหุ้นจีนเช้า', 0, 40)]);
+  assert.equal(merged.length, 60, '80 rows of one lottery trim to 60, not 60 per label');
+  assert.ok(merged.every(row => drawDate(row) >= day(20)), 'the older label loses its rows first');
+});
+
 test('persists result/status, preserves UTF-8/leading zeroes, never resends on next cycle or restart', async t => {
   const f = fixture(t);
   assert.equal((await f.run()).sent, 1);
