@@ -7,7 +7,7 @@ have, so this compares each draw against the schedule the catalogue declares.
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 THAI_WEEKDAYS = {
     "จันทร์": 0,
@@ -18,20 +18,10 @@ THAI_WEEKDAYS = {
     "เสาร์": 5,
     "อาทิตย์": 6,
 }
-THAI_MONTHS = {
-    "มกราคม": 1,
-    "กุมภาพันธ์": 2,
-    "มีนาคม": 3,
-    "เมษายน": 4,
-    "พฤษภาคม": 5,
-    "มิถุนายน": 6,
-    "กรกฎาคม": 7,
-    "สิงหาคม": 8,
-    "กันยายน": 9,
-    "ตุลาคม": 10,
-    "พฤศจิกายน": 11,
-    "ธันวาคม": 12,
-}
+try:  # imported as scripts.draw_freshness
+    from .thai_calendar import parse_thai_date
+except ImportError:  # imported with scripts/ on sys.path
+    from thai_calendar import parse_thai_date
 GRACE_MINUTES = 180
 MIN_MISSED = 2
 DEFAULT_IGNORED = "thai_gov,gsb,baac,russia"
@@ -58,16 +48,7 @@ def draw_weekdays(text):
 
 def thai_date(text):
     """`20 พฤศจิกายน 2569` as a date, or None."""
-    match = re.match(r"(\d{1,2})\s+(\S+)\s+(\d{4})", (text or "").strip())
-    if not match:
-        return None
-    month = THAI_MONTHS.get(match.group(2))
-    if not month:
-        return None
-    try:
-        return date(int(match.group(3)) - 543, month, int(match.group(1)))
-    except ValueError:
-        return None
+    return parse_thai_date(text)
 
 
 def close_minutes(text):
