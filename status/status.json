@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-27T14:35:00.000+07:00",
-  "last_run_date_thai": "27/11/2026 14:35:00",
-  "total_checks": 19892,
+  "last_run_timestamp": "2026-11-27T14:40:00.000+07:00",
+  "last_run_date_thai": "27/11/2026 14:40:00",
+  "total_checks": 19893,
   "last_source_used": "LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 20 รายการ ส่งเตือนตามตาราง 48 รายการ รอผลจากแหล่งข้อมูล 3 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 6 รายการ",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 20 รายการ ส่งเตือนตามตาราง 49 รายการ รอผลจากแหล่งข้อมูล 3 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 6 รายการ",
   "active_sources_count": 3,
   "latest_draw_detected": "2026-11-27",
   "notifications_sent_today": 20,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-27T14:40:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 20 รายการ ส่งเตือนตามตาราง 49 รายการ รอผลจากแหล่งข้อมูล 3 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 6 รายการ"
+    },
     {
       "timestamp": "2026-11-27T14:35:00.000+07:00",
       "level": "INFO",
@@ -104,17 +109,12 @@
       "timestamp": "2026-11-27T13:05:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 14 รายการ ส่งเตือนตามตาราง 37 รายการ รอผลจากแหล่งข้อมูล 5 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 6 รายการ"
-    },
-    {
-      "timestamp": "2026-11-27T13:00:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 4 รายการ ส่งสำเร็จ 12 รายการ ส่งเตือนตามตาราง 36 รายการ รอผลจากแหล่งข้อมูล 5 รายการ แหล่งข้อมูลขัดข้อง 1 คำขอ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 4 รายการ"
     }
   ],
   "uncertain_deliveries": 0,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 300,
-  "schedule_alerts_sent_today": 48,
+  "schedule_alerts_sent_today": 49,
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [
@@ -134,7 +134,13 @@
         "status": 404
       }
     ],
-    "errors": []
+    "errors": [
+      {
+        "source": "ThaiLottoAPI",
+        "status": 500,
+        "reason": "http"
+      }
+    ]
   },
   "active_uncertain_deliveries": 0,
   "old_uncertain_deliveries": 0,
@@ -158,8 +164,8 @@
   ],
   "source_backoff": {
     "ThaiLottoAPI": {
-      "failures": 13,
-      "until": 1795764952622
+      "failures": 14,
+      "until": 1795767052654
     }
   }
 }
