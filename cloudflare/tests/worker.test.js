@@ -334,6 +334,33 @@ test('a reminder is not sent after the result was delivered in an earlier cycle'
   assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 0);
 });
 
+test('a closing reminder never rides in the same cycle as a result', async t => {
+  const f = scheduleFixture(t);
+  const other = { ...scheduledLottery, id: 'scheduled-other', name: 'หวยอื่น', closeTimeStr: '16:20 น.', drawTimeStr: '16:30 น.' };
+  f.data['data/all_lotteries.json'] = [scheduledLottery, other];
+  // A different lottery's result arrives while หวยทดสอบ is ten minutes from closing.
+  f.dependencies.collect = async () => ({ rows: [result('scheduled-other', 'หวยอื่น')], sources: ['synthetic'], errors: [] });
+  const first = await f.run();
+  assert.equal(first.sent, 1, 'the result is delivered');
+  assert.deepEqual(f.messages, [], 'but the reminder waits for its own cycle');
+  assert.equal(f.data[OUTPUTS[1]].schedule_alerts_sent_today, 0);
+  // Still inside the ten-minute window: the reminder goes out on its own.
+  await f.run();
+  assert.deepEqual(f.messages.map(({ title }) => title), ['ใกล้ปิดรับ']);
+  // Past the close, nothing is left to warn about.
+  f.dependencies.now = bangkok('15:20');
+  await f.run();
+  assert.equal(f.messages.length, 1);
+});
+
+test('close and draw on the same minute is announced once, not twice', () => {
+  const sameMinute = { ...scheduledLottery, id: 'same-minute', closeTimeStr: '15:20 น.', drawTimeStr: '15:20 น.' };
+  const kinds = time => dueScheduleAlerts([sameMinute], today, bangkok(time)).map(alert => alert.kind);
+  assert.deepEqual(kinds('15:11'), ['closing']);
+  assert.deepEqual(kinds('15:16'), ['closing'], 'the closing reminder covers the draw time too');
+  assert.deepEqual(kinds('15:21'), []);
+});
+
 test('retries a definite schedule rejection only after 429 cooldown and never repeats an uncertain send', async t => {
   let clock = +bangkok('15:10');
   t.mock.method(Date, 'now', () => clock);

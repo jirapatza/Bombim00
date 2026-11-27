@@ -138,8 +138,12 @@ export function dueScheduleAlerts(catalog, today, now) {
       ['closing', close && (!draw || close.at <= draw.at) ? close : null, 10],
       ['upcoming', draw, 5],
     ];
-    for (const [kind, time, minutes] of windows) {
-      if (!time || +now < time.at - minutes * 60000 || +now >= time.at) continue;
+    // One reminder per lottery per cycle: when close and draw fall on the same
+    // minute both windows are open, and "closing in 5" next to "draws in 5" is
+    // the same news twice. `windows` lists closing first, so it wins.
+    const due = windows.find(([, time, minutes]) => time && +now >= time.at - minutes * 60000 && +now < time.at);
+    if (due) {
+      const [kind, time] = due;
       alerts.push({ kind, key: JSON.stringify([kind, item.id, today]), name: item.name, ...time });
     }
   }

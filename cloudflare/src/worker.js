@@ -314,7 +314,7 @@ export async function cycle(env, dependencies = {}) {
     // cooldown in effect, or the per-cycle MAX_SENDS budget already spent.
     // (observe mode queues everything too, but that already shows as
     // status: 'observing' and needs no extra reason here.)
-    const queuedBy = { backoff: 0, quota: 0 };
+    const queuedBy = { backoff: 0, quota: 0, deferred: 0 };
     const batchedResults = [];
     for (const row of rows) {
       const key = drawIdentity(row), entry = state.deliveries[key];
@@ -391,7 +391,14 @@ export async function cycle(env, dependencies = {}) {
       // send per lottery. Order is kept (dueScheduleAlerts sorts by time) so
       // the combined message still lists closings before upcoming draws.
       if (dueAlerts.length) {
-        if (Date.parse(state.pushBackoffUntil || '') > Date.now()) queuedBy.backoff += dueAlerts.length;
+        if (sent > 0) {
+          // Never let a closing reminder ride in the same cycle as a result: the
+          // two land as two notifications seconds apart, and "ปิดรับ" next to
+          // "ผลออกแล้ว" reads as if the draw closed after its numbers were out.
+          // The alert keeps its window, so the next cycle still sends it while it
+          // still matters, and skips it once it does not.
+          queuedBy.deferred += dueAlerts.length;
+        } else if (Date.parse(state.pushBackoffUntil || '') > Date.now()) queuedBy.backoff += dueAlerts.length;
         else if (attempts >= MAX_SENDS) queuedBy.quota += dueAlerts.length;
         else {
           await recordDelivery(dueAlerts.map(a => a.key),
@@ -412,7 +419,7 @@ export async function cycle(env, dependencies = {}) {
     // Overwritten every deliver cycle (not an array, so no retention/growth
     // concern); stays from the last deliver cycle if a later cycle is
     // observe/paused, which is fine since nothing is attempted there anyway.
-    state.lastQueueSummary = { at: now.toISOString(), backoff: queuedBy.backoff, quota: queuedBy.quota };
+    state.lastQueueSummary = { at: now.toISOString(), backoff: queuedBy.backoff, quota: queuedBy.quota, deferred: queuedBy.deferred };
     // Backfilled draws are history only: they were collected after their draw
     // day passed, so they are merged into the archive without ever being sent.
     const merged = mergeRows([...rows, ...backfill], history);
