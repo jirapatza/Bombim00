@@ -475,6 +475,50 @@ def trim_results(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [kept[i] for i in sorted(newest[:HISTORY_MAX_ROWS])]
 
 
+def canonical_lottery_names(catalog: Optional[List[Dict[str, Any]]]):
+    """Catalogue ids and normalized keys mapped to the catalogue's current name."""
+    by_id: Dict[str, str] = {}
+    by_key: Dict[str, str] = {}
+    for item in catalog or []:
+        name = str((item or {}).get("name") or "").strip()
+        if not name:
+            continue
+        item_id = str((item or {}).get("id") or "").strip()
+        if item_id:
+            by_id[item_id] = name
+        by_key.setdefault(lottery_history_key({"ชื่อหวย": name}), name)
+    return by_id, by_key
+
+
+def with_canonical_name(row: Dict[str, Any], names) -> Dict[str, Any]:
+    """Relabel a stored row to the catalogue name, keeping ids untouched.
+
+    A draw keeps whatever label it was stored under, so one lottery reached the
+    history screen as "หวยหุ้นจีนเช้า", "จีนรอบเช้า" and "จีนเช้า" — three entries
+    in the history filter for one lottery.
+    """
+    by_id, by_key = names
+    raw = str(row.get("หวย") or "").strip()
+    target = by_id.get(raw) or by_key.get(lottery_history_key(row))
+    if not target or (row.get("ชื่อหวย") or row.get("หวย")) == target:
+        return row
+    fixed = dict(row)
+    if fixed.get("ชื่อหวย") is not None:
+        fixed["ชื่อหวย"] = target
+    if raw and raw not in by_id:
+        fixed["หวย"] = target
+    return fixed
+
+
+def canonicalize_results(rows: List[Dict[str, Any]],
+                         catalog: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """Relabel stored rows to the catalogue names before they are written."""
+    names = canonical_lottery_names(catalog)
+    if not (names[0] or names[1]):
+        return rows
+    return [with_canonical_name(row, names) for row in rows]
+
+
 def save_results(rows: List[Dict[str, Any]], path: str = DEFAULT_RESULTS_PATH) -> None:
     """Persist history atomically; failures must fail the checker run."""
     _atomic_json_write(trim_results(rows), path)

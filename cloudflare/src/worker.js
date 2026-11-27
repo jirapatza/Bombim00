@@ -422,7 +422,7 @@ export async function cycle(env, dependencies = {}) {
     state.lastQueueSummary = { at: now.toISOString(), backoff: queuedBy.backoff, quota: queuedBy.quota, deferred: queuedBy.deferred };
     // Backfilled draws are history only: they were collected after their draw
     // day passed, so they are merged into the archive without ever being sent.
-    const merged = mergeRows([...rows, ...backfill], history);
+    const merged = mergeRows([...rows, ...backfill], history, catalog);
     const uncertainCounts = deliveryUncertainty(state.deliveries, now);
     const uncertain = uncertainCounts.recent;
     const todayDeliveries = Object.values(state.deliveries).filter(x => x.date === today);
