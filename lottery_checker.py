@@ -964,7 +964,7 @@ def main():
         if fingerprint not in seen:
             seen.add(fingerprint)
             merged.append(row)
-    sl.save_results(merged)
+    sl.save_results(sl.canonicalize_results(merged, catalog))
     sl.write_status(rows, source_used=source_used, notifications_sent=len(delivered),
                     live_results=any(scheduled_result(row, catalog, today) for row in live_rows))
     print(f"[DONE] Checked {len(live_rows)} live result(s) for target '{lottery_target}'; delivered {len(delivered)} notification(s).")

@@ -243,9 +243,25 @@ export function trimHistory(rows) {
   const drop = new Set([...kept].sort(newestFirst).slice(HISTORY_MAX_ROWS));
   return kept.filter(row => !drop.has(row));
 }
-export function mergeRows(rows, history) {
+// A draw keeps whatever label it was stored under, so the same lottery reached
+// the history screen as "หวยหุ้นจีนเช้า", "จีนรอบเช้า" and "จีนเช้า" — three
+// entries in the history filter for one lottery. The catalogue is the authority
+// on names, so every stored row is relabelled to the catalogue's current name.
+export function withCanonicalName(row, catalog) {
+  const item = Array.isArray(catalog) ? catalogItem(row, catalog) : null;
+  if (!item || !item.name) return row;
+  const label = rawName(row);
+  if (label === item.name) return row;
+  const copy = { ...row, ชื่อหวย: item.name };
+  // `หวย` is the provider label on Worker rows and the id on checker rows: only
+  // relabel it when it is not an id.
+  if (row.หวย !== undefined && row.หวย !== item.id) copy.หวย = item.name;
+  return copy;
+}
+export function mergeRows(rows, history, catalog = null) {
   const merged = [], seen = new Set();
-  for (const row of [...rows, ...history]) {
+  for (const original of [...rows, ...history]) {
+    const row = withCanonicalName(original, catalog);
     const key = fingerprint(row);
     if (!seen.has(key)) { seen.add(key); merged.push(row); }
   }
