@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-27T13:05:00.000+07:00",
-  "last_run_date_thai": "27/11/2026 13:05:00",
-  "total_checks": 19874,
-  "last_source_used": "LotteryChecks Lao/Hanoi + lotterychecks + glo + LotteryChecks VIP stock",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 6 รายการ ส่งสำเร็จ 14 รายการ ส่งเตือนตามตาราง 37 รายการ รอผลจากแหล่งข้อมูล 5 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 6 รายการ",
-  "active_sources_count": 4,
+  "last_run_timestamp": "2026-11-27T13:10:00.000+07:00",
+  "last_run_date_thai": "27/11/2026 13:10:00",
+  "total_checks": 19875,
+  "last_source_used": "lotterychecks + LotteryChecks Lao/Hanoi + glo",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 4 รายการ ส่งสำเร็จ 14 รายการ ส่งเตือนตามตาราง 37 รายการ รอผลจากแหล่งข้อมูล 5 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 4 รายการ",
+  "active_sources_count": 3,
   "latest_draw_detected": "2026-11-27",
   "notifications_sent_today": 14,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-27T13:10:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 4 รายการ ส่งสำเร็จ 14 รายการ ส่งเตือนตามตาราง 37 รายการ รอผลจากแหล่งข้อมูล 5 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 4 รายการ"
+    },
     {
       "timestamp": "2026-11-27T13:05:00.000+07:00",
       "level": "INFO",
@@ -104,11 +109,6 @@
       "timestamp": "2026-11-27T11:35:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 3 รายการ ส่งสำเร็จ 10 รายการ ส่งเตือนตามตาราง 28 รายการ รอผลจากแหล่งข้อมูล 6 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 3 รายการ"
-    },
-    {
-      "timestamp": "2026-11-27T11:30:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 2 รายการ ส่งสำเร็จ 9 รายการ ส่งเตือนตามตาราง 28 รายการ รอผลจากแหล่งข้อมูล 7 รายการ พักแหล่งที่ขัดข้อง 1 รายการ รอหลักฐานแหล่งที่สอง 2 รายการ"
     }
   ],
   "uncertain_deliveries": 0,
@@ -152,7 +152,7 @@
     "mode": "shadow",
     "min_sources": 2,
     "verified": 0,
-    "pending": 6,
+    "pending": 4,
     "conflicts": 0,
     "unmapped": 0
   },
