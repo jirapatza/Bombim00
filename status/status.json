@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-28T12:20:00.000+07:00",
-  "last_run_date_thai": "28/11/2026 12:20:00",
-  "total_checks": 20143,
-  "last_source_used": "ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 3 รายการ ส่งสำเร็จ 8 รายการ ส่งเตือนตามตาราง 19 รายการ รอผลจากแหล่งข้อมูล 6 รายการ รอหลักฐานแหล่งที่สอง 3 รายการ",
+  "last_run_timestamp": "2026-11-28T12:25:00.000+07:00",
+  "last_run_date_thai": "28/11/2026 12:25:00",
+  "total_checks": 20144,
+  "last_source_used": "ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 3 รายการ ส่งสำเร็จ 8 รายการ ส่งเตือนตามตาราง 20 รายการ รอผลจากแหล่งข้อมูล 6 รายการ รอหลักฐานแหล่งที่สอง 3 รายการ",
   "active_sources_count": 4,
   "latest_draw_detected": "2026-11-28",
   "notifications_sent_today": 8,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-28T12:25:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 3 รายการ ส่งสำเร็จ 8 รายการ ส่งเตือนตามตาราง 20 รายการ รอผลจากแหล่งข้อมูล 6 รายการ รอหลักฐานแหล่งที่สอง 3 รายการ"
+    },
     {
       "timestamp": "2026-11-28T12:20:00.000+07:00",
       "level": "INFO",
@@ -104,17 +109,12 @@
       "timestamp": "2026-11-28T10:50:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 3 รายการ ส่งสำเร็จ 6 รายการ ส่งเตือนตามตาราง 13 รายการ รอผลจากแหล่งข้อมูล 7 รายการ รอหลักฐานแหล่งที่สอง 3 รายการ"
-    },
-    {
-      "timestamp": "2026-11-28T10:45:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 2 รายการ ส่งสำเร็จ 5 รายการ ส่งเตือนตามตาราง 13 รายการ รอผลจากแหล่งข้อมูล 7 รายการ รอหลักฐานแหล่งที่สอง 2 รายการ"
     }
   ],
   "uncertain_deliveries": 0,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 300,
-  "schedule_alerts_sent_today": 19,
+  "schedule_alerts_sent_today": 20,
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [
@@ -130,17 +130,17 @@
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
+        "lottery": "ฮานอย TV",
+        "status": 404
+      },
+      {
+        "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ฮานอย STAR",
         "status": 404
       },
       {
         "source": "LotteryChecks Lao/Hanoi",
         "lottery": "ลาว HD",
-        "status": 404
-      },
-      {
-        "source": "LotteryChecks Lao/Hanoi",
-        "lottery": "ฮานอย TV",
         "status": 404
       },
       {
