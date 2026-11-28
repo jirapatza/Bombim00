@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-28T14:15:00.000+07:00",
-  "last_run_date_thai": "28/11/2026 14:15:00",
-  "total_checks": 20166,
+  "last_run_timestamp": "2026-11-28T14:20:00.000+07:00",
+  "last_run_date_thai": "28/11/2026 14:20:00",
+  "total_checks": 20167,
   "last_source_used": "ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 5 รายการ ส่งสำเร็จ 11 รายการ ส่งเตือนตามตาราง 26 รายการ รอผลจากแหล่งข้อมูล 4 รายการ รอหลักฐานแหล่งที่สอง 5 รายการ",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 5 รายการ ส่งสำเร็จ 11 รายการ ส่งเตือนตามตาราง 27 รายการ รอผลจากแหล่งข้อมูล 4 รายการ รอหลักฐานแหล่งที่สอง 5 รายการ",
   "active_sources_count": 4,
   "latest_draw_detected": "2026-11-28",
   "notifications_sent_today": 11,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-28T14:20:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 5 รายการ ส่งสำเร็จ 11 รายการ ส่งเตือนตามตาราง 27 รายการ รอผลจากแหล่งข้อมูล 4 รายการ รอหลักฐานแหล่งที่สอง 5 รายการ"
+    },
     {
       "timestamp": "2026-11-28T14:15:00.000+07:00",
       "level": "INFO",
@@ -104,17 +109,12 @@
       "timestamp": "2026-11-28T12:45:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 4 รายการ ส่งสำเร็จ 9 รายการ ส่งเตือนตามตาราง 21 รายการ รอผลจากแหล่งข้อมูล 5 รายการ รอหลักฐานแหล่งที่สอง 4 รายการ"
-    },
-    {
-      "timestamp": "2026-11-28T12:40:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 4 รายการ ส่งสำเร็จ 9 รายการ ส่งเตือนตามตาราง 21 รายการ รอผลจากแหล่งข้อมูล 5 รายการ รอหลักฐานแหล่งที่สอง 4 รายการ"
     }
   ],
   "uncertain_deliveries": 0,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 300,
-  "schedule_alerts_sent_today": 26,
+  "schedule_alerts_sent_today": 27,
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [
