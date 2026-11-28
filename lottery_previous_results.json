@@ -1,5 +1,32 @@
 [
   {
+    "ชื่อหวย": "ลาว EXTRA",
+    "หวย": "lao_extra",
+    "หมวดหวย": "lao",
+    "งวดวันที่": "2026-11-28",
+    "วันที่จัดรูปแบบ": "2026-11-28",
+    "รางวัลที่_1": "696",
+    "เลขบน_3_ตัว": "696",
+    "เลขล่าง_2_ตัว": "89",
+    "เลขท้าย_2_ตัว": "89",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-28T01:40:52.547Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "lao_extra",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
     "ชื่อหวย": "ดาวโจนส์",
     "หวย": "dowjones",
     "หมวดหวย": "foreign_stock",
