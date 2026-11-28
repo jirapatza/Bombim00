@@ -13,7 +13,7 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-28T05:30:52.610Z",
+    "เวลาที่ตรวจพบ": "2026-11-28T05:35:52.573Z",
     "สถานะการแจ้งเตือน": "sent",
     "source_family": "lotterychecks",
     "catalog_id": "hanoi_asean",
@@ -40,10 +40,37 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-28T05:30:52.610Z",
+    "เวลาที่ตรวจพบ": "2026-11-28T05:35:52.573Z",
     "สถานะการแจ้งเตือน": "sent",
     "source_family": "lotterychecks",
     "catalog_id": "hanoi_hd",
+    "verification_status": "waiting_for_evidence",
+    "verification_sources": [
+      "lotterychecks"
+    ],
+    "verification_source_count": 1,
+    "notification_channels": {
+      "browser_push": "sent"
+    }
+  },
+  {
+    "ชื่อหวย": "ฮานอย STAR",
+    "หวย": "hanoi_star",
+    "หมวดหวย": "hanoi",
+    "งวดวันที่": "2026-11-28",
+    "วันที่จัดรูปแบบ": "2026-11-28",
+    "รางวัลที่_1": "860",
+    "เลขบน_3_ตัว": "860",
+    "เลขล่าง_2_ตัว": "89",
+    "เลขท้าย_2_ตัว": "89",
+    "เลขหน้า_3_ตัว": [],
+    "เลขท้าย_3_ตัว": [],
+    "รางวัลข้างเคียงรางวัลที่_1": [],
+    "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
+    "เวลาที่ตรวจพบ": "2026-11-28T05:35:52.573Z",
+    "สถานะการแจ้งเตือน": "sent",
+    "source_family": "lotterychecks",
+    "catalog_id": "hanoi_star",
     "verification_status": "waiting_for_evidence",
     "verification_sources": [
       "lotterychecks"
@@ -67,7 +94,7 @@
     "เลขท้าย_3_ตัว": [],
     "รางวัลข้างเคียงรางวัลที่_1": [],
     "แหล่งข้อมูล": "LotteryChecks (https://lotterychecks.com)",
-    "เวลาที่ตรวจพบ": "2026-11-28T05:30:52.610Z",
+    "เวลาที่ตรวจพบ": "2026-11-28T05:35:52.573Z",
     "สถานะการแจ้งเตือน": "sent",
     "source_family": "lotterychecks",
     "catalog_id": "lao_tv",
