@@ -1,15 +1,20 @@
 {
   "system_status": "healthy",
-  "last_run_timestamp": "2026-11-28T14:00:00.000+07:00",
-  "last_run_date_thai": "28/11/2026 14:00:00",
-  "total_checks": 20163,
-  "last_source_used": "ThaiLottoAPI + LotteryChecks Lao/Hanoi + lotterychecks + glo",
-  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 5 รายการ ส่งสำเร็จ 11 รายการ ส่งเตือนตามตาราง 25 รายการ รอผลจากแหล่งข้อมูล 4 รายการ รอหลักฐานแหล่งที่สอง 5 รายการ",
+  "last_run_timestamp": "2026-11-28T14:05:00.000+07:00",
+  "last_run_date_thai": "28/11/2026 14:05:00",
+  "total_checks": 20164,
+  "last_source_used": "ThaiLottoAPI + lotterychecks + LotteryChecks Lao/Hanoi + glo",
+  "status_message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 5 รายการ ส่งสำเร็จ 11 รายการ ส่งเตือนตามตาราง 26 รายการ รอผลจากแหล่งข้อมูล 4 รายการ รอหลักฐานแหล่งที่สอง 5 รายการ",
   "active_sources_count": 4,
   "latest_draw_detected": "2026-11-28",
   "notifications_sent_today": 11,
   "notification_failures": 0,
   "recent_logs": [
+    {
+      "timestamp": "2026-11-28T14:05:00.000+07:00",
+      "level": "INFO",
+      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 5 รายการ ส่งสำเร็จ 11 รายการ ส่งเตือนตามตาราง 26 รายการ รอผลจากแหล่งข้อมูล 4 รายการ รอหลักฐานแหล่งที่สอง 5 รายการ"
+    },
     {
       "timestamp": "2026-11-28T14:00:00.000+07:00",
       "level": "INFO",
@@ -104,17 +109,12 @@
       "timestamp": "2026-11-28T12:30:00.000+07:00",
       "level": "INFO",
       "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 3 รายการ ส่งสำเร็จ 8 รายการ ส่งเตือนตามตาราง 21 รายการ รอผลจากแหล่งข้อมูล 6 รายการ รอหลักฐานแหล่งที่สอง 3 รายการ"
-    },
-    {
-      "timestamp": "2026-11-28T12:25:00.000+07:00",
-      "level": "INFO",
-      "message": "Cloudflare ตรวจทุก 5 นาที พบผลวันนี้ 3 รายการ ส่งสำเร็จ 8 รายการ ส่งเตือนตามตาราง 20 รายการ รอผลจากแหล่งข้อมูล 6 รายการ รอหลักฐานแหล่งที่สอง 3 รายการ"
     }
   ],
   "uncertain_deliveries": 0,
   "checker_mode": "cloudflare",
   "poll_interval_seconds": 300,
-  "schedule_alerts_sent_today": 25,
+  "schedule_alerts_sent_today": 26,
   "schedule_alert_failures": 0,
   "source_checks": {
     "waiting": [
